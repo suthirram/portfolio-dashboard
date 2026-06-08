@@ -1,0 +1,20 @@
+version: '3.8'
+
+# Development mode: only MongoDB in Docker
+# Run backend with: cd backend && go run .
+# Run frontend with: cd frontend && npm run dev
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: portfolio_mongo_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: portfolio
+
+volumes:
+  mongo_data_dev:
+    driver: local
