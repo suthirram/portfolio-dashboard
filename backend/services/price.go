@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -32,16 +33,17 @@ func NewPriceService() *PriceService {
 	}
 }
 
-// Yahoo Finance v7 quote response shape
-type yahooQuoteResp struct {
-	QuoteResponse struct {
+// Yahoo Finance v8 chart response shape
+type yahooChartResp struct {
+	Chart struct {
 		Result []struct {
-			Symbol             string  `json:"symbol"`
-			RegularMarketPrice float64 `json:"regularMarketPrice"`
-			Currency           string  `json:"currency"`
+			Meta struct {
+				Currency           string  `json:"currency"`
+				RegularMarketPrice float64 `json:"regularMarketPrice"`
+			} `json:"meta"`
 		} `json:"result"`
 		Error interface{} `json:"error"`
-	} `json:"quoteResponse"`
+	} `json:"chart"`
 }
 
 // GetPrice fetches the current price for a Yahoo Finance symbol.
@@ -56,18 +58,18 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 	}
 	s.cacheMu.RUnlock()
 
-	url := fmt.Sprintf(
-		"https://query1.finance.yahoo.com/v7/finance/quote?symbols=%s&fields=regularMarketPrice,currency",
-		symbol,
+	endpoint := fmt.Sprintf(
+		"https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&range=1d",
+		url.PathEscape(symbol),
 	)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return 0, "", err
 	}
-	// Yahoo requires a realistic User-Agent
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Cookie", "GUC=AQEBCAFm")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -79,18 +81,18 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 		return 0, "", fmt.Errorf("yahoo returned %d for symbol %s", resp.StatusCode, symbol)
 	}
 
-	var yr yahooQuoteResp
+	var yr yahooChartResp
 	if err := json.NewDecoder(resp.Body).Decode(&yr); err != nil {
 		return 0, "", fmt.Errorf("decode error for %s: %w", symbol, err)
 	}
 
-	if len(yr.QuoteResponse.Result) == 0 {
+	if len(yr.Chart.Result) == 0 {
 		return 0, "", fmt.Errorf("no quote result for symbol %s", symbol)
 	}
 
-	r := yr.QuoteResponse.Result[0]
-	price = r.RegularMarketPrice
-	currency = r.Currency
+	meta := yr.Chart.Result[0].Meta
+	price = meta.RegularMarketPrice
+	currency = meta.Currency
 
 	// Store in cache
 	s.cacheMu.Lock()
@@ -101,11 +103,15 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 }
 
 // GetForexRate returns how many `to` units equal 1 `from` unit.
-// e.g. GetForexRate("INR","EUR") → ~0.011
+// e.g. GetForexRate("INR","EUR") → ~0.0091
+// Fetches the inverse pair (EURINR=X) which Yahoo quotes natively, then inverts.
 func (s *PriceService) GetForexRate(from, to string) (float64, error) {
-	symbol := fmt.Sprintf("%s%s=X", strings.ToUpper(from), strings.ToUpper(to))
+	symbol := fmt.Sprintf("%s%s=X", strings.ToUpper(to), strings.ToUpper(from))
 	price, _, err := s.GetPrice(symbol)
-	return price, err
+	if err != nil || price == 0 {
+		return 0, err
+	}
+	return 1 / price, nil
 }
 
 // GetMultiplePrices fetches prices for a slice of symbols concurrently.
