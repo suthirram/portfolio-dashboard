@@ -116,7 +116,7 @@ func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
 				message = fmt.Sprintf("%v", m)
 			}
 			if httpErr.Internal != nil {
-				log.ErrorContext(ctx, "http error with internal cause",
+				log.LogAttrs(ctx, levelForStatus(status), "http error with internal cause",
 					slog.Int("status", status),
 					slog.String("path", c.Request().URL.Path),
 					slog.String("message", message),
