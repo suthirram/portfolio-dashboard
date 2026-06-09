@@ -170,6 +170,7 @@ paths:
                     type: string
                   price:
                     type: number
+                    format: double
                   currency:
                     type: string
         "400":
@@ -207,6 +208,7 @@ paths:
                     type: string
                   rate:
                     type: number
+                    format: double
                     description: 1 unit of `from` in `to`
 
 components:
@@ -231,12 +233,15 @@ components:
           enum: [stock, etf]
         stocks_owned:
           type: number
+          format: double
           description: Current quantity held
         avg_cost_price:
           type: number
+          format: double
           description: Average purchase price per share (INR for Indian stocks)
         realized_pnl:
           type: number
+          format: double
           description: Profit/loss from shares already sold
         notes:
           type: string
@@ -263,12 +268,15 @@ components:
           enum: [stock, etf]
         stocks_owned:
           type: number
+          format: double
           default: 0
         avg_cost_price:
           type: number
+          format: double
           default: 0
         realized_pnl:
           type: number
+          format: double
           default: 0
         notes:
           type: string
@@ -280,23 +288,31 @@ components:
           properties:
             current_price:
               type: number
+              format: double
             cost_price:
               type: number
+              format: double
               description: stocks_owned × avg_cost_price
             current_value:
               type: number
+              format: double
               description: stocks_owned × current_price
             unrealized_pnl:
               type: number
+              format: double
               description: current_value − cost_price
             cost_price_eur:
               type: number
+              format: double
             current_value_eur:
               type: number
+              format: double
             unrealized_pnl_eur:
               type: number
+              format: double
             realized_pnl_eur:
               type: number
+              format: double
             price_error:
               type: string
 
@@ -309,6 +325,7 @@ components:
             $ref: "#/components/schemas/HoldingWithPrice"
         eur_rate:
           type: number
+          format: double
           description: Live INR→EUR rate used for conversions
 
     Summary:
@@ -316,22 +333,31 @@ components:
       properties:
         total_cost:
           type: number
+          format: double
         total_current_value:
           type: number
+          format: double
         total_unrealized:
           type: number
+          format: double
         total_realized:
           type: number
+          format: double
         total_cost_eur:
           type: number
+          format: double
         total_current_value_eur:
           type: number
+          format: double
         total_unrealized_eur:
           type: number
+          format: double
         total_realized_eur:
           type: number
+          format: double
         eur_rate:
           type: number
+          format: double
 
     Error:
       type: object
