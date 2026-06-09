@@ -3,15 +3,13 @@ package httpserver
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/api"
@@ -19,44 +17,47 @@ import (
 	"portfolio-dashboard/internal/config"
 )
 
-// New builds an *http.Server with routes and middleware wired up.
-func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers.Handler) *http.Server {
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(RequestLogger(logger))
-	r.Use(Recoverer(logger))
-	r.Use(middleware.Timeout(cfg.RequestTimeout))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		MaxAge:         300,
+// New builds an *echo.Echo with routes and middleware wired up.
+func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers.Handler) *echo.Echo {
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+	e.StdLogger = slog.NewLogLogger(logger.Handler(), slog.LevelError)
+
+	e.Server.ReadTimeout = cfg.ReadTimeout
+	e.Server.WriteTimeout = cfg.WriteTimeout
+	e.Server.IdleTimeout = cfg.IdleTimeout
+
+	e.Use(middleware.RequestID())
+	e.Use(RequestLogger(logger))
+	e.Use(middleware.Recover())
+	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		Timeout: cfg.RequestTimeout,
+	}))
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token"},
+		MaxAge:       300,
 	}))
 
-	r.Get("/api/healthz", healthHandler(db))
-	r.Get("/api/openapi.yaml", openAPIHandler())
+	e.GET("/api/healthz", healthHandler(db))
+	e.File("/api/openapi.yaml", "api/openapi.yaml")
 
 	strict := api.NewStrictHandler(h, nil)
-	api.HandlerFromMuxWithBaseURL(strict, r, "/api")
+	api.RegisterHandlersWithBaseURL(e, strict, "/api")
 
-	return &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      r,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
-		ErrorLog:     slog.NewLogLogger(logger.Handler(), slog.LevelError),
-	}
+	return e
 }
 
-// Run starts srv and blocks until ctx is cancelled or the server fails.
+// Run starts e and blocks until ctx is cancelled or the server fails.
 // On ctx cancellation it performs a graceful shutdown bounded by shutdownTimeout.
-func Run(ctx context.Context, srv *http.Server, logger *slog.Logger, shutdownTimeout time.Duration) error {
+func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logger) error {
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("http server listening", slog.String("addr", srv.Addr))
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		addr := ":" + cfg.Port
+		logger.Info("http server listening", slog.String("addr", addr))
+		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
 		}
@@ -68,34 +69,26 @@ func Run(ctx context.Context, srv *http.Server, logger *slog.Logger, shutdownTim
 		return err
 	case <-ctx.Done():
 		logger.Info("shutdown signal received, draining connections",
-			slog.Duration("timeout", shutdownTimeout))
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			slog.Duration("timeout", cfg.ShutdownTimeout))
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
+		if err := e.Shutdown(shutdownCtx); err != nil {
 			return err
 		}
 		return <-errCh
 	}
 }
 
-func healthHandler(db *mongo.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+func healthHandler(db *mongo.Database) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Second)
 		defer cancel()
-
-		w.Header().Set("Content-Type", "application/json")
 		if err := db.Client().Ping(ctx, nil); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "unhealthy", "error": err.Error()})
-			return
+			return c.JSON(http.StatusServiceUnavailable, map[string]string{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			})
 		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	}
-}
-
-func openAPIHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/yaml")
-		http.ServeFile(w, r, "api/openapi.yaml")
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	}
 }
