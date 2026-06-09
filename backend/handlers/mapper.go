@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/models"
 )
@@ -66,7 +68,7 @@ func holdingToAPI(h models.Holding) api.Holding {
 // holdingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
 // All monetary values are normalised to INR; EUR equivalents are also populated.
 // eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
-func holdingWithPriceToAPI(hld models.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
+func holdingWithPriceToAPI(ctx context.Context, hld models.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
 	isEUR := hld.Currency == "EUR"
 	currency := hld.Currency
 	if currency == "" {
@@ -103,7 +105,7 @@ func holdingWithPriceToAPI(hld models.Holding, ps priceFetcher, eurRate float64)
 	}
 
 	if hld.Symbol != "" {
-		price, _, priceErr := ps.GetPrice(hld.Symbol)
+		price, _, priceErr := ps.GetPrice(ctx, hld.Symbol)
 		if priceErr != nil {
 			errMsg := priceErr.Error()
 			hwp.PriceError = &errMsg
