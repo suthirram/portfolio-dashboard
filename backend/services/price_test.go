@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"math"
 	"net/http"
@@ -47,7 +48,7 @@ func TestGetPrice_ReturnsLivePriceAndCurrency(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	price, currency, err := ps.GetPrice("TCS.NS")
+	price, currency, err := ps.GetPrice(context.Background(), "TCS.NS")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -70,8 +71,9 @@ func TestGetPrice_CachesResultOnSecondCall(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	ps.GetPrice("VWCE.DE")
-	ps.GetPrice("VWCE.DE")
+	ctx := context.Background()
+	ps.GetPrice(ctx, "VWCE.DE")
+	ps.GetPrice(ctx, "VWCE.DE")
 
 	if calls != 1 {
 		t.Errorf("expected exactly 1 HTTP call, got %d (cache miss on second call)", calls)
@@ -88,7 +90,8 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	ps.GetPrice("VWCE.DE")
+	ctx := context.Background()
+	ps.GetPrice(ctx, "VWCE.DE")
 
 	// Backdate the cache entry past TTL without sleeping.
 	ps.cacheMu.Lock()
@@ -97,7 +100,7 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	ps.cache["VWCE.DE"] = entry
 	ps.cacheMu.Unlock()
 
-	ps.GetPrice("VWCE.DE")
+	ps.GetPrice(ctx, "VWCE.DE")
 
 	if calls != 2 {
 		t.Errorf("expected 2 HTTP calls after TTL expiry, got %d", calls)
@@ -106,7 +109,7 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 
 func TestGetForexRate_InvertsQuotedPrice(t *testing.T) {
 	// Yahoo quotes EURINR=X ≈ 90 (1 EUR = 90 INR).
-	// GetForexRate("INR","EUR") must return 1/90 (how many EUR per 1 INR).
+	// GetForexRate(ctx, "INR","EUR") must return 1/90 (how many EUR per 1 INR).
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(makeYahooResponse(90.0, "INR"))
@@ -114,7 +117,7 @@ func TestGetForexRate_InvertsQuotedPrice(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	rate, err := ps.GetForexRate("INR", "EUR")
+	rate, err := ps.GetForexRate(context.Background(), "INR", "EUR")
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -135,9 +138,9 @@ func TestGetForexRate_BuildsCorrectSymbol(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	ps.GetForexRate("INR", "EUR")
+	ps.GetForexRate(context.Background(), "INR", "EUR")
 
-	// GetForexRate("INR","EUR") should look up "EURINR=X".
+	// GetForexRate(ctx, "INR","EUR") should look up "EURINR=X".
 	// r.URL.Path is decoded by the HTTP layer, so %3D appears as =.
 	if capturedPath != "/v8/finance/chart/EURINR=X" {
 		t.Errorf("unexpected path %q, want /v8/finance/chart/EURINR=X", capturedPath)

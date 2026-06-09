@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -20,7 +21,7 @@ type mockPriceFetcher struct {
 	forexRate  float64
 }
 
-func (m *mockPriceFetcher) GetPrice(symbol string) (float64, string, error) {
+func (m *mockPriceFetcher) GetPrice(_ context.Context, symbol string) (float64, string, error) {
 	p, ok := m.prices[symbol]
 	if !ok {
 		return 0, "", errors.New("symbol not found: " + symbol)
@@ -32,7 +33,7 @@ func (m *mockPriceFetcher) GetPrice(symbol string) (float64, string, error) {
 	return p, cur, nil
 }
 
-func (m *mockPriceFetcher) GetForexRate(_, _ string) (float64, error) {
+func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64, error) {
 	return m.forexRate, nil
 }
 
@@ -187,7 +188,7 @@ func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 		AvgCostPrice: 3000.0,
 		RealizedPnL:  500.0,
 	}
-	got := holdingWithPriceToAPI(hld, ps, testEurRate)
+	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	// cost_price  = 10 × 3000 = 30 000 INR
 	// cost_eur    = 30 000 × 0.011 = 330 EUR
@@ -229,7 +230,7 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 		AvgCostPrice: 100.0, // EUR per share
 		RealizedPnL:  50.0,  // EUR
 	}
-	got := holdingWithPriceToAPI(hld, ps, testEurRate)
+	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	// cost_eur  = 5 × 100 = 500 EUR  (native)
 	// cost_inr  = 500 / 0.011 ≈ 45 454.5 INR
@@ -272,7 +273,7 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 		StocksOwned:  2,
 		AvgCostPrice: 1500.0,
 	}
-	got := holdingWithPriceToAPI(hld, ps, testEurRate)
+	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if *got.Currency != "INR" {
 		t.Errorf("Currency = %q, want INR for empty currency", *got.Currency)
@@ -290,7 +291,7 @@ func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 		Symbol:   "",
 		Currency: "INR",
 	}
-	got := holdingWithPriceToAPI(hld, ps, testEurRate)
+	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if got.CurrentPrice != nil {
 		t.Errorf("CurrentPrice should be nil for empty symbol, got %v", *got.CurrentPrice)
@@ -310,7 +311,7 @@ func TestHoldingWithPriceToAPI_PriceErrorSetsErrorField(t *testing.T) {
 		Symbol:   "UNKNOWN.NS",
 		Currency: "INR",
 	}
-	got := holdingWithPriceToAPI(hld, ps, testEurRate)
+	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if got.PriceError == nil {
 		t.Error("PriceError should be set when GetPrice fails")

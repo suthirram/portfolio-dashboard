@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,15 +45,14 @@ type yahooChartResp struct {
 				RegularMarketPrice float64 `json:"regularMarketPrice"`
 			} `json:"meta"`
 		} `json:"result"`
-		Error interface{} `json:"error"`
+		Error any `json:"error"`
 	} `json:"chart"`
 }
 
 // GetPrice fetches the current price for a Yahoo Finance symbol.
 // For NSE stocks append ".NS" (e.g. "TCS.NS"), for BSE append ".BO".
 // US symbols are plain (e.g. "AAPL").
-func (s *PriceService) GetPrice(symbol string) (price float64, currency string, err error) {
-	// Check cache first
+func (s *PriceService) GetPrice(ctx context.Context, symbol string) (price float64, currency string, err error) {
 	s.cacheMu.RLock()
 	if c, ok := s.cache[symbol]; ok && time.Since(c.fetchedAt) < s.cacheTTL {
 		s.cacheMu.RUnlock()
@@ -66,7 +66,7 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 		url.PathEscape(symbol),
 	)
 
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return 0, "", err
 	}
@@ -106,11 +106,11 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 }
 
 // GetForexRate returns how many `to` units equal 1 `from` unit.
-// e.g. GetForexRate("INR","EUR") → ~0.0091
+// e.g. GetForexRate(ctx, "INR","EUR") → ~0.0091
 // Fetches the inverse pair (EURINR=X) which Yahoo quotes natively, then inverts.
-func (s *PriceService) GetForexRate(from, to string) (float64, error) {
+func (s *PriceService) GetForexRate(ctx context.Context, from, to string) (float64, error) {
 	symbol := fmt.Sprintf("%s%s=X", strings.ToUpper(to), strings.ToUpper(from))
-	price, _, err := s.GetPrice(symbol)
+	price, _, err := s.GetPrice(ctx, symbol)
 	if err != nil || price == 0 {
 		return 0, err
 	}

@@ -18,8 +18,8 @@ import (
 
 // priceFetcher abstracts PriceService for testing.
 type priceFetcher interface {
-	GetPrice(symbol string) (float64, string, error)
-	GetForexRate(from, to string) (float64, error)
+	GetPrice(ctx context.Context, symbol string) (float64, string, error)
+	GetForexRate(ctx context.Context, from, to string) (float64, error)
 }
 
 // Handler implements api.StrictServerInterface.
@@ -75,7 +75,7 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 
 	var holding models.Holding
 	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&holding); err != nil {
-		if err == mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
 		return nil, err
@@ -145,7 +145,9 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	}
 
 	var updated models.Holding
-	h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&updated)
+	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&updated); err != nil {
+		return nil, err
+	}
 	resp := api.UpdateHolding200JSONResponse(holdingToAPI(updated))
 	return resp, nil
 }
@@ -183,20 +185,21 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 	defer cur.Close(dbCtx)
 
 	var holdings []models.Holding
-	cur.All(dbCtx, &holdings)
+	if err := cur.All(dbCtx, &holdings); err != nil {
+		return nil, err
+	}
 
-	eurRate, err := h.priceService.GetForexRate("INR", "EUR")
+	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
 		if err == nil {
-			err = errors.New("eur rate is zero")
+			err = errors.New("EUR rate is zero")
 		}
-		return nil, fmt.Errorf("eurRate fetching error : %w", err)
-
+		return nil, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
 	for _, hld := range holdings {
-		hwp := holdingWithPriceToAPI(hld, h.priceService, eurRate)
+		hwp := holdingWithPriceToAPI(ctx, hld, h.priceService, eurRate)
 		results = append(results, hwp)
 	}
 
@@ -214,9 +217,11 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 	defer cur.Close(dbCtx)
 
 	var holdings []models.Holding
-	cur.All(dbCtx, &holdings)
+	if err := cur.All(dbCtx, &holdings); err != nil {
+		return nil, err
+	}
 
-	eurRate, err := h.priceService.GetForexRate("INR", "EUR")
+	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
 		eurRate = 0.011
 	}
@@ -237,7 +242,7 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 		totalRealized += realized
 
 		if hld.Symbol != "" && hld.StocksOwned > 0 {
-			if price, _, err := h.priceService.GetPrice(hld.Symbol); err == nil {
+			if price, _, err := h.priceService.GetPrice(ctx, hld.Symbol); err == nil {
 				var cv float64
 				if isEUR {
 					cv = (hld.StocksOwned * price) / eurRate
@@ -268,9 +273,9 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 	}, nil
 }
 
-func (h *Handler) GetMarketPrice(_ context.Context, request api.GetMarketPriceRequestObject) (api.GetMarketPriceResponseObject, error) {
+func (h *Handler) GetMarketPrice(ctx context.Context, request api.GetMarketPriceRequestObject) (api.GetMarketPriceResponseObject, error) {
 	symbol := request.Params.Symbol
-	price, currency, err := h.priceService.GetPrice(symbol)
+	price, currency, err := h.priceService.GetPrice(ctx, symbol)
 	if err != nil {
 		errMsg := err.Error()
 		return api.GetMarketPrice502JSONResponse{BadGatewayJSONResponse: api.BadGatewayJSONResponse{Error: &errMsg}}, nil
@@ -278,7 +283,7 @@ func (h *Handler) GetMarketPrice(_ context.Context, request api.GetMarketPriceRe
 	return api.GetMarketPrice200JSONResponse{Symbol: &symbol, Price: &price, Currency: &currency}, nil
 }
 
-func (h *Handler) GetForexRate(_ context.Context, request api.GetForexRateRequestObject) (api.GetForexRateResponseObject, error) {
+func (h *Handler) GetForexRate(ctx context.Context, request api.GetForexRateRequestObject) (api.GetForexRateResponseObject, error) {
 	from := "INR"
 	to := "EUR"
 	if request.Params.From != nil {
@@ -288,7 +293,7 @@ func (h *Handler) GetForexRate(_ context.Context, request api.GetForexRateReques
 		to = *request.Params.To
 	}
 
-	rate, err := h.priceService.GetForexRate(from, to)
+	rate, err := h.priceService.GetForexRate(ctx, from, to)
 	if err != nil {
 		errMsg := err.Error()
 		return nil, &forexError{errMsg}
