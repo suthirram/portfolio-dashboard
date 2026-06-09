@@ -15,8 +15,10 @@ import (
 	"portfolio-dashboard/internal/logging"
 )
 
-// newTestEcho wires RequestID + RequestLogger and returns the captured log buffer.
-func newTestEcho(t *testing.T) (*echo.Echo, *bytes.Buffer) {
+// newTestEcho wires RequestID + RequestLogger and returns the echo instance,
+// the captured log buffer, and the base logger so tests can also install the
+// HTTP error handler against the same sink.
+func newTestEcho(t *testing.T) (*echo.Echo, *bytes.Buffer, *slog.Logger) {
 	t.Helper()
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -24,11 +26,11 @@ func newTestEcho(t *testing.T) (*echo.Echo, *bytes.Buffer) {
 	e.HideBanner = true
 	e.Use(middleware.RequestID())
 	e.Use(RequestLogger(logger))
-	return e, &buf
+	return e, &buf, logger
 }
 
 func TestRequestLogger_EmitsAccessLineWithRequestID(t *testing.T) {
-	e, buf := newTestEcho(t)
+	e, buf, _ := newTestEcho(t)
 	e.GET("/ok", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
@@ -56,7 +58,7 @@ func TestRequestLogger_EmitsAccessLineWithRequestID(t *testing.T) {
 }
 
 func TestRequestLogger_InjectsRequestIDLoggerOnContext(t *testing.T) {
-	e, buf := newTestEcho(t)
+	e, buf, _ := newTestEcho(t)
 
 	var headerID string
 	e.GET("/probe", func(c echo.Context) error {
@@ -104,7 +106,7 @@ func TestRequestLogger_LevelTracksStatus(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			e, buf := newTestEcho(t)
+			e, buf, _ := newTestEcho(t)
 			e.GET("/x", func(c echo.Context) error {
 				return c.NoContent(tc.status)
 			})

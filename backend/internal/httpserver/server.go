@@ -4,6 +4,7 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/handlers"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/logging"
 )
 
 // New builds an *echo.Echo with routes and middleware wired up.
@@ -85,10 +87,16 @@ func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logg
 
 // errorHandler renders errors in the OpenAPI Error shape ({"error": "..."})
 // so non-strict routes match the contract used by generated handlers.
-func errorHandler(logger *slog.Logger) echo.HTTPErrorHandler {
+func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		if c.Response().Committed {
 			return
+		}
+
+		ctx := c.Request().Context()
+		log := base
+		if l, ok := logging.FromContext(ctx); ok {
+			log = l
 		}
 
 		status := http.StatusInternalServerError
@@ -97,20 +105,33 @@ func errorHandler(logger *slog.Logger) echo.HTTPErrorHandler {
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			status = httpErr.Code
-			if m, ok := httpErr.Message.(string); ok && m != "" {
-				message = m
-			} else if httpErr.Message != nil {
-				message = http.StatusText(status)
+			switch m := httpErr.Message.(type) {
+			case nil:
+				// keep default StatusText
+			case string:
+				if m != "" {
+					message = m
+				}
+			default:
+				message = fmt.Sprintf("%v", m)
+			}
+			if httpErr.Internal != nil {
+				log.ErrorContext(ctx, "http error with internal cause",
+					slog.Int("status", status),
+					slog.String("path", c.Request().URL.Path),
+					slog.String("message", message),
+					slog.String("internal", httpErr.Internal.Error()),
+				)
 			}
 		} else {
-			logger.ErrorContext(c.Request().Context(), "unhandled error",
+			log.ErrorContext(ctx, "unhandled error",
 				slog.String("path", c.Request().URL.Path),
 				slog.String("error", err.Error()),
 			)
 		}
 
 		if writeErr := c.JSON(status, map[string]string{"error": message}); writeErr != nil {
-			logger.ErrorContext(c.Request().Context(), "failed writing error response",
+			log.ErrorContext(ctx, "failed writing error response",
 				slog.String("error", writeErr.Error()),
 			)
 		}
