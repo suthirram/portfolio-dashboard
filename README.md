@@ -4,9 +4,10 @@ A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs.
 
 ## Stack
 - **Frontend**: React + Vite + Recharts
-- **Backend**: Go (chi router) with OpenAPI spec
+- **Backend**: Go (chi router, cobra CLI) with OpenAPI spec
 - **Database**: MongoDB (Docker)
-- **Prices**: Yahoo Finance API (live, 5-min cache)
+- **Prices**: Yahoo Finance v8 API (live, 5-min cache)
+- **Currencies**: INR and EUR holdings; live INR↔EUR forex rate
 
 ## Columns tracked
 
@@ -51,7 +52,7 @@ docker compose -f docker-compose.dev.yml up -d
 ```bash
 cd backend
 go mod tidy          # first time only
-go run .
+go run . serve
 # API runs on http://localhost:8080
 ```
 
@@ -101,10 +102,12 @@ Full spec: `/api/openapi.yaml`
 ## Environment variables
 
 ### Backend
-| Var | Default | Description |
+| Var / Flag | Default | Description |
 |---|---|---|
-| `MONGODB_URI` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
-| `PORT` | `8080` | Server port |
+| `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
+| `PORT` / `--port` | `8080` | Server port |
+
+Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
 
 ### Frontend
 | Var | Default | Description |
