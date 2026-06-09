@@ -1,6 +1,6 @@
 package: api
 generate:
-  chi-server: true
+  echo-server: true
   strict-server: true
   models: true
 output: api/api.gen.go

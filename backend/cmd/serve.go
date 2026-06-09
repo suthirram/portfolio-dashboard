@@ -74,9 +74,9 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	defer disconnect()
 
 	h := handlers.New(database, logger)
-	srv := httpserver.New(cfg, logger, database, h)
+	e := httpserver.New(cfg, logger, database, h)
 
-	if err := httpserver.Run(ctx, srv, logger, cfg.ShutdownTimeout); err != nil {
+	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {
 		logger.Error("server terminated with error", slog.String("error", err.Error()))
 		return err
 	}

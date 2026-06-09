@@ -7,7 +7,7 @@ import (
 	"portfolio-dashboard/models"
 )
 
-func validCurrency(s string) bool { return s == "INR" || s == "EUR" }
+func validCurrency[T ~string](s T) bool { return s == "INR" || s == "EUR" }
 
 // holdingFromInput maps a DTO (HoldingInput) to a DBO (models.Holding).
 // Currency defaults to INR; invalid values are rejected and fall back to INR.
@@ -31,7 +31,7 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 		h.RealizedPnL = *input.RealizedPnl
 	}
 	if input.Currency != nil && validCurrency(*input.Currency) {
-		h.Currency = *input.Currency
+		h.Currency = string(*input.Currency)
 	}
 	if input.Notes != nil {
 		h.Notes = *input.Notes
@@ -45,9 +45,9 @@ func holdingToAPI(h models.Holding) api.Holding {
 	id := h.ID.Hex()
 	exchange := api.HoldingExchange(h.Exchange)
 	holdingType := api.HoldingType(h.Type)
-	currency := h.Currency
+	currency := api.HoldingCurrency(h.Currency)
 	if currency == "" {
-		currency = "INR"
+		currency = api.HoldingCurrencyINR
 	}
 	return api.Holding{
 		Id:           &id,
@@ -70,9 +70,9 @@ func holdingToAPI(h models.Holding) api.Holding {
 // eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
 func holdingWithPriceToAPI(ctx context.Context, hld models.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
 	isEUR := hld.Currency == "EUR"
-	currency := hld.Currency
+	currency := api.HoldingWithPriceCurrency(hld.Currency)
 	if currency == "" {
-		currency = "INR"
+		currency = api.HoldingWithPriceCurrency("INR")
 	}
 
 	var costPrice, costPriceEUR, realizedPnLEUR float64

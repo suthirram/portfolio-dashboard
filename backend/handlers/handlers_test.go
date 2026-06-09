@@ -84,7 +84,7 @@ func TestHoldingToAPI_MapsAllFields(t *testing.T) {
 		{"StocksOwned", *got.StocksOwned, 10.0},
 		{"AvgCostPrice", *got.AvgCostPrice, 100.5},
 		{"RealizedPnl", *got.RealizedPnl, 50.0},
-		{"Currency", *got.Currency, "EUR"},
+		{"Currency", string(*got.Currency), "EUR"},
 		{"Notes", *got.Notes, "some notes"},
 	}
 	for _, c := range checks {
@@ -105,7 +105,7 @@ func TestHoldingFromInput_DefaultsCurrencyToINR(t *testing.T) {
 }
 
 func TestHoldingFromInput_AcceptsEUR(t *testing.T) {
-	cur := "EUR"
+	cur := api.HoldingInputCurrency("EUR")
 	input := api.HoldingInput{Script: "VWCE", Exchange: "OTHER", Type: "etf", Currency: &cur}
 	got := holdingFromInput(input)
 	if got.Currency != "EUR" {
@@ -114,7 +114,7 @@ func TestHoldingFromInput_AcceptsEUR(t *testing.T) {
 }
 
 func TestHoldingFromInput_AcceptsINR(t *testing.T) {
-	cur := "INR"
+	cur := api.HoldingInputCurrency("INR")
 	input := api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Currency: &cur}
 	got := holdingFromInput(input)
 	if got.Currency != "INR" {
@@ -123,7 +123,7 @@ func TestHoldingFromInput_AcceptsINR(t *testing.T) {
 }
 
 func TestHoldingFromInput_RejectsInvalidCurrencyFallsBackToINR(t *testing.T) {
-	cur := "USD"
+	cur := api.HoldingInputCurrency("USD")
 	input := api.HoldingInput{Script: "AAPL", Exchange: "NASDAQ", Type: "stock", Currency: &cur}
 	got := holdingFromInput(input)
 	if got.Currency != "INR" {

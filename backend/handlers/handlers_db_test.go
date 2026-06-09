@@ -66,7 +66,7 @@ func TestIntegration_CreateHolding_EUR(t *testing.T) {
 		sym := "VWCE.DE"
 		qty := 5.0
 		avg := 100.0
-		cur := "EUR"
+		cur := api.HoldingInputCurrency("EUR")
 		resp, err := h.CreateHolding(context.Background(), api.CreateHoldingRequestObject{
 			Body: &api.HoldingInput{
 				Script:       "VWCE",
@@ -140,7 +140,7 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 
 		byScript := map[string]string{}
 		for _, h := range list {
-			byScript[*h.Script] = *h.Currency
+			byScript[*h.Script] = string(*h.Currency)
 		}
 		if byScript["TCS"] != "INR" {
 			t.Errorf("TCS currency = %q, want INR", byScript["TCS"])
@@ -174,7 +174,7 @@ func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
-		cur := "EUR"
+		cur := api.HoldingInputCurrency("EUR")
 		resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
 			Id: id.Hex(),
 			Body: &api.HoldingInput{

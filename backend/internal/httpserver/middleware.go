@@ -2,61 +2,50 @@ package httpserver
 
 import (
 	"log/slog"
-	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/labstack/echo/v4"
+
+	"portfolio-dashboard/internal/logging"
 )
 
-// RequestLogger emits one structured log line per HTTP request.
-// Severity tracks the response status: 5xx → error, 4xx → warn, else info.
-func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// RequestLogger emits one structured log line per HTTP request and stashes a
+// request-scoped logger (carrying request_id) on the request context so
+// downstream handlers can correlate their own log lines.
+//
+// Must be installed AFTER middleware.RequestID so the response header is
+// already populated when this middleware reads it.
+func RequestLogger(base *slog.Logger) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
 			start := time.Now()
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-			defer func() {
-				logger.LogAttrs(r.Context(), levelForStatus(ww.Status()),
-					"http_request",
-					slog.String("request_id", middleware.GetReqID(r.Context())),
-					slog.String("method", r.Method),
-					slog.String("path", r.URL.Path),
-					slog.String("query", r.URL.RawQuery),
-					slog.String("remote", r.RemoteAddr),
-					slog.String("user_agent", r.UserAgent()),
-					slog.Int("status", ww.Status()),
-					slog.Int("bytes", ww.BytesWritten()),
-					slog.Duration("duration", time.Since(start)),
-				)
-			}()
+			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+			reqLogger := base.With(slog.String("request_id", reqID))
+			ctx := logging.IntoContext(c.Request().Context(), reqLogger)
+			c.SetRequest(c.Request().WithContext(ctx))
 
-			next.ServeHTTP(ww, r)
-		})
-	}
-}
+			err := next(c)
+			if err != nil {
+				c.Error(err)
+			}
 
-// Recoverer turns panics into a 500 response and logs them at error level.
-func Recoverer(logger *slog.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				rec := recover()
-				if rec == nil || rec == http.ErrAbortHandler {
-					if rec == http.ErrAbortHandler {
-						panic(rec)
-					}
-					return
-				}
-				logger.ErrorContext(r.Context(), "panic recovered",
-					slog.String("request_id", middleware.GetReqID(r.Context())),
-					slog.String("path", r.URL.Path),
-					slog.Any("panic", rec),
-				)
-				w.WriteHeader(http.StatusInternalServerError)
-			}()
-			next.ServeHTTP(w, r)
-		})
+			req := c.Request()
+			res := c.Response()
+			base.LogAttrs(ctx, levelForStatus(res.Status),
+				"http_request",
+				slog.String("request_id", reqID),
+				slog.String("method", req.Method),
+				slog.String("path", req.URL.Path),
+				slog.String("query", req.URL.RawQuery),
+				slog.String("remote", c.RealIP()),
+				slog.String("user_agent", req.UserAgent()),
+				slog.Int("status", res.Status),
+				slog.Int64("bytes", res.Size),
+				slog.Duration("duration", time.Since(start)),
+			)
+			return nil
+		}
 	}
 }
 

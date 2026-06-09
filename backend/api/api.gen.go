@@ -7,14 +7,31 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/labstack/echo/v4"
 	"github.com/oapi-codegen/runtime"
 )
+
+// Defines values for HoldingCurrency.
+const (
+	HoldingCurrencyEUR HoldingCurrency = "EUR"
+	HoldingCurrencyINR HoldingCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the HoldingCurrency enum.
+func (e HoldingCurrency) Valid() bool {
+	switch e {
+	case HoldingCurrencyEUR:
+		return true
+	case HoldingCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HoldingExchange.
 const (
@@ -61,6 +78,24 @@ func (e HoldingType) Valid() bool {
 	}
 }
 
+// Defines values for HoldingInputCurrency.
+const (
+	HoldingInputCurrencyEUR HoldingInputCurrency = "EUR"
+	HoldingInputCurrencyINR HoldingInputCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the HoldingInputCurrency enum.
+func (e HoldingInputCurrency) Valid() bool {
+	switch e {
+	case HoldingInputCurrencyEUR:
+		return true
+	case HoldingInputCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HoldingInputExchange.
 const (
 	HoldingInputExchangeBSE    HoldingInputExchange = "BSE"
@@ -100,6 +135,24 @@ func (e HoldingInputType) Valid() bool {
 	case HoldingInputTypeEtf:
 		return true
 	case HoldingInputTypeStock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HoldingWithPriceCurrency.
+const (
+	EUR HoldingWithPriceCurrency = "EUR"
+	INR HoldingWithPriceCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the HoldingWithPriceCurrency enum.
+func (e HoldingWithPriceCurrency) Valid() bool {
+	switch e {
+	case EUR:
+		return true
+	case INR:
 		return true
 	default:
 		return false
@@ -159,11 +212,11 @@ type Error struct {
 // Holding defines model for Holding.
 type Holding struct {
 	// AvgCostPrice Average purchase price per share in the holding's currency
-	AvgCostPrice *float64         `json:"avg_cost_price,omitempty"`
-	CreatedAt    *time.Time       `json:"created_at,omitempty"`
+	AvgCostPrice *float64   `json:"avg_cost_price,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
 
 	// Currency Currency in which avg_cost_price and realized_pnl are denominated
-	Currency *string          `json:"currency,omitempty"`
+	Currency *HoldingCurrency `json:"currency,omitempty"`
 	Exchange *HoldingExchange `json:"exchange,omitempty"`
 
 	// Id MongoDB ObjectID
@@ -185,6 +238,9 @@ type Holding struct {
 	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
 }
 
+// HoldingCurrency Currency in which avg_cost_price and realized_pnl are denominated
+type HoldingCurrency string
+
 // HoldingExchange defines model for Holding.Exchange.
 type HoldingExchange string
 
@@ -193,17 +249,21 @@ type HoldingType string
 
 // HoldingInput defines model for HoldingInput.
 type HoldingInput struct {
-	AvgCostPrice *float64             `json:"avg_cost_price,omitempty"`
+	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
+
 	// Currency Currency in which avg_cost_price and realized_pnl are denominated
-	Currency     *string              `json:"currency,omitempty"`
-	Exchange     HoldingInputExchange `json:"exchange"`
-	Notes        *string              `json:"notes,omitempty"`
-	RealizedPnl  *float64             `json:"realized_pnl,omitempty"`
-	Script       string               `json:"script"`
-	StocksOwned  *float64             `json:"stocks_owned,omitempty"`
-	Symbol       *string              `json:"symbol,omitempty"`
-	Type         HoldingInputType     `json:"type"`
+	Currency    *HoldingInputCurrency `json:"currency,omitempty"`
+	Exchange    HoldingInputExchange  `json:"exchange"`
+	Notes       *string               `json:"notes,omitempty"`
+	RealizedPnl *float64              `json:"realized_pnl,omitempty"`
+	Script      string                `json:"script"`
+	StocksOwned *float64              `json:"stocks_owned,omitempty"`
+	Symbol      *string               `json:"symbol,omitempty"`
+	Type        HoldingInputType      `json:"type"`
 }
+
+// HoldingInputCurrency Currency in which avg_cost_price and realized_pnl are denominated
+type HoldingInputCurrency string
 
 // HoldingInputExchange defines model for HoldingInput.Exchange.
 type HoldingInputExchange string
@@ -216,14 +276,14 @@ type HoldingWithPrice struct {
 	// AvgCostPrice Average purchase price per share in the holding's currency
 	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
 
-	// CostPrice stocks_owned × avg_cost_price, normalised to INR
+	// CostPrice stocks_owned × avg_cost_price
 	CostPrice    *float64   `json:"cost_price,omitempty"`
 	CostPriceEur *float64   `json:"cost_price_eur,omitempty"`
 	CreatedAt    *time.Time `json:"created_at,omitempty"`
-	CurrentPrice *float64   `json:"current_price,omitempty"`
 
 	// Currency Currency in which avg_cost_price and realized_pnl are denominated
-	Currency *string `json:"currency,omitempty"`
+	Currency     *HoldingWithPriceCurrency `json:"currency,omitempty"`
+	CurrentPrice *float64                  `json:"current_price,omitempty"`
 
 	// CurrentValue stocks_owned × current_price
 	CurrentValue    *float64                  `json:"current_value,omitempty"`
@@ -235,7 +295,7 @@ type HoldingWithPrice struct {
 	Notes      *string `json:"notes,omitempty"`
 	PriceError *string `json:"price_error,omitempty"`
 
-	// RealizedPnl Profit/loss from shares already sold
+	// RealizedPnl Profit/loss from shares already sold, in the holding's currency
 	RealizedPnl    *float64 `json:"realized_pnl,omitempty"`
 	RealizedPnlEur *float64 `json:"realized_pnl_eur,omitempty"`
 
@@ -254,6 +314,9 @@ type HoldingWithPrice struct {
 	UnrealizedPnlEur *float64   `json:"unrealized_pnl_eur,omitempty"`
 	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
 }
+
+// HoldingWithPriceCurrency Currency in which avg_cost_price and realized_pnl are denominated
+type HoldingWithPriceCurrency string
 
 // HoldingWithPriceExchange defines model for HoldingWithPrice.Exchange.
 type HoldingWithPriceExchange string
@@ -312,455 +375,222 @@ type UpdateHoldingJSONRequestBody = HoldingInput
 type ServerInterface interface {
 	// List all holdings
 	// (GET /holdings)
-	ListHoldings(w http.ResponseWriter, r *http.Request)
+	ListHoldings(ctx echo.Context) error
 	// Add a new holding
 	// (POST /holdings)
-	CreateHolding(w http.ResponseWriter, r *http.Request)
+	CreateHolding(ctx echo.Context) error
 	// Delete a holding
 	// (DELETE /holdings/{id})
-	DeleteHolding(w http.ResponseWriter, r *http.Request, id string)
+	DeleteHolding(ctx echo.Context, id string) error
 	// Get a single holding
 	// (GET /holdings/{id})
-	GetHolding(w http.ResponseWriter, r *http.Request, id string)
+	GetHolding(ctx echo.Context, id string) error
 	// Update a holding
 	// (PUT /holdings/{id})
-	UpdateHolding(w http.ResponseWriter, r *http.Request, id string)
+	UpdateHolding(ctx echo.Context, id string) error
 	// Get forex exchange rate
 	// (GET /market/forex)
-	GetForexRate(w http.ResponseWriter, r *http.Request, params GetForexRateParams)
+	GetForexRate(ctx echo.Context, params GetForexRateParams) error
 	// Get live price for any symbol
 	// (GET /market/price)
-	GetMarketPrice(w http.ResponseWriter, r *http.Request, params GetMarketPriceParams)
+	GetMarketPrice(ctx echo.Context, params GetMarketPriceParams) error
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
-	GetPrices(w http.ResponseWriter, r *http.Request)
+	GetPrices(ctx echo.Context) error
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
-	GetSummary(w http.ResponseWriter, r *http.Request)
+	GetSummary(ctx echo.Context) error
 }
 
-// Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
-
-type Unimplemented struct{}
-
-// List all holdings
-// (GET /holdings)
-func (_ Unimplemented) ListHoldings(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Add a new holding
-// (POST /holdings)
-func (_ Unimplemented) CreateHolding(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Delete a holding
-// (DELETE /holdings/{id})
-func (_ Unimplemented) DeleteHolding(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get a single holding
-// (GET /holdings/{id})
-func (_ Unimplemented) GetHolding(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Update a holding
-// (PUT /holdings/{id})
-func (_ Unimplemented) UpdateHolding(w http.ResponseWriter, r *http.Request, id string) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get forex exchange rate
-// (GET /market/forex)
-func (_ Unimplemented) GetForexRate(w http.ResponseWriter, r *http.Request, params GetForexRateParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get live price for any symbol
-// (GET /market/price)
-func (_ Unimplemented) GetMarketPrice(w http.ResponseWriter, r *http.Request, params GetMarketPriceParams) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get all holdings enriched with live market prices
-// (GET /prices)
-func (_ Unimplemented) GetPrices(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Portfolio-level summary with live P&L
-// (GET /summary)
-func (_ Unimplemented) GetSummary(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// ServerInterfaceWrapper converts contexts to parameters.
+// ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
-	Handler            ServerInterface
-	HandlerMiddlewares []MiddlewareFunc
-	ErrorHandlerFunc   func(w http.ResponseWriter, r *http.Request, err error)
+	Handler ServerInterface
 }
 
-type MiddlewareFunc func(http.Handler) http.Handler
-
-// ListHoldings operation middleware
-func (siw *ServerInterfaceWrapper) ListHoldings(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListHoldings(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// CreateHolding operation middleware
-func (siw *ServerInterfaceWrapper) CreateHolding(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateHolding(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// DeleteHolding operation middleware
-func (siw *ServerInterfaceWrapper) DeleteHolding(w http.ResponseWriter, r *http.Request) {
-
+// ListHoldings converts echo context to params.
+func (w *ServerInterfaceWrapper) ListHoldings(ctx echo.Context) error {
 	var err error
-	_ = err
 
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListHoldings(ctx)
+	return err
+}
+
+// CreateHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateHolding(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateHolding(ctx)
+	return err
+}
+
+// DeleteHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteHolding(ctx echo.Context) error {
+	var err error
 	// ------------- Path parameter "id" -------------
 	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteHolding(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteHolding(ctx, id)
+	return err
 }
 
-// GetHolding operation middleware
-func (siw *ServerInterfaceWrapper) GetHolding(w http.ResponseWriter, r *http.Request) {
-
+// GetHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) GetHolding(ctx echo.Context) error {
 	var err error
-	_ = err
-
 	// ------------- Path parameter "id" -------------
 	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetHolding(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetHolding(ctx, id)
+	return err
 }
 
-// UpdateHolding operation middleware
-func (siw *ServerInterfaceWrapper) UpdateHolding(w http.ResponseWriter, r *http.Request) {
-
+// UpdateHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateHolding(ctx echo.Context) error {
 	var err error
-	_ = err
-
 	// ------------- Path parameter "id" -------------
 	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateHolding(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateHolding(ctx, id)
+	return err
 }
 
-// GetForexRate operation middleware
-func (siw *ServerInterfaceWrapper) GetForexRate(w http.ResponseWriter, r *http.Request) {
-
+// GetForexRate converts echo context to params.
+func (w *ServerInterfaceWrapper) GetForexRate(ctx echo.Context) error {
 	var err error
-	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetForexRateParams
-
 	// ------------- Optional query parameter "from" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", ctx.QueryParams(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
-		}
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter from: %s", err))
 	}
 
 	// ------------- Optional query parameter "to" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", ctx.QueryParams(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
-		}
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetForexRate(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetForexRate(ctx, params)
+	return err
 }
 
-// GetMarketPrice operation middleware
-func (siw *ServerInterfaceWrapper) GetMarketPrice(w http.ResponseWriter, r *http.Request) {
-
+// GetMarketPrice converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMarketPrice(ctx echo.Context) error {
 	var err error
-	_ = err
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetMarketPriceParams
-
 	// ------------- Required query parameter "symbol" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "symbol", r.URL.Query(), &params.Symbol, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "symbol", ctx.QueryParams(), &params.Symbol, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "symbol"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "symbol", Err: err})
-		}
-		return
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter symbol: %s", err))
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetMarketPrice(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetMarketPrice(ctx, params)
+	return err
 }
 
-// GetPrices operation middleware
-func (siw *ServerInterfaceWrapper) GetPrices(w http.ResponseWriter, r *http.Request) {
+// GetPrices converts echo context to params.
+func (w *ServerInterfaceWrapper) GetPrices(ctx echo.Context) error {
+	var err error
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetPrices(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetPrices(ctx)
+	return err
 }
 
-// GetSummary operation middleware
-func (siw *ServerInterfaceWrapper) GetSummary(w http.ResponseWriter, r *http.Request) {
+// GetSummary converts echo context to params.
+func (w *ServerInterfaceWrapper) GetSummary(ctx echo.Context) error {
+	var err error
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetSummary(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetSummary(ctx)
+	return err
 }
 
-type UnescapedCookieParamError struct {
-	ParamName string
-	Err       error
+// This is a simple interface which specifies echo.Route addition functions which
+// are present on both echo.Echo and echo.Group, since we want to allow using
+// either of them for path registration
+type EchoRouter interface {
+	CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-func (e *UnescapedCookieParamError) Error() string {
-	return fmt.Sprintf("error unescaping cookie parameter '%s'", e.ParamName)
+// RegisterHandlersOptions configures RegisterHandlersWithOptions.
+type RegisterHandlersOptions struct {
+	// BaseURL is prepended to every registered path so the API can be served
+	// under a prefix.
+	BaseURL string
+	// OperationMiddlewares lets the caller attach per-operation middleware at
+	// registration time. The map key is the OpenAPI `operationId` value as it
+	// appears in the spec (the raw, un-normalized form). Operations that have
+	// no entry are registered with no extra middleware. A nil map disables
+	// per-operation middleware entirely.
+	OperationMiddlewares map[string][]echo.MiddlewareFunc
 }
 
-func (e *UnescapedCookieParamError) Unwrap() error {
-	return e.Err
+// RegisterHandlers adds each server route to the EchoRouter.
+func RegisterHandlers(router EchoRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, RegisterHandlersOptions{})
 }
 
-type UnmarshalingParamError struct {
-	ParamName string
-	Err       error
+// RegisterHandlersWithBaseURL registers handlers and prepends BaseURL to the
+// paths so the API can be served under a prefix.
+func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL string) {
+	RegisterHandlersWithOptions(router, si, RegisterHandlersOptions{BaseURL: baseURL})
 }
 
-func (e *UnmarshalingParamError) Error() string {
-	return fmt.Sprintf("Error unmarshaling parameter %s as JSON: %s", e.ParamName, e.Err.Error())
-}
+// RegisterHandlersWithOptions registers handlers using the supplied options,
+// including any per-operation middleware.
+func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options RegisterHandlersOptions) {
 
-func (e *UnmarshalingParamError) Unwrap() error {
-	return e.Err
-}
-
-type RequiredParamError struct {
-	ParamName string
-}
-
-func (e *RequiredParamError) Error() string {
-	return fmt.Sprintf("Query argument %s is required, but not found", e.ParamName)
-}
-
-type RequiredHeaderError struct {
-	ParamName string
-	Err       error
-}
-
-func (e *RequiredHeaderError) Error() string {
-	return fmt.Sprintf("Header parameter %s is required, but not found", e.ParamName)
-}
-
-func (e *RequiredHeaderError) Unwrap() error {
-	return e.Err
-}
-
-type InvalidParamFormatError struct {
-	ParamName string
-	Err       error
-}
-
-func (e *InvalidParamFormatError) Error() string {
-	return fmt.Sprintf("Invalid format for parameter %s: %s", e.ParamName, e.Err.Error())
-}
-
-func (e *InvalidParamFormatError) Unwrap() error {
-	return e.Err
-}
-
-type TooManyValuesForParamError struct {
-	ParamName string
-	Count     int
-}
-
-func (e *TooManyValuesForParamError) Error() string {
-	return fmt.Sprintf("Expected one value for %s, got %d", e.ParamName, e.Count)
-}
-
-// Handler creates http.Handler with routing matching OpenAPI spec.
-func Handler(si ServerInterface) http.Handler {
-	return HandlerWithOptions(si, ChiServerOptions{})
-}
-
-type ChiServerOptions struct {
-	BaseURL          string
-	BaseRouter       chi.Router
-	Middlewares      []MiddlewareFunc
-	ErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
-}
-
-// HandlerFromMux creates http.Handler with routing matching OpenAPI spec based on the provided mux.
-func HandlerFromMux(si ServerInterface, r chi.Router) http.Handler {
-	return HandlerWithOptions(si, ChiServerOptions{
-		BaseRouter: r,
-	})
-}
-
-func HandlerFromMuxWithBaseURL(si ServerInterface, r chi.Router, baseURL string) http.Handler {
-	return HandlerWithOptions(si, ChiServerOptions{
-		BaseURL:    baseURL,
-		BaseRouter: r,
-	})
-}
-
-// HandlerWithOptions creates http.Handler with additional options
-func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handler {
-	r := options.BaseRouter
-
-	if r == nil {
-		r = chi.NewRouter()
-	}
-	if options.ErrorHandlerFunc == nil {
-		options.ErrorHandlerFunc = func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
-	}
 	wrapper := ServerInterfaceWrapper{
-		Handler:            si,
-		HandlerMiddlewares: options.Middlewares,
-		ErrorHandlerFunc:   options.ErrorHandlerFunc,
+		Handler: si,
 	}
 
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/holdings", wrapper.ListHoldings)
-	})
-	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/holdings", wrapper.CreateHolding)
-	})
-	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/holdings/{id}", wrapper.DeleteHolding)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/holdings/{id}", wrapper.GetHolding)
-	})
-	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/holdings/{id}", wrapper.UpdateHolding)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/market/forex", wrapper.GetForexRate)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/market/price", wrapper.GetMarketPrice)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/prices", wrapper.GetPrices)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/summary", wrapper.GetSummary)
-	})
+	router.GET(options.BaseURL+"/holdings", wrapper.ListHoldings, options.OperationMiddlewares["listHoldings"]...)
+	router.POST(options.BaseURL+"/holdings", wrapper.CreateHolding, options.OperationMiddlewares["createHolding"]...)
+	router.DELETE(options.BaseURL+"/holdings/:id", wrapper.DeleteHolding, options.OperationMiddlewares["deleteHolding"]...)
+	router.GET(options.BaseURL+"/holdings/:id", wrapper.GetHolding, options.OperationMiddlewares["getHolding"]...)
+	router.PUT(options.BaseURL+"/holdings/:id", wrapper.UpdateHolding, options.OperationMiddlewares["updateHolding"]...)
+	router.GET(options.BaseURL+"/market/forex", wrapper.GetForexRate, options.OperationMiddlewares["getForexRate"]...)
+	router.GET(options.BaseURL+"/market/price", wrapper.GetMarketPrice, options.OperationMiddlewares["getMarketPrice"]...)
+	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
+	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
 
-	return r
 }
 
 type BadGatewayJSONResponse Error
@@ -1092,271 +922,243 @@ type StrictServerInterface interface {
 	GetSummary(ctx context.Context, request GetSummaryRequestObject) (GetSummaryResponseObject, error)
 }
 
-type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
+type StrictHandlerFunc func(ctx echo.Context, request any) (any, error)
 type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
 
-type StrictHTTPServerOptions struct {
-	RequestErrorHandlerFunc  func(w http.ResponseWriter, r *http.Request, err error)
-	ResponseErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
-}
-
 func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
-	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictHTTPServerOptions{
-		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		},
-		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		},
-	}}
-}
-
-func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictHTTPServerOptions) ServerInterface {
-	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
 }
 
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
-	options     StrictHTTPServerOptions
 }
 
 // ListHoldings operation middleware
-func (sh *strictHandler) ListHoldings(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) ListHoldings(ctx echo.Context) error {
 	var request ListHoldingsRequestObject
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.ListHoldings(ctx, request.(ListHoldingsRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListHoldings(ctx.Request().Context(), request.(ListHoldingsRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "ListHoldings")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(ListHoldingsResponseObject); ok {
-		if err := validResponse.VisitListHoldingsResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitListHoldingsResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // CreateHolding operation middleware
-func (sh *strictHandler) CreateHolding(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateHolding(ctx echo.Context) error {
 	var request CreateHoldingRequestObject
 
 	var body CreateHoldingJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
+	if err := ctx.Bind(&body); err != nil {
+		return err
 	}
 	request.Body = &body
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateHolding(ctx, request.(CreateHoldingRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateHolding(ctx.Request().Context(), request.(CreateHoldingRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "CreateHolding")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(CreateHoldingResponseObject); ok {
-		if err := validResponse.VisitCreateHoldingResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitCreateHoldingResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // DeleteHolding operation middleware
-func (sh *strictHandler) DeleteHolding(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) DeleteHolding(ctx echo.Context, id string) error {
 	var request DeleteHoldingRequestObject
 
 	request.Id = id
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteHolding(ctx, request.(DeleteHoldingRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteHolding(ctx.Request().Context(), request.(DeleteHoldingRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "DeleteHolding")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(DeleteHoldingResponseObject); ok {
-		if err := validResponse.VisitDeleteHoldingResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitDeleteHoldingResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // GetHolding operation middleware
-func (sh *strictHandler) GetHolding(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) GetHolding(ctx echo.Context, id string) error {
 	var request GetHoldingRequestObject
 
 	request.Id = id
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetHolding(ctx, request.(GetHoldingRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHolding(ctx.Request().Context(), request.(GetHoldingRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetHolding")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(GetHoldingResponseObject); ok {
-		if err := validResponse.VisitGetHoldingResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitGetHoldingResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // UpdateHolding operation middleware
-func (sh *strictHandler) UpdateHolding(w http.ResponseWriter, r *http.Request, id string) {
+func (sh *strictHandler) UpdateHolding(ctx echo.Context, id string) error {
 	var request UpdateHoldingRequestObject
 
 	request.Id = id
 
 	var body UpdateHoldingJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
-		return
+	if err := ctx.Bind(&body); err != nil {
+		return err
 	}
 	request.Body = &body
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.UpdateHolding(ctx, request.(UpdateHoldingRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateHolding(ctx.Request().Context(), request.(UpdateHoldingRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "UpdateHolding")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(UpdateHoldingResponseObject); ok {
-		if err := validResponse.VisitUpdateHoldingResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitUpdateHoldingResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // GetForexRate operation middleware
-func (sh *strictHandler) GetForexRate(w http.ResponseWriter, r *http.Request, params GetForexRateParams) {
+func (sh *strictHandler) GetForexRate(ctx echo.Context, params GetForexRateParams) error {
 	var request GetForexRateRequestObject
 
 	request.Params = params
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetForexRate(ctx, request.(GetForexRateRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetForexRate(ctx.Request().Context(), request.(GetForexRateRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetForexRate")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(GetForexRateResponseObject); ok {
-		if err := validResponse.VisitGetForexRateResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitGetForexRateResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // GetMarketPrice operation middleware
-func (sh *strictHandler) GetMarketPrice(w http.ResponseWriter, r *http.Request, params GetMarketPriceParams) {
+func (sh *strictHandler) GetMarketPrice(ctx echo.Context, params GetMarketPriceParams) error {
 	var request GetMarketPriceRequestObject
 
 	request.Params = params
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetMarketPrice(ctx, request.(GetMarketPriceRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMarketPrice(ctx.Request().Context(), request.(GetMarketPriceRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetMarketPrice")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(GetMarketPriceResponseObject); ok {
-		if err := validResponse.VisitGetMarketPriceResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitGetMarketPriceResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // GetPrices operation middleware
-func (sh *strictHandler) GetPrices(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) GetPrices(ctx echo.Context) error {
 	var request GetPricesRequestObject
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetPrices(ctx, request.(GetPricesRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPrices(ctx.Request().Context(), request.(GetPricesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetPrices")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(GetPricesResponseObject); ok {
-		if err := validResponse.VisitGetPricesResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitGetPricesResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
 
 // GetSummary operation middleware
-func (sh *strictHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) GetSummary(ctx echo.Context) error {
 	var request GetSummaryRequestObject
 
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetSummary(ctx, request.(GetSummaryRequestObject))
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSummary(ctx.Request().Context(), request.(GetSummaryRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
 		handler = middleware(handler, "GetSummary")
 	}
 
-	response, err := handler(r.Context(), w, r, request)
+	response, err := handler(ctx, request)
 
 	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
+		return err
 	} else if validResponse, ok := response.(GetSummaryResponseObject); ok {
-		if err := validResponse.VisitGetSummaryResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
+		return validResponse.VisitGetSummaryResponse(ctx.Response())
 	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+		return fmt.Errorf("unexpected response type: %T", response)
 	}
+	return nil
 }
