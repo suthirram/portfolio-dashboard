@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/models"
 	"portfolio-dashboard/services"
 )
@@ -47,6 +48,16 @@ func (h *Handler) log() *slog.Logger {
 	return h.logger
 }
 
+// reqLog returns the per-request logger stashed on ctx by the RequestLogger
+// middleware (carrying request_id). Falls back to the handler-scoped logger
+// for unit tests that bypass the HTTP stack.
+func (h *Handler) reqLog(ctx context.Context) *slog.Logger {
+	if l, ok := logging.FromContext(ctx); ok {
+		return l
+	}
+	return h.log()
+}
+
 func (h *Handler) col() *mongo.Collection {
 	return h.db.Collection("holdings")
 }
@@ -60,14 +71,14 @@ func (h *Handler) ListHoldings(ctx context.Context, _ api.ListHoldingsRequestObj
 	opts := options.Find().SetSort(bson.D{{Key: "script", Value: 1}})
 	cur, err := h.col().Find(dbCtx, bson.M{}, opts)
 	if err != nil {
-		h.log().ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 	defer cur.Close(dbCtx)
 
 	var holdings []models.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {
-		h.log().ErrorContext(ctx, "list holdings decode failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).ErrorContext(ctx, "list holdings decode failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -92,7 +103,7 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
-		h.log().ErrorContext(ctx, "get holding failed",
+		h.reqLog(ctx).ErrorContext(ctx, "get holding failed",
 			slog.String("id", request.Id),
 			slog.String("error", err.Error()),
 		)
@@ -113,13 +124,13 @@ func (h *Handler) CreateHolding(ctx context.Context, request api.CreateHoldingRe
 	defer cancel()
 
 	if _, err := h.col().InsertOne(dbCtx, holding); err != nil {
-		h.log().ErrorContext(ctx, "create holding failed",
+		h.reqLog(ctx).ErrorContext(ctx, "create holding failed",
 			slog.String("script", holding.Script),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
 	}
-	h.log().InfoContext(ctx, "holding created",
+	h.reqLog(ctx).InfoContext(ctx, "holding created",
 		slog.String("id", holding.ID.Hex()),
 		slog.String("script", holding.Script),
 		slog.String("currency", holding.Currency),
@@ -154,7 +165,7 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 		update = append(update, bson.E{Key: "realized_pnl", Value: *input.RealizedPnl})
 	}
 	if input.Currency != nil && validCurrency(*input.Currency) {
-		update = append(update, bson.E{Key: "currency", Value: *input.Currency})
+		update = append(update, bson.E{Key: "currency", Value: string(*input.Currency)})
 	}
 	if input.Notes != nil {
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
@@ -165,7 +176,7 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 
 	res, err := h.col().UpdateOne(dbCtx, bson.M{"_id": id}, bson.M{"$set": update})
 	if err != nil {
-		h.log().ErrorContext(ctx, "update holding failed",
+		h.reqLog(ctx).ErrorContext(ctx, "update holding failed",
 			slog.String("id", request.Id),
 			slog.String("error", err.Error()),
 		)
@@ -177,13 +188,13 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 
 	var updated models.Holding
 	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&updated); err != nil {
-		h.log().ErrorContext(ctx, "update holding re-read failed",
+		h.reqLog(ctx).ErrorContext(ctx, "update holding re-read failed",
 			slog.String("id", request.Id),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
 	}
-	h.log().InfoContext(ctx, "holding updated", slog.String("id", request.Id))
+	h.reqLog(ctx).InfoContext(ctx, "holding updated", slog.String("id", request.Id))
 	resp := api.UpdateHolding200JSONResponse(holdingToAPI(updated))
 	return resp, nil
 }
@@ -199,7 +210,7 @@ func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRe
 
 	res, err := h.col().DeleteOne(dbCtx, bson.M{"_id": id})
 	if err != nil {
-		h.log().ErrorContext(ctx, "delete holding failed",
+		h.reqLog(ctx).ErrorContext(ctx, "delete holding failed",
 			slog.String("id", request.Id),
 			slog.String("error", err.Error()),
 		)
@@ -208,7 +219,7 @@ func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRe
 	if res.DeletedCount == 0 {
 		return api.DeleteHolding404JSONResponse{}, nil
 	}
-	h.log().InfoContext(ctx, "holding deleted", slog.String("id", request.Id))
+	h.reqLog(ctx).InfoContext(ctx, "holding deleted", slog.String("id", request.Id))
 	msg := "deleted"
 	return api.DeleteHolding200JSONResponse{Message: &msg}, nil
 }
@@ -235,7 +246,7 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 		if err == nil {
 			err = errors.New("EUR rate is zero")
 		}
-		h.log().ErrorContext(ctx, "EUR rate fetch failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).ErrorContext(ctx, "EUR rate fetch failed", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
@@ -264,7 +275,7 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 
 	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
-		h.log().WarnContext(ctx, "EUR rate unavailable, using fallback",
+		h.reqLog(ctx).WarnContext(ctx, "EUR rate unavailable, using fallback",
 			slog.Float64("fallback", 0.011),
 		)
 		eurRate = 0.011

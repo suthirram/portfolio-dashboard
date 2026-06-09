@@ -72,7 +72,7 @@ func holdingWithPriceToAPI(ctx context.Context, hld models.Holding, ps priceFetc
 	isEUR := hld.Currency == "EUR"
 	currency := api.HoldingWithPriceCurrency(hld.Currency)
 	if currency == "" {
-		currency = api.INR
+		currency = api.HoldingWithPriceCurrency("INR")
 	}
 
 	var costPrice, costPriceEUR, realizedPnLEUR float64

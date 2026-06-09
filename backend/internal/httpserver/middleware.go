@@ -5,14 +5,26 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"portfolio-dashboard/internal/logging"
 )
 
-// RequestLogger emits one structured log line per HTTP request.
-// Severity tracks the response status: 5xx → error, 4xx → warn, else info.
-func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
+// RequestLogger emits one structured log line per HTTP request and stashes a
+// request-scoped logger (carrying request_id) on the request context so
+// downstream handlers can correlate their own log lines.
+//
+// Must be installed AFTER middleware.RequestID so the response header is
+// already populated when this middleware reads it.
+func RequestLogger(base *slog.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
+
+			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
+			reqLogger := base.With(slog.String("request_id", reqID))
+			ctx := logging.IntoContext(c.Request().Context(), reqLogger)
+			c.SetRequest(c.Request().WithContext(ctx))
+
 			err := next(c)
 			if err != nil {
 				c.Error(err)
@@ -20,9 +32,9 @@ func RequestLogger(logger *slog.Logger) echo.MiddlewareFunc {
 
 			req := c.Request()
 			res := c.Response()
-			logger.LogAttrs(req.Context(), levelForStatus(res.Status),
+			base.LogAttrs(ctx, levelForStatus(res.Status),
 				"http_request",
-				slog.String("request_id", res.Header().Get(echo.HeaderXRequestID)),
+				slog.String("request_id", reqID),
 				slog.String("method", req.Method),
 				slog.String("path", req.URL.Path),
 				slog.String("query", req.URL.RawQuery),
