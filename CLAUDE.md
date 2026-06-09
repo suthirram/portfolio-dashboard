@@ -15,7 +15,7 @@ A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs. Tracks h
 make dev-db                        # or: docker compose -f docker-compose.dev.yml up -d
 
 # Backend (Go) — runs on :8080
-make backend                       # or: cd backend && go run . serve
+make backend                           # or: cd backend && go run . serve
 
 # Frontend (React/Vite) — runs on :3000
 make frontend                      # or: cd frontend && npm run dev
@@ -47,8 +47,9 @@ Go service using **chi** router and **cobra** CLI. Entry point: `main.go` calls 
 
 - `cmd/root.go` — cobra root command; registers subcommands
 - `cmd/serve.go` — `serve` subcommand; wires MongoDB, creates the `Handler`, and registers all routes under `/api`
-- `handlers/handlers.go` — all HTTP handlers in one file (`Handler` struct owns `*mongo.Database` + `*PriceService`)
-- `services/price.go` — `PriceService` hits Yahoo Finance v7 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
+- `handlers/handlers.go` — HTTP handlers; `Handler` struct owns `*mongo.Database` + `priceFetcher` interface
+- `handlers/mapper.go` — DBO↔DTO conversion helpers (`holdingFromInput`, `holdingToAPI`, `holdingWithPriceToAPI`)
+- `services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
 - `models/holding.go` — `Holding` struct (MongoDB document model)
 - `db/mongo.go` — MongoDB connection + index creation
 - `api/openapi.yaml` — served live at `/api/openapi.yaml`
