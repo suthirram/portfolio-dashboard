@@ -1,9 +1,11 @@
+// Package handlers implements the strict OpenAPI server interface.
 package handlers
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,13 +28,23 @@ type priceFetcher interface {
 type Handler struct {
 	db           *mongo.Database
 	priceService priceFetcher
+	logger       *slog.Logger
 }
 
-func New(db *mongo.Database) *Handler {
+// New builds a Handler with the default PriceService.
+func New(db *mongo.Database, logger *slog.Logger) *Handler {
 	return &Handler{
 		db:           db,
-		priceService: services.NewPriceService(),
+		priceService: services.NewPriceService(logger),
+		logger:       logger,
 	}
+}
+
+func (h *Handler) log() *slog.Logger {
+	if h.logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return h.logger
 }
 
 func (h *Handler) col() *mongo.Collection {
@@ -48,18 +60,20 @@ func (h *Handler) ListHoldings(ctx context.Context, _ api.ListHoldingsRequestObj
 	opts := options.Find().SetSort(bson.D{{Key: "script", Value: 1}})
 	cur, err := h.col().Find(dbCtx, bson.M{}, opts)
 	if err != nil {
+		h.log().ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 	defer cur.Close(dbCtx)
 
 	var holdings []models.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {
+		h.log().ErrorContext(ctx, "list holdings decode failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	out := make(api.ListHoldings200JSONResponse, 0, len(holdings))
-	for _, h := range holdings {
-		out = append(out, holdingToAPI(h))
+	for _, hld := range holdings {
+		out = append(out, holdingToAPI(hld))
 	}
 	return out, nil
 }
@@ -78,6 +92,10 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
+		h.log().ErrorContext(ctx, "get holding failed",
+			slog.String("id", request.Id),
+			slog.String("error", err.Error()),
+		)
 		return nil, err
 	}
 	resp := api.GetHolding200JSONResponse(holdingToAPI(holding))
@@ -95,8 +113,17 @@ func (h *Handler) CreateHolding(ctx context.Context, request api.CreateHoldingRe
 	defer cancel()
 
 	if _, err := h.col().InsertOne(dbCtx, holding); err != nil {
+		h.log().ErrorContext(ctx, "create holding failed",
+			slog.String("script", holding.Script),
+			slog.String("error", err.Error()),
+		)
 		return nil, err
 	}
+	h.log().InfoContext(ctx, "holding created",
+		slog.String("id", holding.ID.Hex()),
+		slog.String("script", holding.Script),
+		slog.String("currency", holding.Currency),
+	)
 	resp := api.CreateHolding201JSONResponse(holdingToAPI(holding))
 	return resp, nil
 }
@@ -138,6 +165,10 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 
 	res, err := h.col().UpdateOne(dbCtx, bson.M{"_id": id}, bson.M{"$set": update})
 	if err != nil {
+		h.log().ErrorContext(ctx, "update holding failed",
+			slog.String("id", request.Id),
+			slog.String("error", err.Error()),
+		)
 		return nil, err
 	}
 	if res.MatchedCount == 0 {
@@ -146,8 +177,13 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 
 	var updated models.Holding
 	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&updated); err != nil {
+		h.log().ErrorContext(ctx, "update holding re-read failed",
+			slog.String("id", request.Id),
+			slog.String("error", err.Error()),
+		)
 		return nil, err
 	}
+	h.log().InfoContext(ctx, "holding updated", slog.String("id", request.Id))
 	resp := api.UpdateHolding200JSONResponse(holdingToAPI(updated))
 	return resp, nil
 }
@@ -163,11 +199,16 @@ func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRe
 
 	res, err := h.col().DeleteOne(dbCtx, bson.M{"_id": id})
 	if err != nil {
+		h.log().ErrorContext(ctx, "delete holding failed",
+			slog.String("id", request.Id),
+			slog.String("error", err.Error()),
+		)
 		return nil, err
 	}
 	if res.DeletedCount == 0 {
 		return api.DeleteHolding404JSONResponse{}, nil
 	}
+	h.log().InfoContext(ctx, "holding deleted", slog.String("id", request.Id))
 	msg := "deleted"
 	return api.DeleteHolding200JSONResponse{Message: &msg}, nil
 }
@@ -194,13 +235,13 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 		if err == nil {
 			err = errors.New("EUR rate is zero")
 		}
+		h.log().ErrorContext(ctx, "EUR rate fetch failed", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
 	for _, hld := range holdings {
-		hwp := holdingWithPriceToAPI(ctx, hld, h.priceService, eurRate)
-		results = append(results, hwp)
+		results = append(results, holdingWithPriceToAPI(ctx, hld, h.priceService, eurRate))
 	}
 
 	return api.GetPrices200JSONResponse{Holdings: &results, EurRate: &eurRate}, nil
@@ -223,6 +264,9 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 
 	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
+		h.log().WarnContext(ctx, "EUR rate unavailable, using fallback",
+			slog.Float64("fallback", 0.011),
+		)
 		eurRate = 0.011
 	}
 
