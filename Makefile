@@ -15,7 +15,7 @@ down:
 
 # Run backend locally
 backend:
-	cd backend && go run .
+	cd backend && go run . serve
 
 # Run frontend locally
 frontend:
