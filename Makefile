@@ -29,6 +29,10 @@ install:
 tidy:
 	cd backend && go mod tidy
 
+# Generate API types and server interface from OpenAPI spec
+generate:
+	cd backend && go generate ./...
+
 # Full local dev (start mongo, then open two tabs for backend + frontend)
 dev: dev-db
 	@echo ""

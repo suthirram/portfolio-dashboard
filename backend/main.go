@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"portfolio-dashboard/api"
 	"portfolio-dashboard/db"
 	"portfolio-dashboard/handlers"
 )
@@ -33,8 +34,6 @@ func main() {
 		log.Printf("Warning: index creation failed: %v", err)
 	}
 
-	h := handlers.New(database)
-
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -46,25 +45,14 @@ func main() {
 		MaxAge:         300,
 	}))
 
-	// Serve OpenAPI spec
 	r.Get("/api/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/yaml")
 		http.ServeFile(w, r, "api/openapi.yaml")
 	})
 
-	r.Route("/api", func(r chi.Router) {
-		r.Route("/holdings", func(r chi.Router) {
-			r.Get("/", h.ListHoldings)
-			r.Post("/", h.CreateHolding)
-			r.Get("/{id}", h.GetHolding)
-			r.Put("/{id}", h.UpdateHolding)
-			r.Delete("/{id}", h.DeleteHolding)
-		})
-		r.Get("/prices", h.GetPrices)
-		r.Get("/summary", h.GetSummary)
-		r.Get("/market/price", h.GetMarketPrice)
-		r.Get("/market/forex", h.GetForexRate)
-	})
+	h := handlers.New(database)
+	strictHandler := api.NewStrictHandler(h, nil)
+	api.HandlerFromMuxWithBaseURL(strictHandler, r, "/api")
 
 	log.Printf("Portfolio API listening on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))

@@ -114,36 +114,3 @@ func (s *PriceService) GetForexRate(from, to string) (float64, error) {
 	return 1 / price, nil
 }
 
-// GetMultiplePrices fetches prices for a slice of symbols concurrently.
-// Returns a map of symbol → price; symbols that error are omitted.
-func (s *PriceService) GetMultiplePrices(symbols []string) map[string]float64 {
-	type result struct {
-		symbol string
-		price  float64
-	}
-
-	ch := make(chan result, len(symbols))
-	sem := make(chan struct{}, 5) // max 5 concurrent requests
-
-	for _, sym := range symbols {
-		go func(sym string) {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			p, _, err := s.GetPrice(sym)
-			if err == nil {
-				ch <- result{sym, p}
-			} else {
-				ch <- result{sym, 0}
-			}
-		}(sym)
-	}
-
-	out := make(map[string]float64, len(symbols))
-	for range symbols {
-		r := <-ch
-		if r.price > 0 {
-			out[r.symbol] = r.price
-		}
-	}
-	return out
-}
