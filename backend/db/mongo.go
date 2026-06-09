@@ -1,34 +1,42 @@
+// Package db owns the MongoDB connection and index management.
 package db
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func Connect(ctx context.Context, uri string) (*mongo.Client, error) {
-	opts := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(ctx, opts)
+// Connect dials MongoDB and verifies the connection with a Ping.
+func Connect(ctx context.Context, uri string, logger *slog.Logger) (*mongo.Client, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, err
 	}
 	if err := client.Ping(ctx, nil); err != nil {
 		return nil, err
 	}
-	log.Println("Connected to MongoDB")
+	logger.Info("mongodb connected")
 	return client, nil
 }
 
-// EnsureIndexes creates indexes on the holdings collection
-func EnsureIndexes(ctx context.Context, db *mongo.Database) error {
-	col := db.Collection("holdings")
-	_, err := col.Indexes().CreateMany(ctx, []mongo.IndexModel{
+// EnsureIndexes creates the indexes used by the holdings collection.
+func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *slog.Logger) error {
+	col := database.Collection("holdings")
+	names, err := col.Indexes().CreateMany(ctx, []mongo.IndexModel{
 		{Keys: bson.D{{Key: "script", Value: 1}}},
 		{Keys: bson.D{{Key: "symbol", Value: 1}}},
 		{Keys: bson.D{{Key: "exchange", Value: 1}}},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	logger.Info("mongodb indexes ensured",
+		slog.String("collection", "holdings"),
+		slog.Any("indexes", names),
+	)
+	return nil
 }
