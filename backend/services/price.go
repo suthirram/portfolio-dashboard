@@ -19,15 +19,17 @@ type cachedPrice struct {
 
 // PriceService fetches live quotes from Yahoo Finance
 type PriceService struct {
-	client    *http.Client
-	cache     map[string]cachedPrice
-	cacheMu   sync.RWMutex
-	cacheTTL  time.Duration
+	client   *http.Client
+	baseURL  string
+	cache    map[string]cachedPrice
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 func NewPriceService() *PriceService {
 	return &PriceService{
 		client:   &http.Client{Timeout: 12 * time.Second},
+		baseURL:  "https://query1.finance.yahoo.com",
 		cache:    make(map[string]cachedPrice),
 		cacheTTL: 5 * time.Minute,
 	}
@@ -59,7 +61,8 @@ func (s *PriceService) GetPrice(symbol string) (price float64, currency string, 
 	s.cacheMu.RUnlock()
 
 	endpoint := fmt.Sprintf(
-		"https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&range=1d",
+		"%s/v8/finance/chart/%s?interval=1d&range=1d",
+		s.baseURL,
 		url.PathEscape(symbol),
 	)
 
@@ -113,4 +116,3 @@ func (s *PriceService) GetForexRate(from, to string) (float64, error) {
 	}
 	return 1 / price, nil
 }
-

@@ -158,16 +158,19 @@ type Error struct {
 
 // Holding defines model for Holding.
 type Holding struct {
-	// AvgCostPrice Average purchase price per share (INR for Indian stocks)
+	// AvgCostPrice Average purchase price per share in the holding's currency
 	AvgCostPrice *float64         `json:"avg_cost_price,omitempty"`
 	CreatedAt    *time.Time       `json:"created_at,omitempty"`
-	Exchange     *HoldingExchange `json:"exchange,omitempty"`
+
+	// Currency Currency in which avg_cost_price and realized_pnl are denominated
+	Currency *string          `json:"currency,omitempty"`
+	Exchange *HoldingExchange `json:"exchange,omitempty"`
 
 	// Id MongoDB ObjectID
 	Id    *string `json:"id,omitempty"`
 	Notes *string `json:"notes,omitempty"`
 
-	// RealizedPnl Profit/loss from shares already sold
+	// RealizedPnl Profit/loss from shares already sold, in the holding's currency
 	RealizedPnl *float64 `json:"realized_pnl,omitempty"`
 
 	// Script Display name (e.g. "TCS", "GOLD BEES")
@@ -191,6 +194,8 @@ type HoldingType string
 // HoldingInput defines model for HoldingInput.
 type HoldingInput struct {
 	AvgCostPrice *float64             `json:"avg_cost_price,omitempty"`
+	// Currency Currency in which avg_cost_price and realized_pnl are denominated
+	Currency     *string              `json:"currency,omitempty"`
 	Exchange     HoldingInputExchange `json:"exchange"`
 	Notes        *string              `json:"notes,omitempty"`
 	RealizedPnl  *float64             `json:"realized_pnl,omitempty"`
@@ -208,14 +213,17 @@ type HoldingInputType string
 
 // HoldingWithPrice defines model for HoldingWithPrice.
 type HoldingWithPrice struct {
-	// AvgCostPrice Average purchase price per share (INR for Indian stocks)
+	// AvgCostPrice Average purchase price per share in the holding's currency
 	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
 
-	// CostPrice stocks_owned × avg_cost_price
+	// CostPrice stocks_owned × avg_cost_price, normalised to INR
 	CostPrice    *float64   `json:"cost_price,omitempty"`
 	CostPriceEur *float64   `json:"cost_price_eur,omitempty"`
 	CreatedAt    *time.Time `json:"created_at,omitempty"`
 	CurrentPrice *float64   `json:"current_price,omitempty"`
+
+	// Currency Currency in which avg_cost_price and realized_pnl are denominated
+	Currency *string `json:"currency,omitempty"`
 
 	// CurrentValue stocks_owned × current_price
 	CurrentValue    *float64                  `json:"current_value,omitempty"`

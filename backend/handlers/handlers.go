@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,10 +16,16 @@ import (
 	"portfolio-dashboard/services"
 )
 
+// priceFetcher abstracts PriceService for testing.
+type priceFetcher interface {
+	GetPrice(symbol string) (float64, string, error)
+	GetForexRate(from, to string) (float64, error)
+}
+
 // Handler implements api.StrictServerInterface.
 type Handler struct {
 	db           *mongo.Database
-	priceService *services.PriceService
+	priceService priceFetcher
 }
 
 func New(db *mongo.Database) *Handler {
@@ -118,6 +126,9 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	if input.RealizedPnl != nil {
 		update = append(update, bson.E{Key: "realized_pnl", Value: *input.RealizedPnl})
 	}
+	if input.Currency != nil && validCurrency(*input.Currency) {
+		update = append(update, bson.E{Key: "currency", Value: *input.Currency})
+	}
 	if input.Notes != nil {
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
 	}
@@ -176,7 +187,11 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 
 	eurRate, err := h.priceService.GetForexRate("INR", "EUR")
 	if err != nil || eurRate == 0 {
-		eurRate = 0.011
+		if err == nil {
+			err = errors.New("eur rate is zero")
+		}
+		return nil, fmt.Errorf("eurRate fetching error : %w", err)
+
 	}
 
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
@@ -208,13 +223,27 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 
 	var totalCost, totalCurrentValue, totalUnrealized, totalRealized float64
 	for _, hld := range holdings {
-		cost := hld.StocksOwned * hld.AvgCostPrice
+		isEUR := hld.Currency == "EUR"
+
+		var cost, realized float64
+		if isEUR {
+			cost = (hld.StocksOwned * hld.AvgCostPrice) / eurRate
+			realized = hld.RealizedPnL / eurRate
+		} else {
+			cost = hld.StocksOwned * hld.AvgCostPrice
+			realized = hld.RealizedPnL
+		}
 		totalCost += cost
-		totalRealized += hld.RealizedPnL
+		totalRealized += realized
 
 		if hld.Symbol != "" && hld.StocksOwned > 0 {
 			if price, _, err := h.priceService.GetPrice(hld.Symbol); err == nil {
-				cv := hld.StocksOwned * price
+				var cv float64
+				if isEUR {
+					cv = (hld.StocksOwned * price) / eurRate
+				} else {
+					cv = hld.StocksOwned * price
+				}
 				totalCurrentValue += cv
 				totalUnrealized += cv - cost
 			}
@@ -273,94 +302,3 @@ func (h *Handler) GetForexRate(_ context.Context, request api.GetForexRateReques
 type forexError struct{ msg string }
 
 func (e *forexError) Error() string { return e.msg }
-
-// ── Conversion helpers ─────────────────────────────────────────────────────
-
-func holdingToAPI(h models.Holding) api.Holding {
-	id := h.ID.Hex()
-	exchange := api.HoldingExchange(h.Exchange)
-	holdingType := api.HoldingType(h.Type)
-	return api.Holding{
-		Id:           &id,
-		Script:       &h.Script,
-		Symbol:       &h.Symbol,
-		Exchange:     &exchange,
-		Type:         &holdingType,
-		StocksOwned:  &h.StocksOwned,
-		AvgCostPrice: &h.AvgCostPrice,
-		RealizedPnl:  &h.RealizedPnL,
-		Notes:        &h.Notes,
-		CreatedAt:    &h.CreatedAt,
-		UpdatedAt:    &h.UpdatedAt,
-	}
-}
-
-func holdingFromInput(input api.HoldingInput) models.Holding {
-	h := models.Holding{
-		Script:   input.Script,
-		Exchange: string(input.Exchange),
-		Type:     string(input.Type),
-	}
-	if input.Symbol != nil {
-		h.Symbol = *input.Symbol
-	}
-	if input.StocksOwned != nil {
-		h.StocksOwned = *input.StocksOwned
-	}
-	if input.AvgCostPrice != nil {
-		h.AvgCostPrice = *input.AvgCostPrice
-	}
-	if input.RealizedPnl != nil {
-		h.RealizedPnL = *input.RealizedPnl
-	}
-	if input.Notes != nil {
-		h.Notes = *input.Notes
-	}
-	return h
-}
-
-func holdingWithPriceToAPI(hld models.Holding, ps *services.PriceService, eurRate float64) api.HoldingWithPrice {
-	costPrice := hld.StocksOwned * hld.AvgCostPrice
-	costPriceEUR := costPrice * eurRate
-	realizedPnLEUR := hld.RealizedPnL * eurRate
-
-	hwp := api.HoldingWithPrice{
-		Id:             ptr(hld.ID.Hex()),
-		Script:         &hld.Script,
-		Symbol:         &hld.Symbol,
-		Exchange:       (*api.HoldingWithPriceExchange)(&hld.Exchange),
-		Type:           (*api.HoldingWithPriceType)(&hld.Type),
-		StocksOwned:    &hld.StocksOwned,
-		AvgCostPrice:   &hld.AvgCostPrice,
-		RealizedPnl:    &hld.RealizedPnL,
-		Notes:          &hld.Notes,
-		CreatedAt:      &hld.CreatedAt,
-		UpdatedAt:      &hld.UpdatedAt,
-		CostPrice:      &costPrice,
-		CostPriceEur:   &costPriceEUR,
-		RealizedPnlEur: &realizedPnLEUR,
-	}
-
-	if hld.Symbol != "" {
-		price, _, priceErr := ps.GetPrice(hld.Symbol)
-		if priceErr != nil {
-			errMsg := priceErr.Error()
-			hwp.PriceError = &errMsg
-		} else {
-			currentValue := hld.StocksOwned * price
-			unrealizedPnL := currentValue - costPrice
-			currentValueEUR := currentValue * eurRate
-			unrealizedPnLEUR := unrealizedPnL * eurRate
-
-			hwp.CurrentPrice = &price
-			hwp.CurrentValue = &currentValue
-			hwp.UnrealizedPnl = &unrealizedPnL
-			hwp.CurrentValueEur = &currentValueEUR
-			hwp.UnrealizedPnlEur = &unrealizedPnLEUR
-		}
-	}
-
-	return hwp
-}
-
-func ptr[T any](v T) *T { return &v }

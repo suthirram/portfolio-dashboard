@@ -14,8 +14,9 @@ type Holding struct {
 	Exchange     string             `bson:"exchange" json:"exchange"`         // NSE, BSE, NYSE, NASDAQ
 	Type         string             `bson:"type" json:"type"`                 // stock | etf
 	StocksOwned  float64            `bson:"stocks_owned" json:"stocks_owned"` // current quantity held
-	AvgCostPrice float64            `bson:"avg_cost_price" json:"avg_cost_price"` // average buy price per share
-	RealizedPnL  float64            `bson:"realized_pnl" json:"realized_pnl"`     // profit/loss from already-sold shares
+	AvgCostPrice float64            `bson:"avg_cost_price" json:"avg_cost_price"` // average buy price per share, in Currency
+	RealizedPnL  float64            `bson:"realized_pnl" json:"realized_pnl"`     // profit/loss from sold shares, in Currency
+	Currency     string             `bson:"currency" json:"currency"`             // "INR" or "EUR"; defaults to "INR"
 	Notes        string             `bson:"notes,omitempty" json:"notes,omitempty"`
 	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
