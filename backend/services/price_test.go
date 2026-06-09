@@ -88,10 +88,15 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	ps.cacheTTL = 50 * time.Millisecond
-
 	ps.GetPrice("VWCE.DE")
-	time.Sleep(60 * time.Millisecond)
+
+	// Backdate the cache entry past TTL without sleeping.
+	ps.cacheMu.Lock()
+	entry := ps.cache["VWCE.DE"]
+	entry.fetchedAt = time.Now().Add(-10 * time.Minute)
+	ps.cache["VWCE.DE"] = entry
+	ps.cacheMu.Unlock()
+
 	ps.GetPrice("VWCE.DE")
 
 	if calls != 2 {

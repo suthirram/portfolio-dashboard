@@ -126,7 +126,7 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	if input.RealizedPnl != nil {
 		update = append(update, bson.E{Key: "realized_pnl", Value: *input.RealizedPnl})
 	}
-	if input.Currency != nil && (*input.Currency == "EUR" || *input.Currency == "INR") {
+	if input.Currency != nil && validCurrency(*input.Currency) {
 		update = append(update, bson.E{Key: "currency", Value: *input.Currency})
 	}
 	if input.Notes != nil {

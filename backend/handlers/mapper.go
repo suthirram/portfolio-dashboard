@@ -5,6 +5,8 @@ import (
 	"portfolio-dashboard/models"
 )
 
+func validCurrency(s string) bool { return s == "INR" || s == "EUR" }
+
 // holdingFromInput maps a DTO (HoldingInput) to a DBO (models.Holding).
 // Currency defaults to INR; invalid values are rejected and fall back to INR.
 func holdingFromInput(input api.HoldingInput) models.Holding {
@@ -26,7 +28,7 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 	if input.RealizedPnl != nil {
 		h.RealizedPnL = *input.RealizedPnl
 	}
-	if input.Currency != nil && (*input.Currency == "EUR" || *input.Currency == "INR") {
+	if input.Currency != nil && validCurrency(*input.Currency) {
 		h.Currency = *input.Currency
 	}
 	if input.Notes != nil {

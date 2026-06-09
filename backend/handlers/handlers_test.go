@@ -169,7 +169,10 @@ func TestHoldingFromInput_PopulatesOptionalFields(t *testing.T) {
 
 const testEurRate = 0.011 // 1 INR = 0.011 EUR  →  1 EUR ≈ 90.909 INR
 
-func approxEqual(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
+func approxEqual(a, b float64) bool {
+	const eps = 1e-9
+	return math.Abs(a-b) <= eps*math.Max(1.0, math.Max(math.Abs(a), math.Abs(b)))
+}
 
 func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 	ps := &mockPriceFetcher{
