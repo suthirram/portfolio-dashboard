@@ -118,6 +118,9 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	if input.RealizedPnl != nil {
 		update = append(update, bson.E{Key: "realized_pnl", Value: *input.RealizedPnl})
 	}
+	if input.Currency != nil && (*input.Currency == "EUR" || *input.Currency == "INR") {
+		update = append(update, bson.E{Key: "currency", Value: *input.Currency})
+	}
 	if input.Notes != nil {
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
 	}
@@ -208,13 +211,27 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 
 	var totalCost, totalCurrentValue, totalUnrealized, totalRealized float64
 	for _, hld := range holdings {
-		cost := hld.StocksOwned * hld.AvgCostPrice
+		isEUR := hld.Currency == "EUR"
+
+		var cost, realized float64
+		if isEUR {
+			cost = (hld.StocksOwned * hld.AvgCostPrice) / eurRate
+			realized = hld.RealizedPnL / eurRate
+		} else {
+			cost = hld.StocksOwned * hld.AvgCostPrice
+			realized = hld.RealizedPnL
+		}
 		totalCost += cost
-		totalRealized += hld.RealizedPnL
+		totalRealized += realized
 
 		if hld.Symbol != "" && hld.StocksOwned > 0 {
 			if price, _, err := h.priceService.GetPrice(hld.Symbol); err == nil {
-				cv := hld.StocksOwned * price
+				var cv float64
+				if isEUR {
+					cv = (hld.StocksOwned * price) / eurRate
+				} else {
+					cv = hld.StocksOwned * price
+				}
 				totalCurrentValue += cv
 				totalUnrealized += cv - cost
 			}
@@ -280,6 +297,10 @@ func holdingToAPI(h models.Holding) api.Holding {
 	id := h.ID.Hex()
 	exchange := api.HoldingExchange(h.Exchange)
 	holdingType := api.HoldingType(h.Type)
+	currency := h.Currency
+	if currency == "" {
+		currency = "INR"
+	}
 	return api.Holding{
 		Id:           &id,
 		Script:       &h.Script,
@@ -289,6 +310,7 @@ func holdingToAPI(h models.Holding) api.Holding {
 		StocksOwned:  &h.StocksOwned,
 		AvgCostPrice: &h.AvgCostPrice,
 		RealizedPnl:  &h.RealizedPnL,
+		Currency:     &currency,
 		Notes:        &h.Notes,
 		CreatedAt:    &h.CreatedAt,
 		UpdatedAt:    &h.UpdatedAt,
@@ -300,6 +322,7 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 		Script:   input.Script,
 		Exchange: string(input.Exchange),
 		Type:     string(input.Type),
+		Currency: "INR",
 	}
 	if input.Symbol != nil {
 		h.Symbol = *input.Symbol
@@ -313,6 +336,9 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 	if input.RealizedPnl != nil {
 		h.RealizedPnL = *input.RealizedPnl
 	}
+	if input.Currency != nil && (*input.Currency == "EUR" || *input.Currency == "INR") {
+		h.Currency = *input.Currency
+	}
 	if input.Notes != nil {
 		h.Notes = *input.Notes
 	}
@@ -320,9 +346,24 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 }
 
 func holdingWithPriceToAPI(hld models.Holding, ps *services.PriceService, eurRate float64) api.HoldingWithPrice {
-	costPrice := hld.StocksOwned * hld.AvgCostPrice
-	costPriceEUR := costPrice * eurRate
-	realizedPnLEUR := hld.RealizedPnL * eurRate
+	isEUR := hld.Currency == "EUR"
+	currency := hld.Currency
+	if currency == "" {
+		currency = "INR"
+	}
+
+	// costPrice (INR) and costPriceEUR computed based on the holding's native currency.
+	// eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
+	var costPrice, costPriceEUR, realizedPnLEUR float64
+	if isEUR {
+		costPriceEUR = hld.StocksOwned * hld.AvgCostPrice
+		costPrice = costPriceEUR / eurRate
+		realizedPnLEUR = hld.RealizedPnL
+	} else {
+		costPrice = hld.StocksOwned * hld.AvgCostPrice
+		costPriceEUR = costPrice * eurRate
+		realizedPnLEUR = hld.RealizedPnL * eurRate
+	}
 
 	hwp := api.HoldingWithPrice{
 		Id:             ptr(hld.ID.Hex()),
@@ -333,6 +374,7 @@ func holdingWithPriceToAPI(hld models.Holding, ps *services.PriceService, eurRat
 		StocksOwned:    &hld.StocksOwned,
 		AvgCostPrice:   &hld.AvgCostPrice,
 		RealizedPnl:    &hld.RealizedPnL,
+		Currency:       &currency,
 		Notes:          &hld.Notes,
 		CreatedAt:      &hld.CreatedAt,
 		UpdatedAt:      &hld.UpdatedAt,
@@ -347,10 +389,19 @@ func holdingWithPriceToAPI(hld models.Holding, ps *services.PriceService, eurRat
 			errMsg := priceErr.Error()
 			hwp.PriceError = &errMsg
 		} else {
-			currentValue := hld.StocksOwned * price
-			unrealizedPnL := currentValue - costPrice
-			currentValueEUR := currentValue * eurRate
-			unrealizedPnLEUR := unrealizedPnL * eurRate
+			var currentValue, currentValueEUR, unrealizedPnL, unrealizedPnLEUR float64
+			if isEUR {
+				// Yahoo returns price in EUR for EUR-traded symbols (e.g. VWCE.DE)
+				currentValueEUR = hld.StocksOwned * price
+				currentValue = currentValueEUR / eurRate
+				unrealizedPnLEUR = currentValueEUR - costPriceEUR
+				unrealizedPnL = unrealizedPnLEUR / eurRate
+			} else {
+				currentValue = hld.StocksOwned * price
+				unrealizedPnL = currentValue - costPrice
+				currentValueEUR = currentValue * eurRate
+				unrealizedPnLEUR = unrealizedPnL * eurRate
+			}
 
 			hwp.CurrentPrice = &price
 			hwp.CurrentValue = &currentValue

@@ -4,9 +4,11 @@ import { api } from '../api/client.js'
 const EXCHANGES = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES = ['stock', 'etf']
 
+const CURRENCIES = ['INR', 'EUR']
+
 const empty = {
   script: '', symbol: '', exchange: 'NSE', type: 'stock',
-  stocks_owned: '', avg_cost_price: '', realized_pnl: '', notes: '',
+  stocks_owned: '', avg_cost_price: '', realized_pnl: '', notes: '', currency: 'INR',
 }
 
 const INPUT = {
@@ -36,6 +38,7 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
         avg_cost_price: holding.avg_cost_price ?? '',
         realized_pnl: holding.realized_pnl ?? '',
         notes: holding.notes || '',
+        currency: holding.currency || 'INR',
       })
     } else {
       setForm(empty)
@@ -73,6 +76,7 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
         stocks_owned: parseFloat(form.stocks_owned) || 0,
         avg_cost_price: parseFloat(form.avg_cost_price) || 0,
         realized_pnl: parseFloat(form.realized_pnl) || 0,
+        currency: form.currency,
         notes: form.notes.trim(),
       }
       let saved
@@ -124,13 +128,15 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
                 </div>
                 {livePrice && (
                   <div style={{ marginTop: 4, fontSize: 11, color: livePrice.error ? 'var(--red)' : 'var(--green)' }}>
-                    {livePrice.error ? `Error: ${livePrice.error}` : `✓ ₹${livePrice.price?.toLocaleString('en-IN')} ${livePrice.currency || ''}`}
+                    {livePrice.error
+                      ? `Error: ${livePrice.error}`
+                      : `✓ ${livePrice.price?.toLocaleString('en-IN')} ${livePrice.currency || ''}`}
                   </div>
                 )}
               </div>
             </div>
 
-            <div style={ROW2}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
               <div>
                 <label style={LABEL}>Exchange</label>
                 <select style={{ ...INPUT, cursor: 'pointer' }} value={form.exchange} onChange={set('exchange')}>
@@ -143,6 +149,12 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
                   {TYPES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
                 </select>
               </div>
+              <div>
+                <label style={LABEL}>Currency</label>
+                <select style={{ ...INPUT, cursor: 'pointer' }} value={form.currency} onChange={set('currency')}>
+                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
             </div>
 
             <div style={ROW2}>
@@ -151,13 +163,13 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
                 <input style={INPUT} type="number" min="0" step="any" value={form.stocks_owned} onChange={set('stocks_owned')} placeholder="0" />
               </div>
               <div>
-                <label style={LABEL}>Avg Cost Price (₹)</label>
+                <label style={LABEL}>Avg Cost Price ({form.currency === 'EUR' ? '€' : '₹'})</label>
                 <input style={INPUT} type="number" min="0" step="any" value={form.avg_cost_price} onChange={set('avg_cost_price')} placeholder="0.00" />
               </div>
             </div>
 
             <div>
-              <label style={LABEL}>Realised P&L (₹)</label>
+              <label style={LABEL}>Realised P&L ({form.currency === 'EUR' ? '€' : '₹'})</label>
               <input style={INPUT} type="number" step="any" value={form.realized_pnl} onChange={set('realized_pnl')} placeholder="Profit/loss from shares already sold" />
             </div>
 

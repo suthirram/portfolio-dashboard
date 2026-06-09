@@ -238,11 +238,16 @@ components:
         avg_cost_price:
           type: number
           format: double
-          description: Average purchase price per share (INR for Indian stocks)
+          description: Average purchase price per share in the holding's currency
         realized_pnl:
           type: number
           format: double
-          description: Profit/loss from shares already sold
+          description: Profit/loss from shares already sold, in the holding's currency
+        currency:
+          type: string
+          enum: [INR, EUR]
+          default: INR
+          description: Currency in which avg_cost_price and realized_pnl are denominated
         notes:
           type: string
         created_at:
@@ -278,6 +283,11 @@ components:
           type: number
           format: double
           default: 0
+        currency:
+          type: string
+          enum: [INR, EUR]
+          default: INR
+          description: Currency in which avg_cost_price and realized_pnl are denominated
         notes:
           type: string
 

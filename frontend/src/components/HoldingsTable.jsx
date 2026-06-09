@@ -136,16 +136,16 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
                 {/* Shares */}
                 <TD className="mono">{NUM(h.stocks_owned)}</TD>
 
-                {/* Avg cost */}
-                <TD className="mono">{h.avg_cost_price ? INR(h.avg_cost_price) : '—'}</TD>
+                {/* Avg cost — shown in the holding's native currency */}
+                <TD className="mono">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
 
                 {/* Cost price */}
                 <TD className="mono">{h.cost_price ? INR(h.cost_price) : '—'}</TD>
                 <TD className="mono" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.cost_price_eur ? EUR(h.cost_price_eur) : '—'}</TD>
 
-                {/* Share price */}
+                {/* Share price — in the holding's native currency */}
                 <TD className="mono" style={{ color: hasPrice ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {hasPrice ? INR(h.current_price) : h.price_error ? <span style={{ color: 'var(--text-muted)' }}>—</span> : <span className="spinner" style={{ width: 12, height: 12, display: 'inline-block' }} />}
+                  {hasPrice ? (h.currency === 'EUR' ? EUR(h.current_price) : INR(h.current_price)) : h.price_error ? <span style={{ color: 'var(--text-muted)' }}>—</span> : <span className="spinner" style={{ width: 12, height: 12, display: 'inline-block' }} />}
                 </TD>
 
                 {/* Current value */}
@@ -160,9 +160,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
                   {hasPrice ? EUR(h.unrealized_pnl_eur) : '—'}
                 </TD>
 
-                {/* Realised (money made) */}
+                {/* Realised (money made) — in the holding's native currency */}
                 <TD className={`mono ${h.realized_pnl !== 0 ? realCls : 'neutral'}`}>
-                  {h.realized_pnl !== 0 ? INR(h.realized_pnl) : '—'}
+                  {h.realized_pnl !== 0 ? (h.currency === 'EUR' ? EUR(h.realized_pnl) : INR(h.realized_pnl)) : '—'}
                 </TD>
                 <TD className={`mono ${h.realized_pnl !== 0 ? realCls : 'neutral'}`} style={{ fontSize: 12, opacity: 0.75 }}>
                   {h.realized_pnl !== 0 ? EUR(h.realized_pnl_eur) : '—'}
