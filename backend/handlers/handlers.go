@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,10 +16,16 @@ import (
 	"portfolio-dashboard/services"
 )
 
+// priceFetcher abstracts PriceService for testing.
+type priceFetcher interface {
+	GetPrice(symbol string) (float64, string, error)
+	GetForexRate(from, to string) (float64, error)
+}
+
 // Handler implements api.StrictServerInterface.
 type Handler struct {
 	db           *mongo.Database
-	priceService *services.PriceService
+	priceService priceFetcher
 }
 
 func New(db *mongo.Database) *Handler {
@@ -179,7 +187,11 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 
 	eurRate, err := h.priceService.GetForexRate("INR", "EUR")
 	if err != nil || eurRate == 0 {
-		eurRate = 0.011
+		if err == nil {
+			err = errors.New("eur rate is zero")
+		}
+		return nil, fmt.Errorf("eurRate fetching error : %w", err)
+
 	}
 
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
@@ -345,7 +357,7 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 	return h
 }
 
-func holdingWithPriceToAPI(hld models.Holding, ps *services.PriceService, eurRate float64) api.HoldingWithPrice {
+func holdingWithPriceToAPI(hld models.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
 	isEUR := hld.Currency == "EUR"
 	currency := hld.Currency
 	if currency == "" {
