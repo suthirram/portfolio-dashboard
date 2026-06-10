@@ -11,4 +11,4 @@ WORKDIR /app
 COPY --from=builder /app/portfolio-api .
 COPY --from=builder /app/api ./api
 EXPOSE 8080
-CMD ["./portfolio-api"]
+CMD ["./portfolio-api", "serve"]

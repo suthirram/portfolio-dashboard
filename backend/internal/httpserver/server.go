@@ -37,8 +37,12 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 	e.Use(middleware.ContextTimeoutWithConfig(middleware.ContextTimeoutConfig{
 		Timeout: cfg.RequestTimeout,
 	}))
+	origins := cfg.CORSAllowedOrigins
+	if len(origins) == 0 {
+		origins = []string{"*"}
+	}
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
+		AllowOrigins: origins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token"},
 		MaxAge:       300,

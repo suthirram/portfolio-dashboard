@@ -120,3 +120,17 @@ Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go 
 | Var | Default | Description |
 |---|---|---|
 | `VITE_API_URL` | (proxied via Vite) | Backend URL for production builds |
+
+---
+
+## Deployment
+
+The app is deployed across Cloudflare Pages (frontend), Fly.io (Go API), and
+MongoDB Atlas (database). See:
+
+* [ADR-0001: Deployment stack](docs/adrs/ADR-0001-deploy-stack.md) — why this split
+* [PD-012: Cloudflare + Fly + Atlas runbook](docs/plans/PD-012-cloudflare-flyio-deploy.md) — step-by-step deploy
+
+Once configured, frontend deploys auto-trigger on push to `main` (Cloudflare
+Pages); backend is deployed with `cd backend && flyctl deploy`.
+

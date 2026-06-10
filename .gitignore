@@ -9,6 +9,7 @@ frontend/build/
 .env
 .env.local
 .env.*.local
+frontend/.env.production
 
 # Go build artifacts
 backend/*.exe
