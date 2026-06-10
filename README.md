@@ -112,6 +112,7 @@ Full spec: `/api/openapi.yaml`
 |---|---|---|
 | `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
 | `PORT` / `--port` | `8080` | Server port |
+| `CORS_ALLOWED_ORIGINS` | _(unset → `*`)_ | Comma-separated allow-list of origins. Set explicitly in production (e.g. `https://<app>.pages.dev`). Empty / unset falls back to wildcard for local dev. |
 
 Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
 

@@ -9,6 +9,9 @@ primary_region = "ams"
   LOG_FORMAT = "json"
   LOG_LEVEL = "info"
 
+kill_signal = "SIGINT"
+kill_timeout = "25s"
+
 [http_service]
   internal_port = 8080
   force_https = true
