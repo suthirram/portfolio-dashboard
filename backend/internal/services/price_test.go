@@ -43,7 +43,9 @@ func makeYahooResponse(price float64, currency string) []byte {
 func TestGetPrice_ReturnsLivePriceAndCurrency(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(makeYahooResponse(3600.0, "INR"))
+		if _, err := w.Write(makeYahooResponse(3600.0, "INR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -66,14 +68,20 @@ func TestGetPrice_CachesResultOnSecondCall(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		w.WriteHeader(http.StatusOK)
-		w.Write(makeYahooResponse(120.0, "EUR"))
+		if _, err := w.Write(makeYahooResponse(120.0, "EUR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
 	ctx := context.Background()
-	ps.GetPrice(ctx, "VWCE.DE")
-	ps.GetPrice(ctx, "VWCE.DE")
+	if _, _, err := ps.GetPrice(ctx, "VWCE.DE"); err != nil {
+		t.Fatalf("first GetPrice: %v", err)
+	}
+	if _, _, err := ps.GetPrice(ctx, "VWCE.DE"); err != nil {
+		t.Fatalf("second GetPrice: %v", err)
+	}
 
 	if calls != 1 {
 		t.Errorf("expected exactly 1 HTTP call, got %d (cache miss on second call)", calls)
@@ -85,13 +93,17 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		w.WriteHeader(http.StatusOK)
-		w.Write(makeYahooResponse(100.0, "EUR"))
+		if _, err := w.Write(makeYahooResponse(100.0, "EUR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
 	ctx := context.Background()
-	ps.GetPrice(ctx, "VWCE.DE")
+	if _, _, err := ps.GetPrice(ctx, "VWCE.DE"); err != nil {
+		t.Fatalf("first GetPrice: %v", err)
+	}
 
 	// Backdate the cache entry past TTL without sleeping.
 	ps.cacheMu.Lock()
@@ -100,7 +112,9 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	ps.cache["VWCE.DE"] = entry
 	ps.cacheMu.Unlock()
 
-	ps.GetPrice(ctx, "VWCE.DE")
+	if _, _, err := ps.GetPrice(ctx, "VWCE.DE"); err != nil {
+		t.Fatalf("second GetPrice: %v", err)
+	}
 
 	if calls != 2 {
 		t.Errorf("expected 2 HTTP calls after TTL expiry, got %d", calls)
@@ -112,7 +126,9 @@ func TestGetForexRate_InvertsQuotedPrice(t *testing.T) {
 	// GetForexRate(ctx, "INR","EUR") must return 1/90 (how many EUR per 1 INR).
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(makeYahooResponse(90.0, "INR"))
+		if _, err := w.Write(makeYahooResponse(90.0, "INR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
@@ -133,12 +149,16 @@ func TestGetForexRate_BuildsCorrectSymbol(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedPath = r.URL.Path
 		w.WriteHeader(http.StatusOK)
-		w.Write(makeYahooResponse(90.0, "INR"))
+		if _, err := w.Write(makeYahooResponse(90.0, "INR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
 	}))
 	defer srv.Close()
 
 	ps := newTestPriceService(srv.URL)
-	ps.GetForexRate(context.Background(), "INR", "EUR")
+	if _, err := ps.GetForexRate(context.Background(), "INR", "EUR"); err != nil {
+		t.Fatalf("GetForexRate: %v", err)
+	}
 
 	// GetForexRate(ctx, "INR","EUR") should look up "EURINR=X".
 	// r.URL.Path is decoded by the HTTP layer, so %3D appears as =.

@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/models"
+	"portfolio-dashboard/internal/domain"
 )
 
 // ── mock price fetcher ─────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64
 // ── holdingToAPI ───────────────────────────────────────────────────────────
 
 func TestHoldingToAPI_DefaultsCurrencyToINR(t *testing.T) {
-	h := models.Holding{ID: primitive.NewObjectID(), Currency: ""}
+	h := domain.Holding{ID: primitive.NewObjectID(), Currency: ""}
 	got := holdingToAPI(h)
 	if *got.Currency != "INR" {
 		t.Errorf("currency = %q, want INR", *got.Currency)
@@ -48,7 +48,7 @@ func TestHoldingToAPI_DefaultsCurrencyToINR(t *testing.T) {
 }
 
 func TestHoldingToAPI_PreservesEURCurrency(t *testing.T) {
-	h := models.Holding{ID: primitive.NewObjectID(), Currency: "EUR"}
+	h := domain.Holding{ID: primitive.NewObjectID(), Currency: "EUR"}
 	got := holdingToAPI(h)
 	if *got.Currency != "EUR" {
 		t.Errorf("currency = %q, want EUR", *got.Currency)
@@ -58,7 +58,7 @@ func TestHoldingToAPI_PreservesEURCurrency(t *testing.T) {
 func TestHoldingToAPI_MapsAllFields(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	id := primitive.NewObjectID()
-	h := models.Holding{
+	h := domain.Holding{
 		ID:           id,
 		Script:       "VWCE",
 		Symbol:       "VWCE.DE",
@@ -180,7 +180,7 @@ func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 		prices:     map[string]float64{"TCS.NS": 3600.0},
 		currencies: map[string]string{"TCS.NS": "INR"},
 	}
-	hld := models.Holding{
+	hld := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "TCS.NS",
 		Currency:     "INR",
@@ -222,7 +222,7 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 		prices:     map[string]float64{"VWCE.DE": 120.0},
 		currencies: map[string]string{"VWCE.DE": "EUR"},
 	}
-	hld := models.Holding{
+	hld := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "VWCE.DE",
 		Currency:     "EUR",
@@ -266,7 +266,7 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 		prices:     map[string]float64{"INFY.NS": 1800.0},
 		currencies: map[string]string{"INFY.NS": "INR"},
 	}
-	hld := models.Holding{
+	hld := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "INFY.NS",
 		Currency:     "", // legacy document without currency field
@@ -286,7 +286,7 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 
 func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 	ps := &mockPriceFetcher{prices: map[string]float64{}}
-	hld := models.Holding{
+	hld := domain.Holding{
 		ID:       primitive.NewObjectID(),
 		Symbol:   "",
 		Currency: "INR",
@@ -306,7 +306,7 @@ func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 
 func TestHoldingWithPriceToAPI_PriceErrorSetsErrorField(t *testing.T) {
 	ps := &mockPriceFetcher{prices: map[string]float64{}} // no price → error
-	hld := models.Holding{
+	hld := domain.Holding{
 		ID:       primitive.NewObjectID(),
 		Symbol:   "UNKNOWN.NS",
 		Currency: "INR",

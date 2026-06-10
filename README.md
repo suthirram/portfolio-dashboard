@@ -3,11 +3,12 @@
 A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs.
 
 ## Stack
-- **Frontend**: React + Vite + Recharts
-- **Backend**: Go (chi router, cobra CLI) with OpenAPI spec
-- **Database**: MongoDB (Docker)
-- **Prices**: Yahoo Finance v8 API (live, 5-min cache)
-- **Currencies**: INR and EUR holdings; live INR↔EUR forex rate
+
+* **Frontend**: React + Vite + Recharts
+* **Backend**: Go (chi router, cobra CLI) with OpenAPI spec
+* **Database**: MongoDB (Docker)
+* **Prices**: Yahoo Finance v8 API (live, 5-min cache)
+* **Currencies**: INR and EUR holdings; live INR↔EUR forex rate
 
 ## Columns tracked
 
@@ -39,16 +40,19 @@ Use the **Test** button in the Add/Edit modal to verify a symbol before saving.
 ## Quick Start (Local Dev)
 
 ### Prerequisites
-- [Docker](https://docker.com) (for MongoDB)
-- [Go 1.21+](https://go.dev/dl/)
-- [Node.js 20+](https://nodejs.org)
+
+* [Docker](https://docker.com) (for MongoDB)
+* [Go 1.21+](https://go.dev/dl/)
+* [Node.js 20+](https://nodejs.org)
 
 ### 1. Start MongoDB
+
 ```bash
 docker compose -f docker-compose.dev.yml up -d
 ```
 
 ### 2. Start the backend
+
 ```bash
 cd backend
 go mod tidy          # first time only
@@ -57,6 +61,7 @@ go run . serve
 ```
 
 ### 3. Start the frontend
+
 ```bash
 cd frontend
 npm install          # first time only
@@ -64,7 +69,7 @@ npm run dev
 # App runs on http://localhost:3000
 ```
 
-Open http://localhost:3000
+Open <http://localhost:3000>
 
 ---
 
@@ -76,9 +81,9 @@ Builds and runs everything (MongoDB + backend + frontend) in Docker:
 docker compose up --build
 ```
 
-App → http://localhost:3000  
-API → http://localhost:8080  
-OpenAPI spec → http://localhost:8080/api/openapi.yaml
+App → <http://localhost:3000>  
+API → <http://localhost:8080>  
+OpenAPI spec → <http://localhost:8080/api/openapi.yaml>
 
 ---
 
@@ -102,6 +107,7 @@ Full spec: `/api/openapi.yaml`
 ## Environment variables
 
 ### Backend
+
 | Var / Flag | Default | Description |
 |---|---|---|
 | `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
@@ -110,6 +116,7 @@ Full spec: `/api/openapi.yaml`
 Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
 
 ### Frontend
+
 | Var | Default | Description |
 |---|---|---|
 | `VITE_API_URL` | (proxied via Vite) | Backend URL for production builds |

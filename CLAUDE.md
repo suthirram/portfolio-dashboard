@@ -45,30 +45,37 @@ cd frontend && npm run preview     # preview production build locally
 
 Go service using **echo** router and **cobra** CLI with structured logging via `log/slog`. Entry point: `main.go` calls `cmd.Execute()`.
 
-- `cmd/root.go` — cobra root command; registers subcommands
-- `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, wires the `Handler` and HTTP server, and runs with graceful shutdown
-- `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
-- `internal/logging/logging.go` — slog factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
-- `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`
-- `internal/httpserver/middleware.go` — slog-backed request logger (severity tracks status, propagates `request_id` to context)
-- `handlers/handlers.go` — HTTP handlers; `Handler` struct owns `*mongo.Database` + `priceFetcher` interface + `*slog.Logger`
-- `handlers/mapper.go` — DBO↔DTO conversion helpers (`holdingFromInput`, `holdingToAPI`, `holdingWithPriceToAPI`)
-- `services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
-- `models/holding.go` — `Holding` struct (MongoDB document model)
-- `db/mongo.go` — MongoDB connection + index creation
-- `api/openapi.yaml` — served live at `/api/openapi.yaml`
+* `cmd/root.go` — cobra root command; registers subcommands
+* `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, wires the `Handler` and HTTP server, and runs with graceful shutdown
+* `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
+* `internal/logging/logging.go` — slog factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
+* `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`
+* `internal/httpserver/middleware.go` — slog-backed request logger (severity tracks status, propagates `request_id` to context)
+* `internal/handlers/handlers.go` — `Handler` struct (owns `*mongo.Database` + `priceFetcher` + `*slog.Logger`) and shared helpers (`reqLog`, `col`)
+* `internal/handlers/holdings.go` — CRUD endpoints (`ListHoldings`, `GetHolding`, `CreateHolding`, `UpdateHolding`, `DeleteHolding`)
+* `internal/handlers/market.go` — market endpoints (`GetPrices`, `GetMarketPrice`, `GetForexRate`)
+* `internal/handlers/summary.go` — `GetSummary` aggregate
+* `internal/handlers/mapper.go` — DBO↔DTO conversion helpers (`holdingFromInput`, `holdingToAPI`, `holdingWithPriceToAPI`)
+* `internal/services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
+* `internal/domain/holding.go` — `Holding` struct (MongoDB document model)
+* `internal/db/mongo.go` — MongoDB connection + index creation
+* `api/openapi.yaml` — served live at `/api/openapi.yaml`
+
+All app-private packages live under `internal/` per idiomatic Go layout.
 
 ### Frontend (`frontend/src/`)
 
-React 18 + Vite SPA written in TypeScript with no routing — single-page layout.
+React 18 + Vite SPA written in TypeScript with no routing — single-page layout. Feature-folder organization: domain features under `features/`, cross-cutting utilities under `lib/`, shared dumb UI under `components/`.
 
-- `App.tsx` — root component, owns all state and orchestrates data fetching
-- `api/client.ts` — typed fetch wrapper; in dev, Vite proxies `/api` → `localhost:8080`
-- `types.ts` — TypeScript interfaces mirroring `backend/api/openapi.yaml` schemas
-- `components/HoldingsTable.tsx` — main table with inline actions
-- `components/AddEditModal.tsx` — create/edit holding form; includes symbol **Test** button hitting `/api/market/price`
-- `components/SummaryCards.tsx` — totals bar (cost, current value, P&L)
-- `components/Charts.tsx` — Recharts pie/bar charts
+* `App.tsx` — root component; owns UI state (modal, tab, filter) and composes features
+* `features/holdings/useHoldings.ts` — data hook owning holdings/prices/summary fetching state
+* `features/holdings/HoldingsTable.tsx` — main table with inline actions
+* `features/holdings/AddEditModal.tsx` — create/edit holding form; symbol **Test** button hits `/api/market/price`
+* `components/SummaryCards.tsx` — totals bar (cost, current value, P&L); shared display component
+* `components/Charts.tsx` — Recharts pie/bar charts; shared display component
+* `lib/api/client.ts` — typed fetch wrapper; in dev, Vite proxies `/api` → `localhost:8080`
+* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing `backend/api/openapi.yaml`
+* `types.ts` — public type aliases re-exported from `schema.gen.ts`
 
 ### Data flow
 
@@ -92,8 +99,10 @@ All prices are cached per-symbol in `PriceService.cache` (5-min TTL).
 ## Environment Variables
 
 **Backend** (defaults work for local dev):
-- `MONGODB_URI` — default `mongodb://localhost:27017/portfolio`
-- `PORT` — default `8080`
+
+* `MONGODB_URI` — default `mongodb://localhost:27017/portfolio`
+* `PORT` — default `8080`
 
 **Frontend** (`frontend/.env.example`):
-- `VITE_API_URL` — set for production builds; in dev, Vite proxy handles `/api`
+
+* `VITE_API_URL` — set for production builds; in dev, Vite proxy handles `/api`

@@ -1,4 +1,4 @@
-package models
+package domain
 
 import (
 	"time"
@@ -9,11 +9,11 @@ import (
 // Holding represents a stock/ETF position in the portfolio
 type Holding struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Script       string             `bson:"script" json:"script"`             // display name (e.g. "TCS", "GOLD BEES")
-	Symbol       string             `bson:"symbol" json:"symbol"`             // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
-	Exchange     string             `bson:"exchange" json:"exchange"`         // NSE, BSE, NYSE, NASDAQ
-	Type         string             `bson:"type" json:"type"`                 // stock | etf
-	StocksOwned  float64            `bson:"stocks_owned" json:"stocks_owned"` // current quantity held
+	Script       string             `bson:"script" json:"script"`                 // display name (e.g. "TCS", "GOLD BEES")
+	Symbol       string             `bson:"symbol" json:"symbol"`                 // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
+	Exchange     string             `bson:"exchange" json:"exchange"`             // NSE, BSE, NYSE, NASDAQ
+	Type         string             `bson:"type" json:"type"`                     // stock | etf
+	StocksOwned  float64            `bson:"stocks_owned" json:"stocks_owned"`     // current quantity held
 	AvgCostPrice float64            `bson:"avg_cost_price" json:"avg_cost_price"` // average buy price per share, in Currency
 	RealizedPnL  float64            `bson:"realized_pnl" json:"realized_pnl"`     // profit/loss from sold shares, in Currency
 	Currency     string             `bson:"currency" json:"currency"`             // "INR" or "EUR"; defaults to "INR"
@@ -26,9 +26,9 @@ type Holding struct {
 type HoldingWithPrice struct {
 	Holding
 	CurrentPrice     float64 `json:"current_price"`
-	CostPrice        float64 `json:"cost_price"`         // stocks_owned × avg_cost_price
-	CurrentValue     float64 `json:"current_value"`      // stocks_owned × current_price
-	UnrealizedPnL    float64 `json:"unrealized_pnl"`     // current_value − cost_price
+	CostPrice        float64 `json:"cost_price"`     // stocks_owned × avg_cost_price
+	CurrentValue     float64 `json:"current_value"`  // stocks_owned × current_price
+	UnrealizedPnL    float64 `json:"unrealized_pnl"` // current_value − cost_price
 	CostPriceEUR     float64 `json:"cost_price_eur"`
 	CurrentValueEUR  float64 `json:"current_value_eur"`
 	UnrealizedPnLEUR float64 `json:"unrealized_pnl_eur"`

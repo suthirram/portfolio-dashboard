@@ -21,3 +21,6 @@ backend/tmp/
 *.swp
 *.swo
 portfolio-dashboard
+
+# Claude Code — per-user, not shared
+.claude/settings.local.json

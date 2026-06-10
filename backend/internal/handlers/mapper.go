@@ -4,15 +4,15 @@ import (
 	"context"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/models"
+	"portfolio-dashboard/internal/domain"
 )
 
 func validCurrency[T ~string](s T) bool { return s == "INR" || s == "EUR" }
 
-// holdingFromInput maps a DTO (HoldingInput) to a DBO (models.Holding).
+// holdingFromInput maps a DTO (HoldingInput) to a DBO (domain.Holding).
 // Currency defaults to INR; invalid values are rejected and fall back to INR.
-func holdingFromInput(input api.HoldingInput) models.Holding {
-	h := models.Holding{
+func holdingFromInput(input api.HoldingInput) domain.Holding {
+	h := domain.Holding{
 		Script:   input.Script,
 		Exchange: string(input.Exchange),
 		Type:     string(input.Type),
@@ -39,9 +39,9 @@ func holdingFromInput(input api.HoldingInput) models.Holding {
 	return h
 }
 
-// holdingToAPI maps a DBO (models.Holding) to a DTO (api.Holding).
+// holdingToAPI maps a DBO (domain.Holding) to a DTO (api.Holding).
 // Empty currency is normalised to INR for legacy documents.
-func holdingToAPI(h models.Holding) api.Holding {
+func holdingToAPI(h domain.Holding) api.Holding {
 	id := h.ID.Hex()
 	exchange := api.HoldingExchange(h.Exchange)
 	holdingType := api.HoldingType(h.Type)
@@ -68,7 +68,7 @@ func holdingToAPI(h models.Holding) api.Holding {
 // holdingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
 // All monetary values are normalised to INR; EUR equivalents are also populated.
 // eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
-func holdingWithPriceToAPI(ctx context.Context, hld models.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
+func holdingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
 	isEUR := hld.Currency == "EUR"
 	currency := api.HoldingWithPriceCurrency(hld.Currency)
 	if currency == "" {

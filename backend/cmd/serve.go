@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"portfolio-dashboard/db"
-	"portfolio-dashboard/handlers"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/db"
+	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/httpserver"
 	"portfolio-dashboard/internal/logging"
 )
