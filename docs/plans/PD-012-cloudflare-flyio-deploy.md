@@ -26,39 +26,50 @@ internet. See ADR-0001 for *why* this stack; this doc is the *how*.
 6. Network Access → Add IP Address → **0.0.0.0/0** (allow from anywhere).
    Auth-only is acceptable here; see ADR-0001 consequences.
 7. From "Connect" → "Drivers", copy the connection string. It looks like:
+
    ```
    mongodb+srv://portfolio_app:<password>@portfolio-dashboard.xxxxx.mongodb.net/portfolio?retryWrites=true&w=majority
    ```
+
    Replace `<password>` and append the DB name (`/portfolio`) if missing.
    Save it — needed in Step 2.
 
 ## Step 2 — Fly.io API deploy
 
 1. Authenticate:
+
    ```bash
    flyctl auth signup     # or: flyctl auth login
    ```
+
 2. From the repo root, launch (without deploying) so Fly registers the app
    but keeps the `fly.toml` we committed:
+
    ```bash
    cd backend
    flyctl launch --no-deploy --copy-config --name portfolio-dashboard-api
    ```
+
    When prompted to overwrite `fly.toml`, say **no** — we want the committed
    one.
 3. Set secrets:
+
    ```bash
    flyctl secrets set \
      MONGODB_URI="mongodb+srv://portfolio_app:<password>@portfolio-dashboard.xxxxx.mongodb.net/portfolio?retryWrites=true&w=majority" \
      CORS_ALLOWED_ORIGINS="https://portfolio-dashboard.pages.dev"
    ```
+
    (You can update `CORS_ALLOWED_ORIGINS` after Step 3 if the Pages URL ends
    up different.)
 4. Deploy:
+
    ```bash
    flyctl deploy
    ```
+
 5. Verify:
+
    ```bash
    curl https://portfolio-dashboard-api.fly.dev/api/healthz
    # → {"status":"ok"}
@@ -79,6 +90,7 @@ internet. See ADR-0001 for *why* this stack; this doc is the *how*.
      (no `/api` suffix, no trailing slash — `client.ts` appends `/api`)
 5. Save & Deploy. Note the assigned `*.pages.dev` URL.
 6. If the URL differs from the placeholder used in Step 2:
+
    ```bash
    cd backend
    flyctl secrets set CORS_ALLOWED_ORIGINS="https://<actual>.pages.dev"
@@ -97,6 +109,7 @@ Run all three from a clean browser session:
   * Console clean, no CORS errors
 
 CORS preflight sanity check:
+
 ```bash
 curl -i -H "Origin: https://<your>.pages.dev" \
      -X OPTIONS \

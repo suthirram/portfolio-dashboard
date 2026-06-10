@@ -133,4 +133,3 @@ MongoDB Atlas (database). See:
 
 Once configured, frontend deploys auto-trigger on push to `main` (Cloudflare
 Pages); backend is deployed with `cd backend && flyctl deploy`.
-

@@ -10,12 +10,12 @@ The portfolio dashboard has only ever run locally (via `make backend` /
 `make frontend` or `docker compose up`). We want a hosted deploy so the app
 is reachable from a phone/laptop without spinning up Docker. Requirements:
 
-- Frontend (React/Vite SPA), backend (Go API), and MongoDB all need to be
+* Frontend (React/Vite SPA), backend (Go API), and MongoDB all need to be
   hosted.
-- Low/no fixed monthly cost — this is a personal portfolio, not a business.
-- No re-platforming of the Go service. The existing `backend/Dockerfile`
+* Low/no fixed monthly cost — this is a personal portfolio, not a business.
+* No re-platforming of the Go service. The existing `backend/Dockerfile`
   should be reusable.
-- Custom-domain ready (not v1, but shouldn't paint us into a corner).
+* Custom-domain ready (not v1, but shouldn't paint us into a corner).
 
 A single Cloudflare-only deploy was attractive (one vendor, generous free
 tier, global anycast). But Cloudflare Pages only serves static assets, and
@@ -53,25 +53,30 @@ Split the deploy across three providers:
 ## Alternatives considered
 
 ### Cloudflare Workers rewrite — rejected
+
 Rewrite the Go API as TypeScript Workers + Cloudflare D1 / external Mongo.
 Big port for a personal app, throws away the existing Go code, and the
 Yahoo Finance fetch + 5-min cache logic would need to be reimplemented
 against Workers' execution model.
 
 ### Cloudflare Containers — rejected
+
 Currently in beta and requires the Workers Paid plan ($5/mo). Once GA it
 might be worth revisiting for a one-vendor setup.
 
 ### Render or Railway for the backend — viable alternative, deferred
+
 Both can run our Dockerfile. Fly was preferred for:
-- Global anycast (lower latency from EU and India)
-- `flyctl` CLI feels closer to the Docker workflow we already use
-- Mature scale-to-zero story
+
+* Global anycast (lower latency from EU and India)
+* `flyctl` CLI feels closer to the Docker workflow we already use
+* Mature scale-to-zero story
 
 If Fly proves painful, swapping to Render is a one-day migration — the
 contract is just "run this Dockerfile, give me env vars and HTTPS".
 
 ### Self-hosted VPS (Hetzner / Oracle Free Tier) — rejected
+
 Cheaper at steady state but adds OS patching, TLS renewal, log rotation,
 and Mongo admin to my plate. Not worth it for the savings.
 
