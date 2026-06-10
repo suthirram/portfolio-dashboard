@@ -18,11 +18,12 @@ This skill guides you through building a production-ready, full-stack portfolio 
 ## When to use this skill
 
 Reach for this skill when the user wants to:
-- Track stock or ETF holdings (quantity, average cost, current value)
-- See live prices and P&L (unrealised and/or realised)
-- Support multiple markets (NSE/BSE Indian stocks and/or US stocks)
-- Build CRUD for managing a holdings list
-- See currency conversions (e.g. INR → EUR)
+
+* Track stock or ETF holdings (quantity, average cost, current value)
+* See live prices and P&L (unrealised and/or realised)
+* Support multiple markets (NSE/BSE Indian stocks and/or US stocks)
+* Build CRUD for managing a holdings list
+* See currency conversions (e.g. INR → EUR)
 
 ## Clarify before building
 
@@ -121,12 +122,12 @@ GET    /api/openapi.yaml    serve the spec
 
 ### Price service (`services/price.go`)
 
-- Fetch from `https://query1.finance.yahoo.com/v7/finance/quote?symbols=<sym>&fields=regularMarketPrice,currency`
-- Set `User-Agent: Mozilla/5.0` header — Yahoo requires a realistic UA
-- Cache results in memory with `sync.RWMutex`, TTL 5 minutes
-- Fetch multiple symbols concurrently (goroutines, semaphore of 5)
-- Forex: use Yahoo symbol `INREUR=X`, `INRUSD=X` etc.
-- Fallback EUR rate (~0.011) if fetch fails
+* Fetch from `https://query1.finance.yahoo.com/v7/finance/quote?symbols=<sym>&fields=regularMarketPrice,currency`
+* Set `User-Agent: Mozilla/5.0` header — Yahoo requires a realistic UA
+* Cache results in memory with `sync.RWMutex`, TTL 5 minutes
+* Fetch multiple symbols concurrently (goroutines, semaphore of 5)
+* Forex: use Yahoo symbol `INREUR=X`, `INRUSD=X` etc.
+* Fallback EUR rate (~0.011) if fetch fails
 
 ### Symbol format
 
@@ -155,9 +156,10 @@ Remind the user to run `go mod tidy` before `go run .`.
 ### Design — dark theme
 
 Use CSS custom properties (`var(--bg-primary)` etc.) in `index.css`. Key colours:
-- Background: `#0d0f1a` / `#141627` / `#1a1d30`
-- Text: `#e8ecf4` (primary), `#8892b0` (secondary), `#4a5278` (muted)
-- Green P&L: `#00c896`, Red P&L: `#ff4d6d`, Blue accent: `#4f8ef7`
+
+* Background: `#0d0f1a` / `#141627` / `#1a1d30`
+* Text: `#e8ecf4` (primary), `#8892b0` (secondary), `#4a5278` (muted)
+* Green P&L: `#00c896`, Red P&L: `#ff4d6d`, Blue accent: `#4f8ef7`
 
 ### Holdings table columns
 
@@ -192,6 +194,7 @@ Include a **Test** button next to the symbol field — calls `GET /api/market/pr
 ### Summary cards
 
 Five metric cards across the top:
+
 1. Total Invested (₹ + €)
 2. Current Value (₹ + €)
 3. Unrealised P&L (₹ + €, green/red)
@@ -203,18 +206,19 @@ Show live EUR rate as a chip in the header area.
 ### Charts (Recharts)
 
 Three views toggled by tabs:
-- **Allocation** — donut pie by current value, with a legend list showing %
-- **P&L** — grouped bar chart (unrealised + realised per holding), top 15
-- **By Exchange** — pie + progress bars by exchange (NSE / BSE / NYSE / NASDAQ)
+
+* **Allocation** — donut pie by current value, with a legend list showing %
+* **P&L** — grouped bar chart (unrealised + realised per holding), top 15
+* **By Exchange** — pie + progress bars by exchange (NSE / BSE / NYSE / NASDAQ)
 
 ### App.jsx state
 
-- `holdings` — raw list from `/api/holdings` (fast, no prices)
-- `enriched` — from `/api/prices` (with live prices, EUR, P&L)
-- Fetch both on mount; re-fetch after every save/delete
-- Filter input to search by script name or symbol
-- Sticky header with Refresh button and "Add Holding" CTA
-- Two tabs: **Holdings** (table) and **Charts**
+* `holdings` — raw list from `/api/holdings` (fast, no prices)
+* `enriched` — from `/api/prices` (with live prices, EUR, P&L)
+* Fetch both on mount; re-fetch after every save/delete
+* Filter input to search by script name or symbol
+* Sticky header with Refresh button and "Add Holding" CTA
+* Two tabs: **Holdings** (table) and **Charts**
 
 ### `vite.config.js`
 
@@ -243,9 +247,10 @@ Multi-stage: `golang:1.21-alpine` builder → `alpine:3.19` runtime. Copy binary
 ### `frontend/Dockerfile`
 
 Multi-stage: `node:20-alpine` builder → `nginx:alpine`. Include `nginx.conf` that:
-- Falls back to `index.html` for SPA routing
-- Proxies `/api/` to `portfolio_backend:8080`
-- Enables gzip
+
+* Falls back to `index.html` for SPA routing
+* Proxies `/api/` to `portfolio_backend:8080`
+* Enables gzip
 
 ## OpenAPI spec (`api/openapi.yaml`)
 
@@ -266,20 +271,22 @@ tidy:     # cd backend && go mod tidy
 ## README
 
 Include:
-- Stack summary
-- Column definitions table
-- Yahoo symbol format table
-- Quick-start commands (local dev + full Docker)
-- API endpoint table
-- Environment variables table
-- Note: run `go mod tidy` before first `go run .`
+
+* Stack summary
+* Column definitions table
+* Yahoo symbol format table
+* Quick-start commands (local dev + full Docker)
+* API endpoint table
+* Environment variables table
+* Note: run `go mod tidy` before first `go run .`
 
 ## Delivery checklist
 
 Before finishing, verify:
-- [ ] All Go files import the module correctly (`portfolio-dashboard/models` etc.)
-- [ ] All React component names match their imports in `App.jsx`
-- [ ] `vite.config.js` has the proxy configured
-- [ ] `docker-compose.yml` references correct service names in `nginx.conf`
-- [ ] `go.mod` module name matches all internal imports
-- [ ] README has the `go mod tidy` step clearly documented
+
+* [ ] All Go files import the module correctly (`portfolio-dashboard/models` etc.)
+* [ ] All React component names match their imports in `App.jsx`
+* [ ] `vite.config.js` has the proxy configured
+* [ ] `docker-compose.yml` references correct service names in `nginx.conf`
+* [ ] `go.mod` module name matches all internal imports
+* [ ] README has the `go mod tidy` step clearly documented

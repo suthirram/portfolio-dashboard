@@ -21,7 +21,7 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(dbCtx)
+	defer func() { _ = cur.Close(dbCtx) }()
 
 	var holdings []domain.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {

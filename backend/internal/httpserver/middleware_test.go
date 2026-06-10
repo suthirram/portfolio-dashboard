@@ -79,7 +79,7 @@ func TestRequestLogger_InjectsRequestIDLoggerOnContext(t *testing.T) {
 	}
 
 	// Find the handler_log line and verify it carries the same request_id.
-	for _, raw := range bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n")) {
+	for raw := range bytes.SplitSeq(bytes.TrimSpace(buf.Bytes()), []byte("\n")) {
 		var line map[string]any
 		if err := json.Unmarshal(raw, &line); err != nil {
 			t.Fatalf("decode: %v", err)

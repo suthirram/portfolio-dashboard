@@ -25,7 +25,7 @@ func (h *Handler) ListHoldings(ctx context.Context, _ api.ListHoldingsRequestObj
 		h.reqLog(ctx).ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
 		return nil, err
 	}
-	defer cur.Close(dbCtx)
+	defer func() { _ = cur.Close(dbCtx) }()
 
 	var holdings []domain.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {

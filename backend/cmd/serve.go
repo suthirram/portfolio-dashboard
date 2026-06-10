@@ -53,7 +53,6 @@ func runServe(cmd *cobra.Command, _ []string) error {
 
 	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
-
 		return fmt.Errorf("init logger: %w", err)
 	}
 	slog.SetDefault(logger)

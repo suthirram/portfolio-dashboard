@@ -124,7 +124,7 @@ func TestErrorHandler_UsesRequestScopedLoggerWithRequestID(t *testing.T) {
 	}
 
 	// The 'unhandled error' line must carry the request_id from context.
-	for _, raw := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+	for raw := range strings.SplitSeq(strings.TrimSpace(buf.String()), "\n") {
 		var line map[string]any
 		if err := json.Unmarshal([]byte(raw), &line); err != nil {
 			t.Fatalf("decode: %v", err)
