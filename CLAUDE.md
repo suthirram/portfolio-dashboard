@@ -56,14 +56,15 @@ Go service using **chi** router and **cobra** CLI. Entry point: `main.go` calls 
 
 ### Frontend (`frontend/src/`)
 
-React 18 + Vite SPA with no routing — single-page layout.
+React 18 + Vite SPA written in TypeScript with no routing — single-page layout.
 
-- `App.jsx` — root component, owns all state and orchestrates data fetching
-- `api/client.js` — axios instance; in dev, Vite proxies `/api` → `localhost:8080`
-- `components/HoldingsTable.jsx` — main table with inline actions
-- `components/AddEditModal.jsx` — create/edit holding form; includes symbol **Test** button hitting `/api/market/price`
-- `components/SummaryCards.jsx` — totals bar (cost, current value, P&L)
-- `components/Charts.jsx` — Recharts pie/bar charts
+- `App.tsx` — root component, owns all state and orchestrates data fetching
+- `api/client.ts` — typed fetch wrapper; in dev, Vite proxies `/api` → `localhost:8080`
+- `types.ts` — TypeScript interfaces mirroring `backend/api/openapi.yaml` schemas
+- `components/HoldingsTable.tsx` — main table with inline actions
+- `components/AddEditModal.tsx` — create/edit holding form; includes symbol **Test** button hitting `/api/market/price`
+- `components/SummaryCards.tsx` — totals bar (cost, current value, P&L)
+- `components/Charts.tsx` — Recharts pie/bar charts
 
 ### Data flow
 

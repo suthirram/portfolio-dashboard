@@ -1,31 +1,57 @@
-import React, { useState, useEffect } from 'react'
-import { api } from '../api/client.js'
+import { useState, useEffect } from 'react'
+import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
+import { api } from '../api/client'
+import type { Currency, Exchange, Holding, HoldingType, HoldingWithPrice } from '../types'
 
-const EXCHANGES = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
-const TYPES = ['stock', 'etf']
+const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
+const TYPES: HoldingType[] = ['stock', 'etf']
 
-const CURRENCIES = ['INR', 'EUR']
+const CURRENCIES: Currency[] = ['INR', 'EUR']
 
-const empty = {
+interface FormState {
+  script: string
+  symbol: string
+  exchange: Exchange
+  type: HoldingType
+  stocks_owned: number | string
+  avg_cost_price: number | string
+  realized_pnl: number | string
+  notes: string
+  currency: Currency
+}
+
+const empty: FormState = {
   script: '', symbol: '', exchange: 'NSE', type: 'stock',
   stocks_owned: '', avg_cost_price: '', realized_pnl: '', notes: '', currency: 'INR',
 }
 
-const INPUT = {
+interface LivePrice {
+  price?: number
+  currency?: string
+  error?: string
+}
+
+const INPUT: CSSProperties = {
   width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
   borderRadius: 'var(--radius-sm)', padding: '8px 12px', color: 'var(--text-primary)',
   outline: 'none', transition: 'border-color 0.15s',
 }
-const LABEL = { display: 'block', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
-const ROW2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }
+const LABEL: CSSProperties = { display: 'block', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
+const ROW2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }
 
-export default function AddEditModal({ holding, onClose, onSaved }) {
+interface AddEditModalProps {
+  holding: HoldingWithPrice | null
+  onClose: () => void
+  onSaved: (saved: Holding) => void
+}
+
+export default function AddEditModal({ holding, onClose, onSaved }: AddEditModalProps) {
   const isEdit = Boolean(holding)
-  const [form, setForm] = useState(empty)
+  const [form, setForm] = useState<FormState>(empty)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
-  const [livePrice, setLivePrice] = useState(null)
+  const [livePrice, setLivePrice] = useState<LivePrice | null>(null)
 
   useEffect(() => {
     if (holding) {
@@ -46,7 +72,8 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
     setLivePrice(null)
   }, [holding])
 
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }))
 
   const handleLookup = async () => {
     if (!form.symbol) return
@@ -55,13 +82,13 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
       const data = await api.getMarketPrice(form.symbol)
       setLivePrice(data)
     } catch (e) {
-      setLivePrice({ error: e.message })
+      setLivePrice({ error: e instanceof Error ? e.message : String(e) })
     } finally {
       setLookupLoading(false)
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErr('')
     if (!form.script.trim()) { setErr('Script name is required'); return }
@@ -73,21 +100,21 @@ export default function AddEditModal({ holding, onClose, onSaved }) {
         symbol: form.symbol.trim(),
         exchange: form.exchange,
         type: form.type,
-        stocks_owned: parseFloat(form.stocks_owned) || 0,
-        avg_cost_price: parseFloat(form.avg_cost_price) || 0,
-        realized_pnl: parseFloat(form.realized_pnl) || 0,
+        stocks_owned: parseFloat(String(form.stocks_owned)) || 0,
+        avg_cost_price: parseFloat(String(form.avg_cost_price)) || 0,
+        realized_pnl: parseFloat(String(form.realized_pnl)) || 0,
         currency: form.currency,
         notes: form.notes.trim(),
       }
-      let saved
-      if (isEdit) {
+      let saved: Holding
+      if (holding) {
         saved = await api.updateHolding(holding.id, payload)
       } else {
         saved = await api.createHolding(payload)
       }
       onSaved(saved)
     } catch (e) {
-      setErr(e.message)
+      setErr(e instanceof Error ? e.message : String(e))
     } finally {
       setLoading(false)
     }

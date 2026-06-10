@@ -1,14 +1,27 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
+import type { HoldingWithPrice } from '../types'
 
 const COLORS = ['#4f8ef7', '#00c896', '#a78bfa', '#fbbf24', '#ff4d6d', '#38bdf8', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
 
-const fmt = (v) => `₹${Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+const fmt = (v: number) => `₹${Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 
-const CustomTooltip = ({ active, payload }) => {
+interface TooltipPayloadItem {
+  name: string
+  value: number
+  fill?: string
+}
+
+interface ChartTooltipProps {
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  label?: string
+}
+
+const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
   if (!active || !payload?.length) return null
   const { name, value } = payload[0]
   return (
@@ -19,7 +32,7 @@ const CustomTooltip = ({ active, payload }) => {
   )
 }
 
-const PnLTooltip = ({ active, payload, label }) => {
+const PnLTooltip = ({ active, payload, label }: ChartTooltipProps) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
@@ -33,15 +46,21 @@ const PnLTooltip = ({ active, payload, label }) => {
   )
 }
 
-export default function Charts({ holdings }) {
-  const [view, setView] = useState('allocation')
+type ChartView = 'allocation' | 'pnl' | 'exchange'
+
+interface ChartsProps {
+  holdings: HoldingWithPrice[]
+}
+
+export default function Charts({ holdings }: ChartsProps) {
+  const [view, setView] = useState<ChartView>('allocation')
 
   if (!holdings?.length) return null
 
   // Allocation by current value
   const allocationData = holdings
-    .filter(h => h.current_value > 0)
-    .map(h => ({ name: h.script, value: h.current_value }))
+    .filter(h => (h.current_value ?? 0) > 0)
+    .map(h => ({ name: h.script, value: h.current_value ?? 0 }))
     .sort((a, b) => b.value - a.value)
 
   // P&L bar chart
@@ -56,14 +75,14 @@ export default function Charts({ holdings }) {
     .slice(0, 15) // top 15
 
   // Exchange breakdown
-  const byExchange = holdings.reduce((acc, h) => {
+  const byExchange = holdings.reduce<Record<string, number>>((acc, h) => {
     const key = h.exchange || 'OTHER'
     acc[key] = (acc[key] || 0) + (h.current_value || h.cost_price || 0)
     return acc
   }, {})
   const exchangeData = Object.entries(byExchange).map(([name, value]) => ({ name, value }))
 
-  const BTN = (k, label) => (
+  const BTN = (k: ChartView, label: string) => (
     <button key={k} onClick={() => setView(k)} style={{
       background: view === k ? 'var(--blue)' : 'var(--bg-input)',
       color: view === k ? '#fff' : 'var(--text-secondary)',
@@ -131,7 +150,7 @@ export default function Charts({ holdings }) {
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie data={exchangeData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                outerRadius={110} paddingAngle={3} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={110} paddingAngle={3} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                 labelLine={{ stroke: 'var(--text-muted)' }}>
                 {exchangeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>

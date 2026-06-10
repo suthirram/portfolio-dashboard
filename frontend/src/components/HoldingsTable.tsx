@@ -1,31 +1,28 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import type { HoldingWithPrice } from '../types'
 
-const INR = (n) => {
+const INR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'
   const abs = Math.abs(n)
   const s = abs.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return (n < 0 ? '-₹' : '₹') + s
 }
-const EUR = (n) => {
+const EUR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'
   const abs = Math.abs(n)
   const s = abs.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return (n < 0 ? '-€' : '€') + s
 }
-const NUM = (n) => (n === undefined || n === null || isNaN(n) || n === 0) ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 3 })
+const NUM = (n?: number | null) => (n === undefined || n === null || isNaN(n) || n === 0) ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 3 })
 
-const PNL = ({ inr, eur }) => {
-  if (!inr && inr !== 0) return <td colSpan={2} style={{ color: 'var(--text-muted)' }}>—</td>
-  const cls = inr > 0 ? 'pos' : inr < 0 ? 'neg' : 'neutral'
-  return (
-    <>
-      <td className={`mono ${cls}`}>{INR(inr)}</td>
-      <td className={`mono ${cls}`} style={{ color: inr > 0 ? 'rgba(0,200,150,0.7)' : inr < 0 ? 'rgba(255,77,109,0.7)' : undefined }}>{EUR(eur)}</td>
-    </>
-  )
+interface CellProps {
+  children?: ReactNode
+  style?: CSSProperties
+  className?: string
 }
 
-const TH = ({ children, style }) => (
+const TH = ({ children, style }: CellProps) => (
   <th style={{
     padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -34,24 +31,31 @@ const TH = ({ children, style }) => (
     {children}
   </th>
 )
-const TD = ({ children, style, className }) => (
+const TD = ({ children, style, className }: CellProps) => (
   <td style={{ padding: '10px 12px', textAlign: 'right', borderBottom: '1px solid var(--border)', ...style }} className={className}>
     {children}
   </td>
 )
 
-export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
-  const [sortKey, setSortKey] = useState('script')
-  const [sortDir, setSortDir] = useState(1)
-  const [confirm, setConfirm] = useState(null)
+interface HoldingsTableProps {
+  holdings: HoldingWithPrice[]
+  loading: boolean
+  onEdit: (holding: HoldingWithPrice) => void
+  onDelete: (id: string) => void
+}
 
-  const toggleSort = (key) => {
+export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: HoldingsTableProps) {
+  const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
+  const [sortDir, setSortDir] = useState(1)
+  const [confirm, setConfirm] = useState<string | null>(null)
+
+  const toggleSort = (key: keyof HoldingWithPrice) => {
     if (sortKey === key) setSortDir(d => -d)
     else { setSortKey(key); setSortDir(1) }
   }
 
   const sorted = [...(holdings || [])].sort((a, b) => {
-    let av = a[sortKey] ?? 0, bv = b[sortKey] ?? 0
+    let av: string | number = a[sortKey] ?? 0, bv: string | number = b[sortKey] ?? 0
     if (typeof av === 'string') av = av.toLowerCase()
     if (typeof bv === 'string') bv = bv.toLowerCase()
     return av < bv ? -sortDir : av > bv ? sortDir : 0
@@ -70,9 +74,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
     return acc
   }, { cost: 0, costEur: 0, value: 0, valueEur: 0, unreal: 0, unrealEur: 0, real: 0, realEur: 0 })
 
-  const SortIcon = ({ k }) => sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''
+  const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
 
-  const colHead = (label, key) => (
+  const colHead = (label: string, key: keyof HoldingWithPrice) => (
     <TH style={{ cursor: 'pointer', userSelect: 'none' }}>
       <span onClick={() => toggleSort(key)} style={{ color: sortKey === key ? 'var(--text-primary)' : undefined }}>
         {label}<SortIcon k={key} />
@@ -111,9 +115,11 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
           )}
 
           {sorted.map((h) => {
-            const hasPrice = h.current_price > 0
-            const unrealCls = !hasPrice ? '' : h.unrealized_pnl > 0 ? 'pos' : h.unrealized_pnl < 0 ? 'neg' : 'neutral'
-            const realCls = h.realized_pnl > 0 ? 'pos' : h.realized_pnl < 0 ? 'neg' : 'neutral'
+            const hasPrice = (h.current_price ?? 0) > 0
+            const unrealized = h.unrealized_pnl ?? 0
+            const realized = h.realized_pnl ?? 0
+            const unrealCls = !hasPrice ? '' : unrealized > 0 ? 'pos' : unrealized < 0 ? 'neg' : 'neutral'
+            const realCls = realized > 0 ? 'pos' : realized < 0 ? 'neg' : 'neutral'
 
             return (
               <tr key={h.id} style={{ background: 'var(--bg-card)' }}
@@ -161,11 +167,11 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }) {
                 </TD>
 
                 {/* Realised (money made) — in the holding's native currency */}
-                <TD className={`mono ${h.realized_pnl !== 0 ? realCls : 'neutral'}`}>
-                  {h.realized_pnl !== 0 ? (h.currency === 'EUR' ? EUR(h.realized_pnl) : INR(h.realized_pnl)) : '—'}
+                <TD className={`mono ${realized !== 0 ? realCls : 'neutral'}`}>
+                  {realized !== 0 ? (h.currency === 'EUR' ? EUR(h.realized_pnl) : INR(h.realized_pnl)) : '—'}
                 </TD>
-                <TD className={`mono ${h.realized_pnl !== 0 ? realCls : 'neutral'}`} style={{ fontSize: 12, opacity: 0.75 }}>
-                  {h.realized_pnl !== 0 ? EUR(h.realized_pnl_eur) : '—'}
+                <TD className={`mono ${realized !== 0 ? realCls : 'neutral'}`} style={{ fontSize: 12, opacity: 0.75 }}>
+                  {realized !== 0 ? EUR(h.realized_pnl_eur) : '—'}
                 </TD>
 
                 {/* Actions */}

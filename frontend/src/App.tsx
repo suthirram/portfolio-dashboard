@@ -1,19 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { api } from './api/client.js'
-import SummaryCards from './components/SummaryCards.jsx'
-import HoldingsTable from './components/HoldingsTable.jsx'
-import AddEditModal from './components/AddEditModal.jsx'
-import Charts from './components/Charts.jsx'
+import { useState, useEffect, useCallback } from 'react'
+import { api } from './api/client'
+import SummaryCards from './components/SummaryCards'
+import HoldingsTable from './components/HoldingsTable'
+import AddEditModal from './components/AddEditModal'
+import Charts from './components/Charts'
+import type { Holding, HoldingWithPrice, Summary } from './types'
+
+type ModalState = 'add' | HoldingWithPrice | null
+type Tab = 'table' | 'charts'
 
 export default function App() {
-  const [holdings, setHoldings] = useState([])      // raw from /api/holdings
-  const [enriched, setEnriched] = useState([])      // from /api/prices (with live prices)
-  const [summary, setSummary] = useState(null)
+  const [holdings, setHoldings] = useState<Holding[]>([])              // raw from /api/holdings
+  const [enriched, setEnriched] = useState<HoldingWithPrice[]>([])     // from /api/prices (with live prices)
+  const [summary, setSummary] = useState<Summary | null>(null)
   const [loadingHoldings, setLoadingHoldings] = useState(false)
   const [loadingPrices, setLoadingPrices] = useState(false)
-  const [modal, setModal] = useState(null)           // null | 'add' | holding-object
-  const [tab, setTab] = useState('table')            // 'table' | 'charts'
-  const [lastRefresh, setLastRefresh] = useState(null)
+  const [modal, setModal] = useState<ModalState>(null)                 // null | 'add' | holding-object
+  const [tab, setTab] = useState<Tab>('table')                         // 'table' | 'charts'
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [filter, setFilter] = useState('')
 
   // Load holdings list (fast, no price fetch)
@@ -70,18 +74,18 @@ export default function App() {
     await fetchPrices()
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     try {
       await api.deleteHolding(id)
       await fetchHoldings()
       await fetchPrices()
     } catch (e) {
-      alert('Delete failed: ' + e.message)
+      alert('Delete failed: ' + (e instanceof Error ? e.message : String(e)))
     }
   }
 
   // Display enriched if available, else fall back to plain holdings
-  const displayHoldings = enriched.length > 0 ? enriched : holdings.map(h => ({
+  const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(h => ({
     ...h,
     cost_price: h.stocks_owned * h.avg_cost_price,
   }))
@@ -90,7 +94,7 @@ export default function App() {
     !filter || h.script?.toLowerCase().includes(filter.toLowerCase()) || h.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
 
-  const TAB = (key, label) => (
+  const TAB = (key: Tab, label: string) => (
     <button onClick={() => setTab(key)} style={{
       background: tab === key ? 'var(--blue)' : 'transparent',
       color: tab === key ? '#fff' : 'var(--text-secondary)',
