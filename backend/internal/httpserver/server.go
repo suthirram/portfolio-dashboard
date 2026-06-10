@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/time/rate"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/config"
@@ -47,6 +49,18 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 		AllowHeaders: []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token"},
 		MaxAge:       300,
 	}))
+
+	if cfg.RateLimitRPM > 0 {
+		e.Use(rateLimitMiddleware(cfg.RateLimitRPM, func(c echo.Context) bool {
+			p := c.Request().URL.Path
+			return p == "/api/healthz" || strings.HasPrefix(p, "/api/market/")
+		}))
+	}
+	if cfg.RateLimitMarketRPM > 0 {
+		e.Use(rateLimitMiddleware(cfg.RateLimitMarketRPM, func(c echo.Context) bool {
+			return !strings.HasPrefix(c.Request().URL.Path, "/api/market/")
+		}))
+	}
 
 	e.GET("/api/healthz", healthHandler(db))
 	e.File("/api/openapi.yaml", "api/openapi.yaml")
@@ -140,6 +154,29 @@ func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
 			)
 		}
 	}
+}
+
+// rateLimitMiddleware builds an Echo rate limiter keyed on client IP.
+// rpm is the per-IP per-minute allowance; burst equals rpm so callers can use
+// their full minute budget at once before being throttled.
+func rateLimitMiddleware(rpm int, skipper middleware.Skipper) echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		Skipper: skipper,
+		Store: middleware.NewRateLimiterMemoryStoreWithConfig(middleware.RateLimiterMemoryStoreConfig{
+			Rate:      rate.Limit(float64(rpm) / 60.0),
+			Burst:     rpm,
+			ExpiresIn: 3 * time.Minute,
+		}),
+		IdentifierExtractor: func(c echo.Context) (string, error) {
+			return c.RealIP(), nil
+		},
+		ErrorHandler: func(c echo.Context, err error) error {
+			return echo.NewHTTPError(http.StatusForbidden, "could not identify client")
+		},
+		DenyHandler: func(c echo.Context, identifier string, err error) error {
+			return echo.NewHTTPError(http.StatusTooManyRequests, "rate limit exceeded")
+		},
+	})
 }
 
 func healthHandler(db *mongo.Database) echo.HandlerFunc {

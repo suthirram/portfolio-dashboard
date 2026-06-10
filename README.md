@@ -113,6 +113,8 @@ Full spec: `/api/openapi.yaml`
 | `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
 | `PORT` / `--port` | `8080` | Server port |
 | `CORS_ALLOWED_ORIGINS` | _(unset → `*`)_ | Comma-separated allow-list of origins. Set explicitly in production (e.g. `https://<app>.pages.dev`). Empty / unset falls back to wildcard for local dev. |
+| `RATE_LIMIT_RPM` | `0` (disabled) | Per-IP request-per-minute cap on all non-market endpoints. Burst equals the cap. `0` or unset disables the middleware. Suggested production value: `60`. |
+| `RATE_LIMIT_MARKET_RPM` | `0` (disabled) | Per-IP RPM cap on `/api/market/*` endpoints (which hit Yahoo Finance on cache miss). `0` or unset disables. Suggested production value: `20`. |
 
 Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
 

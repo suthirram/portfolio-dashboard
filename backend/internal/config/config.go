@@ -6,6 +6,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,9 @@ type Config struct {
 	LogFormat string
 
 	CORSAllowedOrigins []string
+
+	RateLimitRPM       int
+	RateLimitMarketRPM int
 
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -72,6 +76,16 @@ func (c *Config) ApplyEnv() {
 		}
 		c.CORSAllowedOrigins = out
 	}
+	if v := os.Getenv("RATE_LIMIT_RPM"); v != "" {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			c.RateLimitRPM = n
+		}
+	}
+	if v := os.Getenv("RATE_LIMIT_MARKET_RPM"); v != "" {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			c.RateLimitMarketRPM = n
+		}
+	}
 }
 
 // Validate returns an error if the config is not usable.
@@ -94,6 +108,12 @@ func (c *Config) Validate() error {
 	case "debug", "info", "warn", "warning", "error":
 	default:
 		return fmt.Errorf("log level must be debug|info|warn|error, got %q", c.LogLevel)
+	}
+	if c.RateLimitRPM < 0 {
+		return fmt.Errorf("rate limit RPM must be >= 0, got %d", c.RateLimitRPM)
+	}
+	if c.RateLimitMarketRPM < 0 {
+		return fmt.Errorf("rate limit market RPM must be >= 0, got %d", c.RateLimitMarketRPM)
 	}
 	return nil
 }
