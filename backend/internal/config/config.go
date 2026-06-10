@@ -18,6 +18,8 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
+	CORSAllowedOrigins []string
+
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
@@ -59,6 +61,16 @@ func (c *Config) ApplyEnv() {
 	}
 	if v := os.Getenv("LOG_FORMAT"); v != "" {
 		c.LogFormat = v
+	}
+	if v := os.Getenv("CORS_ALLOWED_ORIGINS"); v != "" {
+		parts := strings.Split(v, ",")
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if t := strings.TrimSpace(p); t != "" {
+				out = append(out, t)
+			}
+		}
+		c.CORSAllowedOrigins = out
 	}
 }
 

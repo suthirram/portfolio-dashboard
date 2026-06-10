@@ -5,6 +5,7 @@ ignore: |
   external/
   docs/
   .github/
+  node_modules/
 
 rules:
   brackets:
