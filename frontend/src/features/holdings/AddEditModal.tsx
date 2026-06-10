@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
-import { api } from '../api/client'
-import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../types'
+import { api } from '../../lib/api/client'
+import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES: HoldingType[] = ['stock', 'etf']

@@ -1,84 +1,39 @@
-import { useState, useEffect, useCallback } from 'react'
-import { api } from './api/client'
+import { useState } from 'react'
 import SummaryCards from './components/SummaryCards'
-import HoldingsTable from './components/HoldingsTable'
-import AddEditModal from './components/AddEditModal'
+import HoldingsTable from './features/holdings/HoldingsTable'
+import AddEditModal from './features/holdings/AddEditModal'
 import Charts from './components/Charts'
-import type { Holding, HoldingWithPrice, Summary } from './types'
+import { useHoldings } from './features/holdings/useHoldings'
+import type { HoldingWithPrice } from './types'
 
 type ModalState = 'add' | HoldingWithPrice | null
 type Tab = 'table' | 'charts'
 
 export default function App() {
-  const [holdings, setHoldings] = useState<Holding[]>([])              // raw from /api/holdings
-  const [enriched, setEnriched] = useState<HoldingWithPrice[]>([])     // from /api/prices (with live prices)
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [loadingHoldings, setLoadingHoldings] = useState(false)
-  const [loadingPrices, setLoadingPrices] = useState(false)
-  const [modal, setModal] = useState<ModalState>(null)                 // null | 'add' | holding-object
-  const [tab, setTab] = useState<Tab>('table')                         // 'table' | 'charts'
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const {
+    holdings,
+    enriched,
+    summary,
+    loadingHoldings,
+    loadingPrices,
+    lastRefresh,
+    refresh,
+    fetchPrices,
+    remove,
+  } = useHoldings()
+
+  const [modal, setModal] = useState<ModalState>(null)
+  const [tab, setTab] = useState<Tab>('table')
   const [filter, setFilter] = useState('')
-
-  // Load holdings list (fast, no price fetch)
-  const fetchHoldings = useCallback(async () => {
-    setLoadingHoldings(true)
-    try {
-      const data = await api.listHoldings()
-      setHoldings(data)
-    } catch (e) {
-      console.error('listHoldings:', e)
-    } finally {
-      setLoadingHoldings(false)
-    }
-  }, [])
-
-  // Load enriched prices (slower, hits Yahoo Finance)
-  const fetchPrices = useCallback(async () => {
-    setLoadingPrices(true)
-    try {
-      const data = await api.getPrices()
-      setEnriched(data.holdings || [])
-      // Derive summary from prices response
-      const totals = (data.holdings || []).reduce((acc, h) => {
-        acc.total_cost += h.cost_price || 0
-        acc.total_current_value += h.current_value || 0
-        acc.total_unrealized += h.unrealized_pnl || 0
-        acc.total_realized += h.realized_pnl || 0
-        acc.total_cost_eur += h.cost_price_eur || 0
-        acc.total_current_value_eur += h.current_value_eur || 0
-        acc.total_unrealized_eur += h.unrealized_pnl_eur || 0
-        acc.total_realized_eur += h.realized_pnl_eur || 0
-        return acc
-      }, {
-        total_cost: 0, total_current_value: 0, total_unrealized: 0, total_realized: 0,
-        total_cost_eur: 0, total_current_value_eur: 0, total_unrealized_eur: 0, total_realized_eur: 0,
-      })
-      setSummary({ ...totals, eur_rate: data.eur_rate })
-      setLastRefresh(new Date())
-    } catch (e) {
-      console.error('getPrices:', e)
-    } finally {
-      setLoadingPrices(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchHoldings()
-    fetchPrices()
-  }, [fetchHoldings, fetchPrices])
 
   const handleSaved = async () => {
     setModal(null)
-    await fetchHoldings()
-    await fetchPrices()
+    await refresh()
   }
 
   const handleDelete = async (id: string) => {
     try {
-      await api.deleteHolding(id)
-      await fetchHoldings()
-      await fetchPrices()
+      await remove(id)
     } catch (e) {
       alert('Delete failed: ' + (e instanceof Error ? e.message : String(e)))
     }

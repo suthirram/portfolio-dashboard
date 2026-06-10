@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { HoldingWithPrice } from '../types'
+import type { HoldingWithPrice } from '../../types'
 
 const INR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'

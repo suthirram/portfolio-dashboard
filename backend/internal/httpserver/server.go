@@ -14,7 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/handlers"
+	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/logging"
 )

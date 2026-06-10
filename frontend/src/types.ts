@@ -1,79 +1,21 @@
-// API types mirroring backend/api/openapi.yaml.
-//
-// Fields are marked optional where the OpenAPI spec leaves them so —
-// the wire contract is the source of truth, even if the current backend
-// happens to always populate a given field.
+// Public API types. Sourced from generated OpenAPI schema (schema.gen.ts) —
+// regenerate via `npm run gen:api` whenever backend/api/openapi.yaml changes.
 
-export type Exchange = 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ' | 'OTHER'
-export type HoldingType = 'stock' | 'etf'
-export type Currency = 'INR' | 'EUR'
+import type { components, operations } from './lib/api/schema.gen'
 
-export interface Holding {
-  id?: string
-  script?: string
-  symbol?: string
-  exchange?: Exchange
-  type?: HoldingType
-  stocks_owned?: number
-  avg_cost_price?: number
-  realized_pnl?: number
-  currency?: Currency
-  notes?: string
-  created_at?: string
-  updated_at?: string
-}
+type Schemas = components['schemas']
 
-// HoldingInput is the only schema that declares required fields in the
-// spec; mirror that here so the form payload stays type-checked.
-export interface HoldingInput {
-  script: string
-  exchange: Exchange
-  type: HoldingType
-  symbol?: string
-  stocks_owned?: number
-  avg_cost_price?: number
-  realized_pnl?: number
-  currency?: Currency
-  notes?: string
-}
+export type Holding = Schemas['Holding']
+export type HoldingInput = Schemas['HoldingInput']
+export type HoldingWithPrice = Schemas['HoldingWithPrice']
+export type PricesResponse = Schemas['PricesResponse']
+export type Summary = Schemas['Summary']
 
-export interface HoldingWithPrice extends Holding {
-  current_price?: number
-  cost_price?: number
-  current_value?: number
-  unrealized_pnl?: number
-  cost_price_eur?: number
-  current_value_eur?: number
-  unrealized_pnl_eur?: number
-  realized_pnl_eur?: number
-  price_error?: string
-}
+export type Exchange = NonNullable<Holding['exchange']>
+export type HoldingType = NonNullable<Holding['type']>
+export type Currency = NonNullable<Holding['currency']>
 
-export interface PricesResponse {
-  holdings?: HoldingWithPrice[]
-  eur_rate?: number
-}
-
-export interface Summary {
-  total_cost?: number
-  total_current_value?: number
-  total_unrealized?: number
-  total_realized?: number
-  total_cost_eur?: number
-  total_current_value_eur?: number
-  total_unrealized_eur?: number
-  total_realized_eur?: number
-  eur_rate?: number
-}
-
-export interface MarketPrice {
-  symbol?: string
-  price?: number
-  currency?: string
-}
-
-export interface ForexRate {
-  from?: string
-  to?: string
-  rate?: number
-}
+// MarketPrice / ForexRate are declared inline in the spec; extract from
+// the generated operations type rather than redefining by hand.
+export type MarketPrice = operations['getMarketPrice']['responses'][200]['content']['application/json']
+export type ForexRate = operations['getForexRate']['responses'][200]['content']['application/json']

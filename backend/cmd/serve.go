@@ -12,9 +12,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"portfolio-dashboard/db"
-	"portfolio-dashboard/handlers"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/db"
+	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/httpserver"
 	"portfolio-dashboard/internal/logging"
 )
@@ -53,6 +53,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 
 	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
+
 		return fmt.Errorf("init logger: %w", err)
 	}
 	slog.SetDefault(logger)

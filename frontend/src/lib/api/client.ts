@@ -5,7 +5,7 @@ import type {
   MarketPrice,
   PricesResponse,
   Summary,
-} from '../types'
+} from '../../types'
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
