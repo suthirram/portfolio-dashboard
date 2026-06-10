@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
-	domain "portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/domain"
 )
 
 // ── mock price fetcher ─────────────────────────────────────────────────────

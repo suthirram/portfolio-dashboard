@@ -60,8 +60,7 @@ export function useHoldings() {
   }, [])
 
   const refresh = useCallback(async () => {
-    await fetchHoldings()
-    await fetchPrices()
+    await Promise.all([fetchHoldings(), fetchPrices()])
   }, [fetchHoldings, fetchPrices])
 
   const remove = useCallback(

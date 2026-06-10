@@ -24,7 +24,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/staffbase
+        - portfolio-dashboard
   exclusions:
     generated: lax
     paths:

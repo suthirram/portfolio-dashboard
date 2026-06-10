@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"portfolio-dashboard/api"
-	domain "portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/domain"
 )
 
 func validCurrency[T ~string](s T) bool { return s == "INR" || s == "EUR" }
