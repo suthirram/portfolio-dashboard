@@ -1,12 +1,21 @@
-import React from 'react'
+import type { Summary } from '../types'
 
-const fmt = (n, currency = '₹') =>
+const fmt = (n: number, currency = '₹') =>
   `${currency}${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const fmtEur = (n) =>
+const fmtEur = (n: number) =>
   `€${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-function Card({ label, inr, eur, positive, negative, highlight }) {
+interface CardProps {
+  label: string
+  inr: number
+  eur: number
+  positive?: boolean
+  negative?: boolean
+  highlight?: boolean
+}
+
+function Card({ label, inr, eur, positive, negative, highlight }: CardProps) {
   const sign = inr < 0 ? '-' : ''
   const cls = positive ? 'pos' : negative ? 'neg' : ''
 
@@ -32,7 +41,12 @@ function Card({ label, inr, eur, positive, negative, highlight }) {
   )
 }
 
-export default function SummaryCards({ summary, loading }) {
+interface SummaryCardsProps {
+  summary: Summary | null
+  loading: boolean
+}
+
+export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
   if (!summary) return null
   const {
     total_cost = 0,
