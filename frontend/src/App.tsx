@@ -66,7 +66,7 @@ export default function App() {
   useEffect(() => {
     fetchHoldings()
     fetchPrices()
-  }, [])
+  }, [fetchHoldings, fetchPrices])
 
   const handleSaved = async () => {
     setModal(null)
@@ -87,7 +87,7 @@ export default function App() {
   // Display enriched if available, else fall back to plain holdings
   const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(h => ({
     ...h,
-    cost_price: h.stocks_owned * h.avg_cost_price,
+    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),
   }))
 
   const filtered = displayHoldings.filter(h =>

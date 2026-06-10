@@ -43,11 +43,15 @@ cd frontend && npm run preview     # preview production build locally
 
 ### Backend (`backend/`)
 
-Go service using **chi** router and **cobra** CLI. Entry point: `main.go` calls `cmd.Execute()`.
+Go service using **echo** router and **cobra** CLI with structured logging via `log/slog`. Entry point: `main.go` calls `cmd.Execute()`.
 
 - `cmd/root.go` — cobra root command; registers subcommands
-- `cmd/serve.go` — `serve` subcommand; wires MongoDB, creates the `Handler`, and registers all routes under `/api`
-- `handlers/handlers.go` — HTTP handlers; `Handler` struct owns `*mongo.Database` + `priceFetcher` interface
+- `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, wires the `Handler` and HTTP server, and runs with graceful shutdown
+- `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
+- `internal/logging/logging.go` — slog factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
+- `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`
+- `internal/httpserver/middleware.go` — slog-backed request logger (severity tracks status, propagates `request_id` to context)
+- `handlers/handlers.go` — HTTP handlers; `Handler` struct owns `*mongo.Database` + `priceFetcher` interface + `*slog.Logger`
 - `handlers/mapper.go` — DBO↔DTO conversion helpers (`holdingFromInput`, `holdingToAPI`, `holdingWithPriceToAPI`)
 - `services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
 - `models/holding.go` — `Holding` struct (MongoDB document model)

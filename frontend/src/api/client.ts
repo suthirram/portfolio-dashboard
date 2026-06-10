@@ -17,10 +17,32 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     headers: { 'Content-Type': 'application/json' },
   }
   if (body !== undefined) opts.body = JSON.stringify(body)
+
   const res = await fetch(`${BASE}${path}`, opts)
-  const data = await res.json()
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  const text = await res.text()
+  let data: unknown = null
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      // Non-JSON body (e.g. an HTML error page from an upstream proxy);
+      // fall through and surface the raw text via the HTTP status below.
+    }
+  }
+
+  if (!res.ok) {
+    const msg =
+      (data && typeof data === 'object' && 'error' in data && typeof (data as { error: unknown }).error === 'string')
+        ? (data as { error: string }).error
+        : text || `HTTP ${res.status}`
+    throw new Error(msg)
+  }
+
   return data as T
+}
+
+interface DeleteResponse {
+  message?: string
 }
 
 export const api = {
@@ -29,7 +51,7 @@ export const api = {
   getHolding:     (id: string)                     => request<Holding>('GET', `/holdings/${id}`),
   createHolding:  (body: HoldingInput)             => request<Holding>('POST', '/holdings', body),
   updateHolding:  (id: string, body: HoldingInput) => request<Holding>('PUT', `/holdings/${id}`, body),
-  deleteHolding:  (id: string)                     => request<void>('DELETE', `/holdings/${id}`),
+  deleteHolding:  (id: string)                     => request<DeleteResponse>('DELETE', `/holdings/${id}`),
 
   // Market data
   getPrices:      ()                               => request<PricesResponse>('GET', '/prices'),

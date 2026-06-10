@@ -3,43 +3,34 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
+import type { TooltipProps } from 'recharts'
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
 import type { HoldingWithPrice } from '../types'
 
 const COLORS = ['#4f8ef7', '#00c896', '#a78bfa', '#fbbf24', '#ff4d6d', '#38bdf8', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
 
 const fmt = (v: number) => `₹${Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 
-interface TooltipPayloadItem {
-  name: string
-  value: number
-  fill?: string
-}
-
-interface ChartTooltipProps {
-  active?: boolean
-  payload?: TooltipPayloadItem[]
-  label?: string
-}
-
-const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
+const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
   if (!active || !payload?.length) return null
-  const { name, value } = payload[0]
+  const entry = payload[0]
+  const value = typeof entry.value === 'number' ? entry.value : 0
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
-      <div style={{ fontWeight: 600, marginBottom: 4 }}>{name}</div>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{entry.name}</div>
       <div style={{ color: 'var(--text-secondary)' }}>{fmt(value)}</div>
     </div>
   )
 }
 
-const PnLTooltip = ({ active, payload, label }: ChartTooltipProps) => {
+const PnLTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
   if (!active || !payload?.length) return null
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
       {payload.map(p => (
-        <div key={p.name} style={{ color: p.fill, marginBottom: 2 }}>
-          {p.name}: {fmt(p.value)}
+        <div key={String(p.name ?? '')} style={{ color: p.fill, marginBottom: 2 }}>
+          {p.name}: {fmt(typeof p.value === 'number' ? p.value : 0)}
         </div>
       ))}
     </div>

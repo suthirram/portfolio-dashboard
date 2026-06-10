@@ -1,29 +1,35 @@
-// API types mirroring backend/api/openapi.yaml
+// API types mirroring backend/api/openapi.yaml.
+//
+// Fields are marked optional where the OpenAPI spec leaves them so —
+// the wire contract is the source of truth, even if the current backend
+// happens to always populate a given field.
 
 export type Exchange = 'NSE' | 'BSE' | 'NYSE' | 'NASDAQ' | 'OTHER'
 export type HoldingType = 'stock' | 'etf'
 export type Currency = 'INR' | 'EUR'
 
 export interface Holding {
-  id: string
-  script: string
+  id?: string
+  script?: string
   symbol?: string
-  exchange: Exchange
-  type: HoldingType
-  stocks_owned: number
-  avg_cost_price: number
-  realized_pnl: number
-  currency: Currency
+  exchange?: Exchange
+  type?: HoldingType
+  stocks_owned?: number
+  avg_cost_price?: number
+  realized_pnl?: number
+  currency?: Currency
   notes?: string
   created_at?: string
   updated_at?: string
 }
 
+// HoldingInput is the only schema that declares required fields in the
+// spec; mirror that here so the form payload stays type-checked.
 export interface HoldingInput {
   script: string
-  symbol?: string
   exchange: Exchange
   type: HoldingType
+  symbol?: string
   stocks_owned?: number
   avg_cost_price?: number
   realized_pnl?: number
@@ -49,25 +55,25 @@ export interface PricesResponse {
 }
 
 export interface Summary {
-  total_cost: number
-  total_current_value: number
-  total_unrealized: number
-  total_realized: number
-  total_cost_eur: number
-  total_current_value_eur: number
-  total_unrealized_eur: number
-  total_realized_eur: number
+  total_cost?: number
+  total_current_value?: number
+  total_unrealized?: number
+  total_realized?: number
+  total_cost_eur?: number
+  total_current_value_eur?: number
+  total_unrealized_eur?: number
+  total_realized_eur?: number
   eur_rate?: number
 }
 
 export interface MarketPrice {
-  symbol: string
-  price: number
-  currency: string
+  symbol?: string
+  price?: number
+  currency?: string
 }
 
 export interface ForexRate {
-  from: string
-  to: string
-  rate: number
+  from?: string
+  to?: string
+  rate?: number
 }

@@ -55,9 +55,13 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
   }
 
   const sorted = [...(holdings || [])].sort((a, b) => {
-    let av: string | number = a[sortKey] ?? 0, bv: string | number = b[sortKey] ?? 0
-    if (typeof av === 'string') av = av.toLowerCase()
-    if (typeof bv === 'string') bv = bv.toLowerCase()
+    const rawA = a[sortKey]
+    const rawB = b[sortKey]
+    // Strings get an empty-string fallback so missing values sort consistently
+    // alongside other strings; numbers fall back to 0 for the same reason.
+    const isStringKey = typeof rawA === 'string' || typeof rawB === 'string'
+    const av = isStringKey ? String(rawA ?? '').toLowerCase() : (rawA as number | undefined) ?? 0
+    const bv = isStringKey ? String(rawB ?? '').toLowerCase() : (rawB as number | undefined) ?? 0
     return av < bv ? -sortDir : av > bv ? sortDir : 0
   })
 
@@ -176,9 +180,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
 
                 {/* Actions */}
                 <TD style={{ textAlign: 'center' }}>
-                  {confirm === h.id ? (
+                  {h.id && confirm === h.id ? (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                      <button onClick={() => { onDelete(h.id); setConfirm(null) }}
+                      <button onClick={() => { onDelete(h.id!); setConfirm(null) }}
                         style={{ background: 'var(--red)', color: '#fff', padding: '3px 8px', fontSize: 11 }}>
                         Yes
                       </button>
@@ -189,11 +193,11 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
                     </span>
                   ) : (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                      <button onClick={() => onEdit(h)}
+                      <button onClick={() => onEdit(h)} disabled={!h.id}
                         style={{ background: 'var(--blue-dim)', color: 'var(--blue)', padding: '3px 10px', border: '1px solid rgba(79,142,247,0.2)' }}>
                         Edit
                       </button>
-                      <button onClick={() => setConfirm(h.id)}
+                      <button onClick={() => h.id && setConfirm(h.id)} disabled={!h.id}
                         style={{ background: 'var(--red-dim)', color: 'var(--red)', padding: '3px 10px', border: '1px solid rgba(255,77,109,0.2)' }}>
                         Del
                       </button>

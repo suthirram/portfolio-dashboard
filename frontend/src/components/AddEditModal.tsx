@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { api } from '../api/client'
-import type { Currency, Exchange, Holding, HoldingType, HoldingWithPrice } from '../types'
+import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../types'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES: HoldingType[] = ['stock', 'etf']
@@ -42,7 +42,7 @@ const ROW2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', g
 interface AddEditModalProps {
   holding: HoldingWithPrice | null
   onClose: () => void
-  onSaved: (saved: Holding) => void
+  onSaved: () => void
 }
 
 export default function AddEditModal({ holding, onClose, onSaved }: AddEditModalProps) {
@@ -95,7 +95,7 @@ export default function AddEditModal({ holding, onClose, onSaved }: AddEditModal
 
     setLoading(true)
     try {
-      const payload = {
+      const payload: HoldingInput = {
         script: form.script.trim(),
         symbol: form.symbol.trim(),
         exchange: form.exchange,
@@ -106,13 +106,12 @@ export default function AddEditModal({ holding, onClose, onSaved }: AddEditModal
         currency: form.currency,
         notes: form.notes.trim(),
       }
-      let saved: Holding
-      if (holding) {
-        saved = await api.updateHolding(holding.id, payload)
+      if (holding && holding.id) {
+        await api.updateHolding(holding.id, payload)
       } else {
-        saved = await api.createHolding(payload)
+        await api.createHolding(payload)
       }
-      onSaved(saved)
+      onSaved()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
