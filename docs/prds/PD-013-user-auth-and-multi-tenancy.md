@@ -65,7 +65,10 @@ Role is a single string field on the user document (`"user"` or `"admin"`).
 
 Validation:
 
-* `username`: 3–32 chars, `[a-z0-9_-]`, lowercase, unique.
+* `username`: 3–32 chars, `[A-Za-z0-9_-]`. Stored both as
+  `username` (lowercased, for uniqueness + login lookups) and
+  `username_display` (as the user typed it, for the UI). Login matches
+  case-insensitively against `username`.
 * `name`: free text, 1–80 chars.
 * `password`: min 8 chars.
 * Security questions: exactly 3 chosen from a fixed list of ~10 (see §6.2);
@@ -152,14 +155,26 @@ write to their portfolio"** with a "Back to user list" link.
 ### 5.8 Admin: reset lockout / manage user
 
 ```
-POST /api/admin/users/:id/reset-lockout → security_question_failures=0, locked=false
-POST /api/admin/users/:id/disable       → disabled=true (login blocked)
-POST /api/admin/users/:id/enable        → disabled=false
-POST /api/admin/users/:id/role          → {role: "admin"|"user"}
+POST   /api/admin/users/:id/reset-lockout → security_question_failures=0, locked=false
+POST   /api/admin/users/:id/hide          → disabled=true (login blocked, holdings preserved)
+POST   /api/admin/users/:id/reactivate    → disabled=false
+POST   /api/admin/users/:id/role          → {role: "admin"|"user"}
+DELETE /api/admin/users/:id               → hard-delete user AND all their holdings (irreversible)
 ```
 
-Admin cannot demote themselves if they are the only remaining admin (server-
-side check) — prevents accidental lockout of the whole app.
+**Hide vs. delete (resolved):**
+
+* **Hide** = soft-delete the account. Login is blocked, the row stays in the
+  database with `disabled=true`, the user is hidden from the default admin
+  list (a "Show hidden" toggle reveals them), and their holdings are kept
+  intact. Reversible via **Reactivate**.
+* **Delete** is the hard option: removes the user document and all their
+  holdings in the same operation. Asks the admin to confirm by re-typing
+  the username. Not reversible.
+
+Admin cannot demote, hide, or delete themselves if they are the only
+remaining admin (server-side check) — prevents accidental lockout of the
+whole app.
 
 ## 6. Data model
 
@@ -168,12 +183,13 @@ side check) — prevents accidental lockout of the whole app.
 ```go
 type User struct {
     ID                       primitive.ObjectID `bson:"_id,omitempty"`
-    Username                 string             `bson:"username"`         // unique, lowercase
+    Username                 string             `bson:"username"`          // lowercase, used for uniqueness + login
+    UsernameDisplay          string             `bson:"username_display"`  // as the user typed it, used in UI
     Name                     string             `bson:"name"`
-    PasswordHash             string             `bson:"password_hash"`    // bcrypt
-    Role                     string             `bson:"role"`             // "user" | "admin"
-    Disabled                 bool               `bson:"disabled"`
-    Locked                   bool               `bson:"locked"`           // sq_failures >= 3
+    PasswordHash             string             `bson:"password_hash"`     // bcrypt
+    Role                     string             `bson:"role"`              // "user" | "admin"
+    Disabled                 bool               `bson:"disabled"`          // soft-delete / hide flag
+    Locked                   bool               `bson:"locked"`            // sq_failures >= 3
     LoginFailures            int                `bson:"login_failures"`
     SecurityQuestionFailures int                `bson:"security_question_failures"`
     SecurityQuestions        []SecurityAnswer   `bson:"security_questions"` // len == 3
@@ -277,6 +293,7 @@ Run once after deploying v1 to assign all legacy rows to the bootstrap admin
 | GET | `/api/auth/me` | Current user (id, username, name, role, must_change_password) |
 | POST | `/api/auth/logout` | Invalidate current session |
 | PUT | `/api/auth/password` | Change own password (requires current) |
+| PUT | `/api/auth/profile` | Change own `name` and/or `username` (requires current password; bootstrap admin uses this to rename `admin`) |
 | PUT | `/api/auth/security-questions` | Replace own questions/answers (requires current password) |
 | GET/POST/PUT/DELETE | `/api/holdings…` | Existing, now scoped to caller's user_id |
 | GET | `/api/prices`, `/api/summary` | Scoped to caller |
@@ -416,18 +433,20 @@ to public; data stays usable because every row already has a `user_id`.
 * Profile fields beyond `name` (phone, avatar, currency preference).
 * Audit log of admin actions.
 * Per-user API tokens for scripting.
-* Soft-delete of users (delete is hard-delete for now — admin must reassign
-  or accept loss of that user's holdings; see open question).
+* Reassigning holdings between users (the only options are hide-then-restore
+  or hard-delete; merging accounts is a v2 problem).
+* Audit trail of admin actions.
 
-## 13. Open questions
+## 13. Resolved decisions
 
-1. **Delete user**: when an admin deletes a user, what happens to their
-   holdings? Options:
-   * Hard delete the holdings too (current proposal).
-   * Reassign to another user the admin picks.
-   * Leave orphaned and surface in a "no owner" admin view.
-2. Should `username` be case-insensitive on login but stored as the user
-   typed it? (Current proposal: normalize to lowercase on write, simpler.)
-3. Should we allow the bootstrap admin to **change** the username during
-   the forced password-change step? (Current proposal: no — keep
-   `admin` so the recovery story is obvious; can be added later.)
+(Previously open questions, settled before implementation.)
+
+1. **Delete user**: the admin gets two actions — **Hide** (soft, reversible,
+   holdings preserved) and **Delete** (hard, cascades to holdings,
+   irreversible, requires re-typing the username to confirm). See §5.8.
+2. **Username case**: case-insensitive uniqueness and login; the as-typed
+   form is stored separately in `username_display` and used in the UI. See
+   §6.1.
+3. **Bootstrap admin rename**: not forced. The bootstrap admin can change
+   its username from `/profile` via `PUT /api/auth/profile` like any other
+   user, after the forced password change. See §5.4 / §7.
