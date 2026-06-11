@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -164,5 +165,104 @@ func TestGetForexRate_BuildsCorrectSymbol(t *testing.T) {
 	// r.URL.Path is decoded by the HTTP layer, so %3D appears as =.
 	if capturedPath != "/v8/finance/chart/EURINR=X" {
 		t.Errorf("unexpected path %q, want /v8/finance/chart/EURINR=X", capturedPath)
+	}
+}
+
+func TestNewPriceServiceSetsProductionDefaults(t *testing.T) {
+	ps := NewPriceService(nil)
+
+	if ps.client == nil {
+		t.Fatal("client is nil")
+	}
+	if ps.client.Timeout != 12*time.Second {
+		t.Errorf("client timeout = %s, want 12s", ps.client.Timeout)
+	}
+	if ps.baseURL != "https://query1.finance.yahoo.com" {
+		t.Errorf("baseURL = %q", ps.baseURL)
+	}
+	if ps.cache == nil {
+		t.Fatal("cache is nil")
+	}
+	if ps.cacheTTL != 5*time.Minute {
+		t.Errorf("cacheTTL = %s, want 5m", ps.cacheTTL)
+	}
+}
+
+func TestGetPrice_ReturnsStatusErrorWithLimitedBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "upstream unavailable", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	ps := newTestPriceService(srv.URL)
+	_, _, err := ps.GetPrice(context.Background(), "TCS.NS")
+	if err == nil {
+		t.Fatal("GetPrice() error = nil")
+	}
+	if !strings.Contains(err.Error(), "yahoo status 502 for TCS.NS") {
+		t.Errorf("error = %q, want status and symbol", err.Error())
+	}
+	if !strings.Contains(err.Error(), "upstream unavailable") {
+		t.Errorf("error = %q, want response body", err.Error())
+	}
+}
+
+func TestGetPrice_ReturnsDecodeErrorForMalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"chart":`)); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	ps := newTestPriceService(srv.URL)
+	_, _, err := ps.GetPrice(context.Background(), "TCS.NS")
+	if err == nil {
+		t.Fatal("GetPrice() error = nil")
+	}
+	if !strings.Contains(err.Error(), "decode TCS.NS") {
+		t.Errorf("error = %q, want decode context", err.Error())
+	}
+}
+
+func TestGetPrice_ReturnsErrorWhenQuoteResultMissing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(`{"chart":{"result":[],"error":null}}`)); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	ps := newTestPriceService(srv.URL)
+	_, _, err := ps.GetPrice(context.Background(), "UNKNOWN.NS")
+	if err == nil {
+		t.Fatal("GetPrice() error = nil")
+	}
+	if !strings.Contains(err.Error(), "no quote result for UNKNOWN.NS") {
+		t.Errorf("error = %q", err.Error())
+	}
+}
+
+func TestGetForexRateRejectsZeroInverseQuote(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(makeYahooResponse(0, "INR")); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}))
+	defer srv.Close()
+
+	ps := newTestPriceService(srv.URL)
+	rate, err := ps.GetForexRate(context.Background(), "INR", "EUR")
+	if err == nil {
+		t.Fatal("GetForexRate() error = nil")
+	}
+	if rate != 0 {
+		t.Errorf("rate = %v, want 0", rate)
+	}
+	if !strings.Contains(err.Error(), "yahoo returned zero for EURINR=X") {
+		t.Errorf("error = %q", err.Error())
 	}
 }
