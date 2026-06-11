@@ -24,11 +24,11 @@ of the routes require authentication.
 3. Security questions captured at signup, used for self-service password reset.
 4. Logout, change password (while logged in), and forgot-password (via security
    questions) flows.
-5. An **admin** role:
+5. A single **admin** role (exactly one admin in v1 — see §2.1):
    * sees a list of all users on `/admin`
    * can open any user's portfolio (read + add + edit + delete on their behalf)
    * can reset the lockout counter on a locked-out user
-   * can disable/enable a user and promote/demote admins
+   * can hide (soft-delete) / reactivate / hard-delete a user
 6. Normal users cannot reach `/admin` (the API returns 403; the UI hides links).
 7. First admin: bootstrap credentials are `admin` / `admin`. On this account's
    first login the app forces an onboarding step that sets a real password
@@ -36,6 +36,20 @@ of the routes require authentication.
 8. The admin is a full participant in the auth model: the admin has security
    questions and can self-recover via the forgot-password flow exactly like a
    normal user.
+
+### 2.1 Single-admin assumption
+
+v1 ships with **exactly one admin** — the bootstrap `admin` account. There is
+no "promote a user to admin" flow and no UI to create a second admin. This
+simplifies the model in two ways:
+
+* No "last admin" guard logic beyond "the admin cannot hide, delete, or
+  lock-out *itself*".
+* The admin has no peer who could reset its lockout, so admin recovery rests
+  on its own security questions plus the break-glass CLI (§9.4).
+
+Supporting multiple admins (promote/demote, peer lockout reset) is a v2
+concern; the `role` field already accommodates it without a schema change.
 
 ## 3. Non-goals (v2+)
 
@@ -45,15 +59,17 @@ of the routes require authentication.
 * Audit log of admin actions.
 * Password complexity policy beyond a minimum length.
 * Rate limiting of login (deferred but flagged as risk).
+* Multiple admins — promote/demote, second-admin creation (see §2.1).
 
 ## 4. User roles
 
 | Role | Can | Cannot |
 |---|---|---|
 | `user` | sign up, log in, manage own holdings, change own password, reset own password via security questions, change own security questions | see other users, reach admin pages |
-| `admin` | everything a user can do **for any user**; reset a user's lockout counter; disable / enable / promote / demote users | n/a |
+| `admin` (single, in v1) | everything a user can do **for any user**; reset a user's lockout counter; hide / reactivate / hard-delete users | promote others to admin (v2); hide/delete/lock-out *itself* |
 
 Role is a single string field on the user document (`"user"` or `"admin"`).
+In v1 exactly one document has `role:"admin"`.
 
 ## 5. User flows
 
@@ -169,9 +185,10 @@ write to their portfolio"** with a "Back to user list" link.
 POST   /api/admin/users/:id/reset-lockout → security_question_failures=0, locked=false
 POST   /api/admin/users/:id/hide          → disabled=true (login blocked, holdings preserved)
 POST   /api/admin/users/:id/reactivate    → disabled=false
-POST   /api/admin/users/:id/role          → {role: "admin"|"user"}
 DELETE /api/admin/users/:id               → hard-delete user AND all their holdings (irreversible)
 ```
+
+(No promote/demote endpoint in v1 — single admin, see §2.1.)
 
 **Hide vs. delete (resolved):**
 
@@ -183,9 +200,10 @@ DELETE /api/admin/users/:id               → hard-delete user AND all their hol
   holdings in the same operation. Asks the admin to confirm by re-typing
   the username. Not reversible.
 
-Admin cannot demote, hide, or delete themselves if they are the only
-remaining admin (server-side check) — prevents accidental lockout of the
-whole app.
+The admin cannot target its own account with hide or delete (server-side
+check on `id != self`), and all `/api/admin/*` routes only apply to users
+with `role:"user"` — the lone admin row is never a valid `:id` target.
+This prevents accidental lockout of the whole app.
 
 ## 6. Data model
 
@@ -219,7 +237,7 @@ type SecurityAnswer struct {
 Indexes:
 
 * `{username: 1}` unique
-* `{role: 1}` for admin-only counting (the "last admin" guard)
+* `{role: 1}` to find the admin on boot (bootstrap check: "does any admin exist?")
 
 ### 6.2 Security question catalogue
 
@@ -314,14 +332,17 @@ Run once after deploying v1 to assign all legacy rows to the bootstrap admin
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/admin/users` | List users |
+| GET | `/api/admin/users` | List users (`?include_hidden=1` to show disabled) |
 | GET | `/api/admin/users/:id` | Get one user |
 | POST | `/api/admin/users/:id/reset-lockout` | sq_failures=0, locked=false |
-| POST | `/api/admin/users/:id/disable` | disabled=true |
-| POST | `/api/admin/users/:id/enable` | disabled=false |
-| POST | `/api/admin/users/:id/role` | Promote/demote (with last-admin guard) |
+| POST | `/api/admin/users/:id/hide` | disabled=true (login blocked, holdings kept) |
+| POST | `/api/admin/users/:id/reactivate` | disabled=false |
+| DELETE | `/api/admin/users/:id` | Hard-delete user + their holdings |
 | GET/POST/PUT/DELETE | `/api/admin/users/:id/holdings…` | Act on user's portfolio |
 | GET | `/api/admin/users/:id/prices`, `/summary` | Read scoped to that user |
+
+No promote/demote endpoint in v1 (single admin, §2.1). The `:id` target must
+be a `role:"user"` account; the admin's own row is rejected.
 
 All `/api/admin/*` routes go through an `adminOnly` middleware in addition to
 the standard `requireAuth` middleware.
@@ -410,21 +431,20 @@ Login failures don't lock the account in v1 (only sq failures do); they are
 surfaced in the admin table for visibility and so a v2 lockout policy on
 login attempts can be bolted on without schema changes.
 
-An admin can reset any user's lockout (§5.8). But the admin can lock
-*itself* out of recovery (3 wrong security answers on its own account), and
-in a single-admin deployment there is no second admin to reset it. Two
-mitigations, both required:
+The admin can reset any user's lockout (§5.8). But the admin can lock
+*itself* out of recovery (3 wrong security answers on its own account). Since
+v1 has only one admin (§2.1), there is no peer to reset it — so the
+**break-glass CLI is the admin's recovery path**, not a fallback:
 
-* **Another admin** can reset a locked admin's counter via the same
-  `POST /api/admin/users/:id/reset-lockout` — admins are not special-cased
-  in that endpoint.
-* **Break-glass CLI** for the single-admin case: a new cobra subcommand
-  `portfolio-api admin reset-lockout --username <name>` clears
-  `locked` and `security_question_failures` directly against MongoDB. It
-  needs only `MONGODB_URI`, so it can be run on the Fly machine
-  (`flyctl ssh console`) without any login. Documented in §11. A sibling
-  `portfolio-api admin set-password --username <name>` is included as the
-  ultimate recovery for a fully locked-out admin.
+* `portfolio-api admin reset-lockout --username <name>` clears `locked` and
+  `security_question_failures` directly against MongoDB.
+* `portfolio-api admin set-password --username <name>` resets the password as
+  the ultimate recovery for a fully locked-out admin.
+
+Both need only `MONGODB_URI` and no login, so they run on the Fly machine via
+`flyctl ssh console`. Documented in §11. (When v2 adds a second admin, the
+peers can reset each other through the existing `reset-lockout` endpoint and
+the CLI becomes a true last resort.)
 
 ## 10. Risks / accepted trade-offs
 
