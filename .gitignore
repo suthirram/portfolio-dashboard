@@ -25,3 +25,9 @@ portfolio-dashboard
 
 # Claude Code — per-user, not shared
 .claude/settings.local.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
