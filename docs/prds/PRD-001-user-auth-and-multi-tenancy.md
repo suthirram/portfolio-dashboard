@@ -43,23 +43,34 @@ of the routes require authentication.
 ### 2.1 Role hierarchy and region scoping
 
 ```
-super admin ── sees all regions, manages admins + all users
-   │  assigns regions to
+super admin ── sees all regions, promotes admins, manages everyone
+   │  promotes from / demotes to
    ▼
-admin (region: e.g. {india})  ── sees only users whose region ∈ its set
-   │  oversees
+admin (region: india)  ── a USER with extra powers in its own region
+   │  ▸ has own holdings (like any user)
+   │  ▸ also sees /admin: list of users in `region == admin.region`
    ▼
-user (region: india)          ── sees only their own holdings
+user (region: india)   ── sees only their own holdings
 ```
 
 * Exactly **one super admin** in v1 (the bootstrap account). There is no UI to
   create a second super admin; the `role` field leaves room for it in v2.
-* Admins are created **by the super admin only**. Users never self-promote.
-* An admin's authority is the set of regions assigned to it. v1 supports one or
-  more regions per admin (modelled as a list; the common case is one).
+* **An admin is a user with extra powers**, not a separate kind of account.
+  Same login, same profile, same holdings — the `admin` role just unlocks
+  `/admin` for users in the same region. No "admin account" with a temp
+  password exists in v1.
+* **Becoming an admin**: a person signs up via the normal `/signup` flow
+  (picks region, sets password, picks security questions), then the super
+  admin promotes them from `/admin/admins` via
+  `POST /api/admin/users/:id/promote`. Demote is the inverse.
+* **Exactly one region per admin**, and it is the same field as a user's
+  region (single `Region` column on the user document). An admin "covers"
+  their own region. v1 allows zero, one, or many admins per region; nothing
+  enforces a count.
 * A user belongs to exactly one region, chosen at signup. Changing a user's
-  region is an admin/super-admin action (§5.9), never self-service — otherwise
-  a user could move themselves out of their admin's view.
+  region (including an admin's region) is **super-admin-only** (§5.9), never
+  self-service — otherwise an admin could escape its own region's oversight
+  or a user could move themselves out of their admin's view.
 
 ## 3. Non-goals (v2+)
 
@@ -78,11 +89,13 @@ user (region: india)          ── sees only their own holdings
 | Role | Can | Cannot |
 |---|---|---|
 | `user` | sign up, log in, manage own holdings, change own password, self-recover via security questions, change own security questions | see other users; reach any admin page; change own region |
-| `admin` | everything a user can do **for any user in its assigned region(s)**: view/act-as, reset lockout, hide / reactivate / hard-delete, reassign region within its own set | see users outside its regions; see or manage other admins; change its own region set |
-| `super admin` | everything, in every region; create admins and assign their regions; demote/hide/delete/reset admins; reassign any user's region | (single account; cannot delete or demote itself) |
+| `admin` | everything a user can do (incl. own holdings); additionally, for any user **in its own region**: view / act-as / reset lockout / hide / reactivate / hard-delete | see users outside its region; see or manage other admins; promote anyone; change its own or anyone's region |
+| `super admin` | everything, in every region; promote a user to admin, demote an admin to user; reassign any user's region; hide/delete/reset any account | (single account; cannot delete, demote, or change region of itself) |
 
 `role` is a single string on the user document (`"user" | "admin" | "superadmin"`).
-In v1 exactly one document has `role:"superadmin"`.
+In v1 exactly one document has `role:"superadmin"`. An admin record is
+indistinguishable from a user record except for the `role` value — same
+`region`, same holdings, same everything.
 
 ## 5. User flows
 
@@ -119,15 +132,17 @@ Validation:
   else                → 200, session cookie set
 ```
 
-Redirects after login: `user` → `/`, `admin` → `/admin`,
-`superadmin` → `/admin` (with the Admins tab visible).
+Redirects after login: `user` → `/`, `admin` → `/` (their own dashboard, with
+an **Admin** link in the header for `/admin`), `superadmin` → `/admin` (with
+the Admins tab visible).
 
 While an account has `must_change_password=true` it is forced through
 `/onboarding` — one screen that sets a real password **and** three real
-security questions — before anything else loads. This applies to:
-
-* the bootstrap super admin (`admin`/`admin`), and
-* any admin the super admin just created with a temporary password.
+security questions — before anything else loads. The only account that
+ever hits this in v1 is the **bootstrap super admin** (`admin`/`admin`).
+Promoting an existing user to admin does **not** flip
+`must_change_password`, because the user already chose their own password
+and security questions at signup.
 
 ### 5.3 Logout
 
@@ -180,14 +195,18 @@ Accepted for v1 (§10); mitigated by rate limiting later.
 
 ```
 /admin (admin or super admin)
-  GET /api/admin/users  → users where region ∈ caller's authority
-                          (super admin: all regions; ?include_hidden=1 to show disabled)
-  Columns: username, name, region, status (active/locked/disabled),
+  GET /api/admin/users  → users where:
+                            - caller is admin     → region == caller.region AND role == "user"
+                            - caller is superadmin → all rows (any role)
+                          ?include_hidden=1 to show disabled rows
+  Columns: username, name, region, role, status (active/locked/disabled),
            login_failures, sq_failures, last_login.
-  Row actions: View, Hide/Reactivate, Reset lockout, Delete, Change region.
+  Row actions: View, Hide/Reactivate, Reset lockout, Delete.
+               (super admin also: Promote/Demote, Change region.)
 ```
 
-An admin's list is filtered server-side to `region ∈ managed_regions`. The
+The region filter is applied server-side. A regional admin sees only users
+in the same region (and never sees other admins or the super admin). The
 super admin sees everyone and additionally gets a **Region** filter and the
 **Admins** tab (§5.9).
 
@@ -210,9 +229,12 @@ their portfolio"** with a "Back to user list" link.
 POST   /api/admin/users/:id/reset-lockout → sq_failures=0, locked=false
 POST   /api/admin/users/:id/hide          → disabled=true (login blocked, holdings preserved)
 POST   /api/admin/users/:id/reactivate    → disabled=false
-PUT    /api/admin/users/:id/region        → {region}  (target region must also be in caller's authority)
 DELETE /api/admin/users/:id               → hard-delete user AND all their holdings (irreversible)
 ```
+
+Region reassignment (`PUT /api/admin/users/:id/region`) is **super-admin
+only** — see §5.9. A regional admin cannot move users in or out of its
+region.
 
 **Hide vs. delete:**
 
@@ -228,22 +250,31 @@ caller's authority (scope check). A regional admin reassigning a user's region
 (`PUT …/region`) may only move them between regions it manages; moving a user
 out of all its regions is a super-admin action.
 
-### 5.9 Super admin: manage admins + regions
+### 5.9 Super admin: promote / demote and reassign regions
 
 ```
-/admin/admins (super admin only)
-  GET    /api/admin/admins                 → list all admins (+ their regions, status)
-  POST   /api/admin/admins                 → {username, name, regions[], temp_password}
-                                             creates role="admin", must_change_password=true
-  PUT    /api/admin/admins/:id/regions     → {regions[]}  reassign coverage
-  POST   /api/admin/admins/:id/demote      → role="user" (must then carry a region; super admin sets one)
-  POST   /api/admin/admins/:id/reset-lockout
-  POST   /api/admin/admins/:id/hide | /reactivate
-  DELETE /api/admin/admins/:id             → hard-delete admin (admins own no holdings of their own unless they also signed up; see open Q)
+/admin/admins (super admin only) → table view of users grouped by region
+  GET  /api/admin/admins                       → list every account where role ∈ {admin, superadmin}
+  POST /api/admin/users/:id/promote            → role: user → admin (target must currently be a user)
+  POST /api/admin/users/:id/demote             → role: admin → user (target must currently be an admin)
+  PUT  /api/admin/users/:id/region             → {region: "india"|"europe"|"us"}
+                                                  reassigns ANY user's or admin's region
 ```
 
-The super admin cannot demote, hide, or delete **itself** (server-side
-`id != self`). There is no endpoint to create another super admin in v1.
+The super admin uses the same `/api/admin/users/:id/...` endpoints from §5.8
+on admin accounts too — there is no separate "admins collection". An admin
+is just a user with `role:"admin"`.
+
+The super admin cannot demote, hide, delete, or change the region of
+**itself** (server-side `id != self`). There is no endpoint to create
+another super admin in v1.
+
+Side effects of demote: the user keeps their region, holdings, sessions,
+and security questions; only `role` flips from `admin` to `user`. Their
+existing sessions are left intact, but the next call to `/admin/*` from
+that session is rejected by `requireAdmin`. Promote is the mirror image —
+the user keeps everything, gets `role:"admin"`, and the **Admin** link
+appears on their next page load.
 
 ## 6. Data model
 
@@ -257,8 +288,7 @@ type User struct {
     Name                     string             `bson:"name"`
     PasswordHash             string             `bson:"password_hash"`     // bcrypt
     Role                     string             `bson:"role"`              // "user" | "admin" | "superadmin"
-    Region                   string             `bson:"region,omitempty"`  // "india"|"europe"|"us" for users; "" for super admin
-    ManagedRegions           []string           `bson:"managed_regions,omitempty"` // for admins: regions they oversee
+    Region                   string             `bson:"region,omitempty"`  // "india"|"europe"|"us" for users and admins; "" for super admin (means "all")
     Disabled                 bool               `bson:"disabled"`          // hide / soft-delete flag
     Locked                   bool               `bson:"locked"`            // sq_failures >= 3
     LoginFailures            int                `bson:"login_failures"`
@@ -278,17 +308,19 @@ type SecurityAnswer struct {
 
 Field semantics by role:
 
-| Role | `Region` | `ManagedRegions` |
-|---|---|---|
-| `user` | their one region | unused |
-| `admin` | unused (empty) | regions they oversee (≥1) |
-| `superadmin` | empty | empty = treated as "all regions" in code |
+| Role | `Region` |
+|---|---|
+| `user` | their one region |
+| `admin` | their one region — same field, double-duty: it's their own region for their portfolio AND the region they oversee in `/admin` |
+| `superadmin` | empty string, code treats this as "all regions" |
 
 Indexes:
 
 * `{username: 1}` unique
-* `{role: 1}` — bootstrap check ("does a super admin exist?") and admin listing
-* `{region: 1}` — region-scoped user listing for admins
+* `{role: 1}` — bootstrap check ("does a super admin exist?") and the
+  super-admin "list of admins" view (§5.9)
+* `{region: 1, role: 1}` — region-scoped user listing for admins
+  (`region == caller.region AND role == "user"`)
 
 ### 6.2 Region catalogue
 
@@ -384,7 +416,7 @@ admin. Documented in §11.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/auth/me` | Current user (id, username, name, role, region, managed_regions, must_change_password) |
+| GET | `/api/auth/me` | Current user (id, username, name, role, region, must_change_password) |
 | POST | `/api/auth/logout` | Invalidate current session |
 | PUT | `/api/auth/password` | Change own password (requires current) |
 | PUT | `/api/auth/profile` | Change own name / username (requires current password) |
@@ -395,13 +427,15 @@ admin. Documented in §11.
 
 ### Admin + super admin (region-scoped)
 
+For an admin, every `:id` must reference a `role:"user"` row in the same
+region. The super admin can hit any `:id` (admins included).
+
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/admin/users` | List users in caller's region authority (`?include_hidden=1`) |
-| GET | `/api/admin/users/:id` | Get one user (region-checked) |
+| GET | `/api/admin/users` | List users in caller's region (`?include_hidden=1`); super admin sees all |
+| GET | `/api/admin/users/:id` | Get one user (region + role-checked) |
 | POST | `/api/admin/users/:id/reset-lockout` | sq_failures=0, locked=false |
 | POST | `/api/admin/users/:id/hide` / `/reactivate` | Soft-delete / restore |
-| PUT | `/api/admin/users/:id/region` | Reassign region (within caller's authority) |
 | DELETE | `/api/admin/users/:id` | Hard-delete user + holdings |
 | GET/POST/PUT/DELETE | `/api/admin/users/:id/holdings…` | Act on user's portfolio |
 | GET | `/api/admin/users/:id/prices`, `/summary` | Read scoped to that user |
@@ -410,18 +444,17 @@ admin. Documented in §11.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/admin/admins` | List admins + their regions |
-| POST | `/api/admin/admins` | Create admin (username, name, regions[], temp password) |
-| PUT | `/api/admin/admins/:id/regions` | Reassign an admin's regions |
-| POST | `/api/admin/admins/:id/demote` | Admin → user |
-| POST | `/api/admin/admins/:id/reset-lockout` / `/hide` / `/reactivate` | Manage admin account |
-| DELETE | `/api/admin/admins/:id` | Hard-delete an admin |
+| GET | `/api/admin/admins` | List every account where `role ∈ {admin, superadmin}` (just a filtered view of users) |
+| POST | `/api/admin/users/:id/promote` | `role: user → admin` (target keeps its region and holdings) |
+| POST | `/api/admin/users/:id/demote` | `role: admin → user` |
+| PUT | `/api/admin/users/:id/region` | Reassign any account's region |
 
 Middleware chain: `requireAuth` everywhere under `/api` (except the public
 list above); `requireAdmin` (admin or super admin) on `/api/admin/users*`,
-with a per-request **region scope check** comparing the target user's region to
-the caller's `managed_regions` (super admin bypasses); `requireSuperAdmin` on
-`/api/admin/admins*`.
+with a per-request **region+role scope check** — an admin caller may only
+target users with `target.role == "user" AND target.region == caller.region`;
+the super admin bypasses both checks. `requireSuperAdmin` on
+`/api/admin/admins`, `/promote`, `/demote`, and `/region`.
 
 ## 8. Frontend
 
@@ -492,9 +525,11 @@ knows the answers. Onboarding (§5.2) then sets a real password and three real
 security answers and clears `must_change_password`. This runs in
 `cmd/serve.go` after `EnsureIndexes`.
 
-Newly created admins follow the same pattern: the super admin sets a temporary
-password, `must_change_password=true` and random placeholder answers, so the
-admin is forced through onboarding on first login.
+Promotion does **not** trigger onboarding. Because a person becomes an admin
+by signing up as a normal user first and then being promoted, they already
+have a real password and real security questions on file by the time the
+super admin flips their role. There is no "create an admin from scratch"
+code path in v1.
 
 ### 9.4 Lockout reset, by tier
 
@@ -505,7 +540,10 @@ login-rate-limit policy can be added without schema change).
 Recovery chain follows the hierarchy:
 
 * A locked **user** is reset by an admin in their region (or the super admin).
-* A locked **admin** is reset by the super admin (`/api/admin/admins/:id/reset-lockout`).
+* A locked **admin** is reset by the super admin via the same
+  `/api/admin/users/:id/reset-lockout` endpoint — admins are just users with
+  a different role, and only the super admin's role check lets it target an
+  admin row.
 * The **super admin** has no peer, so its recovery is its own security
   questions plus a **break-glass CLI** (the primary path, not a fallback):
   * `portfolio-api admin reset-lockout --username <name>` — clears `locked`
@@ -520,8 +558,9 @@ Recovery chain follows the hierarchy:
 Two orthogonal checks, both enforced server-side on every admin request:
 
 1. **Role**: is the caller an admin / super admin?
-2. **Scope**: is the target user's `region` in the caller's authority?
-   (`managed_regions` for an admin; unrestricted for a super admin.)
+2. **Scope** (admin caller only): does
+   `target.role == "user" AND target.region == caller.region`?
+   Super admin bypasses; no scope check applies.
 
 Never trust the frontend to scope — the region filter on `/api/admin/users`
 is applied in the Mongo query, and single-resource routes re-check the target's
@@ -555,9 +594,11 @@ region before acting.
 3. Flip `requireAuth` on for `/api/holdings`, `/api/prices`, `/api/summary`.
    Existing prod data is already scoped, so the super admin sees everything.
 4. Ship the new frontend (login/signup/onboarding/profile/admin/admins).
-5. Log in as `admin`/`admin`; forced onboarding sets a real password + security
-   questions. Then create regional admins from `/admin/admins` and assign their
-   regions.
+5. Log in as `admin`/`admin`; forced onboarding sets a real password +
+   security questions for the super admin.
+6. Regional admins onboard themselves: each one signs up via `/signup`
+   (picking their region + their own password + security questions), and the
+   super admin promotes them from `/admin/admins`.
 
 Rollback: removing the middleware reverts the API to public; data stays usable
 because every row already has a `user_id`.
@@ -582,22 +623,25 @@ flyctl ssh console -a portfolio-dashboard-api
 ## 13. Resolved decisions
 
 1. **Roles**: three tiers — super admin (single, bootstrap `admin`/`admin`) →
-   admin (region-scoped, created by super admin) → user.
-2. **Regions**: India, Europe, US. Users pick one at signup; admins are
-   assigned one or more; region is a visibility filter, not data residency.
-3. **Delete user**: admin gets **Hide** (soft, reversible, keeps holdings) and
+   admin (region-scoped) → user.
+2. **An admin is a user with extra powers.** Same account, same login, same
+   profile, owns its own holdings; the `admin` role just unlocks `/admin` for
+   users in the same region.
+3. **Becoming an admin**: a person signs up as a normal user (region +
+   password + security questions) and the super admin promotes them via
+   `POST /api/admin/users/:id/promote`. Demote is the inverse. There is no
+   "create admin with temp password" flow.
+4. **One region per admin**, stored in the same `Region` field as users.
+5. **Regions**: India, Europe, US — a visibility filter, not data residency.
+6. **Delete user**: admin gets **Hide** (soft, reversible, keeps holdings) and
    **Delete** (hard, cascades to holdings, confirm-by-retype).
-4. **Username case**: case-insensitive uniqueness/login; as-typed form stored in
-   `username_display` for the UI.
-5. **Bootstrap rename**: the super admin can rename itself from `/profile`; not
-   forced.
-6. **User region change**: admin/super-admin only, never self-service.
+7. **Username case**: case-insensitive uniqueness/login; as-typed form stored
+   in `username_display` for the UI.
+8. **Bootstrap rename**: the super admin can rename itself from `/profile`;
+   not forced.
+9. **User and admin region changes**: super-admin only, never self-service.
 
 ## 14. Open questions
 
-1. **Admins and holdings**: does an admin (or super admin) have a portfolio of
-   their own? Current assumption: admins are oversight accounts with no
-   holdings and no region membership; if they want a portfolio they'd need a
-   separate `user` account. Confirm, or let admins own holdings too.
-2. **Multiple regions per admin**: modelled as a list to be safe. If you want
-   strictly one region per admin, we can make it a scalar and simplify the UI.
+(None remaining — the previous two were resolved above. Anything new turned up
+during implementation should be added here as it surfaces.)
