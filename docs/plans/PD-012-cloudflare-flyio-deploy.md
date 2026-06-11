@@ -186,13 +186,13 @@ The URI contains `&` (in `&w=majority`) which the shell would otherwise
 treat as backgrounding the command. Single quotes pass the entire value
 verbatim to `flyctl`.
 
-### Build fails with `go: go.mod requires go >= 1.X (running go 1.Y)`.
+### Build fails with `go: go.mod requires go >= 1.X (running go 1.Y)`
 
 The `Dockerfile` builder image (`FROM golang:1.Y-alpine`) is older than
 the `go` directive in `backend/go.mod`. Bump the `FROM` line to a tag
 that satisfies `go.mod` and re-deploy.
 
-### The frontend build fails with `ENOENT … /opt/buildhome/repo/package.json`.
+### The frontend build fails with `ENOENT … /opt/buildhome/repo/package.json`
 
 Cloudflare Pages ran `npm run build` at the repo root, which has no
 `package.json`. Set **Root directory** to `frontend` in the Pages build
@@ -201,14 +201,14 @@ subdirectory. Compound `cd frontend && …` build commands work in
 principle but the Root directory field is the path Cloudflare's docs
 recommend.
 
-### The Pages deploy created a Worker instead of a static site.
+### The Pages deploy created a Worker instead of a static site
 
 The **Deploy command** field had `npx wrangler deploy`, which is the
 Workers publish command. Pages publishes from `dist/` directly; leave
 the Deploy command field empty. Delete the Worker (Workers & Pages →
 the project → Settings → Delete) and re-create as a Pages app.
 
-### Browser shows `ERR_NAME_NOT_RESOLVED` for `*.fly.dev<spaces>/api/...`.
+### Browser shows `ERR_NAME_NOT_RESOLVED` for `*.fly.dev<spaces>/api/...`
 
 `VITE_API_URL` was saved with leading or trailing whitespace. Vite
 inlines this value as a string literal into the JS bundle at build time,
@@ -216,7 +216,7 @@ so the whitespace ends up in every API call. Edit the env var, trim
 whitespace, and **retry the Pages deployment** — refreshing isn't
 enough; the bundle needs rebuilding.
 
-### Browser shows CORS errors despite Fly returning the right origin.
+### Browser shows CORS errors despite Fly returning the right origin
 
 The browser is on a **per-commit preview URL**
 (`https://<sha>.<project>.pages.dev`), but Fly's `CORS_ALLOWED_ORIGINS`
