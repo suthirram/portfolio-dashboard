@@ -16,7 +16,9 @@ Every `Holding` lives in one collection with no owner field
 `UserID`), and every handler does an unscoped `Find/Insert/Update/Delete`
 (`backend/internal/handlers/holdings.go:23,77,128,162`). No route requires
 authentication. The handler resolves its collection via
-`Handler.col()` (`handlers.go:53`), which we extend to scope by user.
+`Handler.col()` (`handlers.go:53`). A `*mongo.Collection` handle cannot
+enforce per-user filters on its own, so scoping is done by mutating every
+query and document at the call site (see §6.1).
 
 ## 2. Data model
 
@@ -100,16 +102,16 @@ us       "US"
 Security-question catalogue — `backend/internal/auth/questions.go`:
 
 ```
-first_pet           "Name of your first pet"
-mothers_maiden      "Mother's maiden name"
-birth_city          "City you were born in"
-first_school        "Name of your first school"
-favourite_teacher   "Name of your favourite teacher"
-oldest_friend       "Name of your oldest friend"
-first_car           "Make/model of your first car"
-favourite_book      "Title of a favourite book"
-nickname_child      "Childhood nickname"
-street_grew_up      "Street you grew up on"
+favourite_movie        "What is a movie you can watch over and over again?"
+favourite_book         "What is a book that left a lasting impression on you?"
+first_programming_lang "What was the first programming language you learned?"
+favourite_editor       "Which code editor or IDE do you prefer?"
+favourite_food         "What dish would you never get tired of?"
+favourite_game         "What game did you spend the most hours playing?"
+dream_destination      "What place have you always wanted to visit?"
+favourite_cartoon      "Which cartoon do you remember most from childhood?"
+first_job              "What was your first paid job title?"
+favourite_subject      "Which school subject did you enjoy the most?"
 ```
 
 Both are the single source of truth for validation and for the public
@@ -212,6 +214,56 @@ next `/admin/*` call from a demoted user is rejected by `requireAdmin`. Region:
   CORS denies. (JWT-in-header was considered and rejected: revocation and "log
   out everywhere" are harder, for no gain in this threat model.)
 
+### 5.1 Cross-origin wiring (client + CORS)
+
+Cross-origin cookies do not flow by default; both ends must opt in. The
+current client (`frontend/src/lib/api/client.ts:14`) omits `credentials` and
+the current CORS middleware (`backend/internal/httpserver/server.go:44`) does
+not set `AllowCredentials` and does not allow `X-Requested-With`. Both must
+change before auth can ship:
+
+* **Frontend** — `request()` in `client.ts` sets
+  `credentials: 'include'` on every `fetch` (covers cookie send + receive on
+  cross-origin Pages → Fly calls). Same-origin dev via the Vite proxy is
+  unaffected.
+* **Backend CORS** — `middleware.CORSConfig` must:
+  * Set `AllowCredentials: true`.
+  * Replace the `"*"` fallback in `AllowOrigins` with an explicit list
+    (`cfg.CORSAllowedOrigins` is required in production; the wildcard +
+    credentials combination is rejected by browsers). The Cloudflare Pages
+    production origin goes here. Preview deploys either need to be listed
+    exactly or handled with `AllowOriginFunc`; Echo's `AllowOrigins` does
+    exact string matching and does not accept preview URL patterns.
+  * Extend `AllowHeaders` with `X-Requested-With` (the CSRF header) so the
+    preflight on state-changing requests succeeds.
+  * Keep `MaxAge: 300` so preflights don't fire on every call.
+* **Cookie attributes** — the session cookie is issued by the backend with
+  `HttpOnly; Secure; SameSite=None; Path=/`. No `Domain` attribute (host-only,
+  so the Pages origin can't read it directly, only send it back to the API
+  host).
+* **Dev** — Vite proxy keeps `/api` same-origin, so `SameSite=Lax` would also
+  work locally; we still emit `SameSite=None;Secure` everywhere to keep one
+  cookie path. `Secure` requires HTTPS in dev (`vite --https`) or the cookie
+  is dropped silently — flagged as a known dev-setup gotcha, not a code
+  change.
+
+### 5.2 Future simplification: Pages Function proxy
+
+A cleaner long-term shape is to put a Cloudflare Pages Function at `/api/*`
+in front of the Fly API, so the browser sees same-origin API calls:
+`https://<project>.pages.dev/api/*` → Pages Function → Fly `/api/*`.
+
+That would let the backend issue `SameSite=Lax` cookies instead of
+`SameSite=None`, remove most credentialed CORS handling from Go, and make Pages
+preview deploys work without maintaining an explicit origin list. The proxy
+would forward method, path, query, body, `Cookie`, and response `Set-Cookie`;
+if Fly ever emits a `Domain` attribute, the proxy must strip or rewrite it so
+Pages re-emits a host-only cookie for the Pages domain.
+
+Deferred for v1: the current deployment already has Pages calling Fly directly,
+and auth should land without changing the deployment topology at the same time.
+Revisit after the auth flow is stable.
+
 ## 6. Authorization
 
 Two orthogonal checks, both enforced server-side on every admin request:
@@ -224,6 +276,33 @@ Two orthogonal checks, both enforced server-side on every admin request:
 Never trust the frontend to scope: the region filter on `/api/admin/users` is
 applied in the Mongo query, and single-resource routes re-check the target's
 region before acting.
+
+### 6.1 Per-user scoping at the data layer
+
+A `*mongo.Collection` handle has no notion of "current user"; scoping is
+applied explicitly to every query. The handler resolves the effective
+`user_id` once per request (caller's own id, or the path `:id` on
+`/api/admin/users/:id/...` after the role+region check) and threads it through
+every Mongo call against `holdings`:
+
+| Operation | Required scoping |
+|---|---|
+| `Find` (`ListHoldings`, `GetPrices`, `GetSummary`) | filter includes `user_id: <uid>` |
+| `FindOne` (`GetHolding`) | filter includes both `_id` **and** `user_id: <uid>`; mismatch returns 404, not 403 (no enumeration) |
+| `InsertOne` (`CreateHolding`) | document has `user_id: <uid>` set in `holdingFromInput` before insert; the request body's `user_id`, if any, is ignored |
+| `UpdateOne` (`UpdateHolding`) | filter includes both `_id` and `user_id: <uid>`; `$set` never writes `user_id` |
+| `DeleteOne` (`DeleteHolding`) | filter includes both `_id` and `user_id: <uid>` |
+| Aggregations behind `/api/summary` | every `$match` stage pins `user_id: <uid>` as its first predicate |
+
+The price fetcher takes the already-scoped holdings slice as input, so it
+inherits the filter — it never queries Mongo on its own. Market endpoints
+(`/api/market/price`, `/api/market/forex`) hit Yahoo Finance with no Mongo
+read and need no scoping.
+
+`Handler.col()` stays a pure collection accessor; a thin helper
+(`scopedFilter(uid, extra bson.M) bson.M`) lives next to it so every
+holdings call site composes its filter the same way and code review can
+grep for unscoped `h.col("holdings").Find/UpdateOne/DeleteOne` calls.
 
 Middleware chain: `requireAuth` on everything under `/api` except the public
 list; `requireAdmin` on `/api/admin/users*` (with the role+region scope check);
@@ -330,6 +409,9 @@ Run once after deploy to assign all legacy rows to the bootstrap super admin.
 6. Regional admins self-sign-up via `/signup` (choosing region + own
    password + security questions); the super admin promotes them.
 
+Post-v1 follow-up: consider adding a Cloudflare Pages Function proxy for
+`/api/*` so browser calls become same-origin. See §5.2.
+
 Rollback: removing the middleware reverts the API to public; data stays usable
 because every row already has a `user_id`.
 
@@ -365,6 +447,12 @@ flyctl ssh console -a portfolio-dashboard-api
 * Audit trail of admin/super-admin actions.
 * Per-user API tokens.
 * A second super admin or an admin-creates-admin flow.
+* **Same-origin `/api` via Cloudflare Pages Function proxy** — defer to a v2
+  follow-up. Would let us drop `SameSite=None` for `Lax`, remove the
+  `AllowCredentials` + explicit-origin CORS config, and scope the session
+  cookie to the Pages domain only. Skipped now to keep PD-012 deploy steps
+  unchanged; the §5.1 cross-origin wiring is enough to ship. Revisit once
+  auth is live and preview-deploy origins start multiplying.
 
 ## 14. Open technical questions
 

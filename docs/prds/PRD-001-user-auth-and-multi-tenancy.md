@@ -5,7 +5,6 @@
 * **Type**: Product Requirements — the *what* and *why*. The *how*
   (data model, API, security mechanisms, rollout) lives in the companion
   technical design doc: [DD-001](../designs/DD-001-user-auth-and-multi-tenancy.md).
-* **Related**: [PD-012 deploy runbook](../plans/PD-012-cloudflare-flyio-deploy.md)
 
 ## 1. Problem
 
