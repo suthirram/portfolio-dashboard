@@ -65,7 +65,6 @@ where `fly.toml` and `Dockerfile` live.
 2. Register the app on Fly, reusing the committed `fly.toml`:
 
    ```bash
-   cd backend
    flyctl launch --no-deploy --copy-config --name portfolio-dashboard-api
    ```
 
@@ -131,10 +130,15 @@ curl 'https://portfolio-dashboard-api.fly.dev/api/market/price?symbol=AAPL'
 # → {"currency":"USD","price":...,"symbol":"AAPL"}
 ```
 
-CORS preflight:
+CORS preflight (mirror what the browser sends — `Origin` *and*
+`Access-Control-Request-Method`, otherwise Echo's CORS middleware won't
+emit the allow-origin header and the test looks like a false negative):
 
 ```bash
-curl -i -H "Origin: https://<project>.pages.dev" -X OPTIONS \
+curl -i \
+     -H "Origin: https://<project>.pages.dev" \
+     -H "Access-Control-Request-Method: GET" \
+     -X OPTIONS \
      https://portfolio-dashboard-api.fly.dev/api/holdings
 # → Access-Control-Allow-Origin echoes the Pages origin (not "*")
 ```
@@ -155,11 +159,10 @@ mongodb+srv://<user>:<password>@<host>.mongodb.net/<database>?<options>
 ```
 
 The database name (`portfolio`) goes **before** the `?`, not as a query
-parameter and not concatenated onto `appName`. When the database name is
-omitted from the path, the MongoDB driver authenticates against `admin`
-by default — which is not where the `portfolio_app` user lives, so auth
-fails even though the password is correct. Driver default + Atlas user
-scoping make this an easy off-by-one in the URI to make.
+parameter and not concatenated onto `appName`. The MongoDB driver
+defaults `authSource` to `admin` when the path is empty, but Atlas
+users are scoped per-database — so an empty path silently breaks auth
+even when the password is correct.
 
 ### Why dry-run the URI with `mongosh`?
 
@@ -193,9 +196,10 @@ that satisfies `go.mod` and re-deploy.
 
 Cloudflare Pages ran `npm run build` at the repo root, which has no
 `package.json`. Set **Root directory** to `frontend` in the Pages build
-configuration (rather than putting `cd frontend && …` in the build
-command — compound commands are not honoured consistently across
-Cloudflare UI versions).
+configuration — that's the supported way to scope the build to a
+subdirectory. Compound `cd frontend && …` build commands work in
+principle but the Root directory field is the path Cloudflare's docs
+recommend.
 
 ### The Pages deploy created a Worker instead of a static site.
 
