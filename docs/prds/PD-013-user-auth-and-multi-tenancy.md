@@ -30,8 +30,12 @@ of the routes require authentication.
    * can reset the lockout counter on a locked-out user
    * can disable/enable a user and promote/demote admins
 6. Normal users cannot reach `/admin` (the API returns 403; the UI hides links).
-7. First admin: bootstrap credentials are `admin` / `admin`. The app forces
-   a password change on this account's first login.
+7. First admin: bootstrap credentials are `admin` / `admin`. On this account's
+   first login the app forces an onboarding step that sets a real password
+   **and** real security questions before anything else loads.
+8. The admin is a full participant in the auth model: the admin has security
+   questions and can self-recover via the forgot-password flow exactly like a
+   normal user.
 
 ## 3. Non-goals (v2+)
 
@@ -85,8 +89,11 @@ Validation:
 ```
 
 After a normal user login, redirect to `/`. After an admin login, redirect to
-`/admin`. Bootstrap admin (`admin`/`admin` still set) is forced through
-`/profile/change-password` before anything else loads.
+`/admin`. While the bootstrap admin still has `must_change_password=true`
+(i.e. password `admin` and placeholder questions), it is forced through
+`/onboarding` — a single screen that sets a real password **and** three real
+security questions — before anything else loads. The flow clears
+`must_change_password` only when both are saved.
 
 ### 5.3 Logout
 
@@ -124,6 +131,10 @@ Server logic (`POST /api/auth/recover`):
   invalidate all sessions.
 * On any mismatch → increment `security_question_failures`. At 3, set
   `locked = true` and require admin reset.
+
+This flow is identical for admins — an admin recovers via its own security
+questions. If an admin also fails recovery 3 times and no second admin exists
+to reset it, use the break-glass CLI in §9.4 / §11.
 
 Username-enumeration trade-off: to keep the flow usable, we do reveal whether
 a username exists at step 2. Flagged in §10 as accepted risk for a personal
@@ -383,18 +394,37 @@ correctly and gains nothing for our threat model.)
 
 On boot, if no user with `role:"admin"` exists, the backend creates a user
 `username="admin"`, `password="admin"`, `role="admin"`,
-`must_change_password=true`, plus 3 placeholder security questions with
-random un-guessable answers (so step 5.5 can't be used to bypass the
-password change). Admin is forced to set a real password and real
-security questions before anything else loads. This work happens in
-`cmd/serve.go` after `EnsureIndexes`.
+`must_change_password=true`, plus 3 placeholder security questions whose
+answers are random and un-guessable. The random placeholders matter: until
+the admin finishes onboarding, the forgot-password flow (§5.5) cannot be used
+to bypass the forced onboarding, because nobody knows the answers. The
+onboarding screen (§5.2) then replaces both the password and all three
+security answers with real ones and clears `must_change_password`. After
+that, the admin participates in recovery exactly like any user. This work
+happens in `cmd/serve.go` after `EnsureIndexes`.
 
-### 9.4 Lockout reset by admin
+### 9.4 Lockout reset for users and admins
 
 Resetting `security_question_failures` does **not** clear `login_failures`.
 Login failures don't lock the account in v1 (only sq failures do); they are
 surfaced in the admin table for visibility and so a v2 lockout policy on
 login attempts can be bolted on without schema changes.
+
+An admin can reset any user's lockout (§5.8). But the admin can lock
+*itself* out of recovery (3 wrong security answers on its own account), and
+in a single-admin deployment there is no second admin to reset it. Two
+mitigations, both required:
+
+* **Another admin** can reset a locked admin's counter via the same
+  `POST /api/admin/users/:id/reset-lockout` — admins are not special-cased
+  in that endpoint.
+* **Break-glass CLI** for the single-admin case: a new cobra subcommand
+  `portfolio-api admin reset-lockout --username <name>` clears
+  `locked` and `security_question_failures` directly against MongoDB. It
+  needs only `MONGODB_URI`, so it can be run on the Fly machine
+  (`flyctl ssh console`) without any login. Documented in §11. A sibling
+  `portfolio-api admin set-password --username <name>` is included as the
+  ultimate recovery for a fully locked-out admin.
 
 ## 10. Risks / accepted trade-offs
 
@@ -421,10 +451,24 @@ login attempts can be bolted on without schema changes.
    `/api/summary`. Existing prod data is already scoped, so the admin login
    sees everything they had before.
 4. Ship the new frontend (login/signup/profile/admin) at the same time.
-5. Change `admin/admin` immediately on first login (the app forces it).
+5. Log in as `admin`/`admin`; the forced onboarding screen makes you set a
+   real password **and** three real security questions before the dashboard
+   loads. Do this immediately on first deploy.
 
 If step 3 needs to be rolled back, removing the middleware reverts the API
 to public; data stays usable because every row already has a `user_id`.
+
+**Break-glass (admin locked out):** if the admin forgets its password and
+then fails security-question recovery 3 times, run on the Fly machine:
+
+```bash
+flyctl ssh console -a portfolio-dashboard-api
+./portfolio-api admin reset-lockout --username admin   # clears the lock
+./portfolio-api admin set-password   --username admin   # prompts for a new password
+```
+
+These subcommands talk to MongoDB directly via `MONGODB_URI` and require no
+login, so they always work as long as you can reach the machine.
 
 ## 12. Out of scope for v1 (call out so we don't scope-creep)
 
