@@ -43,9 +43,11 @@ interface AddEditModalProps {
   holding: HoldingWithPrice | null
   onClose: () => void
   onSaved: () => void
+  /** Admin act-as: save into this user's portfolio instead of the caller's. */
+  userId?: string
 }
 
-export default function AddEditModal({ holding, onClose, onSaved }: AddEditModalProps) {
+export default function AddEditModal({ holding, onClose, onSaved, userId }: AddEditModalProps) {
   const isEdit = Boolean(holding)
   const [form, setForm] = useState<FormState>(empty)
   const [loading, setLoading] = useState(false)
@@ -107,9 +109,9 @@ export default function AddEditModal({ holding, onClose, onSaved }: AddEditModal
         notes: form.notes.trim(),
       }
       if (holding && holding.id) {
-        await api.updateHolding(holding.id, payload)
+        await api.updateHolding(holding.id, payload, userId)
       } else {
-        await api.createHolding(payload)
+        await api.createHolding(payload, userId)
       }
       onSaved()
     } catch (e) {

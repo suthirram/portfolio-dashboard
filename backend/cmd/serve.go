@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/db"
 	"portfolio-dashboard/internal/handlers"
@@ -128,6 +129,9 @@ func connectMongo(ctx context.Context, cfg config.Config, logger *slog.Logger) (
 	database := client.Database(cfg.MongoDB)
 	if err := db.EnsureIndexes(startCtx, database, logger); err != nil {
 		logger.Warn("index creation failed", slog.String("error", err.Error()))
+	}
+	if err := auth.EnsureSuperAdmin(startCtx, database, logger); err != nil {
+		logger.Warn("super admin bootstrap failed", slog.String("error", err.Error()))
 	}
 	return database, disconnect, nil
 }

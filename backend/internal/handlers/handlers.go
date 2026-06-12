@@ -53,3 +53,11 @@ func (h *Handler) reqLog(ctx context.Context) *slog.Logger {
 func (h *Handler) col() *mongo.Collection {
 	return h.db.Collection("holdings")
 }
+
+func (h *Handler) users() *mongo.Collection {
+	return h.db.Collection("users")
+}
+
+func (h *Handler) sessions() *mongo.Collection {
+	return h.db.Collection("sessions")
+}

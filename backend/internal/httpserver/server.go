@@ -37,21 +37,35 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 	e.Use(middleware.ContextTimeoutWithConfig(middleware.ContextTimeoutConfig{
 		Timeout: cfg.RequestTimeout,
 	}))
+	// Credentialed CORS forbids the "*" wildcard, so the fallback is the
+	// local dev origins; production must set CORS_ALLOWED_ORIGINS
+	// explicitly (DD-001 §5.1).
 	origins := cfg.CORSAllowedOrigins
 	if len(origins) == 0 {
-		origins = []string{"*"}
+		origins = []string{"http://localhost:3000", "http://localhost:5173"}
 	}
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: origins,
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders: []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token"},
-		MaxAge:       300,
+		AllowOrigins:     origins,
+		AllowCredentials: true,
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token", "X-Requested-With"},
+		MaxAge:           300,
 	}))
+	e.Use(CSRFCheck())
+	e.Use(AuthGate(db, logger))
 
 	e.GET("/api/healthz", healthHandler(db))
 	e.File("/api/openapi.yaml", "api/openapi.yaml")
 
-	strict := api.NewStrictHandler(h, nil)
+	// Stash the echo.Context on the request context so cookie-issuing
+	// handlers (signup/login/logout) can write Set-Cookie headers.
+	stashEcho := func(f api.StrictHandlerFunc, _ string) api.StrictHandlerFunc {
+		return func(c echo.Context, req any) (any, error) {
+			c.SetRequest(c.Request().WithContext(handlers.WithEchoContext(c.Request().Context(), c)))
+			return f(c, req)
+		}
+	}
+	strict := api.NewStrictHandler(h, []api.StrictMiddlewareFunc{stashEcho})
 	api.RegisterHandlersWithBaseURL(e, strict, "/api")
 
 	return e

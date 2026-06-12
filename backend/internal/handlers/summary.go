@@ -5,25 +5,27 @@ import (
 	"log/slog"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
 
-func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject) (api.GetSummaryResponseObject, error) {
+// summaryFor aggregates the portfolio of uid. Shared by GetSummary and the
+// admin act-as summary endpoint.
+func (h *Handler) summaryFor(ctx context.Context, uid primitive.ObjectID) (api.Summary, error) {
 	dbCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	cur, err := h.col().Find(dbCtx, bson.M{})
+	cur, err := h.col().Find(dbCtx, scopedFilter(uid, nil))
 	if err != nil {
-		return nil, err
+		return api.Summary{}, err
 	}
 	defer func() { _ = cur.Close(dbCtx) }()
 
 	var holdings []domain.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {
-		return nil, err
+		return api.Summary{}, err
 	}
 
 	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
@@ -68,7 +70,7 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 	totalUnrealizedEUR := totalUnrealized * eurRate
 	totalRealizedEUR := totalRealized * eurRate
 
-	return api.GetSummary200JSONResponse{
+	return api.Summary{
 		TotalCost:            &totalCost,
 		TotalCurrentValue:    &totalCurrentValue,
 		TotalUnrealized:      &totalUnrealized,
@@ -79,4 +81,16 @@ func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject)
 		TotalRealizedEur:     &totalRealizedEUR,
 		EurRate:              &eurRate,
 	}, nil
+}
+
+func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject) (api.GetSummaryResponseObject, error) {
+	uid, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	summary, err := h.summaryFor(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	return api.GetSummary200JSONResponse(summary), nil
 }

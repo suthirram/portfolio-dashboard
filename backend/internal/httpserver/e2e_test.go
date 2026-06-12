@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,6 +15,7 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/handlers"
 )
 
@@ -21,12 +23,46 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("create then list through HTTP", func(mt *mtest.T) {
+		userID := primitive.NewObjectID()
 		id := primitive.NewObjectID()
 		ns := mt.DB.Name() + ".holdings"
+		sessionsNS := mt.DB.Name() + ".sessions"
+		usersNS := mt.DB.Name() + ".users"
+
+		sessionDoc := bson.D{
+			{Key: "_id", Value: "sess-e2e"},
+			{Key: "user_id", Value: userID},
+			{Key: "created_at", Value: time.Now()},
+			{Key: "expires_at", Value: time.Now().Add(domain.SessionTTL)},
+		}
+		userDoc := bson.D{
+			{Key: "_id", Value: userID},
+			{Key: "username", Value: "alice"},
+			{Key: "username_display", Value: "Alice"},
+			{Key: "name", Value: "Alice"},
+			{Key: "password_hash", Value: "x"},
+			{Key: "role", Value: domain.RoleUser},
+			{Key: "region", Value: "india"},
+			{Key: "disabled", Value: false},
+			{Key: "locked", Value: false},
+			{Key: "must_change_password", Value: false},
+			{Key: "created_at", Value: time.Now()},
+			{Key: "updated_at", Value: time.Now()},
+		}
+
 		mt.AddMockResponses(
+			// AuthGate for POST /api/holdings.
+			mtest.CreateCursorResponse(0, sessionsNS, mtest.FirstBatch, sessionDoc),
+			mtest.CreateCursorResponse(0, usersNS, mtest.FirstBatch, userDoc),
+			// InsertOne(holdings).
 			mtest.CreateSuccessResponse(),
+			// AuthGate for GET /api/holdings.
+			mtest.CreateCursorResponse(0, sessionsNS, mtest.FirstBatch, sessionDoc),
+			mtest.CreateCursorResponse(0, usersNS, mtest.FirstBatch, userDoc),
+			// Find(holdings).
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch, bson.D{
 				{Key: "_id", Value: id},
+				{Key: "user_id", Value: userID},
 				{Key: "script", Value: "TCS"},
 				{Key: "symbol", Value: "TCS.NS"},
 				{Key: "exchange", Value: "NSE"},
@@ -43,9 +79,13 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		h := handlers.New(mt.DB, logger)
 		e := New(config.Default(), logger, mt.DB, h)
 
+		cookie := &http.Cookie{Name: handlers.SessionCookieName, Value: "sess-e2e"}
+
 		createBody := []byte(`{"script":"TCS","exchange":"NSE","type":"stock","symbol":"TCS.NS","stocks_owned":10,"avg_cost_price":3000}`)
 		createReq := httptest.NewRequest(http.MethodPost, "/api/holdings", bytes.NewReader(createBody))
 		createReq.Header.Set("Content-Type", "application/json")
+		createReq.Header.Set("X-Requested-With", CSRFHeaderValue)
+		createReq.AddCookie(cookie)
 		createRec := httptest.NewRecorder()
 		e.ServeHTTP(createRec, createReq)
 
@@ -64,6 +104,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		}
 
 		listReq := httptest.NewRequest(http.MethodGet, "/api/holdings", nil)
+		listReq.AddCookie(cookie)
 		listRec := httptest.NewRecorder()
 		e.ServeHTTP(listRec, listReq)
 

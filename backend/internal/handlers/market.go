@@ -7,25 +7,27 @@ import (
 	"log/slog"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
 
-func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (api.GetPricesResponseObject, error) {
+// pricesFor enriches the holdings owned by uid with live market data.
+// Shared by GetPrices and the admin act-as prices endpoint.
+func (h *Handler) pricesFor(ctx context.Context, uid primitive.ObjectID) ([]api.HoldingWithPrice, float64, error) {
 	dbCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	cur, err := h.col().Find(dbCtx, bson.M{})
+	cur, err := h.col().Find(dbCtx, scopedFilter(uid, nil))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer func() { _ = cur.Close(dbCtx) }()
 
 	var holdings []domain.Holding
 	if err := cur.All(dbCtx, &holdings); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	eurRate, err := h.priceService.GetForexRate(ctx, "INR", "EUR")
@@ -34,14 +36,25 @@ func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (
 			err = errors.New("EUR rate is zero")
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "EUR rate fetch failed", slog.String("error", err.Error()))
-		return nil, fmt.Errorf("fetching EUR rate: %w", err)
+		return nil, 0, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
 	for _, hld := range holdings {
 		results = append(results, holdingWithPriceToAPI(ctx, hld, h.priceService, eurRate))
 	}
+	return results, eurRate, nil
+}
 
+func (h *Handler) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (api.GetPricesResponseObject, error) {
+	uid, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	results, eurRate, err := h.pricesFor(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
 	return api.GetPrices200JSONResponse{Holdings: &results, EurRate: &eurRate}, nil
 }
 

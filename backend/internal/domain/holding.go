@@ -9,6 +9,7 @@ import (
 // Holding represents a stock/ETF position in the portfolio
 type Holding struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID       primitive.ObjectID `bson:"user_id,omitempty" json:"-"`           // owner; every query must scope on it (DD-001 §6.1)
 	Script       string             `bson:"script" json:"script"`                 // display name (e.g. "TCS", "GOLD BEES")
 	Symbol       string             `bson:"symbol" json:"symbol"`                 // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
 	Exchange     string             `bson:"exchange" json:"exchange"`             // NSE, BSE, NYSE, NASDAQ
