@@ -9,11 +9,26 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/auth"
 )
 
 // newIntegrationHandler builds a Handler backed by the mtest mock database.
 func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
 	return &Handler{db: mt.DB, priceService: ps}
+}
+
+func testAuthContext() context.Context {
+	return testAuthContextFor(primitive.NewObjectID())
+}
+
+func testAuthContextFor(userID primitive.ObjectID) context.Context {
+	return auth.IntoContext(context.Background(), auth.User{
+		ID:              userID,
+		Username:        "test-user",
+		UsernameDisplay: "test-user",
+		Role:            auth.RoleUser,
+		Region:          auth.RegionIndia,
+	}, "test-session")
 }
 
 // ── CreateHolding ──────────────────────────────────────────────────────────
@@ -29,7 +44,7 @@ func TestIntegration_CreateHolding_INR(t *testing.T) {
 		sym := "TCS.NS"
 		qty := 10.0
 		avg := 3000.0
-		resp, err := h.CreateHolding(context.Background(), api.CreateHoldingRequestObject{
+		resp, err := h.CreateHolding(testAuthContext(), api.CreateHoldingRequestObject{
 			Body: &api.HoldingInput{
 				Script:       "TCS",
 				Exchange:     "NSE",
@@ -67,7 +82,7 @@ func TestIntegration_CreateHolding_EUR(t *testing.T) {
 		qty := 5.0
 		avg := 100.0
 		cur := api.HoldingInputCurrency("EUR")
-		resp, err := h.CreateHolding(context.Background(), api.CreateHoldingRequestObject{
+		resp, err := h.CreateHolding(testAuthContext(), api.CreateHoldingRequestObject{
 			Body: &api.HoldingInput{
 				Script:       "VWCE",
 				Exchange:     "OTHER",
@@ -128,7 +143,7 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
-		resp, err := h.ListHoldings(context.Background(), api.ListHoldingsRequestObject{})
+		resp, err := h.ListHoldings(testAuthContext(), api.ListHoldingsRequestObject{})
 		if err != nil {
 			t.Fatalf("ListHoldings: %v", err)
 		}
@@ -147,6 +162,38 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 		}
 		if byScript["VWCE"] != "EUR" {
 			t.Errorf("VWCE currency = %q, want EUR", byScript["VWCE"])
+		}
+	})
+}
+
+func TestIntegration_ListHoldingsScopesQueryToAuthenticatedUser(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("find includes user_id", func(mt *mtest.T) {
+		userID := primitive.NewObjectID()
+		ns := mt.DB.Name() + ".holdings"
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch),
+			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
+		)
+
+		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
+		if _, err := h.ListHoldings(testAuthContextFor(userID), api.ListHoldingsRequestObject{}); err != nil {
+			t.Fatalf("ListHoldings: %v", err)
+		}
+
+		var findFilter bson.Raw
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "find" {
+				findFilter = event.Command.Lookup("filter").Document()
+				break
+			}
+		}
+		if len(findFilter) == 0 {
+			t.Fatal("find command not captured")
+		}
+		if got := findFilter.Lookup("user_id").ObjectID(); got != userID {
+			t.Errorf("filter user_id = %s, want %s", got.Hex(), userID.Hex())
 		}
 	})
 }
@@ -175,7 +222,7 @@ func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
 		cur := api.HoldingInputCurrency("EUR")
-		resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
+		resp, err := h.UpdateHolding(testAuthContext(), api.UpdateHoldingRequestObject{
 			Id: id.Hex(),
 			Body: &api.HoldingInput{
 				Script:   "VWCE",
@@ -245,7 +292,7 @@ func TestIntegration_GetSummary_MixedCurrenciesNormalisedToINR(t *testing.T) {
 
 		h := newIntegrationHandler(mt, ps)
 
-		resp, err := h.GetSummary(context.Background(), api.GetSummaryRequestObject{})
+		resp, err := h.GetSummary(testAuthContext(), api.GetSummaryRequestObject{})
 		if err != nil {
 			t.Fatalf("GetSummary: %v", err)
 		}

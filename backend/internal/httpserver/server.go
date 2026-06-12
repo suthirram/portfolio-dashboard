@@ -34,27 +34,73 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 	e.Use(middleware.RequestID())
 	e.Use(RequestLogger(logger))
 	e.Use(middleware.Recover())
+	e.Use(requireCSRF)
 	e.Use(middleware.ContextTimeoutWithConfig(middleware.ContextTimeoutConfig{
 		Timeout: cfg.RequestTimeout,
 	}))
 	origins := cfg.CORSAllowedOrigins
 	if len(origins) == 0 {
-		origins = []string{"*"}
+		origins = []string{"http://localhost:5173", "https://localhost:5173", "http://127.0.0.1:5173", "https://127.0.0.1:5173"}
 	}
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: origins,
-		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders: []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, "X-CSRF-Token"},
-		MaxAge:       300,
+		AllowOrigins:     origins,
+		AllowCredentials: true,
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{echo.HeaderAccept, echo.HeaderAuthorization, echo.HeaderContentType, csrfHeaderName},
+		MaxAge:           300,
 	}))
 
 	e.GET("/api/healthz", healthHandler(db))
 	e.File("/api/openapi.yaml", "api/openapi.yaml")
 
 	strict := api.NewStrictHandler(h, nil)
-	api.RegisterHandlersWithBaseURL(e, strict, "/api")
+	api.RegisterHandlersWithOptions(e, strict, api.RegisterHandlersOptions{
+		BaseURL:              "/api",
+		OperationMiddlewares: authOperationMiddlewares(requireAuth(db, logger)),
+	})
 
 	return e
+}
+
+func authOperationMiddlewares(authMiddleware echo.MiddlewareFunc) map[string][]echo.MiddlewareFunc {
+	authRequired := []string{
+		"getCurrentUser",
+		"logout",
+		"changePassword",
+		"updateProfile",
+		"updateSecurityQuestions",
+		"listHoldings",
+		"createHolding",
+		"deleteHolding",
+		"getHolding",
+		"updateHolding",
+		"getForexRate",
+		"getMarketPrice",
+		"getPrices",
+		"getSummary",
+		"listAdminUsers",
+		"listAdmins",
+		"getAdminUser",
+		"deleteAdminUser",
+		"resetAdminUserLockout",
+		"hideAdminUser",
+		"reactivateAdminUser",
+		"promoteAdminUser",
+		"demoteAdminUser",
+		"updateAdminUserRegion",
+		"listAdminUserHoldings",
+		"createAdminUserHolding",
+		"getAdminUserHolding",
+		"updateAdminUserHolding",
+		"deleteAdminUserHolding",
+		"getAdminUserPrices",
+		"getAdminUserSummary",
+	}
+	out := make(map[string][]echo.MiddlewareFunc, len(authRequired))
+	for _, operationID := range authRequired {
+		out[operationID] = []echo.MiddlewareFunc{authMiddleware}
+	}
+	return out
 }
 
 // Run starts e and blocks until ctx is cancelled or the server fails.

@@ -5,17 +5,25 @@ import (
 	"log/slog"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
 
 func (h *Handler) GetSummary(ctx context.Context, _ api.GetSummaryRequestObject) (api.GetSummaryResponseObject, error) {
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.getSummaryForUser(ctx, userID)
+}
+
+func (h *Handler) getSummaryForUser(ctx context.Context, userID primitive.ObjectID) (api.GetSummaryResponseObject, error) {
 	dbCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	cur, err := h.col().Find(dbCtx, bson.M{})
+	cur, err := h.col().Find(dbCtx, scopedFilter(userID, nil))
 	if err != nil {
 		return nil, err
 	}

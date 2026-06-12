@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api/client'
 import type { Holding, HoldingWithPrice, Summary } from '../../types'
 
-export function useHoldings() {
+export function useHoldings(userId?: string) {
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [enriched, setEnriched] = useState<HoldingWithPrice[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -13,19 +13,19 @@ export function useHoldings() {
   const fetchHoldings = useCallback(async () => {
     setLoadingHoldings(true)
     try {
-      const data = await api.listHoldings()
+      const data = userId ? await api.listAdminUserHoldings(userId) : await api.listHoldings()
       setHoldings(data)
     } catch (e) {
       console.error('listHoldings:', e)
     } finally {
       setLoadingHoldings(false)
     }
-  }, [])
+  }, [userId])
 
   const fetchPrices = useCallback(async () => {
     setLoadingPrices(true)
     try {
-      const data = await api.getPrices()
+      const data = userId ? await api.getAdminUserPrices(userId) : await api.getPrices()
       setEnriched(data.holdings || [])
       const totals = (data.holdings || []).reduce(
         (acc, h) => {
@@ -57,7 +57,7 @@ export function useHoldings() {
     } finally {
       setLoadingPrices(false)
     }
-  }, [])
+  }, [userId])
 
   const refresh = useCallback(async () => {
     await Promise.all([fetchHoldings(), fetchPrices()])
@@ -65,10 +65,14 @@ export function useHoldings() {
 
   const remove = useCallback(
     async (id: string) => {
-      await api.deleteHolding(id)
+      if (userId) {
+        await api.deleteAdminUserHolding(userId, id)
+      } else {
+        await api.deleteHolding(id)
+      }
       await refresh()
     },
-    [refresh],
+    [refresh, userId],
   )
 
   useEffect(() => {

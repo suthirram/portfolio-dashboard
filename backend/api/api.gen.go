@@ -15,6 +15,48 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for AuthUserRegion.
+const (
+	AuthUserRegionEurope AuthUserRegion = "europe"
+	AuthUserRegionIndia  AuthUserRegion = "india"
+	AuthUserRegionUs     AuthUserRegion = "us"
+)
+
+// Valid indicates whether the value is a known member of the AuthUserRegion enum.
+func (e AuthUserRegion) Valid() bool {
+	switch e {
+	case AuthUserRegionEurope:
+		return true
+	case AuthUserRegionIndia:
+		return true
+	case AuthUserRegionUs:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuthUserRole.
+const (
+	Admin      AuthUserRole = "admin"
+	Superadmin AuthUserRole = "superadmin"
+	User       AuthUserRole = "user"
+)
+
+// Valid indicates whether the value is a known member of the AuthUserRole enum.
+func (e AuthUserRole) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case Superadmin:
+		return true
+	case User:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HoldingCurrency.
 const (
 	HoldingCurrencyEUR HoldingCurrency = "EUR"
@@ -204,6 +246,105 @@ func (e HoldingWithPriceType) Valid() bool {
 	}
 }
 
+// Defines values for RegionId.
+const (
+	RegionIdEurope RegionId = "europe"
+	RegionIdIndia  RegionId = "india"
+	RegionIdUs     RegionId = "us"
+)
+
+// Valid indicates whether the value is a known member of the RegionId enum.
+func (e RegionId) Valid() bool {
+	switch e {
+	case RegionIdEurope:
+		return true
+	case RegionIdIndia:
+		return true
+	case RegionIdUs:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SignupRequestRegion.
+const (
+	SignupRequestRegionEurope SignupRequestRegion = "europe"
+	SignupRequestRegionIndia  SignupRequestRegion = "india"
+	SignupRequestRegionUs     SignupRequestRegion = "us"
+)
+
+// Valid indicates whether the value is a known member of the SignupRequestRegion enum.
+func (e SignupRequestRegion) Valid() bool {
+	switch e {
+	case SignupRequestRegionEurope:
+		return true
+	case SignupRequestRegionIndia:
+		return true
+	case SignupRequestRegionUs:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UpdateUserRegionRequestRegion.
+const (
+	UpdateUserRegionRequestRegionEurope UpdateUserRegionRequestRegion = "europe"
+	UpdateUserRegionRequestRegionIndia  UpdateUserRegionRequestRegion = "india"
+	UpdateUserRegionRequestRegionUs     UpdateUserRegionRequestRegion = "us"
+)
+
+// Valid indicates whether the value is a known member of the UpdateUserRegionRequestRegion enum.
+func (e UpdateUserRegionRequestRegion) Valid() bool {
+	switch e {
+	case UpdateUserRegionRequestRegionEurope:
+		return true
+	case UpdateUserRegionRequestRegionIndia:
+		return true
+	case UpdateUserRegionRequestRegionUs:
+		return true
+	default:
+		return false
+	}
+}
+
+// AuthResponse defines model for AuthResponse.
+type AuthResponse struct {
+	User *AuthUser `json:"user,omitempty"`
+}
+
+// AuthUser defines model for AuthUser.
+type AuthUser struct {
+	CreatedAt                *time.Time      `json:"created_at,omitempty"`
+	Disabled                 *bool           `json:"disabled,omitempty"`
+	Id                       *string         `json:"id,omitempty"`
+	LastLoginAt              *time.Time      `json:"last_login_at,omitempty"`
+	Locked                   *bool           `json:"locked,omitempty"`
+	LoginFailures            *int            `json:"login_failures,omitempty"`
+	MustChangePassword       *bool           `json:"must_change_password,omitempty"`
+	Name                     *string         `json:"name,omitempty"`
+	Region                   *AuthUserRegion `json:"region,omitempty"`
+	Role                     *AuthUserRole   `json:"role,omitempty"`
+	SecurityQuestionFailures *int            `json:"security_question_failures,omitempty"`
+	UpdatedAt                *time.Time      `json:"updated_at,omitempty"`
+
+	// Username Display username as typed by the user
+	Username *string `json:"username,omitempty"`
+}
+
+// AuthUserRegion defines model for AuthUser.Region.
+type AuthUserRegion string
+
+// AuthUserRole defines model for AuthUser.Role.
+type AuthUserRole string
+
+// ChangePasswordRequest defines model for ChangePasswordRequest.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	Error *string `json:"error,omitempty"`
@@ -324,12 +465,69 @@ type HoldingWithPriceExchange string
 // HoldingWithPriceType defines model for HoldingWithPrice.Type.
 type HoldingWithPriceType string
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// MessageResponse defines model for MessageResponse.
+type MessageResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
 // PricesResponse defines model for PricesResponse.
 type PricesResponse struct {
 	// EurRate Live INR→EUR rate used for conversions
 	EurRate  *float64            `json:"eur_rate,omitempty"`
 	Holdings *[]HoldingWithPrice `json:"holdings,omitempty"`
 }
+
+// RecoverRequest defines model for RecoverRequest.
+type RecoverRequest struct {
+	Answers     *[]SecurityAnswerInput `json:"answers,omitempty"`
+	NewPassword *string                `json:"new_password,omitempty"`
+	Username    string                 `json:"username"`
+}
+
+// RecoverResponse defines model for RecoverResponse.
+type RecoverResponse struct {
+	Questions *[]SecurityQuestion `json:"questions,omitempty"`
+	User      *AuthUser           `json:"user,omitempty"`
+}
+
+// Region defines model for Region.
+type Region struct {
+	Id    RegionId `json:"id"`
+	Label string   `json:"label"`
+}
+
+// RegionId defines model for Region.Id.
+type RegionId string
+
+// SecurityAnswerInput defines model for SecurityAnswerInput.
+type SecurityAnswerInput struct {
+	Answer     string `json:"answer"`
+	QuestionId string `json:"question_id"`
+}
+
+// SecurityQuestion defines model for SecurityQuestion.
+type SecurityQuestion struct {
+	Id     string `json:"id"`
+	Prompt string `json:"prompt"`
+}
+
+// SignupRequest defines model for SignupRequest.
+type SignupRequest struct {
+	Name              string                `json:"name"`
+	Password          string                `json:"password"`
+	Region            SignupRequestRegion   `json:"region"`
+	SecurityQuestions []SecurityAnswerInput `json:"security_questions"`
+	Username          string                `json:"username"`
+}
+
+// SignupRequestRegion defines model for SignupRequest.Region.
+type SignupRequestRegion string
 
 // Summary defines model for Summary.
 type Summary struct {
@@ -344,14 +542,52 @@ type Summary struct {
 	TotalUnrealizedEur   *float64 `json:"total_unrealized_eur,omitempty"`
 }
 
+// UpdateProfileRequest defines model for UpdateProfileRequest.
+type UpdateProfileRequest struct {
+	CurrentPassword string `json:"current_password"`
+	Name            string `json:"name"`
+	Username        string `json:"username"`
+}
+
+// UpdateSecurityQuestionsRequest defines model for UpdateSecurityQuestionsRequest.
+type UpdateSecurityQuestionsRequest struct {
+	CurrentPassword   string                `json:"current_password"`
+	SecurityQuestions []SecurityAnswerInput `json:"security_questions"`
+}
+
+// UpdateUserRegionRequest defines model for UpdateUserRegionRequest.
+type UpdateUserRegionRequest struct {
+	Region UpdateUserRegionRequestRegion `json:"region"`
+}
+
+// UpdateUserRegionRequestRegion defines model for UpdateUserRegionRequest.Region.
+type UpdateUserRegionRequestRegion string
+
 // BadGateway defines model for BadGateway.
 type BadGateway = Error
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
 
+// Conflict defines model for Conflict.
+type Conflict = Error
+
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
+// Locked defines model for Locked.
+type Locked = Error
+
 // NotFound defines model for NotFound.
 type NotFound = Error
+
+// Unauthorized defines model for Unauthorized.
+type Unauthorized = Error
+
+// ListAdminUsersParams defines parameters for ListAdminUsers.
+type ListAdminUsersParams struct {
+	IncludeHidden *bool `form:"include_hidden,omitempty" json:"include_hidden,omitempty"`
+}
 
 // GetForexRateParams defines parameters for GetForexRate.
 type GetForexRateParams struct {
@@ -365,6 +601,33 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// CreateAdminUserHoldingJSONRequestBody defines body for CreateAdminUserHolding for application/json ContentType.
+type CreateAdminUserHoldingJSONRequestBody = HoldingInput
+
+// UpdateAdminUserHoldingJSONRequestBody defines body for UpdateAdminUserHolding for application/json ContentType.
+type UpdateAdminUserHoldingJSONRequestBody = HoldingInput
+
+// UpdateAdminUserRegionJSONRequestBody defines body for UpdateAdminUserRegion for application/json ContentType.
+type UpdateAdminUserRegionJSONRequestBody = UpdateUserRegionRequest
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
+// UpdateProfileJSONRequestBody defines body for UpdateProfile for application/json ContentType.
+type UpdateProfileJSONRequestBody = UpdateProfileRequest
+
+// RecoverJSONRequestBody defines body for Recover for application/json ContentType.
+type RecoverJSONRequestBody = RecoverRequest
+
+// UpdateSecurityQuestionsJSONRequestBody defines body for UpdateSecurityQuestions for application/json ContentType.
+type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
+
+// SignupJSONRequestBody defines body for Signup for application/json ContentType.
+type SignupJSONRequestBody = SignupRequest
+
 // CreateHoldingJSONRequestBody defines body for CreateHolding for application/json ContentType.
 type CreateHoldingJSONRequestBody = HoldingInput
 
@@ -373,6 +636,84 @@ type UpdateHoldingJSONRequestBody = HoldingInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List admin and super-admin accounts
+	// (GET /admin/admins)
+	ListAdmins(ctx echo.Context) error
+	// List manageable users
+	// (GET /admin/users)
+	ListAdminUsers(ctx echo.Context, params ListAdminUsersParams) error
+	// Permanently delete a user and their holdings
+	// (DELETE /admin/users/{id})
+	DeleteAdminUser(ctx echo.Context, id string) error
+	// Get a manageable user
+	// (GET /admin/users/{id})
+	GetAdminUser(ctx echo.Context, id string) error
+	// Demote an admin to user
+	// (POST /admin/users/{id}/demote)
+	DemoteAdminUser(ctx echo.Context, id string) error
+	// Hide a user
+	// (POST /admin/users/{id}/hide)
+	HideAdminUser(ctx echo.Context, id string) error
+	// List a target user's holdings
+	// (GET /admin/users/{id}/holdings)
+	ListAdminUserHoldings(ctx echo.Context, id string) error
+	// Create a holding for a target user
+	// (POST /admin/users/{id}/holdings)
+	CreateAdminUserHolding(ctx echo.Context, id string) error
+	// Delete a target user's holding
+	// (DELETE /admin/users/{id}/holdings/{holding_id})
+	DeleteAdminUserHolding(ctx echo.Context, id string, holdingId string) error
+	// Get a target user's holding
+	// (GET /admin/users/{id}/holdings/{holding_id})
+	GetAdminUserHolding(ctx echo.Context, id string, holdingId string) error
+	// Update a target user's holding
+	// (PUT /admin/users/{id}/holdings/{holding_id})
+	UpdateAdminUserHolding(ctx echo.Context, id string, holdingId string) error
+	// Get target user's holdings with prices
+	// (GET /admin/users/{id}/prices)
+	GetAdminUserPrices(ctx echo.Context, id string) error
+	// Promote a user to admin
+	// (POST /admin/users/{id}/promote)
+	PromoteAdminUser(ctx echo.Context, id string) error
+	// Reactivate a hidden user
+	// (POST /admin/users/{id}/reactivate)
+	ReactivateAdminUser(ctx echo.Context, id string) error
+	// Move a user or admin to another region
+	// (PUT /admin/users/{id}/region)
+	UpdateAdminUserRegion(ctx echo.Context, id string) error
+	// Clear recovery lockout for a user
+	// (POST /admin/users/{id}/reset-lockout)
+	ResetAdminUserLockout(ctx echo.Context, id string) error
+	// Get target user's portfolio summary
+	// (GET /admin/users/{id}/summary)
+	GetAdminUserSummary(ctx echo.Context, id string) error
+	// Log in and issue a session
+	// (POST /auth/login)
+	Login(ctx echo.Context) error
+	// Log out the current session
+	// (POST /auth/logout)
+	Logout(ctx echo.Context) error
+	// Return the current user
+	// (GET /auth/me)
+	GetCurrentUser(ctx echo.Context) error
+	// Change own password
+	// (PUT /auth/password)
+	ChangePassword(ctx echo.Context) error
+	// Change own profile
+	// (PUT /auth/profile)
+	UpdateProfile(ctx echo.Context) error
+	// Recover account access with security questions
+	// (POST /auth/recover)
+	Recover(ctx echo.Context) error
+	// List supported security questions
+	// (GET /auth/security-questions)
+	ListSecurityQuestions(ctx echo.Context) error
+	// Replace own security questions
+	// (PUT /auth/security-questions)
+	UpdateSecurityQuestions(ctx echo.Context) error
+	// Create a user and issue a session
+	// (POST /auth/signup)
+	Signup(ctx echo.Context) error
 	// List all holdings
 	// (GET /holdings)
 	ListHoldings(ctx echo.Context) error
@@ -397,6 +738,9 @@ type ServerInterface interface {
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx echo.Context) error
+	// List supported regions
+	// (GET /regions)
+	ListRegions(ctx echo.Context) error
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx echo.Context) error
@@ -405,6 +749,378 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// ListAdmins converts echo context to params.
+func (w *ServerInterfaceWrapper) ListAdmins(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListAdmins(ctx)
+	return err
+}
+
+// ListAdminUsers converts echo context to params.
+func (w *ServerInterfaceWrapper) ListAdminUsers(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAdminUsersParams
+	// ------------- Optional query parameter "include_hidden" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_hidden", ctx.QueryParams(), &params.IncludeHidden, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter include_hidden: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListAdminUsers(ctx, params)
+	return err
+}
+
+// DeleteAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteAdminUser(ctx, id)
+	return err
+}
+
+// GetAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAdminUser(ctx, id)
+	return err
+}
+
+// DemoteAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) DemoteAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DemoteAdminUser(ctx, id)
+	return err
+}
+
+// HideAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) HideAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HideAdminUser(ctx, id)
+	return err
+}
+
+// ListAdminUserHoldings converts echo context to params.
+func (w *ServerInterfaceWrapper) ListAdminUserHoldings(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListAdminUserHoldings(ctx, id)
+	return err
+}
+
+// CreateAdminUserHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateAdminUserHolding(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateAdminUserHolding(ctx, id)
+	return err
+}
+
+// DeleteAdminUserHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteAdminUserHolding(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holding_id" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holding_id", ctx.Param("holding_id"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holding_id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteAdminUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// GetAdminUserHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAdminUserHolding(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holding_id" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holding_id", ctx.Param("holding_id"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holding_id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAdminUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// UpdateAdminUserHolding converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateAdminUserHolding(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holding_id" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holding_id", ctx.Param("holding_id"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holding_id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateAdminUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// GetAdminUserPrices converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAdminUserPrices(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAdminUserPrices(ctx, id)
+	return err
+}
+
+// PromoteAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) PromoteAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PromoteAdminUser(ctx, id)
+	return err
+}
+
+// ReactivateAdminUser converts echo context to params.
+func (w *ServerInterfaceWrapper) ReactivateAdminUser(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ReactivateAdminUser(ctx, id)
+	return err
+}
+
+// UpdateAdminUserRegion converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateAdminUserRegion(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateAdminUserRegion(ctx, id)
+	return err
+}
+
+// ResetAdminUserLockout converts echo context to params.
+func (w *ServerInterfaceWrapper) ResetAdminUserLockout(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ResetAdminUserLockout(ctx, id)
+	return err
+}
+
+// GetAdminUserSummary converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAdminUserSummary(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetAdminUserSummary(ctx, id)
+	return err
+}
+
+// Login converts echo context to params.
+func (w *ServerInterfaceWrapper) Login(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Login(ctx)
+	return err
+}
+
+// Logout converts echo context to params.
+func (w *ServerInterfaceWrapper) Logout(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Logout(ctx)
+	return err
+}
+
+// GetCurrentUser converts echo context to params.
+func (w *ServerInterfaceWrapper) GetCurrentUser(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetCurrentUser(ctx)
+	return err
+}
+
+// ChangePassword converts echo context to params.
+func (w *ServerInterfaceWrapper) ChangePassword(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ChangePassword(ctx)
+	return err
+}
+
+// UpdateProfile converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateProfile(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateProfile(ctx)
+	return err
+}
+
+// Recover converts echo context to params.
+func (w *ServerInterfaceWrapper) Recover(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Recover(ctx)
+	return err
+}
+
+// ListSecurityQuestions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListSecurityQuestions(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListSecurityQuestions(ctx)
+	return err
+}
+
+// UpdateSecurityQuestions converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateSecurityQuestions(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateSecurityQuestions(ctx)
+	return err
+}
+
+// Signup converts echo context to params.
+func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.Signup(ctx)
+	return err
 }
 
 // ListHoldings converts echo context to params.
@@ -525,6 +1241,15 @@ func (w *ServerInterfaceWrapper) GetPrices(ctx echo.Context) error {
 	return err
 }
 
+// ListRegions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListRegions(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListRegions(ctx)
+	return err
+}
+
 // GetSummary converts echo context to params.
 func (w *ServerInterfaceWrapper) GetSummary(ctx echo.Context) error {
 	var err error
@@ -581,6 +1306,32 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 		Handler: si,
 	}
 
+	router.GET(options.BaseURL+"/admin/admins", wrapper.ListAdmins, options.OperationMiddlewares["listAdmins"]...)
+	router.GET(options.BaseURL+"/admin/users", wrapper.ListAdminUsers, options.OperationMiddlewares["listAdminUsers"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.DeleteAdminUser, options.OperationMiddlewares["deleteAdminUser"]...)
+	router.GET(options.BaseURL+"/admin/users/:id", wrapper.GetAdminUser, options.OperationMiddlewares["getAdminUser"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.DemoteAdminUser, options.OperationMiddlewares["demoteAdminUser"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/hide", wrapper.HideAdminUser, options.OperationMiddlewares["hideAdminUser"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/holdings", wrapper.ListAdminUserHoldings, options.OperationMiddlewares["listAdminUserHoldings"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.CreateAdminUserHolding, options.OperationMiddlewares["createAdminUserHolding"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id/holdings/:holding_id", wrapper.DeleteAdminUserHolding, options.OperationMiddlewares["deleteAdminUserHolding"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/holdings/:holding_id", wrapper.GetAdminUserHolding, options.OperationMiddlewares["getAdminUserHolding"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holding_id", wrapper.UpdateAdminUserHolding, options.OperationMiddlewares["updateAdminUserHolding"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/prices", wrapper.GetAdminUserPrices, options.OperationMiddlewares["getAdminUserPrices"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/promote", wrapper.PromoteAdminUser, options.OperationMiddlewares["promoteAdminUser"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/reactivate", wrapper.ReactivateAdminUser, options.OperationMiddlewares["reactivateAdminUser"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/region", wrapper.UpdateAdminUserRegion, options.OperationMiddlewares["updateAdminUserRegion"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/reset-lockout", wrapper.ResetAdminUserLockout, options.OperationMiddlewares["resetAdminUserLockout"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/summary", wrapper.GetAdminUserSummary, options.OperationMiddlewares["getAdminUserSummary"]...)
+	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
+	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
+	router.GET(options.BaseURL+"/auth/me", wrapper.GetCurrentUser, options.OperationMiddlewares["getCurrentUser"]...)
+	router.PUT(options.BaseURL+"/auth/password", wrapper.ChangePassword, options.OperationMiddlewares["changePassword"]...)
+	router.PUT(options.BaseURL+"/auth/profile", wrapper.UpdateProfile, options.OperationMiddlewares["updateProfile"]...)
+	router.POST(options.BaseURL+"/auth/recover", wrapper.Recover, options.OperationMiddlewares["recover"]...)
+	router.GET(options.BaseURL+"/auth/security-questions", wrapper.ListSecurityQuestions, options.OperationMiddlewares["listSecurityQuestions"]...)
+	router.PUT(options.BaseURL+"/auth/security-questions", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
+	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
 	router.GET(options.BaseURL+"/holdings", wrapper.ListHoldings, options.OperationMiddlewares["listHoldings"]...)
 	router.POST(options.BaseURL+"/holdings", wrapper.CreateHolding, options.OperationMiddlewares["createHolding"]...)
 	router.DELETE(options.BaseURL+"/holdings/:id", wrapper.DeleteHolding, options.OperationMiddlewares["deleteHolding"]...)
@@ -589,6 +1340,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/market/forex", wrapper.GetForexRate, options.OperationMiddlewares["getForexRate"]...)
 	router.GET(options.BaseURL+"/market/price", wrapper.GetMarketPrice, options.OperationMiddlewares["getMarketPrice"]...)
 	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
+	router.GET(options.BaseURL+"/regions", wrapper.ListRegions, options.OperationMiddlewares["listRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
 
 }
@@ -597,7 +1349,1623 @@ type BadGatewayJSONResponse Error
 
 type BadRequestJSONResponse Error
 
+type ConflictJSONResponse Error
+
+type ForbiddenJSONResponse Error
+
+type LockedJSONResponse Error
+
 type NotFoundJSONResponse Error
+
+type UnauthorizedJSONResponse Error
+
+type ListAdminsRequestObject struct {
+}
+
+type ListAdminsResponseObject interface {
+	VisitListAdminsResponse(w http.ResponseWriter) error
+}
+
+type ListAdmins200JSONResponse []AuthUser
+
+func (response ListAdmins200JSONResponse) VisitListAdminsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdmins401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdmins401JSONResponse) VisitListAdminsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdmins403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdmins403JSONResponse) VisitListAdminsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsersRequestObject struct {
+	Params ListAdminUsersParams
+}
+
+type ListAdminUsersResponseObject interface {
+	VisitListAdminUsersResponse(w http.ResponseWriter) error
+}
+
+type ListAdminUsers200JSONResponse []AuthUser
+
+func (response ListAdminUsers200JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsers401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminUsers401JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUsers403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminUsers403JSONResponse) VisitListAdminUsersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteAdminUserResponseObject interface {
+	VisitDeleteAdminUserResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminUser200JSONResponse MessageResponse
+
+func (response DeleteAdminUser200JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminUser401JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminUser403JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminUser404JSONResponse) VisitDeleteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetAdminUserResponseObject interface {
+	VisitGetAdminUserResponse(w http.ResponseWriter) error
+}
+
+type GetAdminUser200JSONResponse AuthUser
+
+func (response GetAdminUser200JSONResponse) VisitGetAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminUser401JSONResponse) VisitGetAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminUser403JSONResponse) VisitGetAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminUser404JSONResponse) VisitGetAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DemoteAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DemoteAdminUserResponseObject interface {
+	VisitDemoteAdminUserResponse(w http.ResponseWriter) error
+}
+
+type DemoteAdminUser200JSONResponse AuthUser
+
+func (response DemoteAdminUser200JSONResponse) VisitDemoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DemoteAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DemoteAdminUser401JSONResponse) VisitDemoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DemoteAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DemoteAdminUser403JSONResponse) VisitDemoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DemoteAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DemoteAdminUser404JSONResponse) VisitDemoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type HideAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type HideAdminUserResponseObject interface {
+	VisitHideAdminUserResponse(w http.ResponseWriter) error
+}
+
+type HideAdminUser200JSONResponse AuthUser
+
+func (response HideAdminUser200JSONResponse) VisitHideAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type HideAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response HideAdminUser401JSONResponse) VisitHideAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type HideAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response HideAdminUser403JSONResponse) VisitHideAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type HideAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response HideAdminUser404JSONResponse) VisitHideAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUserHoldingsRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ListAdminUserHoldingsResponseObject interface {
+	VisitListAdminUserHoldingsResponse(w http.ResponseWriter) error
+}
+
+type ListAdminUserHoldings200JSONResponse []Holding
+
+func (response ListAdminUserHoldings200JSONResponse) VisitListAdminUserHoldingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUserHoldings401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListAdminUserHoldings401JSONResponse) VisitListAdminUserHoldingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUserHoldings403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminUserHoldings403JSONResponse) VisitListAdminUserHoldingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdminUserHoldings404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListAdminUserHoldings404JSONResponse) VisitListAdminUserHoldingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserHoldingRequestObject struct {
+	Id   string `json:"id"`
+	Body *CreateAdminUserHoldingJSONRequestBody
+}
+
+type CreateAdminUserHoldingResponseObject interface {
+	VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error
+}
+
+type CreateAdminUserHolding201JSONResponse Holding
+
+func (response CreateAdminUserHolding201JSONResponse) VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserHolding400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateAdminUserHolding400JSONResponse) VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserHolding401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateAdminUserHolding401JSONResponse) VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserHolding403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateAdminUserHolding403JSONResponse) VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdminUserHolding404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateAdminUserHolding404JSONResponse) VisitCreateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserHoldingRequestObject struct {
+	Id        string `json:"id"`
+	HoldingId string `json:"holding_id"`
+}
+
+type DeleteAdminUserHoldingResponseObject interface {
+	VisitDeleteAdminUserHoldingResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdminUserHolding200JSONResponse MessageResponse
+
+func (response DeleteAdminUserHolding200JSONResponse) VisitDeleteAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserHolding401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteAdminUserHolding401JSONResponse) VisitDeleteAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserHolding403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteAdminUserHolding403JSONResponse) VisitDeleteAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdminUserHolding404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteAdminUserHolding404JSONResponse) VisitDeleteAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserHoldingRequestObject struct {
+	Id        string `json:"id"`
+	HoldingId string `json:"holding_id"`
+}
+
+type GetAdminUserHoldingResponseObject interface {
+	VisitGetAdminUserHoldingResponse(w http.ResponseWriter) error
+}
+
+type GetAdminUserHolding200JSONResponse Holding
+
+func (response GetAdminUserHolding200JSONResponse) VisitGetAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserHolding401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminUserHolding401JSONResponse) VisitGetAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserHolding403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminUserHolding403JSONResponse) VisitGetAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserHolding404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminUserHolding404JSONResponse) VisitGetAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserHoldingRequestObject struct {
+	Id        string `json:"id"`
+	HoldingId string `json:"holding_id"`
+	Body      *UpdateAdminUserHoldingJSONRequestBody
+}
+
+type UpdateAdminUserHoldingResponseObject interface {
+	VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminUserHolding200JSONResponse Holding
+
+func (response UpdateAdminUserHolding200JSONResponse) VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserHolding400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminUserHolding400JSONResponse) VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserHolding401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminUserHolding401JSONResponse) VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserHolding403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminUserHolding403JSONResponse) VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserHolding404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateAdminUserHolding404JSONResponse) VisitUpdateAdminUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserPricesRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetAdminUserPricesResponseObject interface {
+	VisitGetAdminUserPricesResponse(w http.ResponseWriter) error
+}
+
+type GetAdminUserPrices200JSONResponse PricesResponse
+
+func (response GetAdminUserPrices200JSONResponse) VisitGetAdminUserPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserPrices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminUserPrices401JSONResponse) VisitGetAdminUserPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserPrices403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminUserPrices403JSONResponse) VisitGetAdminUserPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserPrices404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminUserPrices404JSONResponse) VisitGetAdminUserPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PromoteAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type PromoteAdminUserResponseObject interface {
+	VisitPromoteAdminUserResponse(w http.ResponseWriter) error
+}
+
+type PromoteAdminUser200JSONResponse AuthUser
+
+func (response PromoteAdminUser200JSONResponse) VisitPromoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PromoteAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PromoteAdminUser401JSONResponse) VisitPromoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PromoteAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PromoteAdminUser403JSONResponse) VisitPromoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PromoteAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PromoteAdminUser404JSONResponse) VisitPromoteAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReactivateAdminUserRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ReactivateAdminUserResponseObject interface {
+	VisitReactivateAdminUserResponse(w http.ResponseWriter) error
+}
+
+type ReactivateAdminUser200JSONResponse AuthUser
+
+func (response ReactivateAdminUser200JSONResponse) VisitReactivateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReactivateAdminUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ReactivateAdminUser401JSONResponse) VisitReactivateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReactivateAdminUser403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ReactivateAdminUser403JSONResponse) VisitReactivateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReactivateAdminUser404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ReactivateAdminUser404JSONResponse) VisitReactivateAdminUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRegionRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateAdminUserRegionJSONRequestBody
+}
+
+type UpdateAdminUserRegionResponseObject interface {
+	VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdminUserRegion200JSONResponse AuthUser
+
+func (response UpdateAdminUserRegion200JSONResponse) VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRegion400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateAdminUserRegion400JSONResponse) VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRegion401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateAdminUserRegion401JSONResponse) VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRegion403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UpdateAdminUserRegion403JSONResponse) VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdminUserRegion404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateAdminUserRegion404JSONResponse) VisitUpdateAdminUserRegionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserLockoutRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ResetAdminUserLockoutResponseObject interface {
+	VisitResetAdminUserLockoutResponse(w http.ResponseWriter) error
+}
+
+type ResetAdminUserLockout200JSONResponse AuthUser
+
+func (response ResetAdminUserLockout200JSONResponse) VisitResetAdminUserLockoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserLockout401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResetAdminUserLockout401JSONResponse) VisitResetAdminUserLockoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserLockout403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ResetAdminUserLockout403JSONResponse) VisitResetAdminUserLockoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetAdminUserLockout404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ResetAdminUserLockout404JSONResponse) VisitResetAdminUserLockoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserSummaryRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetAdminUserSummaryResponseObject interface {
+	VisitGetAdminUserSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetAdminUserSummary200JSONResponse Summary
+
+func (response GetAdminUserSummary200JSONResponse) VisitGetAdminUserSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserSummary401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetAdminUserSummary401JSONResponse) VisitGetAdminUserSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserSummary403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetAdminUserSummary403JSONResponse) VisitGetAdminUserSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdminUserSummary404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetAdminUserSummary404JSONResponse) VisitGetAdminUserSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LoginRequestObject struct {
+	Body *LoginJSONRequestBody
+}
+
+type LoginResponseObject interface {
+	VisitLoginResponse(w http.ResponseWriter) error
+}
+
+type Login200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Login200JSONResponse struct {
+	Body    AuthResponse
+	Headers Login200ResponseHeaders
+}
+
+func (response Login200JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response Login401JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response Login403JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Login423JSONResponse struct{ LockedJSONResponse }
+
+func (response Login423JSONResponse) VisitLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(423)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Logout200JSONResponse struct {
+	Body    MessageResponse
+	Headers Logout200ResponseHeaders
+}
+
+func (response Logout200JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Logout401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response Logout401JSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCurrentUserRequestObject struct {
+}
+
+type GetCurrentUserResponseObject interface {
+	VisitGetCurrentUserResponse(w http.ResponseWriter) error
+}
+
+type GetCurrentUser200JSONResponse AuthUser
+
+func (response GetCurrentUser200JSONResponse) VisitGetCurrentUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCurrentUser401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetCurrentUser401JSONResponse) VisitGetCurrentUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword200JSONResponse AuthUser
+
+func (response ChangePassword200JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ChangePassword400JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ChangePassword401JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateProfileRequestObject struct {
+	Body *UpdateProfileJSONRequestBody
+}
+
+type UpdateProfileResponseObject interface {
+	VisitUpdateProfileResponse(w http.ResponseWriter) error
+}
+
+type UpdateProfile200JSONResponse AuthUser
+
+func (response UpdateProfile200JSONResponse) VisitUpdateProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateProfile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateProfile400JSONResponse) VisitUpdateProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateProfile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateProfile401JSONResponse) VisitUpdateProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateProfile409JSONResponse struct{ ConflictJSONResponse }
+
+func (response UpdateProfile409JSONResponse) VisitUpdateProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverRequestObject struct {
+	Body *RecoverJSONRequestBody
+}
+
+type RecoverResponseObject interface {
+	VisitRecoverResponse(w http.ResponseWriter) error
+}
+
+type Recover200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Recover200JSONResponse struct {
+	Body    RecoverResponse
+	Headers Recover200ResponseHeaders
+}
+
+func (response Recover200JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Recover400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response Recover400JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Recover401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response Recover401JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Recover403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response Recover403JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Recover404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response Recover404JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Recover423JSONResponse struct{ LockedJSONResponse }
+
+func (response Recover423JSONResponse) VisitRecoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(423)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecurityQuestionsRequestObject struct {
+}
+
+type ListSecurityQuestionsResponseObject interface {
+	VisitListSecurityQuestionsResponse(w http.ResponseWriter) error
+}
+
+type ListSecurityQuestions200JSONResponse []SecurityQuestion
+
+func (response ListSecurityQuestions200JSONResponse) VisitListSecurityQuestionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSecurityQuestionsRequestObject struct {
+	Body *UpdateSecurityQuestionsJSONRequestBody
+}
+
+type UpdateSecurityQuestionsResponseObject interface {
+	VisitUpdateSecurityQuestionsResponse(w http.ResponseWriter) error
+}
+
+type UpdateSecurityQuestions200JSONResponse AuthUser
+
+func (response UpdateSecurityQuestions200JSONResponse) VisitUpdateSecurityQuestionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSecurityQuestions400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateSecurityQuestions400JSONResponse) VisitUpdateSecurityQuestionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSecurityQuestions401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateSecurityQuestions401JSONResponse) VisitUpdateSecurityQuestionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SignupRequestObject struct {
+	Body *SignupJSONRequestBody
+}
+
+type SignupResponseObject interface {
+	VisitSignupResponse(w http.ResponseWriter) error
+}
+
+type Signup201ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Signup201JSONResponse struct {
+	Body    AuthResponse
+	Headers Signup201ResponseHeaders
+}
+
+func (response Signup201JSONResponse) VisitSignupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Signup400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response Signup400JSONResponse) VisitSignupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type Signup409JSONResponse struct{ ConflictJSONResponse }
+
+func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListHoldingsRequestObject struct {
 }
@@ -870,6 +3238,27 @@ func (response GetPrices200JSONResponse) VisitGetPricesResponse(w http.ResponseW
 	return err
 }
 
+type ListRegionsRequestObject struct {
+}
+
+type ListRegionsResponseObject interface {
+	VisitListRegionsResponse(w http.ResponseWriter) error
+}
+
+type ListRegions200JSONResponse []Region
+
+func (response ListRegions200JSONResponse) VisitListRegionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSummaryRequestObject struct {
 }
 
@@ -893,6 +3282,84 @@ func (response GetSummary200JSONResponse) VisitGetSummaryResponse(w http.Respons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List admin and super-admin accounts
+	// (GET /admin/admins)
+	ListAdmins(ctx context.Context, request ListAdminsRequestObject) (ListAdminsResponseObject, error)
+	// List manageable users
+	// (GET /admin/users)
+	ListAdminUsers(ctx context.Context, request ListAdminUsersRequestObject) (ListAdminUsersResponseObject, error)
+	// Permanently delete a user and their holdings
+	// (DELETE /admin/users/{id})
+	DeleteAdminUser(ctx context.Context, request DeleteAdminUserRequestObject) (DeleteAdminUserResponseObject, error)
+	// Get a manageable user
+	// (GET /admin/users/{id})
+	GetAdminUser(ctx context.Context, request GetAdminUserRequestObject) (GetAdminUserResponseObject, error)
+	// Demote an admin to user
+	// (POST /admin/users/{id}/demote)
+	DemoteAdminUser(ctx context.Context, request DemoteAdminUserRequestObject) (DemoteAdminUserResponseObject, error)
+	// Hide a user
+	// (POST /admin/users/{id}/hide)
+	HideAdminUser(ctx context.Context, request HideAdminUserRequestObject) (HideAdminUserResponseObject, error)
+	// List a target user's holdings
+	// (GET /admin/users/{id}/holdings)
+	ListAdminUserHoldings(ctx context.Context, request ListAdminUserHoldingsRequestObject) (ListAdminUserHoldingsResponseObject, error)
+	// Create a holding for a target user
+	// (POST /admin/users/{id}/holdings)
+	CreateAdminUserHolding(ctx context.Context, request CreateAdminUserHoldingRequestObject) (CreateAdminUserHoldingResponseObject, error)
+	// Delete a target user's holding
+	// (DELETE /admin/users/{id}/holdings/{holding_id})
+	DeleteAdminUserHolding(ctx context.Context, request DeleteAdminUserHoldingRequestObject) (DeleteAdminUserHoldingResponseObject, error)
+	// Get a target user's holding
+	// (GET /admin/users/{id}/holdings/{holding_id})
+	GetAdminUserHolding(ctx context.Context, request GetAdminUserHoldingRequestObject) (GetAdminUserHoldingResponseObject, error)
+	// Update a target user's holding
+	// (PUT /admin/users/{id}/holdings/{holding_id})
+	UpdateAdminUserHolding(ctx context.Context, request UpdateAdminUserHoldingRequestObject) (UpdateAdminUserHoldingResponseObject, error)
+	// Get target user's holdings with prices
+	// (GET /admin/users/{id}/prices)
+	GetAdminUserPrices(ctx context.Context, request GetAdminUserPricesRequestObject) (GetAdminUserPricesResponseObject, error)
+	// Promote a user to admin
+	// (POST /admin/users/{id}/promote)
+	PromoteAdminUser(ctx context.Context, request PromoteAdminUserRequestObject) (PromoteAdminUserResponseObject, error)
+	// Reactivate a hidden user
+	// (POST /admin/users/{id}/reactivate)
+	ReactivateAdminUser(ctx context.Context, request ReactivateAdminUserRequestObject) (ReactivateAdminUserResponseObject, error)
+	// Move a user or admin to another region
+	// (PUT /admin/users/{id}/region)
+	UpdateAdminUserRegion(ctx context.Context, request UpdateAdminUserRegionRequestObject) (UpdateAdminUserRegionResponseObject, error)
+	// Clear recovery lockout for a user
+	// (POST /admin/users/{id}/reset-lockout)
+	ResetAdminUserLockout(ctx context.Context, request ResetAdminUserLockoutRequestObject) (ResetAdminUserLockoutResponseObject, error)
+	// Get target user's portfolio summary
+	// (GET /admin/users/{id}/summary)
+	GetAdminUserSummary(ctx context.Context, request GetAdminUserSummaryRequestObject) (GetAdminUserSummaryResponseObject, error)
+	// Log in and issue a session
+	// (POST /auth/login)
+	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
+	// Log out the current session
+	// (POST /auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// Return the current user
+	// (GET /auth/me)
+	GetCurrentUser(ctx context.Context, request GetCurrentUserRequestObject) (GetCurrentUserResponseObject, error)
+	// Change own password
+	// (PUT /auth/password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
+	// Change own profile
+	// (PUT /auth/profile)
+	UpdateProfile(ctx context.Context, request UpdateProfileRequestObject) (UpdateProfileResponseObject, error)
+	// Recover account access with security questions
+	// (POST /auth/recover)
+	Recover(ctx context.Context, request RecoverRequestObject) (RecoverResponseObject, error)
+	// List supported security questions
+	// (GET /auth/security-questions)
+	ListSecurityQuestions(ctx context.Context, request ListSecurityQuestionsRequestObject) (ListSecurityQuestionsResponseObject, error)
+	// Replace own security questions
+	// (PUT /auth/security-questions)
+	UpdateSecurityQuestions(ctx context.Context, request UpdateSecurityQuestionsRequestObject) (UpdateSecurityQuestionsResponseObject, error)
+	// Create a user and issue a session
+	// (POST /auth/signup)
+	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
 	// List all holdings
 	// (GET /holdings)
 	ListHoldings(ctx context.Context, request ListHoldingsRequestObject) (ListHoldingsResponseObject, error)
@@ -917,6 +3384,9 @@ type StrictServerInterface interface {
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx context.Context, request GetPricesRequestObject) (GetPricesResponseObject, error)
+	// List supported regions
+	// (GET /regions)
+	ListRegions(ctx context.Context, request ListRegionsRequestObject) (ListRegionsResponseObject, error)
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx context.Context, request GetSummaryRequestObject) (GetSummaryResponseObject, error)
@@ -932,6 +3402,693 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// ListAdmins operation middleware
+func (sh *strictHandler) ListAdmins(ctx echo.Context) error {
+	var request ListAdminsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdmins(ctx.Request().Context(), request.(ListAdminsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdmins")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListAdminsResponseObject); ok {
+		return validResponse.VisitListAdminsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListAdminUsers operation middleware
+func (sh *strictHandler) ListAdminUsers(ctx echo.Context, params ListAdminUsersParams) error {
+	var request ListAdminUsersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminUsers(ctx.Request().Context(), request.(ListAdminUsersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminUsers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListAdminUsersResponseObject); ok {
+		return validResponse.VisitListAdminUsersResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteAdminUser operation middleware
+func (sh *strictHandler) DeleteAdminUser(ctx echo.Context, id string) error {
+	var request DeleteAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminUser(ctx.Request().Context(), request.(DeleteAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteAdminUserResponseObject); ok {
+		return validResponse.VisitDeleteAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetAdminUser operation middleware
+func (sh *strictHandler) GetAdminUser(ctx echo.Context, id string) error {
+	var request GetAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminUser(ctx.Request().Context(), request.(GetAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAdminUserResponseObject); ok {
+		return validResponse.VisitGetAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DemoteAdminUser operation middleware
+func (sh *strictHandler) DemoteAdminUser(ctx echo.Context, id string) error {
+	var request DemoteAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DemoteAdminUser(ctx.Request().Context(), request.(DemoteAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DemoteAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DemoteAdminUserResponseObject); ok {
+		return validResponse.VisitDemoteAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HideAdminUser operation middleware
+func (sh *strictHandler) HideAdminUser(ctx echo.Context, id string) error {
+	var request HideAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HideAdminUser(ctx.Request().Context(), request.(HideAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HideAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HideAdminUserResponseObject); ok {
+		return validResponse.VisitHideAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListAdminUserHoldings operation middleware
+func (sh *strictHandler) ListAdminUserHoldings(ctx echo.Context, id string) error {
+	var request ListAdminUserHoldingsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminUserHoldings(ctx.Request().Context(), request.(ListAdminUserHoldingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminUserHoldings")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListAdminUserHoldingsResponseObject); ok {
+		return validResponse.VisitListAdminUserHoldingsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateAdminUserHolding operation middleware
+func (sh *strictHandler) CreateAdminUserHolding(ctx echo.Context, id string) error {
+	var request CreateAdminUserHoldingRequestObject
+
+	request.Id = id
+
+	var body CreateAdminUserHoldingJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdminUserHolding(ctx.Request().Context(), request.(CreateAdminUserHoldingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdminUserHolding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateAdminUserHoldingResponseObject); ok {
+		return validResponse.VisitCreateAdminUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteAdminUserHolding operation middleware
+func (sh *strictHandler) DeleteAdminUserHolding(ctx echo.Context, id string, holdingId string) error {
+	var request DeleteAdminUserHoldingRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdminUserHolding(ctx.Request().Context(), request.(DeleteAdminUserHoldingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdminUserHolding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteAdminUserHoldingResponseObject); ok {
+		return validResponse.VisitDeleteAdminUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetAdminUserHolding operation middleware
+func (sh *strictHandler) GetAdminUserHolding(ctx echo.Context, id string, holdingId string) error {
+	var request GetAdminUserHoldingRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminUserHolding(ctx.Request().Context(), request.(GetAdminUserHoldingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminUserHolding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAdminUserHoldingResponseObject); ok {
+		return validResponse.VisitGetAdminUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateAdminUserHolding operation middleware
+func (sh *strictHandler) UpdateAdminUserHolding(ctx echo.Context, id string, holdingId string) error {
+	var request UpdateAdminUserHoldingRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	var body UpdateAdminUserHoldingJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminUserHolding(ctx.Request().Context(), request.(UpdateAdminUserHoldingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminUserHolding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateAdminUserHoldingResponseObject); ok {
+		return validResponse.VisitUpdateAdminUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetAdminUserPrices operation middleware
+func (sh *strictHandler) GetAdminUserPrices(ctx echo.Context, id string) error {
+	var request GetAdminUserPricesRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminUserPrices(ctx.Request().Context(), request.(GetAdminUserPricesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminUserPrices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAdminUserPricesResponseObject); ok {
+		return validResponse.VisitGetAdminUserPricesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PromoteAdminUser operation middleware
+func (sh *strictHandler) PromoteAdminUser(ctx echo.Context, id string) error {
+	var request PromoteAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PromoteAdminUser(ctx.Request().Context(), request.(PromoteAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PromoteAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PromoteAdminUserResponseObject); ok {
+		return validResponse.VisitPromoteAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ReactivateAdminUser operation middleware
+func (sh *strictHandler) ReactivateAdminUser(ctx echo.Context, id string) error {
+	var request ReactivateAdminUserRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ReactivateAdminUser(ctx.Request().Context(), request.(ReactivateAdminUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReactivateAdminUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ReactivateAdminUserResponseObject); ok {
+		return validResponse.VisitReactivateAdminUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateAdminUserRegion operation middleware
+func (sh *strictHandler) UpdateAdminUserRegion(ctx echo.Context, id string) error {
+	var request UpdateAdminUserRegionRequestObject
+
+	request.Id = id
+
+	var body UpdateAdminUserRegionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdminUserRegion(ctx.Request().Context(), request.(UpdateAdminUserRegionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdminUserRegion")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateAdminUserRegionResponseObject); ok {
+		return validResponse.VisitUpdateAdminUserRegionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ResetAdminUserLockout operation middleware
+func (sh *strictHandler) ResetAdminUserLockout(ctx echo.Context, id string) error {
+	var request ResetAdminUserLockoutRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetAdminUserLockout(ctx.Request().Context(), request.(ResetAdminUserLockoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetAdminUserLockout")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ResetAdminUserLockoutResponseObject); ok {
+		return validResponse.VisitResetAdminUserLockoutResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetAdminUserSummary operation middleware
+func (sh *strictHandler) GetAdminUserSummary(ctx echo.Context, id string) error {
+	var request GetAdminUserSummaryRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdminUserSummary(ctx.Request().Context(), request.(GetAdminUserSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdminUserSummary")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAdminUserSummaryResponseObject); ok {
+		return validResponse.VisitGetAdminUserSummaryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Login operation middleware
+func (sh *strictHandler) Login(ctx echo.Context) error {
+	var request LoginRequestObject
+
+	var body LoginJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Login(ctx.Request().Context(), request.(LoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Login")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LoginResponseObject); ok {
+		return validResponse.VisitLoginResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(ctx echo.Context) error {
+	var request LogoutRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx.Request().Context(), request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		return validResponse.VisitLogoutResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetCurrentUser operation middleware
+func (sh *strictHandler) GetCurrentUser(ctx echo.Context) error {
+	var request GetCurrentUserRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCurrentUser(ctx.Request().Context(), request.(GetCurrentUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCurrentUser")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetCurrentUserResponseObject); ok {
+		return validResponse.VisitGetCurrentUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(ctx echo.Context) error {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx.Request().Context(), request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		return validResponse.VisitChangePasswordResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateProfile operation middleware
+func (sh *strictHandler) UpdateProfile(ctx echo.Context) error {
+	var request UpdateProfileRequestObject
+
+	var body UpdateProfileJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateProfile(ctx.Request().Context(), request.(UpdateProfileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateProfile")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateProfileResponseObject); ok {
+		return validResponse.VisitUpdateProfileResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Recover operation middleware
+func (sh *strictHandler) Recover(ctx echo.Context) error {
+	var request RecoverRequestObject
+
+	var body RecoverJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Recover(ctx.Request().Context(), request.(RecoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Recover")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RecoverResponseObject); ok {
+		return validResponse.VisitRecoverResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListSecurityQuestions operation middleware
+func (sh *strictHandler) ListSecurityQuestions(ctx echo.Context) error {
+	var request ListSecurityQuestionsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSecurityQuestions(ctx.Request().Context(), request.(ListSecurityQuestionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSecurityQuestions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListSecurityQuestionsResponseObject); ok {
+		return validResponse.VisitListSecurityQuestionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateSecurityQuestions operation middleware
+func (sh *strictHandler) UpdateSecurityQuestions(ctx echo.Context) error {
+	var request UpdateSecurityQuestionsRequestObject
+
+	var body UpdateSecurityQuestionsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSecurityQuestions(ctx.Request().Context(), request.(UpdateSecurityQuestionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSecurityQuestions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateSecurityQuestionsResponseObject); ok {
+		return validResponse.VisitUpdateSecurityQuestionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Signup operation middleware
+func (sh *strictHandler) Signup(ctx echo.Context) error {
+	var request SignupRequestObject
+
+	var body SignupJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Signup(ctx.Request().Context(), request.(SignupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Signup")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SignupResponseObject); ok {
+		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // ListHoldings operation middleware
@@ -1134,6 +4291,29 @@ func (sh *strictHandler) GetPrices(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(GetPricesResponseObject); ok {
 		return validResponse.VisitGetPricesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListRegions operation middleware
+func (sh *strictHandler) ListRegions(ctx echo.Context) error {
+	var request ListRegionsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRegions(ctx.Request().Context(), request.(ListRegionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRegions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListRegionsResponseObject); ok {
+		return validResponse.VisitListRegionsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -16,11 +16,19 @@ import (
 )
 
 func (h *Handler) ListHoldings(ctx context.Context, _ api.ListHoldingsRequestObject) (api.ListHoldingsResponseObject, error) {
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.listHoldingsForUser(ctx, userID)
+}
+
+func (h *Handler) listHoldingsForUser(ctx context.Context, userID primitive.ObjectID) (api.ListHoldings200JSONResponse, error) {
 	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	opts := options.Find().SetSort(bson.D{{Key: "script", Value: 1}})
-	cur, err := h.col().Find(dbCtx, bson.M{}, opts)
+	cur, err := h.col().Find(dbCtx, scopedFilter(userID, nil), opts)
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
 		return nil, err
@@ -41,7 +49,15 @@ func (h *Handler) ListHoldings(ctx context.Context, _ api.ListHoldingsRequestObj
 }
 
 func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestObject) (api.GetHoldingResponseObject, error) {
-	id, err := primitive.ObjectIDFromHex(request.Id)
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.getHoldingForUser(ctx, userID, request.Id)
+}
+
+func (h *Handler) getHoldingForUser(ctx context.Context, userID primitive.ObjectID, holdingID string) (api.GetHoldingResponseObject, error) {
+	id, err := primitive.ObjectIDFromHex(holdingID)
 	if err != nil {
 		return api.GetHolding404JSONResponse{}, nil
 	}
@@ -50,12 +66,12 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 	defer cancel()
 
 	var holding domain.Holding
-	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&holding); err != nil {
+	if err := h.col().FindOne(dbCtx, scopedFilter(userID, bson.M{"_id": id})).Decode(&holding); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "get holding failed",
-			slog.String("id", request.Id),
+			slog.String("id", id.Hex()),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
@@ -65,8 +81,17 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 }
 
 func (h *Handler) CreateHolding(ctx context.Context, request api.CreateHoldingRequestObject) (api.CreateHoldingResponseObject, error) {
-	holding := holdingFromInput(*request.Body)
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.createHoldingForUser(ctx, userID, request.Body)
+}
+
+func (h *Handler) createHoldingForUser(ctx context.Context, userID primitive.ObjectID, input *api.HoldingInput) (api.CreateHoldingResponseObject, error) {
+	holding := holdingFromInput(*input)
 	holding.ID = primitive.NewObjectID()
+	holding.UserID = userID
 	now := time.Now()
 	holding.CreatedAt = now
 	holding.UpdatedAt = now
@@ -91,12 +116,19 @@ func (h *Handler) CreateHolding(ctx context.Context, request api.CreateHoldingRe
 }
 
 func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRequestObject) (api.UpdateHoldingResponseObject, error) {
-	id, err := primitive.ObjectIDFromHex(request.Id)
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.updateHoldingForUser(ctx, userID, request.Id, request.Body)
+}
+
+func (h *Handler) updateHoldingForUser(ctx context.Context, userID primitive.ObjectID, holdingID string, input *api.HoldingInput) (api.UpdateHoldingResponseObject, error) {
+	id, err := primitive.ObjectIDFromHex(holdingID)
 	if err != nil {
 		return api.UpdateHolding404JSONResponse{}, nil
 	}
 
-	input := request.Body
 	update := bson.D{
 		{Key: "script", Value: input.Script},
 		{Key: "exchange", Value: string(input.Exchange)},
@@ -125,10 +157,10 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	res, err := h.col().UpdateOne(dbCtx, bson.M{"_id": id}, bson.M{"$set": update})
+	res, err := h.col().UpdateOne(dbCtx, scopedFilter(userID, bson.M{"_id": id}), bson.M{"$set": update})
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "update holding failed",
-			slog.String("id", request.Id),
+			slog.String("id", holdingID),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
@@ -138,20 +170,28 @@ func (h *Handler) UpdateHolding(ctx context.Context, request api.UpdateHoldingRe
 	}
 
 	var updated domain.Holding
-	if err := h.col().FindOne(dbCtx, bson.M{"_id": id}).Decode(&updated); err != nil {
+	if err := h.col().FindOne(dbCtx, scopedFilter(userID, bson.M{"_id": id})).Decode(&updated); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "update holding re-read failed",
-			slog.String("id", request.Id),
+			slog.String("id", holdingID),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
 	}
-	h.reqLog(ctx).InfoContext(ctx, "holding updated", slog.String("id", request.Id))
+	h.reqLog(ctx).InfoContext(ctx, "holding updated", slog.String("id", holdingID))
 	resp := api.UpdateHolding200JSONResponse(holdingToAPI(updated))
 	return resp, nil
 }
 
 func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRequestObject) (api.DeleteHoldingResponseObject, error) {
-	id, err := primitive.ObjectIDFromHex(request.Id)
+	userID, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return h.deleteHoldingForUser(ctx, userID, request.Id)
+}
+
+func (h *Handler) deleteHoldingForUser(ctx context.Context, userID primitive.ObjectID, holdingID string) (api.DeleteHoldingResponseObject, error) {
+	id, err := primitive.ObjectIDFromHex(holdingID)
 	if err != nil {
 		return api.DeleteHolding404JSONResponse{}, nil
 	}
@@ -159,10 +199,10 @@ func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRe
 	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	res, err := h.col().DeleteOne(dbCtx, bson.M{"_id": id})
+	res, err := h.col().DeleteOne(dbCtx, scopedFilter(userID, bson.M{"_id": id}))
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "delete holding failed",
-			slog.String("id", request.Id),
+			slog.String("id", holdingID),
 			slog.String("error", err.Error()),
 		)
 		return nil, err
@@ -170,7 +210,7 @@ func (h *Handler) DeleteHolding(ctx context.Context, request api.DeleteHoldingRe
 	if res.DeletedCount == 0 {
 		return api.DeleteHolding404JSONResponse{}, nil
 	}
-	h.reqLog(ctx).InfoContext(ctx, "holding deleted", slog.String("id", request.Id))
+	h.reqLog(ctx).InfoContext(ctx, "holding deleted", slog.String("id", holdingID))
 	msg := "deleted"
 	return api.DeleteHolding200JSONResponse{Message: &msg}, nil
 }

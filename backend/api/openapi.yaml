@@ -13,12 +13,242 @@ servers:
     description: Local development
 
 tags:
+  - name: Auth
+    description: Signup, login, sessions, and account recovery
   - name: Holdings
     description: CRUD operations for portfolio positions
   - name: Market
     description: Live price and forex endpoints
+  - name: Admin
+    description: Regional admin and super-admin operations
 
 paths:
+  /regions:
+    get:
+      tags: [Auth]
+      summary: List supported regions
+      operationId: listRegions
+      responses:
+        "200":
+          description: Region catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Region"
+
+  /auth/security-questions:
+    get:
+      tags: [Auth]
+      summary: List supported security questions
+      operationId: listSecurityQuestions
+      responses:
+        "200":
+          description: Security-question catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SecurityQuestion"
+    put:
+      tags: [Auth]
+      summary: Replace own security questions
+      operationId: updateSecurityQuestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSecurityQuestionsRequest"
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create a user and issue a session
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: Created user
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and issue a session
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in user
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "423":
+          $ref: "#/components/responses/Locked"
+
+  /auth/recover:
+    post:
+      tags: [Auth]
+      summary: Recover account access with security questions
+      description: |
+        If answers and a new password are omitted, returns the user's three
+        question prompts. If answers and a new password are present, checks all
+        answers, resets the password, and issues a new session.
+      operationId: recover
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoverRequest"
+      responses:
+        "200":
+          description: Recovery question prompts or recovered user
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoverResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "423":
+          $ref: "#/components/responses/Locked"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Return the current user
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out the current session
+      operationId: logout
+      responses:
+        "200":
+          description: Logged out
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/password:
+    put:
+      tags: [Auth]
+      summary: Change own password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/profile:
+    put:
+      tags: [Auth]
+      summary: Change own profile
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /holdings:
     get:
       tags: [Holdings]
@@ -211,8 +441,605 @@ paths:
                     format: double
                     description: 1 unit of `from` in `to`
 
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List manageable users
+      operationId: listAdminUsers
+      parameters:
+        - name: include_hidden
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Users visible to the caller
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/admins:
+    get:
+      tags: [Admin]
+      summary: List admin and super-admin accounts
+      operationId: listAdmins
+      responses:
+        "200":
+          description: Admin accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User ObjectID
+    get:
+      tags: [Admin]
+      summary: Get a manageable user
+      operationId: getAdminUser
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Admin]
+      summary: Permanently delete a user and their holdings
+      operationId: deleteAdminUser
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/reset-lockout:
+    post:
+      tags: [Admin]
+      summary: Clear recovery lockout for a user
+      operationId: resetAdminUserLockout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/hide:
+    post:
+      tags: [Admin]
+      summary: Hide a user
+      operationId: hideAdminUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/reactivate:
+    post:
+      tags: [Admin]
+      summary: Reactivate a hidden user
+      operationId: reactivateAdminUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/promote:
+    post:
+      tags: [Admin]
+      summary: Promote a user to admin
+      operationId: promoteAdminUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/demote:
+    post:
+      tags: [Admin]
+      summary: Demote an admin to user
+      operationId: demoteAdminUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/region:
+    put:
+      tags: [Admin]
+      summary: Move a user or admin to another region
+      operationId: updateAdminUserRegion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRegionRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/holdings:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Admin]
+      summary: List a target user's holdings
+      operationId: listAdminUserHoldings
+      responses:
+        "200":
+          description: Target user's holdings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Holding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Admin]
+      summary: Create a holding for a target user
+      operationId: createAdminUserHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoldingInput"
+      responses:
+        "201":
+          description: Created holding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Holding"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/holdings/{holding_id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: holding_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Admin]
+      summary: Get a target user's holding
+      operationId: getAdminUserHolding
+      responses:
+        "200":
+          description: Holding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Holding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Admin]
+      summary: Update a target user's holding
+      operationId: updateAdminUserHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoldingInput"
+      responses:
+        "200":
+          description: Updated holding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Holding"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Admin]
+      summary: Delete a target user's holding
+      operationId: deleteAdminUserHolding
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/prices:
+    get:
+      tags: [Admin]
+      summary: Get target user's holdings with prices
+      operationId: getAdminUserPrices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Target user's priced holdings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users/{id}/summary:
+    get:
+      tags: [Admin]
+      summary: Get target user's portfolio summary
+      operationId: getAdminUserSummary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Target user's summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   schemas:
+    Region:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          enum: [india, europe, us]
+        label:
+          type: string
+
+    SecurityQuestion:
+      type: object
+      required: [id, prompt]
+      properties:
+        id:
+          type: string
+        prompt:
+          type: string
+
+    SecurityAnswerInput:
+      type: object
+      required: [question_id, answer]
+      properties:
+        question_id:
+          type: string
+        answer:
+          type: string
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+          description: Display username as typed by the user
+        name:
+          type: string
+        role:
+          type: string
+          enum: [user, admin, superadmin]
+        region:
+          type: string
+          enum: [india, europe, us]
+        disabled:
+          type: boolean
+        locked:
+          type: boolean
+        login_failures:
+          type: integer
+        security_question_failures:
+          type: integer
+        must_change_password:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+
+    SignupRequest:
+      type: object
+      required: [username, name, password, region, security_questions]
+      properties:
+        username:
+          type: string
+        name:
+          type: string
+        password:
+          type: string
+          format: password
+        region:
+          type: string
+          enum: [india, europe, us]
+        security_questions:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SecurityAnswerInput"
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    RecoverRequest:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+        answers:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SecurityAnswerInput"
+        new_password:
+          type: string
+          format: password
+
+    RecoverResponse:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityQuestion"
+        user:
+          $ref: "#/components/schemas/AuthUser"
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+
+    UpdateProfileRequest:
+      type: object
+      required: [current_password, username, name]
+      properties:
+        current_password:
+          type: string
+          format: password
+        username:
+          type: string
+        name:
+          type: string
+
+    UpdateSecurityQuestionsRequest:
+      type: object
+      required: [current_password, security_questions]
+      properties:
+        current_password:
+          type: string
+          format: password
+        security_questions:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SecurityAnswerInput"
+
+    UpdateUserRegionRequest:
+      type: object
+      required: [region]
+      properties:
+        region:
+          type: string
+          enum: [india, europe, us]
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
     Holding:
       type: object
       properties:
@@ -382,8 +1209,32 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Not allowed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Locked:
+      description: Account is locked
       content:
         application/json:
           schema:

@@ -41,11 +41,12 @@ const ROW2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', g
 
 interface AddEditModalProps {
   holding: HoldingWithPrice | null
+  userId?: string
   onClose: () => void
   onSaved: () => void
 }
 
-export default function AddEditModal({ holding, onClose, onSaved }: AddEditModalProps) {
+export default function AddEditModal({ holding, userId, onClose, onSaved }: AddEditModalProps) {
   const isEdit = Boolean(holding)
   const [form, setForm] = useState<FormState>(empty)
   const [loading, setLoading] = useState(false)
@@ -107,9 +108,17 @@ export default function AddEditModal({ holding, onClose, onSaved }: AddEditModal
         notes: form.notes.trim(),
       }
       if (holding && holding.id) {
-        await api.updateHolding(holding.id, payload)
+        if (userId) {
+          await api.updateAdminUserHolding(userId, holding.id, payload)
+        } else {
+          await api.updateHolding(holding.id, payload)
+        }
       } else {
-        await api.createHolding(payload)
+        if (userId) {
+          await api.createAdminUserHolding(userId, payload)
+        } else {
+          await api.createHolding(payload)
+        }
       }
       onSaved()
     } catch (e) {

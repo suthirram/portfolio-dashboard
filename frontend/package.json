@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "tsc -p tsconfig.test.json && node --test src/features/auth/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "gen:api": "openapi-typescript ../backend/api/openapi.yaml -o src/lib/api/schema.gen.ts"

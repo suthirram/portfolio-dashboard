@@ -3,13 +3,15 @@ import SummaryCards from './components/SummaryCards'
 import HoldingsTable from './features/holdings/HoldingsTable'
 import AddEditModal from './features/holdings/AddEditModal'
 import Charts from './components/Charts'
+import AuthGate from './features/auth/AuthGate'
+import { shouldShowActingBanner } from './features/auth/dashboardRouting'
 import { useHoldings } from './features/holdings/useHoldings'
-import type { HoldingWithPrice } from './types'
+import type { AuthUser, HoldingWithPrice } from './types'
 
 type ModalState = 'add' | HoldingWithPrice | null
 type Tab = 'table' | 'charts'
 
-export default function App() {
+function Dashboard({ actingUser, currentUser }: { actingUser: AuthUser | null; currentUser: AuthUser }) {
   const {
     holdings,
     enriched,
@@ -20,7 +22,7 @@ export default function App() {
     refresh,
     fetchPrices,
     remove,
-  } = useHoldings()
+  } = useHoldings(actingUser?.id)
 
   const [modal, setModal] = useState<ModalState>(null)
   const [tab, setTab] = useState<Tab>('table')
@@ -30,6 +32,7 @@ export default function App() {
     setModal(null)
     await refresh()
   }
+  const showActingBanner = shouldShowActingBanner(currentUser, actingUser)
 
   const handleDelete = async (id: string) => {
     try {
@@ -108,6 +111,11 @@ export default function App() {
 
       {/* Main */}
       <main style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
+        {showActingBanner && actingUser && (
+          <div style={{ marginBottom: 16, padding: '10px 12px', border: '1px solid var(--yellow)', borderRadius: 6, color: 'var(--yellow)', background: 'rgba(251, 191, 36, 0.08)' }}>
+            Viewing and editing portfolio for {actingUser.name || actingUser.username}
+          </div>
+        )}
         {/* Summary cards */}
         <SummaryCards summary={summary} loading={loadingPrices} />
 
@@ -149,10 +157,19 @@ export default function App() {
       {modal && (
         <AddEditModal
           holding={modal === 'add' ? null : modal}
+          userId={actingUser?.id}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
         />
       )}
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthGate>
+      {(actingUser, currentUser) => <Dashboard actingUser={actingUser} currentUser={currentUser} />}
+    </AuthGate>
   )
 }
