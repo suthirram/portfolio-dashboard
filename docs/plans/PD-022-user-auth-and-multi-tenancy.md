@@ -87,6 +87,10 @@ technical design in DD-001.
     actions in one form;
   * blank security-question rows must not force a security-question update;
   * typed security-question answers should be visible while editing.
+* Resolved merge conflict from `main` in
+  `backend/internal/handlers/handlers_db_test.go` by keeping the new coverage
+  helpers from `main` and adapting the added handler tests to PD-022's
+  authenticated holding access model.
 
 ## Tests and verification
 

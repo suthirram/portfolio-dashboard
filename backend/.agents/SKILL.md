@@ -32,19 +32,19 @@ Do not change production code first unless the task is documentation-only, forma
 
 ## Test Quality
 
-- Test business behavior and critical paths, not private implementation details.
-- Prefer unit tests. Add integration tests only when they validate meaningful interactions between components.
-- Avoid duplicate coverage across layers unless the higher-level test proves additional behavior.
-- Cover success paths, edge cases, input validation, and application-level error handling.
-- Do not add tests solely to raise coverage.
-- Do not simulate impossible or out-of-scope infrastructure failures, including database availability failures when the project assumes the database is available.
-- Keep tests deterministic, fast, and easy to maintain.
+* Test business behavior and critical paths, not private implementation details.
+* Prefer unit tests. Add integration tests only when they validate meaningful interactions between components.
+* Avoid duplicate coverage across layers unless the higher-level test proves additional behavior.
+* Cover success paths, edge cases, input validation, and application-level error handling.
+* Do not add tests solely to raise coverage.
+* Do not simulate impossible or out-of-scope infrastructure failures, including database availability failures when the project assumes the database is available.
+* Keep tests deterministic, fast, and easy to maintain.
 
 ## Workflow Expectations
 
-- For regression bugs, reproduce the bug with a failing test before fixing it.
-- For backend changes, run the smallest relevant `go test` package first, then expand to `go test ./...` before completion.
-- For frontend changes, add or update the relevant component, hook, or utility tests when available, and run the project's standard typecheck/build/test commands.
-- Reuse existing fixtures, helpers, mocks, and factories before creating new ones.
-- If a behavior cannot be tested with the current harness, stop and document the limitation before making the change.
-- Every final handoff should mention the targeted tests and full-suite verification that were run.
+* For regression bugs, reproduce the bug with a failing test before fixing it.
+* For backend changes, run the smallest relevant `go test` package first, then expand to `go test ./...` before completion.
+* For frontend changes, add or update the relevant component, hook, or utility tests when available, and run the project's standard typecheck/build/test commands.
+* Reuse existing fixtures, helpers, mocks, and factories before creating new ones.
+* If a behavior cannot be tested with the current harness, stop and document the limitation before making the change.
+* Every final handoff should mention the targeted tests and full-suite verification that were run.

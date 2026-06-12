@@ -1,16 +1,35 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
+
+	"portfolio-dashboard/internal/config"
 )
+
+func TestRunReturnsServerStartupError(t *testing.T) {
+	e := echo.New()
+	cfg := config.Default()
+	cfg.Port = "not-a-valid-port"
+	logger := slog.New(slog.DiscardHandler)
+
+	err := Run(context.Background(), e, cfg, logger)
+	if err == nil {
+		t.Fatal("Run() error = nil")
+	}
+	if !strings.Contains(err.Error(), "unknown port") && !strings.Contains(err.Error(), "too many colons") {
+		t.Errorf("Run() error = %q, want listen/startup error", err.Error())
+	}
+}
 
 func TestErrorHandler_HTTPErrorRendersOpenAPIShape(t *testing.T) {
 	e, _, logger := newTestEcho(t)

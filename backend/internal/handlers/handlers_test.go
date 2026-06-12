@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"math"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/logging"
 )
 
 // ── mock price fetcher ─────────────────────────────────────────────────────
@@ -18,10 +20,15 @@ import (
 type mockPriceFetcher struct {
 	prices     map[string]float64
 	currencies map[string]string
+	priceErrs  map[string]error
 	forexRate  float64
+	forexErr   error
 }
 
 func (m *mockPriceFetcher) GetPrice(_ context.Context, symbol string) (float64, string, error) {
+	if err, ok := m.priceErrs[symbol]; ok {
+		return 0, "", err
+	}
 	p, ok := m.prices[symbol]
 	if !ok {
 		return 0, "", errors.New("symbol not found: " + symbol)
@@ -34,7 +41,120 @@ func (m *mockPriceFetcher) GetPrice(_ context.Context, symbol string) (float64, 
 }
 
 func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64, error) {
+	if m.forexErr != nil {
+		return 0, m.forexErr
+	}
 	return m.forexRate, nil
+}
+
+func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
+	h := New(nil, nil)
+
+	if h.priceService == nil {
+		t.Fatal("priceService is nil")
+	}
+	if h.log() == nil {
+		t.Fatal("log() returned nil")
+	}
+	if h.reqLog(context.Background()) == nil {
+		t.Fatal("reqLog() returned nil")
+	}
+}
+
+func TestReqLogPrefersRequestScopedLogger(t *testing.T) {
+	handlerLogger := slog.New(slog.DiscardHandler)
+	requestLogger := slog.New(slog.DiscardHandler)
+	h := &Handler{logger: handlerLogger}
+
+	got := h.reqLog(logging.IntoContext(context.Background(), requestLogger))
+	if got != requestLogger {
+		t.Error("reqLog() did not return request-scoped logger")
+	}
+	if h.log() != handlerLogger {
+		t.Error("log() did not return handler logger")
+	}
+}
+
+func TestGetMarketPrice_ReturnsPriceFromService(t *testing.T) {
+	h := &Handler{priceService: &mockPriceFetcher{
+		prices:     map[string]float64{"TCS.NS": 3600},
+		currencies: map[string]string{"TCS.NS": "INR"},
+	}}
+
+	resp, err := h.GetMarketPrice(context.Background(), api.GetMarketPriceRequestObject{
+		Params: api.GetMarketPriceParams{Symbol: "TCS.NS"},
+	})
+	if err != nil {
+		t.Fatalf("GetMarketPrice: %v", err)
+	}
+	got := resp.(api.GetMarketPrice200JSONResponse)
+	if *got.Symbol != "TCS.NS" {
+		t.Errorf("Symbol = %q, want TCS.NS", *got.Symbol)
+	}
+	if *got.Price != 3600 {
+		t.Errorf("Price = %v, want 3600", *got.Price)
+	}
+	if *got.Currency != "INR" {
+		t.Errorf("Currency = %q, want INR", *got.Currency)
+	}
+}
+
+func TestGetMarketPrice_UpstreamErrorReturnsBadGateway(t *testing.T) {
+	h := &Handler{priceService: &mockPriceFetcher{
+		priceErrs: map[string]error{"TCS.NS": errors.New("price provider unavailable")},
+	}}
+
+	resp, err := h.GetMarketPrice(context.Background(), api.GetMarketPriceRequestObject{
+		Params: api.GetMarketPriceParams{Symbol: "TCS.NS"},
+	})
+	if err != nil {
+		t.Fatalf("GetMarketPrice: %v", err)
+	}
+	got := resp.(api.GetMarketPrice502JSONResponse)
+	if got.Error == nil || *got.Error != "price provider unavailable" {
+		t.Errorf("Error = %v, want price provider unavailable", got.Error)
+	}
+}
+
+func TestGetForexRate_UsesDefaultsAndCustomParams(t *testing.T) {
+	h := &Handler{priceService: &mockPriceFetcher{forexRate: 0.011}}
+
+	defaultResp, err := h.GetForexRate(context.Background(), api.GetForexRateRequestObject{})
+	if err != nil {
+		t.Fatalf("GetForexRate defaults: %v", err)
+	}
+	gotDefault := defaultResp.(api.GetForexRate200JSONResponse)
+	if *gotDefault.From != "INR" || *gotDefault.To != "EUR" || *gotDefault.Rate != 0.011 {
+		t.Errorf("default response = %#v", gotDefault)
+	}
+
+	from := "EUR"
+	to := "INR"
+	customResp, err := h.GetForexRate(context.Background(), api.GetForexRateRequestObject{
+		Params: api.GetForexRateParams{From: &from, To: &to},
+	})
+	if err != nil {
+		t.Fatalf("GetForexRate custom: %v", err)
+	}
+	gotCustom := customResp.(api.GetForexRate200JSONResponse)
+	if *gotCustom.From != "EUR" || *gotCustom.To != "INR" || *gotCustom.Rate != 0.011 {
+		t.Errorf("custom response = %#v", gotCustom)
+	}
+}
+
+func TestGetForexRate_ServiceErrorIsReturned(t *testing.T) {
+	h := &Handler{priceService: &mockPriceFetcher{forexErr: errors.New("forex provider unavailable")}}
+
+	resp, err := h.GetForexRate(context.Background(), api.GetForexRateRequestObject{})
+	if err == nil {
+		t.Fatal("GetForexRate() error = nil")
+	}
+	if resp != nil {
+		t.Errorf("response = %#v, want nil", resp)
+	}
+	if err.Error() != "forex provider unavailable" {
+		t.Errorf("error = %q", err.Error())
+	}
 }
 
 // ── holdingToAPI ───────────────────────────────────────────────────────────
