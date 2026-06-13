@@ -9,7 +9,7 @@ At ~5–10 family users this runs inside Cloud Run's monthly free tier — **$0*
 
 ## 0. Prerequisites
 
-* `gcloud` CLI installed and logged in: `gcloud auth login`
+* `gcloud` CLI installed and logged in: `gcloud auth login` `brew install --cask gcloud-cli`
 * A GCP project (free to create). Note its **project ID**.
 * A MongoDB Atlas M0 cluster + connection string (`MONGODB_URI`).
 * The frontend origin, e.g. `https://portfolio-dashboard.pages.dev`.
@@ -47,9 +47,7 @@ To rotate later: `gcloud secrets versions add MONGODB_URI --data-file=-`.
 This proves the setup before wiring CI. Run from the repo root:
 
 ```bash
-GCP_PROJECT_ID="$PROJECT_ID" \
-CORS_ALLOWED_ORIGINS="https://portfolio-dashboard.pages.dev" \
-./deploy/cloudrun/deploy.sh
+GCP_PROJECT_ID="$PROJECT_ID" CORS_ALLOWED_ORIGINS="https://portfolio-dashboard-50e.pages.dev" ./deploy/cloudrun/deploy.sh
 ```
 
 Cloud Build builds `backend/Dockerfile`, pushes to Artifact Registry, and
@@ -69,8 +67,7 @@ gcloud secrets add-iam-policy-binding MONGODB_URI \
 Smoke test:
 
 ```bash
-curl -fsS "$(gcloud run services describe portfolio-dashboard-api \
-  --region "$REGION" --format='value(status.url)')/api/healthz"
+curl -fsS "$(gcloud run services describe portfolio-dashboard-api --region "$REGION" --format='value(status.url)')/api/healthz"
 ```
 
 ## 4. Point the frontend at it
@@ -87,8 +84,7 @@ So `git push` to `main` auto-deploys, with no JSON key in the repo.
 ### 5a. Service account for deploys
 
 ```bash
-gcloud iam service-accounts create gh-deploy \
-  --display-name="GitHub Actions Cloud Run deploy"
+gcloud iam service-accounts create gh-deploy --display-name="GitHub Actions Cloud Run deploy"
 
 DEPLOY_SA="gh-deploy@${PROJECT_ID}.iam.gserviceaccount.com"
 
