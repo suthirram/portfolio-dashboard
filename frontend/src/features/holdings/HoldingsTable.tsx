@@ -28,7 +28,7 @@ const TH = ({ children, style }: CellProps) => (
     padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
-    position: 'sticky', top: 0, zIndex: 1,
+    position: 'sticky', top: 56, zIndex: 1,
     background: 'var(--bg-secondary)',
     boxShadow: 'inset 0 -1px 0 var(--border)',
     ...style,
