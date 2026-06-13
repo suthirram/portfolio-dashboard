@@ -390,20 +390,25 @@ redirect to `/onboarding` while `must_change_password`.
 `backend/cmd/migrate.go` — one-shot cobra subcommand
 `portfolio-api migrate users --owner <username>`:
 
-1. Ensure the named user exists; else exit with an error.
+1. Ensure the named user exists and is the super admin; else exit with an
+   error.
 2. `holdings.updateMany({user_id: {$exists: false}}, {$set: {user_id: <id>}})`.
 3. Rebuild indexes.
 
-Run once after deploy to assign all legacy rows to the bootstrap super admin.
+This migration is now scoped as a **local-only** operation for local databases
+that predate multi-tenancy. It must not run in CI or deployment automation; see
+[DD-002](./DD-002-local-legacy-holdings-super-admin-migration.md) for the
+current local guardrails.
 
 ## 11. Rollout
 
 1. Land schema + auth code; new auth/region endpoints exist but `/api/holdings`
    stays open (no middleware yet).
-2. `portfolio-api migrate users --owner admin` against prod, stamping every
-   existing holding with the super admin's `user_id`.
+2. For local databases that contain pre-multi-user holdings, run
+   `portfolio-api migrate users --owner admin` locally to stamp those holdings
+   with the super admin's `user_id`.
 3. Flip `requireAuth` on for `/api/holdings`, `/api/prices`, `/api/summary`.
-   Prod data is already scoped, so the super admin sees everything.
+   Holdings are already owner-scoped, so users see only their own portfolios.
 4. Ship the new frontend (login/signup/onboarding/profile/admin/admins).
 5. Log in as `admin`/`admin`; forced onboarding secures the super admin.
 6. Regional admins self-sign-up via `/signup` (choosing region + own

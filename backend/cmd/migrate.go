@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,6 +17,7 @@ import (
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/db"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 )
@@ -27,9 +31,14 @@ var migrateCmd = &cobra.Command{
 
 var migrateUsersCmd = &cobra.Command{
 	Use:   "users",
-	Short: "Stamp legacy holdings with a user_id (PRD-001 rollout step 2)",
+	Short: "Stamp local legacy holdings with the super admin user_id",
 	RunE:  runMigrateUsers,
 }
+
+var (
+	cliConnectFn    = cliConnect
+	ensureIndexesFn = db.EnsureIndexes
+)
 
 // cliConnect dials Mongo for a one-shot command and returns the store, the
 // underlying database (for index maintenance), and a disconnect func.
@@ -48,8 +57,14 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 	if migrateOwner == "" {
 		return errors.New("--owner is required")
 	}
+	if runningInCI() {
+		return errors.New("migrate users is local-only and must not run in CI")
+	}
 	cfg := config.Default()
 	cfg.ApplyEnv()
+	if err := validateLocalMongoURI(cfg.MongoURI); err != nil {
+		return err
+	}
 	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
 		return err
@@ -57,7 +72,7 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	st, database, disconnect, err := cliConnect(ctx, logger, cfg)
+	st, database, disconnect, err := cliConnectFn(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
@@ -70,19 +85,136 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 	if owner == nil {
 		return fmt.Errorf("owner %q does not exist", migrateOwner)
 	}
+	if owner.Role != domain.RoleSuperAdmin {
+		return fmt.Errorf("owner %q must be superadmin, got %q", owner.Username, owner.Role)
+	}
+	if owner.Disabled || owner.Locked {
+		logger.Warn("migration owner account is disabled or locked",
+			slog.String("owner", owner.Username),
+			slog.Bool("disabled", owner.Disabled),
+			slog.Bool("locked", owner.Locked),
+		)
+	}
+
+	invalidOwners, err := st.Holdings.CountInvalidOwners(ctx)
+	if err != nil {
+		return fmt.Errorf("counting invalid holding owners: %w", err)
+	}
+	danglingOwners, err := st.Holdings.CountDanglingOwners(ctx, st.Users)
+	if err != nil {
+		return fmt.Errorf("counting dangling holding owners: %w", err)
+	}
+	if invalidOwners > 0 || danglingOwners > 0 {
+		return fmt.Errorf("invalid holding owners found: malformed=%d dangling=%d", invalidOwners, danglingOwners)
+	}
+
+	legacyBefore, err := st.Holdings.CountLegacy(ctx)
+	if err != nil {
+		return fmt.Errorf("counting legacy holdings before migration: %w", err)
+	}
+	ownerBefore, err := st.Holdings.CountByUser(ctx, owner.ID)
+	if err != nil {
+		return fmt.Errorf("counting owner holdings before migration: %w", err)
+	}
 
 	matched, modified, err := st.Holdings.AssignUnownedTo(ctx, owner.ID)
 	if err != nil {
 		return fmt.Errorf("backfilling user_id: %w", err)
 	}
+
+	legacyAfter, err := st.Holdings.CountLegacy(ctx)
+	if err != nil {
+		return fmt.Errorf("counting legacy holdings after migration: %w", err)
+	}
+	ownerAfter, err := st.Holdings.CountByUser(ctx, owner.ID)
+	if err != nil {
+		return fmt.Errorf("counting owner holdings after migration: %w", err)
+	}
 	logger.Info("legacy holdings reassigned",
+		slog.String("owner", owner.Username),
+		slog.String("owner_id", owner.ID.Hex()),
+		slog.Int64("legacy_before", legacyBefore),
 		slog.Int64("matched", matched),
 		slog.Int64("modified", modified),
-		slog.String("owner", owner.Username),
+		slog.Int64("legacy_after", legacyAfter),
+		slog.Int64("owner_before", ownerBefore),
+		slog.Int64("owner_after", ownerAfter),
+		slog.Int64("invalid_owner_shape_count", invalidOwners),
+		slog.Int64("dangling_owner_count", danglingOwners),
 	)
+	if legacyAfter != 0 {
+		return fmt.Errorf("legacy holdings remain after migration: %d", legacyAfter)
+	}
 
 	// Rebuild indexes so the new {user_id, script} index exists.
-	return db.EnsureIndexes(ctx, database, logger)
+	return ensureIndexesFn(ctx, database, logger)
+}
+
+func runningInCI() bool {
+	for _, key := range []string{"CI", "GITHUB_ACTIONS", "BUILDKITE", "CIRCLECI", "GITLAB_CI"} {
+		if isTruthy(os.Getenv(key)) {
+			return true
+		}
+	}
+	return false
+}
+
+func isTruthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateLocalMongoURI(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid mongo URI: %w", err)
+	}
+	if u.Scheme != "mongodb" {
+		return fmt.Errorf("migrate users is local-only: mongo URI scheme must be mongodb")
+	}
+	if u.Host == "" {
+		return errors.New("migrate users is local-only: mongo URI host is required")
+	}
+	for endpoint := range strings.SplitSeq(u.Host, ",") {
+		host := mongoEndpointHost(endpoint)
+		if !isAllowedLocalMongoHost(host) {
+			return fmt.Errorf("migrate users is local-only: mongo host %q is not allowed", host)
+		}
+	}
+	return nil
+}
+
+func mongoEndpointHost(endpoint string) string {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(endpoint); err == nil {
+		return strings.Trim(strings.ToLower(host), "[]")
+	}
+	if strings.HasPrefix(endpoint, "[") {
+		if end := strings.Index(endpoint, "]"); end >= 0 {
+			return strings.ToLower(endpoint[1:end])
+		}
+	}
+	if strings.Count(endpoint, ":") == 1 {
+		host, _, _ := strings.Cut(endpoint, ":")
+		return strings.ToLower(host)
+	}
+	return strings.Trim(strings.ToLower(endpoint), "[]")
+}
+
+func isAllowedLocalMongoHost(host string) bool {
+	switch host {
+	case "localhost", "127.0.0.1", "::1", "mongodb", "host.docker.internal":
+		return true
+	default:
+		return false
+	}
 }
 
 // adminCmd hosts the break-glass CLI for the super admin (DD-001 §8).

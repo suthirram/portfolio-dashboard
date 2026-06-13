@@ -147,7 +147,9 @@ Verification after refinements: `go test ./...` green across **9** packages
 ## Rollout (mirrors DD-001 §11)
 
 1. Deploy; new endpoints live, bootstrap creates the super admin.
-2. `portfolio-api migrate users --owner admin` stamps legacy holdings.
+2. For local databases with pre-multi-user holdings, run
+   `portfolio-api migrate users --owner admin` locally. This command is not a
+   CI or deployment step; DD-002 owns the current guardrails.
 3. Log in as `admin`/`admin` → forced onboarding secures the account.
 4. Regional admins self-signup, then the super admin promotes them.
 

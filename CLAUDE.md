@@ -49,7 +49,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 
 * `cmd/root.go` — cobra root command; registers subcommands
 * `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, ensures indexes + bootstrap super admin, wires the `Handler` and HTTP server, runs with graceful shutdown
-* `cmd/migrate.go` — one-shot subcommands: `migrate users --owner <name>` (stamp legacy holdings with `user_id`) and `admin reset-lockout|set-password --username <name>` break-glass CLI (DD-001 §8/§10)
+* `cmd/migrate.go` — one-shot subcommands: `migrate users --owner <name>` (local-only: stamp legacy holdings with the super admin `user_id`; refuses CI/remote MongoDB) and `admin reset-lockout|set-password --username <name>` break-glass CLI (DD-001 §8/§10)
 * `internal/auth/` — catalogues (regions, security questions), password/answer hashing (bcrypt), session id generator, super-admin bootstrap, request-context helpers (`WithUser`, `WithSessionID`)
 * `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
 * `internal/logging/logging.go` — slog factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context

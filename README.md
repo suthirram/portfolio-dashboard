@@ -196,7 +196,8 @@ else works.
 ```bash
 cd backend
 
-# Assign any pre-auth holdings to an owner (run once after upgrading):
+# Local only: assign any pre-auth holdings in your local MongoDB to the
+# super admin. This command refuses CI and remote MongoDB URIs.
 go run . migrate users --owner admin
 
 # Break-glass for a locked-out super admin (no login; needs MONGODB_URI):

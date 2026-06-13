@@ -114,6 +114,36 @@ func (s *UserStore) List(ctx context.Context, filter bson.M, sort bson.D) ([]dom
 	return users, nil
 }
 
+// ExistingIDs returns the subset of ids that exist in the users collection.
+func (s *UserStore) ExistingIDs(ctx context.Context, ids []primitive.ObjectID) (map[primitive.ObjectID]struct{}, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	cur, err := s.col.Find(ctx,
+		bson.M{"_id": bson.M{"$in": ids}},
+		options.Find().SetProjection(bson.M{"_id": 1}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+
+	out := make(map[primitive.ObjectID]struct{}, len(ids))
+	for cur.Next(ctx) {
+		var doc struct {
+			ID primitive.ObjectID `bson:"_id"`
+		}
+		if err := cur.Decode(&doc); err != nil {
+			return nil, err
+		}
+		out[doc.ID] = struct{}{}
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Delete permanently removes a user.
 func (s *UserStore) Delete(ctx context.Context, id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
