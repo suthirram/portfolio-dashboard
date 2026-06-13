@@ -15,7 +15,7 @@ import (
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/db"
 	"portfolio-dashboard/internal/logging"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 var migrateOwner string
@@ -34,14 +34,14 @@ var migrateUsersCmd = &cobra.Command{
 // cliConnect dials Mongo for a one-shot command and returns the store, the
 // underlying database (for index maintenance), and a disconnect func.
 // Centralises the boilerplate shared by every CLI command.
-func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*store.Store, *mongo.Database, func(), error) {
+func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*persistence.Store, *mongo.Database, func(), error) {
 	client, err := db.Connect(ctx, cfg.MongoURI, logger)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	database := client.Database(cfg.MongoDB)
 	disconnect := func() { _ = client.Disconnect(context.Background()) }
-	return store.New(database), database, disconnect, nil
+	return persistence.New(database), database, disconnect, nil
 }
 
 func runMigrateUsers(_ *cobra.Command, _ []string) error {

@@ -14,7 +14,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{3,32}$`)
@@ -186,7 +186,7 @@ func (h *Handler) Signup(ctx context.Context, request api.SignupRequestObject) (
 
 	if err := h.store.Users.Insert(ctx, user); err != nil {
 		// The unique index is the authority; a concurrent signup loses here.
-		if errors.Is(err, store.ErrDuplicate) {
+		if errors.Is(err, persistence.ErrDuplicate) {
 			return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: errPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "signup insert failed", slog.String("error", err.Error()))
@@ -431,7 +431,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, request api.UpdateProfileRe
 	}
 
 	if err := h.store.Users.Update(ctx, user.ID, set); err != nil {
-		if errors.Is(err, store.ErrDuplicate) {
+		if errors.Is(err, persistence.ErrDuplicate) {
 			return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: errPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "profile update failed", slog.String("error", err.Error()))

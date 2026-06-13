@@ -13,7 +13,7 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // errNotLoggedIn is a defence-in-depth guard: requireAuth middleware should
@@ -173,7 +173,7 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 	holding, err := h.store.Holdings.GetScoped(ctx, uid, id)
 	if err != nil {
 		// Someone else's id reads as 404, not 403 — ids must not be enumerable.
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, persistence.ErrNotFound) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "get holding failed",

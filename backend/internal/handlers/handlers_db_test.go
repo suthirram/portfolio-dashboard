@@ -10,12 +10,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // newIntegrationHandler builds a Handler backed by the mtest mock database.
 func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
-	return &Handler{store: store.New(mt.DB), priceService: ps}
+	return &Handler{store: persistence.New(mt.DB), priceService: ps}
 }
 
 // holdingDocument builds an INR stock holding document for mtest cursor

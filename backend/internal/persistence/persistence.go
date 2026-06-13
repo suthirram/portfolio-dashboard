@@ -1,11 +1,11 @@
-// Package store is the persistence layer: every MongoDB read and write lives
-// here, one type per collection (HoldingStore, UserStore, SessionStore).
-// Callers (handlers, middleware, CLI) receive domain types and run no queries
-// of their own. The one Mongo detail that crosses the boundary is the bson
-// field patch passed to the update and list methods — a deliberate trade-off
-// for partial updates that keeps the API small. Query construction otherwise
-// lives in exactly one place per collection and is easy to audit.
-package store
+// Package persistence is the data-access layer: every MongoDB read and write
+// lives here, one store type per collection (HoldingStore, UserStore,
+// SessionStore). Callers (handlers, middleware, CLI) receive domain types and
+// run no queries of their own. The one Mongo detail that crosses the boundary
+// is the bson field patch passed to the update and list methods — a deliberate
+// trade-off for partial updates that keeps the API small. Query construction
+// otherwise lives in exactly one place per collection and is easy to audit.
+package persistence
 
 import (
 	"errors"

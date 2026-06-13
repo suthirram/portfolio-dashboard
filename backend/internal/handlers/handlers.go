@@ -8,8 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/persistence"
 	"portfolio-dashboard/internal/services"
-	"portfolio-dashboard/internal/store"
 )
 
 // priceFetcher abstracts PriceService for testing.
@@ -21,7 +21,7 @@ type priceFetcher interface {
 // Handler implements api.StrictServerInterface. All persistence goes through
 // store; the handler owns HTTP/authz concerns only.
 type Handler struct {
-	store        *store.Store
+	store        *persistence.Store
 	priceService priceFetcher
 	logger       *slog.Logger
 }
@@ -29,7 +29,7 @@ type Handler struct {
 // New builds a Handler with the default PriceService.
 func New(db *mongo.Database, logger *slog.Logger) *Handler {
 	return &Handler{
-		store:        store.New(db),
+		store:        persistence.New(db),
 		priceService: services.NewPriceService(logger),
 		logger:       logger,
 	}

@@ -12,7 +12,7 @@ import (
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/handlers"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // CSRFHeaderValue must be sent in X-Requested-With on every state-changing
@@ -79,7 +79,7 @@ func CSRFCheck() echo.MiddlewareFunc {
 // pass through, everything else needs a login, /api/admin needs an admin,
 // and the super-admin routes need the super admin. While
 // must_change_password is set, only the onboarding routes are reachable.
-func AuthGate(st *store.Store, logger *slog.Logger) echo.MiddlewareFunc {
+func AuthGate(st *persistence.Store, logger *slog.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			user, sessionID := loadSession(c, st, logger)
@@ -115,7 +115,7 @@ func AuthGate(st *store.Store, logger *slog.Logger) echo.MiddlewareFunc {
 // loadSession resolves the session cookie to a live user. Returns (nil, "")
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
-func loadSession(c echo.Context, st *store.Store, logger *slog.Logger) (*domain.User, string) {
+func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger) (*domain.User, string) {
 	cookie, err := c.Cookie(handlers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
@@ -125,7 +125,7 @@ func loadSession(c echo.Context, st *store.Store, logger *slog.Logger) (*domain.
 
 	sess, err := st.Sessions.Get(ctx, cookie.Value)
 	if err != nil {
-		if !errors.Is(err, store.ErrNotFound) {
+		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session lookup failed", slog.String("error", err.Error()))
 		}
 		handlers.ClearSessionCookie(c)
@@ -144,7 +144,7 @@ func loadSession(c echo.Context, st *store.Store, logger *slog.Logger) (*domain.
 
 	user, err := st.Users.FindByID(ctx, sess.UserID)
 	if err != nil {
-		if !errors.Is(err, store.ErrNotFound) {
+		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session user lookup failed", slog.String("error", err.Error()))
 		}
 		handlers.ClearSessionCookie(c)
@@ -162,7 +162,7 @@ func loadSession(c echo.Context, st *store.Store, logger *slog.Logger) (*domain.
 
 // refreshSession slides the expiry forward, at most once per day so steady
 // traffic does not write on every request.
-func refreshSession(c echo.Context, st *store.Store, sess *domain.Session, logger *slog.Logger) {
+func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session, logger *slog.Logger) {
 	if time.Until(sess.ExpiresAt) > domain.SessionTTL-24*time.Hour {
 		return
 	}

@@ -14,7 +14,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/store"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // errAdminOnly is a defence-in-depth guard; the route middleware enforces the
@@ -46,7 +46,7 @@ func (h *Handler) loadTargetUser(ctx context.Context, caller *domain.User, idHex
 
 	target, err := h.store.Users.FindByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
+		if errors.Is(err, persistence.ErrNotFound) {
 			return nil, false, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "load target user failed",
