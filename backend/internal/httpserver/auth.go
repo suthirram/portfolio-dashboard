@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -44,18 +43,64 @@ func routeKey(c echo.Context) string {
 	return c.Request().Method + " " + c.Path()
 }
 
-// superAdminRoute reports whether the matched route is super-admin only.
-func superAdminRoute(path string) bool {
-	if path == "/api/admin/admins" {
+// routeTier is the auth-tier required to reach a route.
+//
+// Unknown routes default to tierUser, so a new endpoint that nobody
+// remembered to classify still requires a login — deny-by-default holds.
+// Promoting a route to tierAdmin or tierSuperAdmin is an explicit
+// decision recorded in routeTiers below.
+type routeTier int
+
+const (
+	tierUser routeTier = iota
+	tierAdmin
+	tierSuperAdmin
+)
+
+// routeTiers maps "<METHOD> <echo route pattern>" to the tier required to
+// reach the route, mirroring the keys publicRoutes and onboardingRoutes
+// already use. Keep this table in lock-step with api/openapi.yaml — the
+// TestAuthGate_TierTableMatchesGeneratedRoutes test fails when a new
+// /api/admin/... route is registered without a matching entry.
+var routeTiers = map[string]routeTier{
+	// Super-admin only — promote / demote / change-region, plus the
+	// admin-roster view itself.
+	"GET /api/admin/admins":             tierSuperAdmin,
+	"POST /api/admin/users/:id/promote": tierSuperAdmin,
+	"POST /api/admin/users/:id/demote":  tierSuperAdmin,
+	"PUT /api/admin/users/:id/region":   tierSuperAdmin,
+
+	// Admin or super-admin — every other /api/admin/... route.
+	"GET /api/admin/users":                            tierAdmin,
+	"GET /api/admin/users/:id":                        tierAdmin,
+	"DELETE /api/admin/users/:id":                     tierAdmin,
+	"POST /api/admin/users/:id/hide":                  tierAdmin,
+	"POST /api/admin/users/:id/reactivate":            tierAdmin,
+	"POST /api/admin/users/:id/reset-lockout":         tierAdmin,
+	"GET /api/admin/users/:id/holdings":               tierAdmin,
+	"POST /api/admin/users/:id/holdings":              tierAdmin,
+	"PUT /api/admin/users/:id/holdings/:holdingId":    tierAdmin,
+	"DELETE /api/admin/users/:id/holdings/:holdingId": tierAdmin,
+	"GET /api/admin/users/:id/prices":                 tierAdmin,
+	"GET /api/admin/users/:id/summary":                tierAdmin,
+}
+
+// tierFor returns the tier required for the route key, defaulting to
+// tierUser when the key is not in the table.
+func tierFor(key string) routeTier {
+	return routeTiers[key]
+}
+
+// userSatisfiesTier reports whether the caller meets the route's tier.
+func userSatisfiesTier(user *domain.User, tier routeTier) bool {
+	switch tier {
+	case tierSuperAdmin:
+		return user.IsSuperAdmin()
+	case tierAdmin:
+		return user.IsAdmin()
+	default:
 		return true
 	}
-	switch {
-	case strings.HasSuffix(path, "/promote"),
-		strings.HasSuffix(path, "/demote"),
-		strings.HasSuffix(path, "/region"):
-		return strings.HasPrefix(path, "/api/admin/users/")
-	}
-	return false
 }
 
 // CSRFCheck refuses state-changing requests that lack the custom header.
@@ -100,12 +145,14 @@ func AuthGate(st *persistence.Store, logger *slog.Logger) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusForbidden, "password change required")
 			}
 
-			path := c.Path()
-			if superAdminRoute(path) && !user.IsSuperAdmin() {
-				return echo.NewHTTPError(http.StatusForbidden, "super admin access required")
-			}
-			if strings.HasPrefix(path, "/api/admin") && !user.IsAdmin() {
-				return echo.NewHTTPError(http.StatusForbidden, "admin access required")
+			tier := tierFor(key)
+			if !userSatisfiesTier(user, tier) {
+				switch tier {
+				case tierSuperAdmin:
+					return echo.NewHTTPError(http.StatusForbidden, "super admin access required")
+				case tierAdmin:
+					return echo.NewHTTPError(http.StatusForbidden, "admin access required")
+				}
 			}
 			return next(c)
 		}
