@@ -19,6 +19,9 @@
     "react-router-dom": "^6.26.0",
     "recharts": "^2.10.3"
   },
+  "overrides": {
+    "esbuild": "0.21.5"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
