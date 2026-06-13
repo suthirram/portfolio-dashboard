@@ -57,6 +57,14 @@ func commandFilterUserID(t *testing.T, cmd bson.Raw, commandName string) (primit
 		}
 		first := v.Array().Index(0).Value().Document()
 		filter = first.Lookup("q").Document()
+	case "findAndModify":
+		// findAndModify carries its filter inline under "query"; the wire
+		// shape FindOneAndUpdate compiles to.
+		v, err := cmd.LookupErr("query")
+		if err != nil {
+			return primitive.NilObjectID, false
+		}
+		filter = v.Document()
 	default:
 		return primitive.NilObjectID, false
 	}
@@ -163,8 +171,9 @@ func TestCreateHolding_StampsOwner(t *testing.T) {
 func TestUpdateHolding_ScopesToCurrentUser(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
-	mt.Run("update filter pins user_id", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 0}, bson.E{Key: "nModified", Value: 0}))
+	mt.Run("findAndModify filter pins user_id and 404s when nothing matches", func(mt *mtest.T) {
+		// findAndModify returns {value: null} when no document matched.
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}))
 
 		u := scopedUser()
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
@@ -179,7 +188,7 @@ func TestUpdateHolding_ScopesToCurrentUser(t *testing.T) {
 		if _, ok := resp.(api.UpdateHolding404JSONResponse); !ok {
 			t.Fatalf("response = %T, want 404 for someone else's holding", resp)
 		}
-		requireScopedCommand(t, mt, "update", u.ID)
+		requireScopedCommand(t, mt, "findAndModify", u.ID)
 	})
 }
 

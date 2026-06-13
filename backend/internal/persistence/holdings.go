@@ -68,16 +68,26 @@ func (s *HoldingStore) Insert(ctx context.Context, h domain.Holding) error {
 	return err
 }
 
-// UpdateScoped applies set to the holding owned by uid. It returns false when
-// no holding matched (missing, or owned by someone else).
-func (s *HoldingStore) UpdateScoped(ctx context.Context, uid, id primitive.ObjectID, set bson.D) (bool, error) {
+// UpdateScopedAndReturn applies set to the holding owned by uid and returns
+// the post-update document in one round-trip (FindOneAndUpdate with
+// ReturnDocument=After). Returns ErrNotFound when no holding matched the
+// owner-scoped filter — either the id is wrong or the caller does not own
+// it; both cases collapse to 404 at the handler.
+func (s *HoldingStore) UpdateScopedAndReturn(ctx context.Context, uid, id primitive.ObjectID, set bson.D) (domain.Holding, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	res, err := s.col.UpdateOne(ctx, scopedFilter(uid, bson.M{"_id": id}), bson.M{"$set": set})
+
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	var out domain.Holding
+	err := s.col.FindOneAndUpdate(ctx,
+		scopedFilter(uid, bson.M{"_id": id}),
+		bson.M{"$set": set},
+		opts,
+	).Decode(&out)
 	if err != nil {
-		return false, err
+		return domain.Holding{}, translateFindErr(err)
 	}
-	return res.MatchedCount > 0, nil
+	return out, nil
 }
 
 // DeleteScoped removes the holding owned by uid. It returns false when nothing
