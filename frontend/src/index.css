@@ -86,3 +86,19 @@ input, select, textarea {
   animation: spin 0.7s linear infinite;
   display: inline-block;
 }
+
+/* Dashboard top nav: prevent button labels from wrapping mid-word and let the
+ * whole bar reflow on narrow viewports instead of overflowing horizontally. */
+.dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .dash-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
+  .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
+  .dash-nav-hide-sm { display: none !important; }
+  .dash-nav-label-sm { display: none; }
+  /* Hide low-priority columns on narrow screens so the table fits without a
+   * horizontal scroll. EUR-converted subcolumns are also shown on the per-
+   * currency totals card, so dropping them in the table is safe. Avg-cost
+   * and money-made (realised) come back at >768px. */
+  .col-hide-sm { display: none !important; }
+}

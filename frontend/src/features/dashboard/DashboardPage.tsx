@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
-import HoldingsTable from '../holdings/HoldingsTable'
+import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
 import AddEditModal from '../holdings/AddEditModal'
 import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
@@ -100,7 +100,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      <header style={{
+      <header className="dash-nav" style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
         padding: '0 28px',
@@ -112,13 +112,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         top: 0,
         zIndex: 50,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
               width: 32, height: 32, background: 'var(--blue)', color: '#fff',
               borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}><ChartLineIcon size={18} /></div>
-            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>Portfolio Dashboard</span>
+            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
           </Link>
           {roleBadge}
           {regionLabel && (
@@ -126,49 +127,49 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               background: 'var(--bg-card)', color: 'var(--text-secondary)',
               padding: '3px 8px', borderRadius: 'var(--radius-sm)',
               fontSize: 11, border: '1px solid var(--border)',
-              display: 'inline-flex', alignItems: 'center', gap: 4,
+              display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
             }}><PinIcon size={12} /> {regionLabel}</span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {isAdmin && (
-            <Link to="/admin" style={{
+            <Link to="/admin" className="dash-nav-btn" style={{
               background: 'var(--bg-card)', color: 'var(--text-secondary)',
               border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
               padding: '6px 14px', fontSize: 13, textDecoration: 'none',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <ShieldIcon size={14} /> Admin Panel
+              <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
             </Link>
           )}
           {lastRefresh && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            <span className="dash-nav-hide-sm" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               Updated {lastRefresh.toLocaleTimeString()}
             </span>
           )}
-          <button onClick={fetchPrices} disabled={loadingPrices}
+          <button onClick={fetchPrices} disabled={loadingPrices} className="dash-nav-btn"
             style={{
               background: 'var(--bg-card)', color: 'var(--text-secondary)',
               border: '1px solid var(--border)', padding: '6px 14px',
               display: 'flex', alignItems: 'center', gap: 6, opacity: loadingPrices ? 0.6 : 1,
             }}>
-            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} Refresh
+            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
           </button>
-          <button onClick={() => setModal('add')}
+          <button onClick={() => setModal('add')} className="dash-nav-btn"
             style={{
               background: 'var(--blue)', color: '#fff', padding: '6px 16px', fontWeight: 600,
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            <PlusIcon size={14} /> Add Holding
+            <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setMenuOpen(o => !o)}
+            <button onClick={() => setMenuOpen(o => !o)} className="dash-nav-btn"
               style={{
                 background: 'var(--bg-card)', color: 'var(--text-primary)',
                 border: '1px solid var(--border)', padding: '6px 12px',
                 display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
-              <UserIcon size={14} /> {user?.name || user?.username}
+              <UserIcon size={14} /> <span className="dash-nav-label-sm">{user?.name || user?.username}</span>
             </button>
             {menuOpen && (
               <div onMouseLeave={() => setMenuOpen(false)} style={{
@@ -234,7 +235,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </div>
 
         {tab === 'table' && (
-          <HoldingsTable
+          <HoldingsByCurrency
             holdings={filtered}
             loading={loadingHoldings || loadingPrices}
             onEdit={h => setModal(h)}
