@@ -13,7 +13,7 @@ description: >
 
 # Portfolio Dashboard Skill
 
-This skill guides you through building a production-ready, full-stack portfolio tracker from scratch. The stack is intentionally opinionated so you can move fast — React + Vite frontend, Go backend, MongoDB, live Yahoo Finance prices, Docker Compose for infra.
+This skill guides you through building a production-ready, full-stack, **multi-user** portfolio tracker from scratch. The stack is intentionally opinionated so you can move fast — React + Vite + TypeScript frontend (with `react-router-dom` and auth-aware route guards), Go backend (echo router + cobra CLI + oapi-codegen strict server), MongoDB, live Yahoo Finance prices, server-side session auth with regional admin tiers, Docker Compose for infra.
 
 ## When to use this skill
 
@@ -27,97 +27,187 @@ Reach for this skill when the user wants to:
 
 ## Clarify before building
 
-Ask **one round** of clarifying questions before starting. The two that matter most:
+Ask **one round** of clarifying questions before starting. The three that matter:
 
 1. **Which markets?** NSE/BSE (Indian stocks), US (NYSE/NASDAQ), or both?
 2. **Currency display?** INR only, or also show EUR/USD equivalents via live forex?
+3. **Single-tenant or multi-user?** Default is multi-user with the auth + regional-admin model described below. If the user explicitly wants a single-tenant tracker, skip the `auth`, `admin`, `httpserver/auth.go`, `cmd/migrate.go`, and frontend `features/auth`/`features/admin` modules and serve `/api/holdings` unscoped.
 
 Everything else (design style, charts, columns) you can decide sensibly — don't ask about it.
 
 ## Project structure
 
-Scaffold this exact layout:
+Scaffold this exact layout. App-private packages live under `internal/` per
+idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
+`main.go`. Frontend is TypeScript with feature folders.
 
 ```
 <project>/
-├── docker-compose.yml          # MongoDB + full stack (prod)
-├── docker-compose.dev.yml      # MongoDB only (for local dev)
-├── Makefile                    # dev / prod / tidy shortcuts
+├── docker-compose.yml              # MongoDB + full stack (prod)
+├── docker-compose.dev.yml          # MongoDB only (for local dev)
+├── Makefile                        # dev / prod / tidy / install shortcuts
+├── .pre-commit-config.yaml         # yamllint + markdownlint + gofmt + golangci-lint
 ├── README.md
 ├── backend/
 │   ├── Dockerfile
-│   ├── go.mod
-│   ├── main.go
+│   ├── go.mod                      # module: portfolio-dashboard
+│   ├── main.go                     # one-liner: cmd.Execute()
+│   ├── tools.go                    # //go:build tools — pins oapi-codegen
 │   ├── api/
-│   │   └── openapi.yaml        # OpenAPI 3.0 spec
-│   ├── db/
-│   │   └── mongo.go
-│   ├── handlers/
-│   │   └── handlers.go         # all HTTP handlers
-│   ├── models/
-│   │   └── holding.go
-│   └── services/
-│       └── price.go            # Yahoo Finance fetching + cache
+│   │   ├── openapi.yaml            # OpenAPI 3.0 contract
+│   │   └── api.gen.go              # generated strict server (DO NOT EDIT)
+│   ├── cmd/                        # cobra commands
+│   │   ├── root.go
+│   │   ├── serve.go                # boot, wire handler + server
+│   │   └── migrate.go              # `migrate users --owner …`, `admin reset-lockout`, `admin set-password`
+│   └── internal/                   # app-private packages
+│       ├── auth/                   # catalogues, password/answer hashing, session ids, bootstrap, ctx helpers
+│       ├── config/                 # typed Config (defaults < env < flag)
+│       ├── db/mongo.go             # connect + EnsureIndexes for holdings/users/sessions
+│       ├── domain/                 # Holding, User, Session structs (BSON models)
+│       ├── handlers/               # echo handlers + DBO↔DTO mappers
+│       │   ├── handlers.go         # Handler struct (owns *persistence.Store + priceFetcher + slog)
+│       │   ├── auth.go             # signup/login/logout/me/recover/profile/password/onboarding
+│       │   ├── admin.go            # region-scoped admin + super-admin
+│       │   ├── holdings.go         # per-user CRUD (scopedFilter pins user_id)
+│       │   ├── market.go summary.go mapper.go
+│       ├── httpserver/             # echo wiring
+│       │   ├── server.go           # router, CORS, error renderer
+│       │   ├── middleware.go       # slog request logger
+│       │   └── auth.go             # CSRFCheck + AuthGate (session load, role/region/onboarding gates)
+│       ├── logging/                # slog factory + per-request logger on context
+│       ├── persistence/            # data-access layer (one store type per collection)
+│       │   ├── persistence.go      # New(db) → *Store{Holdings, Users, Sessions}
+│       │   ├── holdings.go         # HoldingStore — owner-scoped by construction
+│       │   ├── users.go            # UserStore — sentinels ErrNotFound, ErrDuplicate
+│       │   └── sessions.go         # SessionStore
+│       └── services/price.go       # Yahoo Finance fetcher + 5-min TTL cache
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
-    ├── package.json
-    ├── vite.config.js          # proxies /api → :8080 in dev
+    ├── package.json                # scripts: dev, build, typecheck, gen:api
+    ├── tsconfig.json
+    ├── vite.config.ts              # proxies /api → :8080 in dev
     ├── index.html
     └── src/
-        ├── main.jsx
-        ├── App.jsx             # root state + orchestration
-        ├── index.css           # dark theme CSS variables
-        ├── api/
-        │   └── client.js       # thin fetch wrapper for all endpoints
-        └── components/
-            ├── SummaryCards.jsx
-            ├── HoldingsTable.jsx
-            ├── AddEditModal.jsx
-            └── Charts.jsx
+        ├── main.tsx
+        ├── App.tsx                 # BrowserRouter + AuthProvider; wires public / authed / admin / super-admin routes
+        ├── index.css               # dark theme CSS variables
+        ├── types.ts                # public type aliases re-exported from schema.gen.ts
+        ├── components/             # shared dumb UI (SummaryCards.tsx, Charts.tsx)
+        ├── features/
+        │   ├── auth/               # AuthContext, guards, LoginPage, SignupPage, ForgotPasswordPage, OnboardingPage, ProfilePage, AuthShell, SecurityQuestionsFields
+        │   ├── dashboard/          # DashboardPage (takes optional actAsUserId/actAsLabel for admin act-as)
+        │   ├── admin/              # AdminShell, AdminUserList, AdminUserView (renders DashboardPage in act-as mode), AdminManageAdmins
+        │   └── holdings/           # useHoldings(userId?), HoldingsTable, AddEditModal
+        └── lib/api/
+            ├── client.ts           # fetch wrapper (credentials: include, X-Requested-With CSRF header)
+            └── schema.gen.ts       # generated from openapi.yaml via `npm run gen:api` (DO NOT EDIT)
 ```
 
 ## Backend — Go
 
-**Go module name**: `portfolio-dashboard`
+**Go**: 1.25+. **Module name**: `portfolio-dashboard`.
 
-**Router**: `github.com/go-chi/chi/v5` with `github.com/go-chi/cors`
+**Router**: `github.com/labstack/echo/v4` (echo's built-in CORS + RequestID +
+Recover middleware).
 
-**MongoDB driver**: `go.mongodb.org/mongo-driver v1.13+`
+**CLI**: `github.com/spf13/cobra` — `main.go` is one line (`cmd.Execute()`); each
+subcommand lives in `cmd/`.
 
-### Data model (`models/holding.go`)
+**OpenAPI**: `github.com/oapi-codegen/oapi-codegen/v2` strict-server mode.
+`api/api.gen.go` is generated from `api/openapi.yaml`; the `Handler` struct
+implements every interface method. The contract is the source of truth — change
+`openapi.yaml`, run `make generate`, then implement the new methods.
+
+**Logging**: `log/slog` (JSON by default); per-request logger is stashed on
+`context.Context` so handlers log with the right `request_id`.
+
+**MongoDB driver**: `go.mongodb.org/mongo-driver v1.17+`.
+
+### Data model (`internal/domain/`)
 
 ```go
+// internal/domain/holding.go
 type Holding struct {
-    ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-    Script       string             `bson:"script" json:"script"`           // user's display name
-    Symbol       string             `bson:"symbol" json:"symbol"`           // Yahoo ticker e.g. TCS.NS
-    Exchange     string             `bson:"exchange" json:"exchange"`       // NSE | BSE | NYSE | NASDAQ | OTHER
-    Type         string             `bson:"type" json:"type"`               // stock | etf
-    StocksOwned  float64            `bson:"stocks_owned" json:"stocks_owned"`
-    AvgCostPrice float64            `bson:"avg_cost_price" json:"avg_cost_price"`
-    RealizedPnL  float64            `bson:"realized_pnl" json:"realized_pnl"` // profit from already-sold shares
-    Notes        string             `bson:"notes,omitempty" json:"notes,omitempty"`
-    CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
-    UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
+    ID           primitive.ObjectID `bson:"_id,omitempty"`
+    UserID       primitive.ObjectID `bson:"user_id"`        // every holding has an owner
+    Script       string             `bson:"script"`
+    Symbol       string             `bson:"symbol"`
+    Exchange     string             `bson:"exchange"`       // NSE | BSE | NYSE | NASDAQ | OTHER
+    Type         string             `bson:"type"`           // stock | etf
+    StocksOwned  float64            `bson:"stocks_owned"`
+    AvgCostPrice float64            `bson:"avg_cost_price"`
+    RealizedPnL  float64            `bson:"realized_pnl"`
+    Currency     string             `bson:"currency,omitempty"` // INR | EUR | USD
+    Notes        string             `bson:"notes,omitempty"`
+    CreatedAt    time.Time          `bson:"created_at"`
+    UpdatedAt    time.Time          `bson:"updated_at"`
 }
+
+// internal/domain/user.go     — Username (normalised) + UsernameDisplay, Role (user|admin|superadmin),
+//                                Region (india|europe|us), Disabled, Locked, LoginFailures,
+//                                SecurityQuestionFailures, []SecurityAnswer, MustChangePassword,
+//                                LastLoginAt; IsAdmin / IsSuperAdmin / Oversees helpers.
+// internal/domain/session.go  — opaque id, UserID, CreatedAt, ExpiresAt; SessionTTL = 30 days.
 ```
 
-Also define `HoldingWithPrice` (adds live price fields), `PricesResponse`, and `Summary`.
+DBO↔DTO conversion lives in `internal/handlers/mapper.go` and
+`auth_mapper.go`. Generated API types (`api.Holding`, `api.User`) stay
+JSON-shaped; domain types stay BSON-shaped. They never mix.
 
-### API routes (`main.go`)
+### API routes
+
+Defined in `api/openapi.yaml`; echo routes are wired by oapi-codegen's
+`RegisterHandlersWithBaseURL`. All non-public routes require a session cookie
+and CSRF header.
 
 ```
-GET    /api/holdings        list all (sorted by script)
-POST   /api/holdings        create
-GET    /api/holdings/{id}   get one
-PUT    /api/holdings/{id}   update
-DELETE /api/holdings/{id}   delete
-GET    /api/prices          all holdings + live prices + EUR rate
-GET    /api/summary         portfolio totals
-GET    /api/market/price    ?symbol=TCS.NS  → live price lookup
-GET    /api/market/forex    ?from=INR&to=EUR
-GET    /api/openapi.yaml    serve the spec
+# Public auth + catalogues
+GET    /api/regions                              # signup dropdown
+GET    /api/auth/security-questions              # catalogue
+POST   /api/auth/signup
+POST   /api/auth/login
+POST   /api/auth/recover/questions               # username in BODY, not URL
+POST   /api/auth/recover
+
+# Session auth
+GET    /api/auth/me
+POST   /api/auth/logout
+PUT    /api/auth/password
+PUT    /api/auth/profile
+PUT    /api/auth/security-questions/answers
+POST   /api/auth/onboarding                      # forced super-admin first-login
+
+# Portfolio (per-user; scopedFilter pins user_id on every query)
+GET    /api/holdings
+POST   /api/holdings
+GET    /api/holdings/{id}
+PUT    /api/holdings/{id}
+DELETE /api/holdings/{id}
+GET    /api/prices
+GET    /api/summary
+GET    /api/market/price?symbol=TCS.NS
+GET    /api/market/forex?from=INR&to=EUR
+
+# Admin (region-scoped; super admin sees all)
+GET    /api/admin/users
+GET    /api/admin/users/{id}
+POST   /api/admin/users/{id}/hide
+POST   /api/admin/users/{id}/reactivate
+POST   /api/admin/users/{id}/reset-lockout
+POST   /api/admin/users/{id}/promote              # super admin
+POST   /api/admin/users/{id}/demote               # super admin
+PUT    /api/admin/users/{id}/region               # super admin
+DELETE /api/admin/users/{id}
+# Act-as: same per-user portfolio surface, but for an admin's target user
+GET    /api/admin/users/{id}/holdings
+POST   /api/admin/users/{id}/holdings   # …+ /{id}, /prices, /summary
+GET    /api/admin/admins                          # super admin only
+
+# Spec
+GET    /api/openapi.yaml
+GET    /api/healthz
 ```
 
 ### Price service (`services/price.go`)
@@ -140,12 +230,79 @@ GET    /api/openapi.yaml    serve the spec
 ### `go.mod` — key deps
 
 ```
-github.com/go-chi/chi/v5 v5.0.11
-github.com/go-chi/cors v1.2.1
-go.mongodb.org/mongo-driver v1.13.1
+github.com/labstack/echo/v4 v4.13+
+github.com/spf13/cobra v1.9+
+github.com/oapi-codegen/oapi-codegen/v2 v2.4+         // tools.go
+github.com/oapi-codegen/runtime v1.1+
+go.mongodb.org/mongo-driver v1.17+
+golang.org/x/crypto                                  // bcrypt
 ```
 
-Remind the user to run `go mod tidy` before `go run .`.
+Remind the user to run `go mod tidy` before `go run . serve`.
+
+### Auth + multi-tenancy
+
+The default scaffold is multi-user. Treat these as non-negotiable, even though
+the rules are long — they are what makes per-user isolation correct.
+
+* **Session cookie**: `pd_session`, `HttpOnly`, `Secure` (prod) / `Lax` on plain
+  HTTP dev, `SameSite=None` (prod) / `Lax` (dev). 32 random bytes base64url'd.
+  30-day sliding expiry; revoke by deleting the row. TTL index on
+  `sessions.expires_at` cleans expired rows.
+* **CSRF**: every state-changing request (POST/PUT/DELETE) must carry
+  `X-Requested-With: portfolio-dashboard`. Enforced by `CSRFCheck` middleware
+  and by `lib/api/client.ts`.
+* **Per-user scoping**: every Mongo call against `holdings` pins `user_id` via
+  `scopedFilter(uid, extra)` — owner-scoping by construction in
+  `internal/persistence/holdings.go`. Mismatched ids return `404` (no
+  enumeration). Wire-level tests must inspect the issued Mongo command's filter
+  to prove `user_id` is present.
+* **Roles**: `user` < `admin` (one region) < `superadmin` (single owner).
+  Region scope: an admin can act on a target `:id` only when
+  `target.role == "user" AND target.region == caller.region`. Super admin
+  bypasses; super admin cannot demote / move-region / delete itself.
+* **Recovery**: three wrong security-question answers lock recovery (`423`);
+  reset via `POST /api/admin/users/:id/reset-lockout` (users/admins) or the
+  break-glass CLI for the super admin.
+* **Bootstrap**: on a fresh database, `auth.EnsureSuperAdmin` creates
+  `admin` / `admin` with `MustChangePassword=true` and random placeholder
+  security answers, so recovery is closed until onboarding picks real ones.
+  `AuthGate` blocks the API until onboarding completes — the gate is
+  server-side, not just a frontend redirect.
+* **Fail-closed gate**: `AuthGate` protects everything **except** an explicit
+  public allowlist (catalogues + signup/login/recover). Do not invert this to
+  an opt-in list of operations that require auth — new endpoints would ship
+  public by default.
+* **Bootstrap exception**: `auth/bootstrap.go` writes the first super admin via
+  the raw collection to break the import cycle between `auth` and
+  `persistence`. The unique-username index prevents a double super admin under
+  a boot race. Every other write goes through `persistence`.
+
+Break-glass CLI (no login required; only needs `MONGODB_URI`):
+
+```
+portfolio-dashboard migrate users --owner <username>        # stamp legacy holdings with user_id
+portfolio-dashboard admin reset-lockout --username admin
+PD_NEW_PASSWORD='…' portfolio-dashboard admin set-password --username admin
+```
+
+`PD_NEW_PASSWORD` is read from the env so the password stays out of shell
+history. The migrate CLI reuses one Mongo connection for the backfill and the
+index rebuild — do not open a second client.
+
+### Persistence layer (`internal/persistence/`)
+
+* `persistence.New(db)` returns a `*Store{Holdings, Users, Sessions}`. Callers
+  (handlers, middleware, CLI) get domain types and never touch
+  `*mongo.Collection`, `*mongo.Cursor`, or raw `bson` documents.
+* One store type per collection (`HoldingStore`, `UserStore`, `SessionStore`)
+  in its own file. The one Mongo detail allowed to cross the boundary is a
+  documented `bson` field patch passed to update / partial-list methods.
+* Sentinels: `ErrNotFound` (translate `mongo.ErrNoDocuments`),
+  `ErrDuplicate` (translate `mongo.IsDuplicateKeyError`). Callers branch with
+  `errors.Is`; they never import the driver's errors.
+* `HoldingStore.scopedFilter(uid, extra)` is the single source of truth for
+  pinning `user_id` on every read and write.
 
 ### Go code conventions (strictly enforced)
 
@@ -201,11 +358,45 @@ style preferences; the pre-commit hook rejects violations (see *Quality gate*).
 * Before handing off, run `pre-commit run --all-files` **and** `go test ./...`;
   both must pass. Mention which you ran.
 
-## Frontend — React + Vite
+## Frontend — React + Vite + TypeScript
 
-**Dependencies**: `react`, `react-dom`, `recharts`, `axios` (or plain fetch)
+**Dependencies**: `react`, `react-dom`, `react-router-dom`, `recharts`, plain
+`fetch` (no axios).
 
-**Dev dependency**: `@vitejs/plugin-react`, `vite`
+**Dev dependencies**: `@vitejs/plugin-react`, `vite`, `typescript`,
+`openapi-typescript`.
+
+OpenAPI types are generated into `src/lib/api/schema.gen.ts` via
+`npm run gen:api` (`openapi-typescript ../backend/api/openapi.yaml -o
+src/lib/api/schema.gen.ts`). Re-run after every `openapi.yaml` change. Do not
+hand-edit the generated file. `src/types.ts` re-exports the names handlers
+consume.
+
+### Routing + auth shell (`App.tsx`)
+
+`BrowserRouter` wraps an `<AuthProvider>` that calls `/api/auth/me` on mount
+and exposes `{user, loading, refresh, setUser, logout}`. Route guards live in
+`features/auth/guards.tsx`:
+
+* `RequireAuth` — must be logged in; redirects to `/login` otherwise.
+* `RequireAdmin` / `RequireSuperAdmin` — also enforce role.
+* `RedirectIfAuthed` — keeps logged-in users out of `/login`, `/signup`,
+  `/forgot`.
+* Onboarding-forced redirect — if `user.must_change_password`, redirect to
+  `/onboarding` from every other route.
+
+Pages:
+
+* Public: `LoginPage`, `SignupPage`, `ForgotPasswordPage`, `AuthShell` (the
+  outer card/layout reused by all auth screens).
+* Authed: `DashboardPage` (default), `ProfilePage`, `OnboardingPage`.
+* Admin: `AdminShell` with nested `AdminUserList` and `AdminUserView`
+  (renders `DashboardPage` in act-as mode for a target user).
+* Super admin: `AdminManageAdmins`.
+
+`useHoldings(userId?)` and `AddEditModal` accept an optional `userId`; when
+set, every call targets `/api/admin/users/:id/holdings…` instead of
+`/api/holdings…`.
 
 ### Design — dark theme
 
@@ -265,7 +456,7 @@ Three views toggled by tabs:
 * **P&L** — grouped bar chart (unrealised + realised per holding), top 15
 * **By Exchange** — pie + progress bars by exchange (NSE / BSE / NYSE / NASDAQ)
 
-### App.jsx state
+### `DashboardPage` / `useHoldings` state
 
 * `holdings` — raw list from `/api/holdings` (fast, no prices)
 * `enriched` — from `/api/prices` (with live prices, EUR, P&L)
@@ -273,16 +464,31 @@ Three views toggled by tabs:
 * Filter input to search by script name or symbol
 * Sticky header with Refresh button and "Add Holding" CTA
 * Two tabs: **Holdings** (table) and **Charts**
+* In admin act-as mode (when `actAsUserId` is set), every endpoint is the
+  `/api/admin/users/:id/…` variant and a banner names the target user.
 
-### `vite.config.js`
+### `vite.config.ts`
 
-```js
-proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true } }
+```ts
+server: {
+  proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true } },
+}
 ```
 
-### `api/client.js`
+The proxy keeps `/api` same-origin in dev, so the session cookie works without
+`SameSite=None; Secure`.
 
-Thin wrapper around `fetch`. Reads `VITE_API_URL` env var for production builds, falls back to `/api` (proxied by Vite in dev).
+### `lib/api/client.ts`
+
+Thin wrapper around `fetch`:
+
+* Reads `VITE_API_URL` env var for production builds; falls back to `/api`
+  (proxied by Vite in dev).
+* Always sets `credentials: 'include'` so the session cookie is sent.
+* On state-changing methods (POST/PUT/DELETE/PATCH), sets
+  `X-Requested-With: portfolio-dashboard` — the server's `CSRFCheck` rejects
+  the request otherwise.
+* Centralises error parsing into the OpenAPI `{ "error": "..." }` shape.
 
 ## Docker setup
 
@@ -296,7 +502,9 @@ MongoDB only — for running backend and frontend locally.
 
 ### `backend/Dockerfile`
 
-Multi-stage: `golang:1.21-alpine` builder → `alpine:3.19` runtime. Copy binary + `api/` directory (for `openapi.yaml`).
+Multi-stage: `golang:1.25-alpine` builder → `alpine:3.20` runtime. Copy the
+compiled binary and `api/openapi.yaml` (served live by the backend). Entry
+point is `portfolio-dashboard serve`.
 
 ### `frontend/Dockerfile`
 
@@ -308,41 +516,78 @@ Multi-stage: `node:20-alpine` builder → `nginx:alpine`. Include `nginx.conf` t
 
 ## OpenAPI spec (`api/openapi.yaml`)
 
-Write a proper OpenAPI 3.0 spec covering all routes. Include `components/schemas` for `Holding`, `HoldingInput`, `HoldingWithPrice`, `PricesResponse`, `Summary`, `Error`. Serve it at `GET /api/openapi.yaml`.
+Write a proper OpenAPI 3.0 spec covering every route in the table above —
+auth, portfolio, admin (incl. act-as), market. Include `components/schemas`
+for `Holding`, `HoldingInput`, `HoldingWithPrice`, `PricesResponse`,
+`Summary`, `User`, `Session`, `Region`, `SecurityQuestion`,
+`SecurityAnswerInput`, and `Error`; declare 401/403/404/409/423 response
+shapes. Add a `cookieAuth` security scheme on `pd_session` and apply it to
+every non-public operation. Serve it at `GET /api/openapi.yaml`.
+
+`api/api.gen.go` is generated by oapi-codegen (`tools.go` pins the version);
+`schema.gen.ts` is generated by `openapi-typescript`. **Both files are
+regenerated, never hand-edited** — change the YAML, run
+`make generate && (cd frontend && npm run gen:api)`, then implement the new
+interface methods.
 
 ## Makefile
 
 ```makefile
-dev-db:   # docker compose -f docker-compose.dev.yml up -d
-prod:     # docker compose up --build
-down:     # stop all
-backend:  # cd backend && go run .
-frontend: # cd frontend && npm run dev
-install:  # cd frontend && npm install
-tidy:     # cd backend && go mod tidy
+dev-db:    # docker compose -f docker-compose.dev.yml up -d
+prod:      # docker compose up --build
+down:      # stop all
+backend:   # cd backend && go run . serve
+frontend:  # cd frontend && npm run dev
+install:   # cd frontend && npm install
+tidy:      # cd backend && go mod tidy
+generate:  # cd backend && go generate ./... (runs oapi-codegen)
 ```
+
+## Environment variables
+
+| Var / Flag | Default | Notes |
+|---|---|---|
+| `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | |
+| `MONGODB_DATABASE` / `--mongo-db` | `portfolio` | |
+| `PORT` / `--port` | `8080` | |
+| `LOG_LEVEL` / `--log-level` | `info` | `debug`\|`info`\|`warn`\|`error` |
+| `LOG_FORMAT` / `--log-format` | `json` | `json`\|`text` |
+| `CORS_ALLOWED_ORIGINS` | dev: `http://localhost:3000,http://localhost:5173` | **Required in production** — credentialed CORS forbids `*` |
+| `PD_NEW_PASSWORD` | *(unset)* | Read only by `admin set-password`, to keep the password out of shell history |
+| `VITE_API_URL` (frontend) | proxied via Vite | Backend URL for production builds |
+
+Flag > env > default.
 
 ## README
 
 Include:
 
-* Stack summary
+* Stack summary (mention echo + cobra + oapi-codegen)
+* Accounts & roles overview (user / admin / regional / super admin)
+* First-run + operations section: bootstrap `admin/admin`, `migrate users
+  --owner`, break-glass `admin reset-lockout` / `admin set-password`
 * Column definitions table
 * Yahoo symbol format table
 * Quick-start commands (local dev + full Docker)
-* API endpoint table
-* Environment variables table
-* Note: run `go mod tidy` before first `go run .`
+* API endpoint table (auth public, auth session, portfolio, admin)
+* Environment variables table (the one above)
+* Note: run `go mod tidy` before first `go run . serve`
 
 ## Delivery checklist
 
 Before finishing, verify:
 
-* [ ] All Go files import the module correctly (`portfolio-dashboard/models` etc.)
-* [ ] All React component names match their imports in `App.jsx`
-* [ ] `vite.config.js` has the proxy configured
-* [ ] `docker-compose.yml` references correct service names in `nginx.conf`
-* [ ] `go.mod` module name matches all internal imports
-* [ ] README has the `go mod tidy` step clearly documented
-* [ ] `gofmt` and `golangci-lint run ./...` pass with zero issues (see *Go code conventions*)
-* [ ] `pre-commit run --all-files` and `go test ./...` both pass
+* [ ] Module name is `portfolio-dashboard`; every `internal/…` import path
+      resolves under it
+* [ ] Generated files (`api/api.gen.go`, `frontend/src/lib/api/schema.gen.ts`)
+      are in sync with `openapi.yaml`; the generators ran without diffs
+* [ ] `vite.config.ts` has the `/api` proxy configured
+* [ ] `docker-compose.yml` service names match what `nginx.conf` proxies to
+* [ ] README documents `go mod tidy` and the first-run super-admin onboarding
+* [ ] `gofmt` and `golangci-lint run ./...` pass with zero issues (see *Go
+      code conventions*)
+* [ ] `pre-commit run --all-files`, `go test ./...`, `npm run typecheck`, and
+      `npm run build` all pass; mention which you ran
+* [ ] If multi-user: per-user scoping has a wire-level test that inspects the
+      issued Mongo command's filter to prove `user_id` is pinned; admin
+      region-scope checks return `404` (not `403`) for out-of-region targets
