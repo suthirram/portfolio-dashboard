@@ -34,7 +34,7 @@ gcloud run deploy "${SERVICE}" \
   --memory 512Mi \
   --cpu 1 \
   --timeout 60s \
-  --set-env-vars "LOG_FORMAT=json,LOG_LEVEL=info,COOKIE_SECURE=true,MONGODB_DATABASE=portfolio,CORS_ALLOWED_ORIGINS=${CORS}" \
+  --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=info##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${CORS}" \
   --set-secrets "MONGODB_URI=MONGODB_URI:latest"
 
 echo ">> Service URL:"
