@@ -52,7 +52,7 @@ func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("default deps wired", func(mt *mtest.T) {
-		h := New(mt.DB, nil)
+		h := New(mt.DB, nil, false)
 
 		if h.store == nil {
 			t.Fatal("store is nil")

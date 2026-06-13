@@ -41,7 +41,7 @@ func (h *Handler) issueSession(ctx context.Context, userID primitive.ObjectID) e
 	}
 
 	if hasEcho {
-		SetSessionCookie(c, id, sess.ExpiresAt)
+		SetSessionCookie(c, id, sess.ExpiresAt, h.cookieSecure)
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (h *Handler) destroySession(ctx context.Context) error {
 		}
 	}
 	if c, ok := echoFromContext(ctx); ok {
-		ClearSessionCookie(c)
+		ClearSessionCookie(c, h.cookieSecure)
 	}
 	return nil
 }
@@ -72,11 +72,13 @@ func (h *Handler) invalidateAllSessions(ctx context.Context, userID primitive.Ob
 	return h.store.Sessions.DeleteByUser(ctx, userID)
 }
 
-// SetSessionCookie writes the session cookie. Over HTTPS it follows DD-001
-// §5: HttpOnly; Secure; SameSite=None (cross-origin Pages → Fly). On plain
-// HTTP (local dev behind the same-origin Vite proxy) browsers drop
-// Secure/None cookies, so it falls back to SameSite=Lax without Secure.
-func SetSessionCookie(c echo.Context, value string, expires time.Time) {
+// SetSessionCookie writes the session cookie. secure follows DD-001 §5:
+// when true the cookie is Secure + SameSite=None (cross-origin Pages → Fly);
+// when false it falls back to SameSite=Lax without Secure, the only mode
+// browsers accept over plain-HTTP local dev. Sourced from
+// Config.CookieSecure — never from the request scheme, so a misconfigured
+// proxy cannot silently downgrade hardening.
+func SetSessionCookie(c echo.Context, value string, expires time.Time, secure bool) {
 	cookie := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    value,
@@ -85,7 +87,7 @@ func SetSessionCookie(c echo.Context, value string, expires time.Time) {
 		Expires:  expires,
 		MaxAge:   int(time.Until(expires).Seconds()),
 	}
-	if c.Scheme() == "https" {
+	if secure {
 		cookie.Secure = true
 		cookie.SameSite = http.SameSiteNoneMode
 	} else {
@@ -94,8 +96,10 @@ func SetSessionCookie(c echo.Context, value string, expires time.Time) {
 	c.SetCookie(cookie)
 }
 
-// ClearSessionCookie expires the session cookie immediately.
-func ClearSessionCookie(c echo.Context) {
+// ClearSessionCookie expires the session cookie immediately. secure must
+// match what SetSessionCookie used, or some browsers will refuse to
+// overwrite the existing cookie.
+func ClearSessionCookie(c echo.Context, secure bool) {
 	cookie := &http.Cookie{
 		Name:     SessionCookieName,
 		Value:    "",
@@ -104,7 +108,7 @@ func ClearSessionCookie(c echo.Context) {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 	}
-	if c.Scheme() == "https" {
+	if secure {
 		cookie.Secure = true
 		cookie.SameSite = http.SameSiteNoneMode
 	} else {

@@ -24,16 +24,24 @@ type Handler struct {
 	store        *persistence.Store
 	priceService priceFetcher
 	logger       *slog.Logger
+	cookieSecure bool
 }
 
-// New builds a Handler with the default PriceService.
-func New(db *mongo.Database, logger *slog.Logger) *Handler {
+// New builds a Handler with the default PriceService. cookieSecure controls
+// whether the session cookie is emitted with Secure + SameSite=None
+// (cross-origin prod) or with SameSite=Lax (local dev). Sourced from
+// Config.CookieSecure; do not derive from the request scheme.
+func New(db *mongo.Database, logger *slog.Logger, cookieSecure bool) *Handler {
 	return &Handler{
 		store:        persistence.New(db),
 		priceService: services.NewPriceService(logger),
 		logger:       logger,
+		cookieSecure: cookieSecure,
 	}
 }
+
+// CookieSecure reports the configured session-cookie hardening.
+func (h *Handler) CookieSecure() bool { return h.cookieSecure }
 
 func (h *Handler) log() *slog.Logger {
 	if h.logger == nil {

@@ -19,7 +19,7 @@ import (
 
 func newTestServer(mt *mtest.T) http.Handler {
 	logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-	h := handlers.New(mt.DB, logger)
+	h := handlers.New(mt.DB, logger, false)
 	return New(config.Default(), logger, mt.DB, h)
 }
 

@@ -124,10 +124,12 @@ func CSRFCheck() echo.MiddlewareFunc {
 // pass through, everything else needs a login, /api/admin needs an admin,
 // and the super-admin routes need the super admin. While
 // must_change_password is set, only the onboarding routes are reachable.
-func AuthGate(st *persistence.Store, logger *slog.Logger) echo.MiddlewareFunc {
+// cookieSecure controls the Secure / SameSite attributes used when the
+// middleware re-issues or clears the session cookie.
+func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			user, sessionID := loadSession(c, st, logger)
+			user, sessionID := loadSession(c, st, logger, cookieSecure)
 			if user != nil {
 				ctx := auth.WithUser(c.Request().Context(), user)
 				ctx = auth.WithSessionID(ctx, sessionID)
@@ -162,7 +164,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger) echo.MiddlewareFunc {
 // loadSession resolves the session cookie to a live user. Returns (nil, "")
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
-func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger) (*domain.User, string) {
+func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, cookieSecure bool) (*domain.User, string) {
 	cookie, err := c.Cookie(handlers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
@@ -175,7 +177,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger) (*d
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c)
+		handlers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -185,7 +187,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger) (*d
 		if err := st.Sessions.Delete(ctx, sess.ID); err != nil {
 			logger.Warn("expired session delete failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c)
+		handlers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -194,22 +196,22 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger) (*d
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session user lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c)
+		handlers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 	if user.Disabled {
 		// Hidden users lose access on their next request (PRD-001 §6.6).
-		handlers.ClearSessionCookie(c)
+		handlers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
-	refreshSession(c, st, &sess, logger)
+	refreshSession(c, st, &sess, logger, cookieSecure)
 	return user, sess.ID
 }
 
 // refreshSession slides the expiry forward, at most once per day so steady
 // traffic does not write on every request.
-func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session, logger *slog.Logger) {
+func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session, logger *slog.Logger, cookieSecure bool) {
 	if time.Until(sess.ExpiresAt) > domain.SessionTTL-24*time.Hour {
 		return
 	}
@@ -218,5 +220,5 @@ func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session,
 		logger.Warn("session refresh failed", slog.String("error", err.Error()))
 		return
 	}
-	handlers.SetSessionCookie(c, sess.ID, newExpiry)
+	handlers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)
 }

@@ -20,6 +20,13 @@ type Config struct {
 
 	CORSAllowedOrigins []string
 
+	// CookieSecure controls whether the session cookie is emitted with
+	// Secure + SameSite=None (cross-origin auth) or with SameSite=Lax
+	// (same-origin dev). Set explicitly via the COOKIE_SECURE env var; do
+	// not derive from the request scheme — proxy header drift would break
+	// auth silently.
+	CookieSecure bool
+
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
@@ -62,6 +69,9 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv("LOG_FORMAT"); v != "" {
 		c.LogFormat = v
 	}
+	if v := os.Getenv("COOKIE_SECURE"); v != "" {
+		c.CookieSecure = parseBool(v)
+	}
 	if v := os.Getenv("CORS_ALLOWED_ORIGINS"); v != "" {
 		parts := strings.Split(v, ",")
 		out := make([]string, 0, len(parts))
@@ -71,6 +81,18 @@ func (c *Config) ApplyEnv() {
 			}
 		}
 		c.CORSAllowedOrigins = out
+	}
+}
+
+// parseBool reads a permissive boolean env value. Unknown strings are
+// treated as false so a malformed COOKIE_SECURE never silently enables a
+// production setting.
+func parseBool(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 

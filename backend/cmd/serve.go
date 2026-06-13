@@ -74,7 +74,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	defer disconnect()
 
-	h := handlers.New(database, logger)
+	h := handlers.New(database, logger, cfg.CookieSecure)
 	e := httpserver.New(cfg, logger, database, h)
 
 	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {
