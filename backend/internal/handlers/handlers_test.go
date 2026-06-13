@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
@@ -48,17 +49,24 @@ func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64
 }
 
 func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
-	h := New(nil, nil)
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
-	if h.priceService == nil {
-		t.Fatal("priceService is nil")
-	}
-	if h.log() == nil {
-		t.Fatal("log() returned nil")
-	}
-	if h.reqLog(context.Background()) == nil {
-		t.Fatal("reqLog() returned nil")
-	}
+	mt.Run("default deps wired", func(mt *mtest.T) {
+		h := New(mt.DB, nil)
+
+		if h.store == nil {
+			t.Fatal("store is nil")
+		}
+		if h.priceService == nil {
+			t.Fatal("priceService is nil")
+		}
+		if h.log() == nil {
+			t.Fatal("log() returned nil")
+		}
+		if h.reqLog(context.Background()) == nil {
+			t.Fatal("reqLog() returned nil")
+		}
+	})
 }
 
 func TestReqLogPrefersRequestScopedLogger(t *testing.T) {

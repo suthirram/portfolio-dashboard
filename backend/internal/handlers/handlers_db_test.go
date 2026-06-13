@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -11,24 +10,27 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // newIntegrationHandler builds a Handler backed by the mtest mock database.
 func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
-	return &Handler{db: mt.DB, priceService: ps}
+	return &Handler{store: persistence.New(mt.DB), priceService: ps}
 }
 
-func holdingDocument(id primitive.ObjectID, script, symbol, exchange, typ, currency string, qty, avg, realized float64) bson.D {
+// holdingDocument builds an INR stock holding document for mtest cursor
+// responses. Currency/type are fixed; vary them inline if a test needs it.
+func holdingDocument(id primitive.ObjectID, script, symbol, exchange string, qty, avg, realized float64) bson.D {
 	return bson.D{
 		{Key: "_id", Value: id},
 		{Key: "script", Value: script},
 		{Key: "symbol", Value: symbol},
 		{Key: "exchange", Value: exchange},
-		{Key: "type", Value: typ},
+		{Key: "type", Value: "stock"},
 		{Key: "stocks_owned", Value: qty},
 		{Key: "avg_cost_price", Value: avg},
 		{Key: "realized_pnl", Value: realized},
-		{Key: "currency", Value: currency},
+		{Key: "currency", Value: "INR"},
 	}
 }
 
@@ -37,7 +39,7 @@ func holdingDocument(id primitive.ObjectID, script, symbol, exchange, typ, curre
 func TestIntegration_GetHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
 	h := &Handler{priceService: &mockPriceFetcher{}}
 
-	resp, err := h.GetHolding(context.Background(), api.GetHoldingRequestObject{Id: "not-an-object-id"})
+	resp, err := h.GetHolding(userCtx(scopedUser()), api.GetHoldingRequestObject{Id: "not-an-object-id"})
 	if err != nil {
 		t.Fatalf("GetHolding: %v", err)
 	}
@@ -53,12 +55,12 @@ func TestIntegration_GetHolding_ReturnsHolding(t *testing.T) {
 		id := primitive.NewObjectID()
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, ns, mtest.FirstBatch,
-			holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 50),
+			holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 50),
 		))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
-		resp, err := h.GetHolding(context.Background(), api.GetHoldingRequestObject{Id: id.Hex()})
+		resp, err := h.GetHolding(userCtx(scopedUser()), api.GetHoldingRequestObject{Id: id.Hex()})
 		if err != nil {
 			t.Fatalf("GetHolding: %v", err)
 		}
@@ -82,7 +84,7 @@ func TestIntegration_GetHolding_ReturnsNotFoundWhenMissing(t *testing.T) {
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
-		resp, err := h.GetHolding(context.Background(), api.GetHoldingRequestObject{Id: id.Hex()})
+		resp, err := h.GetHolding(userCtx(scopedUser()), api.GetHoldingRequestObject{Id: id.Hex()})
 		if err != nil {
 			t.Fatalf("GetHolding: %v", err)
 		}
@@ -105,7 +107,7 @@ func TestIntegration_CreateHolding_INR(t *testing.T) {
 		sym := "TCS.NS"
 		qty := 10.0
 		avg := 3000.0
-		resp, err := h.CreateHolding(context.Background(), api.CreateHoldingRequestObject{
+		resp, err := h.CreateHolding(userCtx(scopedUser()), api.CreateHoldingRequestObject{
 			Body: &api.HoldingInput{
 				Script:       "TCS",
 				Exchange:     "NSE",
@@ -143,7 +145,7 @@ func TestIntegration_CreateHolding_EUR(t *testing.T) {
 		qty := 5.0
 		avg := 100.0
 		cur := api.HoldingInputCurrency("EUR")
-		resp, err := h.CreateHolding(context.Background(), api.CreateHoldingRequestObject{
+		resp, err := h.CreateHolding(userCtx(scopedUser()), api.CreateHoldingRequestObject{
 			Body: &api.HoldingInput{
 				Script:       "VWCE",
 				Exchange:     "OTHER",
@@ -204,7 +206,7 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
-		resp, err := h.ListHoldings(context.Background(), api.ListHoldingsRequestObject{})
+		resp, err := h.ListHoldings(userCtx(scopedUser()), api.ListHoldingsRequestObject{})
 		if err != nil {
 			t.Fatalf("ListHoldings: %v", err)
 		}
@@ -251,7 +253,7 @@ func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
 		cur := api.HoldingInputCurrency("EUR")
-		resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
+		resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 			Id: id.Hex(),
 			Body: &api.HoldingInput{
 				Script:   "VWCE",
@@ -301,7 +303,7 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 		realized := 75.0
 		cur := api.HoldingInputCurrency("INR")
 		notes := "core position"
-		resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
+		resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 			Id: id.Hex(),
 			Body: &api.HoldingInput{
 				Script:       "TCS",
@@ -334,7 +336,7 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 func TestIntegration_UpdateHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
 	h := &Handler{priceService: &mockPriceFetcher{}}
 
-	resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
+	resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 		Id: "bad-id",
 		Body: &api.HoldingInput{
 			Script:   "TCS",
@@ -362,7 +364,7 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
-		resp, err := h.UpdateHolding(context.Background(), api.UpdateHoldingRequestObject{
+		resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 			Id: id.Hex(),
 			Body: &api.HoldingInput{
 				Script:   "TCS",
@@ -384,7 +386,7 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 func TestIntegration_DeleteHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
 	h := &Handler{priceService: &mockPriceFetcher{}}
 
-	resp, err := h.DeleteHolding(context.Background(), api.DeleteHoldingRequestObject{Id: "bad-id"})
+	resp, err := h.DeleteHolding(userCtx(scopedUser()), api.DeleteHoldingRequestObject{Id: "bad-id"})
 	if err != nil {
 		t.Fatalf("DeleteHolding: %v", err)
 	}
@@ -402,7 +404,7 @@ func TestIntegration_DeleteHolding_ReturnsDeletedMessage(t *testing.T) {
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
-		resp, err := h.DeleteHolding(context.Background(), api.DeleteHoldingRequestObject{Id: id.Hex()})
+		resp, err := h.DeleteHolding(userCtx(scopedUser()), api.DeleteHoldingRequestObject{Id: id.Hex()})
 		if err != nil {
 			t.Fatalf("DeleteHolding: %v", err)
 		}
@@ -422,7 +424,7 @@ func TestIntegration_DeleteHolding_ReturnsNotFoundWhenNoDocumentDeleted(t *testi
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
-		resp, err := h.DeleteHolding(context.Background(), api.DeleteHoldingRequestObject{Id: id.Hex()})
+		resp, err := h.DeleteHolding(userCtx(scopedUser()), api.DeleteHoldingRequestObject{Id: id.Hex()})
 		if err != nil {
 			t.Fatalf("DeleteHolding: %v", err)
 		}
@@ -442,7 +444,7 @@ func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 25),
+				holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 25),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
@@ -453,7 +455,7 @@ func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 			prices:    map[string]float64{"TCS.NS": 3600},
 		})
 
-		resp, err := h.GetPrices(context.Background(), api.GetPricesRequestObject{})
+		resp, err := h.GetPrices(userCtx(scopedUser()), api.GetPricesRequestObject{})
 		if err != nil {
 			t.Fatalf("GetPrices: %v", err)
 		}
@@ -482,14 +484,14 @@ func TestIntegration_GetPrices_ReturnsErrorWhenForexRateIsZero(t *testing.T) {
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 0),
+				holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 0),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{forexRate: 0})
 
-		resp, err := h.GetPrices(context.Background(), api.GetPricesRequestObject{})
+		resp, err := h.GetPrices(userCtx(scopedUser()), api.GetPricesRequestObject{})
 		if err == nil {
 			t.Fatal("GetPrices() error = nil")
 		}
@@ -553,7 +555,7 @@ func TestIntegration_GetSummary_MixedCurrenciesNormalisedToINR(t *testing.T) {
 
 		h := newIntegrationHandler(mt, ps)
 
-		resp, err := h.GetSummary(context.Background(), api.GetSummaryRequestObject{})
+		resp, err := h.GetSummary(userCtx(scopedUser()), api.GetSummaryRequestObject{})
 		if err != nil {
 			t.Fatalf("GetSummary: %v", err)
 		}
@@ -589,8 +591,8 @@ func TestIntegration_GetSummary_UsesFallbackRateAndSkipsUnpricedHoldings(t *test
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id1, "CASH", "", "OTHER", "stock", "INR", 1, 1000, 25),
-				holdingDocument(id2, "BROKEN", "BROKEN.NS", "NSE", "stock", "INR", 2, 100, 0),
+				holdingDocument(id1, "CASH", "", "OTHER", 1, 1000, 25),
+				holdingDocument(id2, "BROKEN", "BROKEN.NS", "NSE", 2, 100, 0),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
@@ -600,7 +602,7 @@ func TestIntegration_GetSummary_UsesFallbackRateAndSkipsUnpricedHoldings(t *test
 			priceErrs: map[string]error{"BROKEN.NS": errors.New("price unavailable")},
 		})
 
-		resp, err := h.GetSummary(context.Background(), api.GetSummaryRequestObject{})
+		resp, err := h.GetSummary(userCtx(scopedUser()), api.GetSummaryRequestObject{})
 		if err != nil {
 			t.Fatalf("GetSummary: %v", err)
 		}

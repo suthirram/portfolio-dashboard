@@ -11,15 +11,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 )
 
-func TestEnsureIndexesCreatesHoldingsIndexes(t *testing.T) {
+func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("indexes created", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateSuccessResponse(
-			bson.E{Key: "createdCollectionAutomatically", Value: false},
-			bson.E{Key: "numIndexesBefore", Value: 1},
-			bson.E{Key: "numIndexesAfter", Value: 4},
-		))
+		// One createIndexes command per collection: holdings, users, sessions.
+		for range 3 {
+			mt.AddMockResponses(mtest.CreateSuccessResponse(
+				bson.E{Key: "createdCollectionAutomatically", Value: false},
+				bson.E{Key: "numIndexesBefore", Value: 1},
+				bson.E{Key: "numIndexesAfter", Value: 4},
+			))
+		}
 
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewJSONHandler(&buf, nil))
@@ -27,8 +30,10 @@ func TestEnsureIndexesCreatesHoldingsIndexes(t *testing.T) {
 		if err := EnsureIndexes(context.Background(), mt.DB, logger); err != nil {
 			t.Fatalf("EnsureIndexes: %v", err)
 		}
-		if !strings.Contains(buf.String(), `"collection":"holdings"`) {
-			t.Errorf("log output missing collection name: %s", buf.String())
+		for _, col := range []string{"holdings", "users", "sessions"} {
+			if !strings.Contains(buf.String(), `"collection":"`+col+`"`) {
+				t.Errorf("log output missing collection %q: %s", col, buf.String())
+			}
 		}
 	})
 }

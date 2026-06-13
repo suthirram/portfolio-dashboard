@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { HoldingWithPrice } from '../../types'
+import { EditIcon, TrashIcon, AlertTriangleIcon } from '../../components/Icon'
 
 const INR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'
@@ -139,7 +140,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
                     </div>
                   )}
                   {h.price_error && (
-                    <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 1 }} title={h.price_error}>⚠ price unavail.</div>
+                    <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }} title={h.price_error}><AlertTriangleIcon size={10} /> price unavail.</div>
                   )}
                 </TD>
 
@@ -194,12 +195,22 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
                   ) : (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                       <button onClick={() => onEdit(h)} disabled={!h.id}
-                        style={{ background: 'var(--blue-dim)', color: 'var(--blue)', padding: '3px 10px', border: '1px solid rgba(79,142,247,0.2)' }}>
-                        Edit
+                        title="Edit holding"
+                        style={{
+                          background: 'var(--blue-dim)', color: 'var(--blue)',
+                          padding: '4px 8px', border: '1px solid rgba(79,142,247,0.2)',
+                          display: 'inline-flex', alignItems: 'center',
+                        }}>
+                        <EditIcon size={13} />
                       </button>
                       <button onClick={() => h.id && setConfirm(h.id)} disabled={!h.id}
-                        style={{ background: 'var(--red-dim)', color: 'var(--red)', padding: '3px 10px', border: '1px solid rgba(255,77,109,0.2)' }}>
-                        Del
+                        title="Delete holding"
+                        style={{
+                          background: 'var(--red-dim)', color: 'var(--red)',
+                          padding: '4px 8px', border: '1px solid rgba(255,77,109,0.2)',
+                          display: 'inline-flex', alignItems: 'center',
+                        }}>
+                        <TrashIcon size={13} />
                       </button>
                     </span>
                   )}
