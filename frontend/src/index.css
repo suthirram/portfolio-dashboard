@@ -1,5 +1,5 @@
 :root {
-  --bg-primary: #0d0f1a;
+  --bg-primary: #ffccdd;
   --bg-secondary: #141627;
   --bg-card: #1a1d30;
   --bg-card-hover: #1f2338;
@@ -23,6 +23,7 @@
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
   --radius: 10px;
   --radius-sm: 6px;
+  --nav-height: 56px;
 }
 
 * {
