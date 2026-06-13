@@ -27,7 +27,11 @@ const TH = ({ children, style }: CellProps) => (
   <th style={{
     padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
-    borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', ...style,
+    whiteSpace: 'nowrap',
+    position: 'sticky', top: 'var(--nav-height)', zIndex: 1,
+    background: 'var(--bg-secondary)',
+    boxShadow: 'inset 0 -1px 0 var(--border)',
+    ...style,
   }}>
     {children}
   </th>
@@ -90,7 +94,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
   )
 
   return (
-    <div style={{ overflowX: 'auto', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+    <div style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-secondary)' }}>

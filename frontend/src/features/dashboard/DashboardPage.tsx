@@ -104,7 +104,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
         padding: '0 28px',
-        height: 56,
+        height: 'var(--nav-height)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
