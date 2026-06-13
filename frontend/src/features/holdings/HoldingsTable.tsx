@@ -49,17 +49,25 @@ interface HoldingsTableProps {
   onDelete: (id: string) => void
 }
 
+type View = 'active' | 'nil'
+
 export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: HoldingsTableProps) {
   const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
   const [sortDir, setSortDir] = useState(1)
   const [confirm, setConfirm] = useState<string | null>(null)
+  const [view, setView] = useState<View>('active')
 
   const toggleSort = (key: keyof HoldingWithPrice) => {
     if (sortKey === key) setSortDir(d => -d)
     else { setSortKey(key); setSortDir(1) }
   }
 
-  const sorted = [...(holdings || [])].sort((a, b) => {
+  const all = holdings || []
+  const activeCount = all.filter(h => (h.stocks_owned ?? 0) > 0).length
+  const nilCount = all.length - activeCount
+  const visible = all.filter(h => view === 'nil' ? (h.stocks_owned ?? 0) === 0 : (h.stocks_owned ?? 0) > 0)
+
+  const sorted = [...visible].sort((a, b) => {
     const rawA = a[sortKey]
     const rawB = b[sortKey]
     // Strings get an empty-string fallback so missing values sort consistently
@@ -93,8 +101,33 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
     </TH>
   )
 
+  const tabBtn = (key: View, label: string, count: number) => {
+    const active = view === key
+    return (
+      <button
+        key={key}
+        onClick={() => setView(key)}
+        style={{
+          background: active ? 'var(--bg-card)' : 'transparent',
+          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+          border: '1px solid var(--border)',
+          borderBottom: active ? '1px solid var(--bg-card)' : '1px solid var(--border)',
+          padding: '6px 14px', fontSize: 12, fontWeight: 600,
+          borderTopLeftRadius: 'var(--radius-sm)', borderTopRightRadius: 'var(--radius-sm)',
+          marginRight: 4, marginBottom: -1, cursor: 'pointer',
+        }}>
+        {label} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({count})</span>
+      </button>
+    )
+  }
+
   return (
-    <div style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+    <div>
+    <div style={{ display: 'flex', paddingLeft: 4 }}>
+      {tabBtn('active', 'Holdings', activeCount)}
+      {tabBtn('nil', 'Nil Holdings', nilCount)}
+    </div>
+    <div style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)', borderTopLeftRadius: 0 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-secondary)' }}>
@@ -118,7 +151,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
           {sorted.length === 0 && !loading && (
             <tr>
               <td colSpan={14} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
-                No holdings yet. Click "Add Holding" to get started.
+                {view === 'nil'
+                  ? 'No nil holdings. Fully-exited positions (0 shares) will appear here.'
+                  : 'No holdings yet. Click "Add Holding" to get started.'}
               </td>
             </tr>
           )}
@@ -243,6 +278,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
           </tfoot>
         )}
       </table>
+    </div>
     </div>
   )
 }
