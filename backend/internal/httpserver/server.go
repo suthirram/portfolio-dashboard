@@ -53,7 +53,7 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 		MaxAge:           300,
 	}))
 	e.Use(CSRFCheck())
-	e.Use(AuthGate(persistence.New(db), logger))
+	e.Use(AuthGate(persistence.New(db), logger, cfg.CookieSecure))
 
 	e.GET("/api/healthz", healthHandler(db))
 	e.File("/api/openapi.yaml", "api/openapi.yaml")

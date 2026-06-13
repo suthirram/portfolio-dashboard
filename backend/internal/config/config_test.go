@@ -57,6 +57,35 @@ func TestApplyEnvOverridesConfiguredValuesAndTrimsCORSOrigins(t *testing.T) {
 	}
 }
 
+func TestApplyEnvParsesCookieSecure(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want bool
+	}{
+		{"true", true},
+		{"TRUE", true},
+		{"1", true},
+		{"yes", true},
+		{"on", true},
+		{"false", false},
+		{"0", false},
+		{"no", false},
+		{"off", false},
+		{"", false},
+		{"garbage", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Setenv("COOKIE_SECURE", tc.raw)
+			cfg := Default()
+			cfg.ApplyEnv()
+			if cfg.CookieSecure != tc.want {
+				t.Errorf("CookieSecure for %q = %v, want %v", tc.raw, cfg.CookieSecure, tc.want)
+			}
+		})
+	}
+}
+
 func TestApplyEnvLeavesDefaultsWhenVariablesAreEmpty(t *testing.T) {
 	t.Setenv("PORT", "")
 	t.Setenv("MONGODB_URI", "")

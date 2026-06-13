@@ -76,7 +76,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		)
 
 		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-		h := handlers.New(mt.DB, logger)
+		h := handlers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
 		cookie := &http.Cookie{Name: handlers.SessionCookieName, Value: "sess-e2e"} //nolint:gosec // request-side cookie

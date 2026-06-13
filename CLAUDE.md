@@ -120,6 +120,7 @@ All prices are cached per-symbol in `PriceService.cache` (5-min TTL).
 * `MONGODB_URI` — default `mongodb://localhost:27017/portfolio`
 * `PORT` — default `8080`
 * `CORS_ALLOWED_ORIGINS` — comma-separated; **required in production** because credentialed CORS forbids `*`. Dev fallback is `http://localhost:3000,http://localhost:5173`.
+* `COOKIE_SECURE` — `true` in production, default `false`. Drives session-cookie `Secure` / `SameSite=None`; do not derive from `c.Scheme()`.
 * `PD_NEW_PASSWORD` — read by `admin set-password` to avoid leaking the password into shell history
 
 **Frontend** (`frontend/.env.example`):

@@ -168,6 +168,7 @@ Full spec: `/api/openapi.yaml`
 | `LOG_LEVEL` / `--log-level` | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `LOG_FORMAT` / `--log-format` | `json` | `json` \| `text` |
 | `CORS_ALLOWED_ORIGINS` | dev: `http://localhost:3000,http://localhost:5173` | Comma-separated allow-list. **Required in production** — credentialed CORS forbids `*`, so set the real origin (e.g. `https://<app>.pages.dev`). |
+| `COOKIE_SECURE` | `false` | Set to `true` in production so the session cookie is emitted with `Secure; SameSite=None`. Driven by config, not `c.Scheme()`, so the hardening does not silently degrade if the proxy stops forwarding `X-Forwarded-Proto`. |
 | `PD_NEW_PASSWORD` | _(unset)_ | Read only by `admin set-password` so the new password stays out of shell history |
 
 Flags take precedence over env vars, which take precedence over defaults.
