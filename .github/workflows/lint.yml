@@ -36,7 +36,7 @@ jobs:
           args: --timeout=2m
 
   frontend:
-    name: Frontend (tsc typecheck)
+    name: Frontend (tsc + vitest)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,8 +48,13 @@ jobs:
           node-version: '20'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      # `npm install` (not `npm ci`) so cross-platform optional binaries —
+      # e.g. esbuild's per-OS @esbuild/<os>-<arch> packages — don't trip the
+      # strict EBADPLATFORM check on Linux runners. The lockfile is still
+      # respected for version pinning.
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run test:run
 
   markdown:
     name: Markdown (markdownlint)
