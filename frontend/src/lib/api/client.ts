@@ -8,6 +8,12 @@ import type {
   PricesResponse,
   Summary,
 } from '../../types'
+import {
+  holdingPath,
+  holdingsPath,
+  pricesPath,
+  summaryPath,
+} from '../../features/admin/actAsRouting'
 
 type Schemas = components['schemas']
 export type Region = Schemas['Region']
@@ -91,18 +97,19 @@ export const api = {
   completeOnboarding:   (body: OnboardingRequest) => request<User>('POST', '/auth/onboarding', body),
 
   // Holdings CRUD (own portfolio when userId is undefined; act-as when set).
+  // Path mapping lives in features/admin/actAsRouting.ts.
   listHoldings:   (userId?: string) =>
-    request<Holding[]>('GET', userId ? `/admin/users/${userId}/holdings` : '/holdings'),
+    request<Holding[]>('GET', holdingsPath(userId)),
   createHolding:  (body: HoldingInput, userId?: string) =>
-    request<Holding>('POST', userId ? `/admin/users/${userId}/holdings` : '/holdings', body),
+    request<Holding>('POST', holdingsPath(userId), body),
   updateHolding:  (id: string, body: HoldingInput, userId?: string) =>
-    request<Holding>('PUT', userId ? `/admin/users/${userId}/holdings/${id}` : `/holdings/${id}`, body),
+    request<Holding>('PUT', holdingPath(id, userId), body),
   deleteHolding:  (id: string, userId?: string) =>
-    request<DeleteResponse>('DELETE', userId ? `/admin/users/${userId}/holdings/${id}` : `/holdings/${id}`),
+    request<DeleteResponse>('DELETE', holdingPath(id, userId)),
   getPrices:      (userId?: string) =>
-    request<PricesResponse>('GET', userId ? `/admin/users/${userId}/prices` : '/prices'),
+    request<PricesResponse>('GET', pricesPath(userId)),
   getSummary:     (userId?: string) =>
-    request<Summary>('GET', userId ? `/admin/users/${userId}/summary` : '/summary'),
+    request<Summary>('GET', summaryPath(userId)),
 
   // Market.
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),
