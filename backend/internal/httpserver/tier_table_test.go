@@ -21,7 +21,7 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 
 	mt.Run("admin routes are explicitly classified", func(mt *mtest.T) {
 		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-		h := handlers.New(mt.DB, logger)
+		h := handlers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
 		for _, r := range e.Routes() {
