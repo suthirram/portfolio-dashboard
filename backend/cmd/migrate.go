@@ -9,15 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/db"
-	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/store"
 )
 
 var migrateOwner string
@@ -33,6 +30,17 @@ var migrateUsersCmd = &cobra.Command{
 	RunE:  runMigrateUsers,
 }
 
+// cliConnect dials Mongo for a one-shot command and returns the store plus a
+// disconnect func. Centralises the boilerplate shared by every CLI command.
+func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*store.Store, func(), error) {
+	client, err := db.Connect(ctx, cfg.MongoURI, logger)
+	if err != nil {
+		return nil, nil, err
+	}
+	disconnect := func() { _ = client.Disconnect(context.Background()) }
+	return store.New(client.Database(cfg.MongoDB)), disconnect, nil
+}
+
 func runMigrateUsers(_ *cobra.Command, _ []string) error {
 	if migrateOwner == "" {
 		return errors.New("--owner is required")
@@ -46,35 +54,37 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
+	st, disconnect, err := cliConnect(ctx, logger, cfg)
+	if err != nil {
+		return err
+	}
+	defer disconnect()
+
+	owner, err := st.Users.FindByUsername(ctx, migrateOwner)
+	if err != nil {
+		return fmt.Errorf("owner lookup: %w", err)
+	}
+	if owner == nil {
+		return fmt.Errorf("owner %q does not exist", migrateOwner)
+	}
+
+	matched, modified, err := st.Holdings.AssignUnownedTo(ctx, owner.ID)
+	if err != nil {
+		return fmt.Errorf("backfilling user_id: %w", err)
+	}
+	logger.Info("legacy holdings reassigned",
+		slog.Int64("matched", matched),
+		slog.Int64("modified", modified),
+		slog.String("owner", owner.Username),
+	)
+
+	// Rebuild indexes so the new {user_id, script} index exists.
 	client, err := db.Connect(ctx, cfg.MongoURI, logger)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = client.Disconnect(context.Background()) }()
-	database := client.Database(cfg.MongoDB)
-
-	username := auth.NormalizeUsername(migrateOwner)
-	var owner domain.User
-	if err := database.Collection("users").FindOne(ctx, bson.M{"username": username}).Decode(&owner); err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return fmt.Errorf("owner %q does not exist", migrateOwner)
-		}
-		return fmt.Errorf("owner lookup: %w", err)
-	}
-
-	res, err := database.Collection("holdings").UpdateMany(ctx,
-		bson.M{"user_id": bson.M{"$exists": false}},
-		bson.M{"$set": bson.M{"user_id": owner.ID}},
-	)
-	if err != nil {
-		return fmt.Errorf("backfilling user_id: %w", err)
-	}
-	logger.Info("legacy holdings reassigned",
-		slog.Int64("matched", res.MatchedCount),
-		slog.Int64("modified", res.ModifiedCount),
-		slog.String("owner", owner.Username),
-	)
-	return db.EnsureIndexes(ctx, database, logger)
+	return db.EnsureIndexes(ctx, client.Database(cfg.MongoDB), logger)
 }
 
 // adminCmd hosts the break-glass CLI for the super admin (DD-001 §8).
@@ -103,29 +113,29 @@ func runResetLockout(_ *cobra.Command, _ []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	client, err := db.Connect(ctx, cfg.MongoURI, logger)
+	st, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = client.Disconnect(context.Background()) }()
-	database := client.Database(cfg.MongoDB)
+	defer disconnect()
 
-	username := auth.NormalizeUsername(resetLockoutUser)
-	res, err := database.Collection("users").UpdateOne(ctx,
-		bson.M{"username": username},
-		bson.M{"$set": bson.M{
-			"locked":                     false,
-			"security_question_failures": 0,
-			"login_failures":             0,
-		}},
-	)
+	user, err := st.Users.FindByUsername(ctx, resetLockoutUser)
 	if err != nil {
 		return err
 	}
-	if res.MatchedCount == 0 {
+	if user == nil {
 		return fmt.Errorf("user %q not found", resetLockoutUser)
 	}
-	logger.Info("lockout cleared", slog.String("username", username))
+	// The CLI clears login_failures too (unlike the admin endpoint), since a
+	// stuck owner should recover in one step.
+	if err := st.Users.Update(ctx, user.ID, bson.M{
+		"locked":                     false,
+		"security_question_failures": 0,
+		"login_failures":             0,
+	}); err != nil {
+		return err
+	}
+	logger.Info("lockout cleared", slog.String("username", user.Username))
 	return nil
 }
 
@@ -159,50 +169,43 @@ func runSetPassword(_ *cobra.Command, _ []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	client, err := db.Connect(ctx, cfg.MongoURI, logger)
+	st, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = client.Disconnect(context.Background()) }()
-	database := client.Database(cfg.MongoDB)
+	defer disconnect()
+
+	user, err := st.Users.FindByUsername(ctx, setPasswordUser)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return fmt.Errorf("user %q not found", setPasswordUser)
+	}
 
 	hash, err := auth.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}
-	username := auth.NormalizeUsername(setPasswordUser)
 	// Clear the lockout counters at the same time so a stuck super admin
 	// recovers in one step.
-	updateRes, err := database.Collection("users").UpdateOne(ctx,
-		bson.M{"username": username},
-		bson.M{"$set": bson.M{
-			"password_hash":              hash,
-			"must_change_password":       false,
-			"locked":                     false,
-			"security_question_failures": 0,
-			"login_failures":             0,
-		}},
-	)
-	if err != nil {
+	if err := st.Users.Update(ctx, user.ID, bson.M{
+		"password_hash":              hash,
+		"must_change_password":       false,
+		"locked":                     false,
+		"security_question_failures": 0,
+		"login_failures":             0,
+	}); err != nil {
 		return err
 	}
-	if updateRes.MatchedCount == 0 {
-		return fmt.Errorf("user %q not found", setPasswordUser)
+
+	// Invalidate any active sessions; rotating the password must terminate
+	// other devices (PRD-001 §6.3, DD-001 §2.2).
+	if err := st.Sessions.DeleteByUser(ctx, user.ID); err != nil {
+		logger.Warn("session purge failed", slog.String("error", err.Error()))
 	}
 
-	// Invalidate any active sessions for this user; rotating the password
-	// must terminate other devices (PRD-001 §6.3, DD-001 §2.2).
-	var owner struct {
-		ID primitive.ObjectID `bson:"_id"`
-	}
-	if err := database.Collection("users").FindOne(ctx, bson.M{"username": username},
-		options.FindOne().SetProjection(bson.M{"_id": 1})).Decode(&owner); err == nil {
-		if _, err := database.Collection("sessions").DeleteMany(ctx, bson.M{"user_id": owner.ID}); err != nil {
-			logger.Warn("session purge failed", slog.String("error", err.Error()))
-		}
-	}
-
-	logger.Info("password reset", slog.String("username", username))
+	logger.Info("password reset", slog.String("username", user.Username))
 	return nil
 }
 

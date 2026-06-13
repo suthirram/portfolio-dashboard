@@ -10,11 +10,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/store"
 )
 
 // newIntegrationHandler builds a Handler backed by the mtest mock database.
 func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
-	return &Handler{db: mt.DB, priceService: ps}
+	return &Handler{store: store.New(mt.DB), priceService: ps}
 }
 
 func holdingDocument(id primitive.ObjectID, script, symbol, exchange, typ, currency string, qty, avg, realized float64) bson.D {

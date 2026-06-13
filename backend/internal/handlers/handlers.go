@@ -9,6 +9,7 @@ import (
 
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/services"
+	"portfolio-dashboard/internal/store"
 )
 
 // priceFetcher abstracts PriceService for testing.
@@ -17,9 +18,10 @@ type priceFetcher interface {
 	GetForexRate(ctx context.Context, from, to string) (float64, error)
 }
 
-// Handler implements api.StrictServerInterface.
+// Handler implements api.StrictServerInterface. All persistence goes through
+// store; the handler owns HTTP/authz concerns only.
 type Handler struct {
-	db           *mongo.Database
+	store        *store.Store
 	priceService priceFetcher
 	logger       *slog.Logger
 }
@@ -27,7 +29,7 @@ type Handler struct {
 // New builds a Handler with the default PriceService.
 func New(db *mongo.Database, logger *slog.Logger) *Handler {
 	return &Handler{
-		db:           db,
+		store:        store.New(db),
 		priceService: services.NewPriceService(logger),
 		logger:       logger,
 	}
@@ -48,16 +50,4 @@ func (h *Handler) reqLog(ctx context.Context) *slog.Logger {
 		return l
 	}
 	return h.log()
-}
-
-func (h *Handler) col() *mongo.Collection {
-	return h.db.Collection("holdings")
-}
-
-func (h *Handler) users() *mongo.Collection {
-	return h.db.Collection("users")
-}
-
-func (h *Handler) sessions() *mongo.Collection {
-	return h.db.Collection("sessions")
 }

@@ -3,28 +3,17 @@ package handlers
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/internal/domain"
 )
 
 // summaryFor aggregates the portfolio of uid. Shared by GetSummary and the
 // admin act-as summary endpoint.
 func (h *Handler) summaryFor(ctx context.Context, uid primitive.ObjectID) (api.Summary, error) {
-	dbCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	cur, err := h.col().Find(dbCtx, scopedFilter(uid, nil))
+	holdings, err := h.store.Holdings.ListByUser(ctx, uid)
 	if err != nil {
-		return api.Summary{}, err
-	}
-	defer func() { _ = cur.Close(dbCtx) }()
-
-	var holdings []domain.Holding
-	if err := cur.All(dbCtx, &holdings); err != nil {
 		return api.Summary{}, err
 	}
 

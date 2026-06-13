@@ -10,12 +10,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
-	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/store"
 )
 
 // errNotLoggedIn is a defence-in-depth guard: requireAuth middleware should
@@ -30,34 +28,12 @@ func currentUserID(ctx context.Context) (primitive.ObjectID, error) {
 	return primitive.NilObjectID, errNotLoggedIn
 }
 
-// scopedFilter composes a holdings filter that always pins user_id
-// (DD-001 §6.1). Every holdings query goes through it so unscoped call
-// sites stand out in review.
-func scopedFilter(uid primitive.ObjectID, extra bson.M) bson.M {
-	f := bson.M{"user_id": uid}
-	for k, v := range extra {
-		f[k] = v
-	}
-	return f
-}
-
 // ── Scoped cores (shared with the admin act-as endpoints) ──────────────────
 
 func (h *Handler) listHoldingsFor(ctx context.Context, uid primitive.ObjectID) ([]api.Holding, error) {
-	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	opts := options.Find().SetSort(bson.D{{Key: "script", Value: 1}})
-	cur, err := h.col().Find(dbCtx, scopedFilter(uid, nil), opts)
+	holdings, err := h.store.Holdings.ListByUser(ctx, uid)
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
-		return nil, err
-	}
-	defer func() { _ = cur.Close(dbCtx) }()
-
-	var holdings []domain.Holding
-	if err := cur.All(dbCtx, &holdings); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "list holdings decode failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -76,10 +52,7 @@ func (h *Handler) createHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 	holding.CreatedAt = now
 	holding.UpdatedAt = now
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	if _, err := h.col().InsertOne(dbCtx, holding); err != nil {
+	if err := h.store.Holdings.Insert(ctx, holding); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "create holding failed",
 			slog.String("script", holding.Script),
 			slog.String("error", err.Error()),
@@ -128,11 +101,7 @@ func (h *Handler) updateHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	filter := scopedFilter(uid, bson.M{"_id": id})
-	res, err := h.col().UpdateOne(dbCtx, filter, bson.M{"$set": update})
+	matched, err := h.store.Holdings.UpdateScoped(ctx, uid, id, update)
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "update holding failed",
 			slog.String("id", idHex),
@@ -140,12 +109,12 @@ func (h *Handler) updateHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 		)
 		return api.Holding{}, false, err
 	}
-	if res.MatchedCount == 0 {
+	if !matched {
 		return api.Holding{}, false, nil
 	}
 
-	var updated domain.Holding
-	if err := h.col().FindOne(dbCtx, filter).Decode(&updated); err != nil {
+	updated, err := h.store.Holdings.GetScoped(ctx, uid, id)
+	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "update holding re-read failed",
 			slog.String("id", idHex),
 			slog.String("error", err.Error()),
@@ -162,10 +131,7 @@ func (h *Handler) deleteHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 		return false, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	res, err := h.col().DeleteOne(dbCtx, scopedFilter(uid, bson.M{"_id": id}))
+	deleted, err := h.store.Holdings.DeleteScoped(ctx, uid, id)
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "delete holding failed",
 			slog.String("id", idHex),
@@ -173,7 +139,7 @@ func (h *Handler) deleteHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 		)
 		return false, err
 	}
-	if res.DeletedCount == 0 {
+	if !deleted {
 		return false, nil
 	}
 	h.reqLog(ctx).InfoContext(ctx, "holding deleted", slog.String("id", idHex))
@@ -204,13 +170,10 @@ func (h *Handler) GetHolding(ctx context.Context, request api.GetHoldingRequestO
 		return api.GetHolding404JSONResponse{}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	var holding domain.Holding
-	// Someone else's id reads as 404, not 403 — ids must not be enumerable.
-	if err := h.col().FindOne(dbCtx, scopedFilter(uid, bson.M{"_id": id})).Decode(&holding); err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
+	holding, err := h.store.Holdings.GetScoped(ctx, uid, id)
+	if err != nil {
+		// Someone else's id reads as 404, not 403 — ids must not be enumerable.
+		if errors.Is(err, store.ErrNotFound) {
 			return api.GetHolding404JSONResponse{}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "get holding failed",

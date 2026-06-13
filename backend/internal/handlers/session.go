@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/internal/auth"
@@ -37,9 +36,7 @@ func (h *Handler) issueSession(ctx context.Context, userID primitive.ObjectID) e
 		sess.UserAgent = c.Request().UserAgent()
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.sessions().InsertOne(dbCtx, sess); err != nil {
+	if err := h.store.Sessions.Insert(ctx, sess); err != nil {
 		return err
 	}
 
@@ -52,9 +49,7 @@ func (h *Handler) issueSession(ctx context.Context, userID primitive.ObjectID) e
 // destroySession deletes the current session document and clears the cookie.
 func (h *Handler) destroySession(ctx context.Context) error {
 	if sid, ok := auth.SessionIDFromContext(ctx); ok {
-		dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		if _, err := h.sessions().DeleteOne(dbCtx, bson.M{"_id": sid}); err != nil {
+		if err := h.store.Sessions.Delete(ctx, sid); err != nil {
 			return err
 		}
 	}
@@ -67,23 +62,14 @@ func (h *Handler) destroySession(ctx context.Context) error {
 // invalidateOtherSessions deletes every session of userID except the current
 // one (PRD-001 §6.3: changing the password signs out other sessions).
 func (h *Handler) invalidateOtherSessions(ctx context.Context, userID primitive.ObjectID) error {
-	filter := bson.M{"user_id": userID}
-	if sid, ok := auth.SessionIDFromContext(ctx); ok {
-		filter["_id"] = bson.M{"$ne": sid}
-	}
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	_, err := h.sessions().DeleteMany(dbCtx, filter)
-	return err
+	keep, _ := auth.SessionIDFromContext(ctx)
+	return h.store.Sessions.DeleteOthers(ctx, userID, keep)
 }
 
 // invalidateAllSessions deletes every session of userID (used by the
 // recover flow, where the caller holds no session).
 func (h *Handler) invalidateAllSessions(ctx context.Context, userID primitive.ObjectID) error {
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	_, err := h.sessions().DeleteMany(dbCtx, bson.M{"user_id": userID})
-	return err
+	return h.store.Sessions.DeleteByUser(ctx, userID)
 }
 
 // SetSessionCookie writes the session cookie. Over HTTPS it follows DD-001

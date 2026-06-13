@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,12 +8,11 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/handlers"
+	"portfolio-dashboard/internal/store"
 )
 
 // CSRFHeaderValue must be sent in X-Requested-With on every state-changing
@@ -81,10 +79,10 @@ func CSRFCheck() echo.MiddlewareFunc {
 // pass through, everything else needs a login, /api/admin needs an admin,
 // and the super-admin routes need the super admin. While
 // must_change_password is set, only the onboarding routes are reachable.
-func AuthGate(db *mongo.Database, logger *slog.Logger) echo.MiddlewareFunc {
+func AuthGate(st *store.Store, logger *slog.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			user, sessionID := loadSession(c, db, logger)
+			user, sessionID := loadSession(c, st, logger)
 			if user != nil {
 				ctx := auth.WithUser(c.Request().Context(), user)
 				ctx = auth.WithSessionID(ctx, sessionID)
@@ -117,19 +115,17 @@ func AuthGate(db *mongo.Database, logger *slog.Logger) echo.MiddlewareFunc {
 // loadSession resolves the session cookie to a live user. Returns (nil, "")
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
-func loadSession(c echo.Context, db *mongo.Database, logger *slog.Logger) (*domain.User, string) {
+func loadSession(c echo.Context, st *store.Store, logger *slog.Logger) (*domain.User, string) {
 	cookie, err := c.Cookie(handlers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
-	defer cancel()
+	ctx := c.Request().Context()
 
-	sessions := db.Collection("sessions")
-	var sess domain.Session
-	if err := sessions.FindOne(ctx, bson.M{"_id": cookie.Value}).Decode(&sess); err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
+	sess, err := st.Sessions.Get(ctx, cookie.Value)
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
 			logger.Error("session lookup failed", slog.String("error", err.Error()))
 		}
 		handlers.ClearSessionCookie(c)
@@ -139,16 +135,16 @@ func loadSession(c echo.Context, db *mongo.Database, logger *slog.Logger) (*doma
 	if time.Now().After(sess.ExpiresAt) {
 		// The TTL index removes these eventually; delete eagerly so a stale
 		// cookie cannot linger until the TTL monitor runs.
-		if _, err := sessions.DeleteOne(ctx, bson.M{"_id": sess.ID}); err != nil {
+		if err := st.Sessions.Delete(ctx, sess.ID); err != nil {
 			logger.Warn("expired session delete failed", slog.String("error", err.Error()))
 		}
 		handlers.ClearSessionCookie(c)
 		return nil, ""
 	}
 
-	var user domain.User
-	if err := db.Collection("users").FindOne(ctx, bson.M{"_id": sess.UserID}).Decode(&user); err != nil {
-		if !errors.Is(err, mongo.ErrNoDocuments) {
+	user, err := st.Users.FindByID(ctx, sess.UserID)
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
 			logger.Error("session user lookup failed", slog.String("error", err.Error()))
 		}
 		handlers.ClearSessionCookie(c)
@@ -160,21 +156,18 @@ func loadSession(c echo.Context, db *mongo.Database, logger *slog.Logger) (*doma
 		return nil, ""
 	}
 
-	refreshSession(c, sessions, &sess, logger)
-	return &user, sess.ID
+	refreshSession(c, st, &sess, logger)
+	return user, sess.ID
 }
 
 // refreshSession slides the expiry forward, at most once per day so steady
 // traffic does not write on every request.
-func refreshSession(c echo.Context, sessions *mongo.Collection, sess *domain.Session, logger *slog.Logger) {
+func refreshSession(c echo.Context, st *store.Store, sess *domain.Session, logger *slog.Logger) {
 	if time.Until(sess.ExpiresAt) > domain.SessionTTL-24*time.Hour {
 		return
 	}
 	newExpiry := time.Now().Add(domain.SessionTTL)
-	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second)
-	defer cancel()
-	if _, err := sessions.UpdateOne(ctx, bson.M{"_id": sess.ID},
-		bson.M{"$set": bson.M{"expires_at": newExpiry}}); err != nil {
+	if err := st.Sessions.SetExpiry(c.Request().Context(), sess.ID, newExpiry); err != nil {
 		logger.Warn("session refresh failed", slog.String("error", err.Error()))
 		return
 	}

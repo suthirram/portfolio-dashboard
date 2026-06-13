@@ -5,28 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
-	"portfolio-dashboard/internal/domain"
 )
 
 // pricesFor enriches the holdings owned by uid with live market data.
 // Shared by GetPrices and the admin act-as prices endpoint.
 func (h *Handler) pricesFor(ctx context.Context, uid primitive.ObjectID) ([]api.HoldingWithPrice, float64, error) {
-	dbCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	cur, err := h.col().Find(dbCtx, scopedFilter(uid, nil))
+	holdings, err := h.store.Holdings.ListByUser(ctx, uid)
 	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = cur.Close(dbCtx) }()
-
-	var holdings []domain.Holding
-	if err := cur.All(dbCtx, &holdings); err != nil {
 		return nil, 0, err
 	}
 

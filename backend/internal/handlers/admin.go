@@ -10,20 +10,16 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/store"
 )
 
-// Defence-in-depth guards; the route middleware enforces the same rules
-// before any handler runs.
-var (
-	errAdminOnly      = echo.NewHTTPError(http.StatusForbidden, "admin access required")
-	errSuperAdminOnly = echo.NewHTTPError(http.StatusForbidden, "super admin access required")
-)
+// errAdminOnly is a defence-in-depth guard; the route middleware enforces the
+// same rule before any handler runs.
+var errAdminOnly = echo.NewHTTPError(http.StatusForbidden, "admin access required")
 
 // adminCaller returns the calling user when they hold admin or super-admin
 // powers.
@@ -48,12 +44,9 @@ func (h *Handler) loadTargetUser(ctx context.Context, caller *domain.User, idHex
 		return nil, false, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	var target domain.User
-	if err := h.users().FindOne(dbCtx, bson.M{"_id": id}).Decode(&target); err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
+	target, err := h.store.Users.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
 			return nil, false, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "load target user failed",
@@ -62,12 +55,12 @@ func (h *Handler) loadTargetUser(ctx context.Context, caller *domain.User, idHex
 	}
 
 	if caller.IsSuperAdmin() {
-		return &target, true, nil
+		return target, true, nil
 	}
 	if target.Role != domain.RoleUser || target.Region != caller.Region {
 		return nil, false, nil
 	}
-	return &target, true, nil
+	return target, true, nil
 }
 
 func notFoundUser() api.NotFoundJSONResponse {
@@ -91,19 +84,9 @@ func (h *Handler) AdminListUsers(ctx context.Context, request api.AdminListUsers
 		filter["disabled"] = false
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	opts := options.Find().SetSort(bson.D{{Key: "username", Value: 1}})
-	cur, err := h.users().Find(dbCtx, filter, opts)
+	users, err := h.store.Users.List(ctx, filter, bson.D{{Key: "username", Value: 1}})
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "admin list users failed", slog.String("error", err.Error()))
-		return nil, err
-	}
-	defer func() { _ = cur.Close(dbCtx) }()
-
-	var users []domain.User
-	if err := cur.All(dbCtx, &users); err != nil {
 		return nil, err
 	}
 
@@ -123,19 +106,11 @@ func (h *Handler) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsRequ
 		return api.AdminListAdmins403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: errPtr("super admin access required")}}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	opts := options.Find().SetSort(bson.D{{Key: "role", Value: 1}, {Key: "username", Value: 1}})
-	cur, err := h.users().Find(dbCtx, bson.M{"role": bson.M{"$in": bson.A{domain.RoleAdmin, domain.RoleSuperAdmin}}}, opts)
+	users, err := h.store.Users.List(ctx,
+		bson.M{"role": bson.M{"$in": bson.A{domain.RoleAdmin, domain.RoleSuperAdmin}}},
+		bson.D{{Key: "role", Value: 1}, {Key: "username", Value: 1}})
 	if err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "admin list admins failed", slog.String("error", err.Error()))
-		return nil, err
-	}
-	defer func() { _ = cur.Close(dbCtx) }()
-
-	var users []domain.User
-	if err := cur.All(dbCtx, &users); err != nil {
 		return nil, err
 	}
 
@@ -176,14 +151,12 @@ func (h *Handler) AdminResetLockout(ctx context.Context, request api.AdminResetL
 		return api.AdminResetLockout404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	// login_failures intentionally stays (DD-001 §8).
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": target.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
 		"locked":                     false,
 		"security_question_failures": 0,
 		"updated_at":                 time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "reset lockout failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -210,12 +183,10 @@ func (h *Handler) AdminHideUser(ctx context.Context, request api.AdminHideUserRe
 		return nil, echo.NewHTTPError(http.StatusForbidden, "cannot hide own account")
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": target.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
 		"disabled":   true,
 		"updated_at": time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "hide user failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -243,12 +214,10 @@ func (h *Handler) AdminReactivateUser(ctx context.Context, request api.AdminReac
 		return api.AdminReactivateUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": target.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
 		"disabled":   false,
 		"updated_at": time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "reactivate user failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -274,19 +243,17 @@ func (h *Handler) AdminDeleteUser(ctx context.Context, request api.AdminDeleteUs
 		return nil, echo.NewHTTPError(http.StatusForbidden, "cannot delete own account")
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 	// Holdings first: if anything fails midway the account still exists and
 	// the delete can be retried.
-	if _, err := h.col().DeleteMany(dbCtx, bson.M{"user_id": target.ID}); err != nil {
+	if err := h.store.Holdings.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "delete user holdings failed", slog.String("error", err.Error()))
 		return nil, err
 	}
-	if _, err := h.sessions().DeleteMany(dbCtx, bson.M{"user_id": target.ID}); err != nil {
+	if err := h.store.Sessions.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "delete user sessions failed", slog.String("error", err.Error()))
 		return nil, err
 	}
-	if _, err := h.users().DeleteOne(dbCtx, bson.M{"_id": target.ID}); err != nil {
+	if err := h.store.Users.Delete(ctx, target.ID); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "delete user failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -367,12 +334,10 @@ func (h *Handler) AdminDemoteUser(ctx context.Context, request api.AdminDemoteUs
 }
 
 func (h *Handler) setRole(ctx context.Context, id primitive.ObjectID, role string) error {
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": id}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, id, bson.M{
 		"role":       role,
 		"updated_at": time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "role update failed", slog.String("error", err.Error()))
 		return err
 	}
@@ -398,12 +363,10 @@ func (h *Handler) AdminSetUserRegion(ctx context.Context, request api.AdminSetUs
 		return api.AdminSetUserRegion404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": target.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
 		"region":     request.Body.Region,
 		"updated_at": time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "region update failed", slog.String("error", err.Error()))
 		return nil, err
 	}

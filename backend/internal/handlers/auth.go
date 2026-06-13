@@ -10,11 +10,11 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/store"
 )
 
 var usernameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{3,32}$`)
@@ -80,18 +80,7 @@ func hashSecurityAnswers(answers []api.SecurityAnswerInput) ([]domain.SecurityAn
 // findUserByUsername loads a user by the lowercased username.
 // Returns (nil, nil) when no user exists.
 func (h *Handler) findUserByUsername(ctx context.Context, username string) (*domain.User, error) {
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	var u domain.User
-	err := h.users().FindOne(dbCtx, bson.M{"username": auth.NormalizeUsername(username)}).Decode(&u)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &u, nil
+	return h.store.Users.FindByUsername(ctx, username)
 }
 
 // userToAPI maps a user DBO to the public DTO. Question ids are included
@@ -195,11 +184,9 @@ func (h *Handler) Signup(ctx context.Context, request api.SignupRequestObject) (
 		UpdatedAt:         now,
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().InsertOne(dbCtx, user); err != nil {
+	if err := h.store.Users.Insert(ctx, user); err != nil {
 		// The unique index is the authority; a concurrent signup loses here.
-		if mongo.IsDuplicateKeyError(err) {
+		if errors.Is(err, store.ErrDuplicate) {
 			return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: errPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "signup insert failed", slog.String("error", err.Error()))
@@ -237,9 +224,7 @@ func (h *Handler) Login(ctx context.Context, request api.LoginRequestObject) (ap
 		return api.Login423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: errPtr("account is locked; contact your administrator")}}, nil
 	}
 	if !auth.CheckPassword(user.PasswordHash, in.Password) {
-		dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$inc": bson.M{"login_failures": 1}}); err != nil {
+		if err := h.store.Users.IncLoginFailures(ctx, user.ID); err != nil {
 			h.reqLog(ctx).WarnContext(ctx, "login failure counter update failed", slog.String("error", err.Error()))
 		}
 		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: errPtr("invalid username or password")}}, nil
@@ -251,10 +236,7 @@ func (h *Handler) Login(ctx context.Context, request api.LoginRequestObject) (ap
 	}
 
 	now := time.Now()
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID},
-		bson.M{"$set": bson.M{"last_login_at": now, "login_failures": 0}}); err != nil {
+	if err := h.store.Users.Update(ctx, user.ID, bson.M{"last_login_at": now, "login_failures": 0}); err != nil {
 		h.reqLog(ctx).WarnContext(ctx, "last login update failed", slog.String("error", err.Error()))
 	}
 	user.LastLoginAt = &now
@@ -333,17 +315,10 @@ func (h *Handler) RecoverPassword(ctx context.Context, request api.RecoverPasswo
 		}
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
 	if !allCorrect {
 		failures := user.SecurityQuestionFailures + 1
-		update := bson.M{"$inc": bson.M{"security_question_failures": 1}}
 		locked := failures >= recoveryMaxFailures
-		if locked {
-			update["$set"] = bson.M{"locked": true}
-		}
-		if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, update); err != nil {
+		if err := h.store.Users.RegisterRecoveryFailure(ctx, user.ID, locked); err != nil {
 			h.reqLog(ctx).ErrorContext(ctx, "recovery failure counter update failed", slog.String("error", err.Error()))
 			return nil, err
 		}
@@ -362,11 +337,11 @@ func (h *Handler) RecoverPassword(ctx context.Context, request api.RecoverPasswo
 	if err != nil {
 		return nil, err
 	}
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, user.ID, bson.M{
 		"password_hash":              pwHash,
 		"security_question_failures": 0,
 		"updated_at":                 time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "recovery password update failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -398,12 +373,10 @@ func (h *Handler) ChangePassword(ctx context.Context, request api.ChangePassword
 	if err != nil {
 		return nil, err
 	}
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, user.ID, bson.M{
 		"password_hash": pwHash,
 		"updated_at":    time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "password change failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -457,10 +430,8 @@ func (h *Handler) UpdateProfile(ctx context.Context, request api.UpdateProfileRe
 		set["username_display"] = updated.UsernameDisplay
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$set": set}); err != nil {
-		if mongo.IsDuplicateKeyError(err) {
+	if err := h.store.Users.Update(ctx, user.ID, set); err != nil {
+		if errors.Is(err, store.ErrDuplicate) {
 			return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: errPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "profile update failed", slog.String("error", err.Error()))
@@ -485,12 +456,10 @@ func (h *Handler) UpdateSecurityQuestions(ctx context.Context, request api.Updat
 		return api.UpdateSecurityQuestions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: errPtr(err.Error())}}, nil
 	}
 
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, user.ID, bson.M{
 		"security_questions": answers,
 		"updated_at":         time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "security questions update failed", slog.String("error", err.Error()))
 		return nil, err
 	}
@@ -520,14 +489,12 @@ func (h *Handler) CompleteOnboarding(ctx context.Context, request api.CompleteOn
 	if err != nil {
 		return nil, err
 	}
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if _, err := h.users().UpdateOne(dbCtx, bson.M{"_id": user.ID}, bson.M{"$set": bson.M{
+	if err := h.store.Users.Update(ctx, user.ID, bson.M{
 		"password_hash":        pwHash,
 		"security_questions":   answers,
 		"must_change_password": false,
 		"updated_at":           time.Now(),
-	}}); err != nil {
+	}); err != nil {
 		h.reqLog(ctx).ErrorContext(ctx, "onboarding update failed", slog.String("error", err.Error()))
 		return nil, err
 	}

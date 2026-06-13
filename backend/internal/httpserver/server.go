@@ -17,6 +17,7 @@ import (
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/store"
 )
 
 // New builds an *echo.Echo with routes and middleware wired up.
@@ -52,7 +53,7 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 		MaxAge:           300,
 	}))
 	e.Use(CSRFCheck())
-	e.Use(AuthGate(db, logger))
+	e.Use(AuthGate(store.New(db), logger))
 
 	e.GET("/api/healthz", healthHandler(db))
 	e.File("/api/openapi.yaml", "api/openapi.yaml")
