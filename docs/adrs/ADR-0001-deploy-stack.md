@@ -1,6 +1,6 @@
 # ADR-0001: Deployment stack — Cloudflare Pages + Fly.io + MongoDB Atlas
 
-* **Status**: Accepted
+* **Status**: Accepted; the Go API tier superseded by [ADR-0002](ADR-0002-backend-cloud-run.md) (Fly.io → Cloud Run). Pages + Atlas tiers still current.
 * **Date**: 2026-06-10
 * **Deciders**: project owner
 
