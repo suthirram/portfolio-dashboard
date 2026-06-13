@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
+import { CheckIcon } from '../../components/Icon'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES: HoldingType[] = ['stock', 'etf']
@@ -155,10 +156,14 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
                   </button>
                 </div>
                 {livePrice && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: livePrice.error ? 'var(--red)' : 'var(--green)' }}>
+                  <div style={{
+                    marginTop: 4, fontSize: 11,
+                    color: livePrice.error ? 'var(--red)' : 'var(--green)',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}>
                     {livePrice.error
-                      ? `Error: ${livePrice.error}`
-                      : `✓ ${livePrice.price?.toLocaleString('en-IN')} ${livePrice.currency || ''}`}
+                      ? <>Error: {livePrice.error}</>
+                      : <><CheckIcon size={11} /> {livePrice.price?.toLocaleString('en-IN')} {livePrice.currency || ''}</>}
                   </div>
                 )}
               </div>

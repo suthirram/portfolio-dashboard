@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { ChartLineIcon } from '../../components/Icon'
 
 interface Props {
   title: string
@@ -28,9 +29,9 @@ export function AuthShell({ title, subtitle, children, footer }: Props) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <div style={{
-            width: 36, height: 36, background: 'var(--blue)',
-            borderRadius: 8, display: 'grid', placeItems: 'center', fontSize: 18,
-          }}>📈</div>
+            width: 36, height: 36, background: 'var(--blue)', color: '#fff',
+            borderRadius: 8, display: 'grid', placeItems: 'center',
+          }}><ChartLineIcon size={20} /></div>
           <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}>Portfolio Dashboard</span>
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>{title}</h1>

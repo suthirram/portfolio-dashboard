@@ -8,6 +8,10 @@ import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
 import type { HoldingWithPrice } from '../../types'
+import {
+  ChartLineIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
+  UserIcon, SettingsIcon, LogOutIcon,
+} from '../../components/Icon'
 
 type ModalState = 'add' | HoldingWithPrice | null
 type Tab = 'table' | 'charts'
@@ -111,10 +115,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
-              width: 32, height: 32, background: 'var(--blue)',
+              width: 32, height: 32, background: 'var(--blue)', color: '#fff',
               borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16,
-            }}>📈</div>
+            }}><ChartLineIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>Portfolio Dashboard</span>
           </Link>
           {roleBadge}
@@ -123,13 +126,19 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               background: 'var(--bg-card)', color: 'var(--text-secondary)',
               padding: '3px 8px', borderRadius: 'var(--radius-sm)',
               fontSize: 11, border: '1px solid var(--border)',
-            }}>📍 {regionLabel}</span>
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}><PinIcon size={12} /> {regionLabel}</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {isAdmin && (
-            <Link to="/admin" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13, padding: '6px 10px' }}>
-              Admin
+            <Link to="/admin" style={{
+              background: 'var(--bg-card)', color: 'var(--text-secondary)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              padding: '6px 14px', fontSize: 13, textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <ShieldIcon size={14} /> Admin Panel
             </Link>
           )}
           {lastRefresh && (
@@ -143,16 +152,23 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               border: '1px solid var(--border)', padding: '6px 14px',
               display: 'flex', alignItems: 'center', gap: 6, opacity: loadingPrices ? 0.6 : 1,
             }}>
-            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : '↻'} Refresh
+            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} Refresh
           </button>
           <button onClick={() => setModal('add')}
-            style={{ background: 'var(--blue)', color: '#fff', padding: '6px 16px', fontWeight: 600 }}>
-            + Add Holding
+            style={{
+              background: 'var(--blue)', color: '#fff', padding: '6px 16px', fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+            <PlusIcon size={14} /> Add Holding
           </button>
           <div style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(o => !o)}
-              style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)', padding: '6px 12px' }}>
-              {user?.name || user?.username}
+              style={{
+                background: 'var(--bg-card)', color: 'var(--text-primary)',
+                border: '1px solid var(--border)', padding: '6px 12px',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}>
+              <UserIcon size={14} /> {user?.name || user?.username}
             </button>
             {menuOpen && (
               <div onMouseLeave={() => setMenuOpen(false)} style={{
@@ -161,13 +177,19 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
                 borderRadius: 'var(--radius-sm)', minWidth: 180, boxShadow: 'var(--shadow)', zIndex: 100,
               }}>
                 <Link to="/profile" onClick={() => setMenuOpen(false)}
-                  style={{ display: 'block', padding: '8px 12px', color: 'var(--text-primary)', textDecoration: 'none', fontSize: 13 }}>
-                  Account settings
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px', color: 'var(--text-primary)', textDecoration: 'none', fontSize: 13,
+                  }}>
+                  <SettingsIcon size={14} /> Account settings
                 </Link>
                 <button onClick={logout} style={{
-                  display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  width: '100%', textAlign: 'left', padding: '8px 12px',
                   background: 'transparent', color: 'var(--text-primary)', fontSize: 13,
-                }}>Log out</button>
+                }}>
+                  <LogOutIcon size={14} /> Log out
+                </button>
               </div>
             )}
           </div>
@@ -181,7 +203,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
             marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <span>👤 Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
+            </span>
             <Link to="/admin" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>← Back to admin</Link>
           </div>
         )}
