@@ -64,12 +64,9 @@ func testUserDoc(id primitive.ObjectID, role, region string, mutate func(bson.M)
 	return out
 }
 
-func doRequest(t *testing.T, srv http.Handler, method, path string, withCSRF bool, cookie *http.Cookie) *httptest.ResponseRecorder {
+func doRequest(t *testing.T, srv http.Handler, method, path string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
-	if withCSRF {
-		req.Header.Set("X-Requested-With", CSRFHeaderValue)
-	}
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
@@ -79,7 +76,9 @@ func doRequest(t *testing.T, srv http.Handler, method, path string, withCSRF boo
 }
 
 func sessionCookie(id string) *http.Cookie {
-	return &http.Cookie{Name: handlers.SessionCookieName, Value: id}
+	// A request cookie only carries the id; Secure/HttpOnly/SameSite are
+	// response-side attributes set by the server, not the client.
+	return &http.Cookie{Name: handlers.SessionCookieName, Value: id} //nolint:gosec // request-side cookie
 }
 
 // ── Public vs protected ────────────────────────────────────────────────────
@@ -90,7 +89,7 @@ func TestPublicEndpointsNeedNoLogin(t *testing.T) {
 	mt.Run("regions and question catalogue are public", func(mt *mtest.T) {
 		srv := newTestServer(mt)
 		for _, path := range []string{"/api/regions", "/api/auth/security-questions"} {
-			rec := doRequest(t, srv, http.MethodGet, path, false, nil)
+			rec := doRequest(t, srv, http.MethodGet, path, nil)
 			if rec.Code != http.StatusOK {
 				t.Errorf("GET %s = %d, want 200; body=%s", path, rec.Code, rec.Body.String())
 			}
@@ -104,7 +103,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 	mt.Run("anonymous requests get 401", func(mt *mtest.T) {
 		srv := newTestServer(mt)
 		for _, path := range []string{"/api/holdings", "/api/prices", "/api/summary", "/api/auth/me", "/api/admin/users", "/api/market/price?symbol=TCS.NS"} {
-			rec := doRequest(t, srv, http.MethodGet, path, false, nil)
+			rec := doRequest(t, srv, http.MethodGet, path, nil)
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("GET %s = %d, want 401; body=%s", path, rec.Code, rec.Body.String())
 			}
@@ -118,7 +117,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch))
 
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", false, sessionCookie("sess-1"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", sessionCookie("sess-1"))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("GET /api/holdings = %d, want 200; body=%s", rec.Code, rec.Body.String())
 		}
@@ -137,7 +136,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}), // middleware deletes it
 		)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", false, sessionCookie("sess-old"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", sessionCookie("sess-old"))
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("expired session = %d, want 401", rec.Code)
 		}
@@ -147,7 +146,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", func(m bson.M) { m["disabled"] = true }), "sess-2", uid)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", false, sessionCookie("sess-2"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", sessionCookie("sess-2"))
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("hidden user = %d, want 401", rec.Code)
 		}
@@ -163,7 +162,7 @@ func TestRoleGates(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", nil), "sess-3", uid)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/admin/users", false, sessionCookie("sess-3"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/admin/users", sessionCookie("sess-3"))
 		if rec.Code != http.StatusForbidden {
 			t.Fatalf("user on /api/admin/users = %d, want 403", rec.Code)
 		}
@@ -173,7 +172,7 @@ func TestRoleGates(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleAdmin, "india", nil), "sess-4", uid)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/admin/admins", false, sessionCookie("sess-4"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/admin/admins", sessionCookie("sess-4"))
 		if rec.Code != http.StatusForbidden {
 			t.Fatalf("admin on /api/admin/admins = %d, want 403", rec.Code)
 		}
@@ -185,7 +184,7 @@ func TestRoleGates(t *testing.T) {
 		usersNS := mt.DB.Name() + ".users"
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS, mtest.FirstBatch))
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/admin/admins", false, sessionCookie("sess-5"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/admin/admins", sessionCookie("sess-5"))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("super admin on /api/admin/admins = %d, want 200; body=%s", rec.Code, rec.Body.String())
 		}
@@ -199,7 +198,7 @@ func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 
 	mt.Run("POST without header is refused", func(mt *mtest.T) {
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodPost, "/api/auth/login", false, nil)
+		rec := doRequest(t, srv, http.MethodPost, "/api/auth/login", nil)
 		if rec.Code != http.StatusForbidden {
 			t.Fatalf("POST without X-Requested-With = %d, want 403", rec.Code)
 		}
@@ -207,7 +206,7 @@ func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 
 	mt.Run("GET needs no header", func(mt *mtest.T) {
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/regions", false, nil)
+		rec := doRequest(t, srv, http.MethodGet, "/api/regions", nil)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("GET without header = %d, want 200", rec.Code)
 		}
@@ -223,7 +222,7 @@ func TestMustChangePasswordGate(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleSuperAdmin, "", func(m bson.M) { m["must_change_password"] = true }), "sess-6", uid)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", false, sessionCookie("sess-6"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", sessionCookie("sess-6"))
 		if rec.Code != http.StatusForbidden {
 			t.Fatalf("must_change_password on /api/holdings = %d, want 403", rec.Code)
 		}
@@ -233,7 +232,7 @@ func TestMustChangePasswordGate(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleSuperAdmin, "", func(m bson.M) { m["must_change_password"] = true }), "sess-7", uid)
 		srv := newTestServer(mt)
-		rec := doRequest(t, srv, http.MethodGet, "/api/auth/me", false, sessionCookie("sess-7"))
+		rec := doRequest(t, srv, http.MethodGet, "/api/auth/me", sessionCookie("sess-7"))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("must_change_password on /api/auth/me = %d, want 200; body=%s", rec.Code, rec.Body.String())
 		}

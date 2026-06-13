@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"maps"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -22,15 +23,13 @@ type HoldingStore struct {
 // any extra predicates (e.g. an _id).
 func scopedFilter(uid primitive.ObjectID, extra bson.M) bson.M {
 	f := bson.M{"user_id": uid}
-	for k, v := range extra {
-		f[k] = v
-	}
+	maps.Copy(f, extra)
 	return f
 }
 
 // ListByUser returns uid's holdings sorted by script name.
 func (s *HoldingStore) ListByUser(ctx context.Context, uid primitive.ObjectID) ([]domain.Holding, error) {
-	ctx, cancel := withTimeout(ctx, readTimeout)
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
 	opts := options.Find().SetSort(bson.D{{Key: "script", Value: 1}})
@@ -50,7 +49,7 @@ func (s *HoldingStore) ListByUser(ctx context.Context, uid primitive.ObjectID) (
 // GetScoped returns the holding owned by uid with the given id, or ErrNotFound
 // (which also covers a holding owned by someone else — no enumeration).
 func (s *HoldingStore) GetScoped(ctx context.Context, uid, id primitive.ObjectID) (domain.Holding, error) {
-	ctx, cancel := withTimeout(ctx, readTimeout)
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
 	var holding domain.Holding
@@ -63,7 +62,7 @@ func (s *HoldingStore) GetScoped(ctx context.Context, uid, id primitive.ObjectID
 
 // Insert stores a new holding (its UserID must already be set).
 func (s *HoldingStore) Insert(ctx context.Context, h domain.Holding) error {
-	ctx, cancel := withTimeout(ctx, writeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	_, err := s.col.InsertOne(ctx, h)
 	return err
@@ -72,7 +71,7 @@ func (s *HoldingStore) Insert(ctx context.Context, h domain.Holding) error {
 // UpdateScoped applies set to the holding owned by uid. It returns false when
 // no holding matched (missing, or owned by someone else).
 func (s *HoldingStore) UpdateScoped(ctx context.Context, uid, id primitive.ObjectID, set bson.D) (bool, error) {
-	ctx, cancel := withTimeout(ctx, writeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	res, err := s.col.UpdateOne(ctx, scopedFilter(uid, bson.M{"_id": id}), bson.M{"$set": set})
 	if err != nil {
@@ -84,7 +83,7 @@ func (s *HoldingStore) UpdateScoped(ctx context.Context, uid, id primitive.Objec
 // DeleteScoped removes the holding owned by uid. It returns false when nothing
 // matched.
 func (s *HoldingStore) DeleteScoped(ctx context.Context, uid, id primitive.ObjectID) (bool, error) {
-	ctx, cancel := withTimeout(ctx, writeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	res, err := s.col.DeleteOne(ctx, scopedFilter(uid, bson.M{"_id": id}))
 	if err != nil {
@@ -96,7 +95,7 @@ func (s *HoldingStore) DeleteScoped(ctx context.Context, uid, id primitive.Objec
 // DeleteByUser removes every holding owned by uid (used when a user is
 // permanently deleted).
 func (s *HoldingStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID) error {
-	ctx, cancel := withTimeout(ctx, readTimeout)
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 	_, err := s.col.DeleteMany(ctx, bson.M{"user_id": uid})
 	return err
@@ -107,7 +106,7 @@ func (s *HoldingStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID)
 // backfills pre-auth data (DD-001 §10); this is the only unscoped write the
 // holdings store allows.
 func (s *HoldingStore) AssignUnownedTo(ctx context.Context, uid primitive.ObjectID) (matched, modified int64, err error) {
-	ctx, cancel := withTimeout(ctx, readTimeout)
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 	res, err := s.col.UpdateMany(ctx,
 		bson.M{"user_id": bson.M{"$exists": false}},

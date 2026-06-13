@@ -16,7 +16,7 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 
 	mt.Run("indexes created", func(mt *mtest.T) {
 		// One createIndexes command per collection: holdings, users, sessions.
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			mt.AddMockResponses(mtest.CreateSuccessResponse(
 				bson.E{Key: "createdCollectionAutomatically", Value: false},
 				bson.E{Key: "numIndexesBefore", Value: 1},

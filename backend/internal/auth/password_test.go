@@ -66,7 +66,7 @@ func TestHashAnswer_CaseAndSpaceInsensitive(t *testing.T) {
 
 func TestNewSessionID_OpaqueAndUnique(t *testing.T) {
 	seen := map[string]bool{}
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		id, err := NewSessionID()
 		if err != nil {
 			t.Fatalf("NewSessionID: %v", err)

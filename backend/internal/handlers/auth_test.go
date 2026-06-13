@@ -87,8 +87,7 @@ func userDocument(t *testing.T, id primitive.ObjectID, username, password, role,
 	return out
 }
 
-func usersNS(mt *mtest.T) string    { return mt.DB.Name() + ".users" }
-func sessionsNS(mt *mtest.T) string { return mt.DB.Name() + ".sessions" }
+func usersNS(mt *mtest.T) string { return mt.DB.Name() + ".users" }
 
 // ── Catalogues ─────────────────────────────────────────────────────────────
 

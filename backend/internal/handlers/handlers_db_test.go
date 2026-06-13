@@ -18,17 +18,19 @@ func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
 	return &Handler{store: store.New(mt.DB), priceService: ps}
 }
 
-func holdingDocument(id primitive.ObjectID, script, symbol, exchange, typ, currency string, qty, avg, realized float64) bson.D {
+// holdingDocument builds an INR stock holding document for mtest cursor
+// responses. Currency/type are fixed; vary them inline if a test needs it.
+func holdingDocument(id primitive.ObjectID, script, symbol, exchange string, qty, avg, realized float64) bson.D {
 	return bson.D{
 		{Key: "_id", Value: id},
 		{Key: "script", Value: script},
 		{Key: "symbol", Value: symbol},
 		{Key: "exchange", Value: exchange},
-		{Key: "type", Value: typ},
+		{Key: "type", Value: "stock"},
 		{Key: "stocks_owned", Value: qty},
 		{Key: "avg_cost_price", Value: avg},
 		{Key: "realized_pnl", Value: realized},
-		{Key: "currency", Value: currency},
+		{Key: "currency", Value: "INR"},
 	}
 }
 
@@ -53,7 +55,7 @@ func TestIntegration_GetHolding_ReturnsHolding(t *testing.T) {
 		id := primitive.NewObjectID()
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, ns, mtest.FirstBatch,
-			holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 50),
+			holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 50),
 		))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
@@ -442,7 +444,7 @@ func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 25),
+				holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 25),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
@@ -482,7 +484,7 @@ func TestIntegration_GetPrices_ReturnsErrorWhenForexRateIsZero(t *testing.T) {
 		ns := mt.DB.Name() + ".holdings"
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id, "TCS", "TCS.NS", "NSE", "stock", "INR", 10, 3000, 0),
+				holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 0),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
@@ -589,8 +591,8 @@ func TestIntegration_GetSummary_UsesFallbackRateAndSkipsUnpricedHoldings(t *test
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, ns, mtest.FirstBatch,
-				holdingDocument(id1, "CASH", "", "OTHER", "stock", "INR", 1, 1000, 25),
-				holdingDocument(id2, "BROKEN", "BROKEN.NS", "NSE", "stock", "INR", 2, 100, 0),
+				holdingDocument(id1, "CASH", "", "OTHER", 1, 1000, 25),
+				holdingDocument(id2, "BROKEN", "BROKEN.NS", "NSE", 2, 100, 0),
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)

@@ -147,6 +147,60 @@ go.mongodb.org/mongo-driver v1.13.1
 
 Remind the user to run `go mod tidy` before `go run .`.
 
+### Go code conventions (strictly enforced)
+
+All backend code — including tests and comments — must pass `gofmt` and
+`golangci-lint run ./...` with **zero** issues before any commit. These are not
+style preferences; the pre-commit hook rejects violations (see *Quality gate*).
+
+#### Strict typing
+
+* No `interface{}`/`any` in domain, API, or store types. Model enums as named
+  string types with typed constants (e.g. `type Role string`; `RoleAdmin Role = "admin"`),
+  not bare strings compared by literal.
+* Persistence returns **domain types**, never `*mongo.Collection`, `*mongo.Cursor`,
+  or raw `bson` documents. Keep query construction inside one store type per
+  collection; the only Mongo detail allowed to cross that boundary is a
+  documented `bson` field patch for partial updates — say so in the doc comment.
+* Define sentinel errors at the boundary (`var ErrNotFound = errors.New("store: …")`)
+  and translate driver sentinels (`mongo.ErrNoDocuments`, `mongo.IsDuplicateKeyError`)
+  into them, so callers never import the driver's errors.
+
+#### Idiomatic Go
+
+* `context.Context` is the first parameter of every method that does I/O.
+* Test wrapped errors with `errors.Is`/`errors.As` — never `==` on a translated
+  or wrapped error.
+* Prefer `for range n` over `for i := 0; i < n; i++` when the index is unused;
+  prefer `maps.Copy(dst, src)` over a manual `for k, v := range` copy loop
+  (the `modernize` linter enforces both).
+* No needless pass-through wrappers (a func that only forwards to
+  `context.WithTimeout` adds nothing — inline it).
+* No unused parameters or helpers (`unparam`/`unused`): if a test helper's
+  argument is always the same value, drop the parameter and hard-code it.
+* Suppress a linter only with a reasoned directive
+  (`//nolint:gosec // request-side cookie carries only the id`), never a bare
+  `//nolint`.
+* Short, consistent receiver names (`s *UserStore`, not `store *UserStore`);
+  no name stutter (`store.Store`, not `store.StoreStruct`).
+
+#### Naming and comments
+
+* Method names reveal intent (`RegisterRecoveryFailure`, `AssignUnownedTo`),
+  not the mechanism (`DoUpdate`).
+* Every exported identifier has a doc comment that **starts with its name**
+  (`// UserStore owns the users collection.`).
+* Comments must stay true to the code — a comment claiming "callers never touch
+  bson" while a method takes a `bson.M` is a bug. Explain *why*, not *what*.
+* Error strings are lowercase and end without punctuation.
+
+#### Quality gate
+
+* `.pre-commit-config.yaml` runs `yamllint`, `markdownlint`, `gofmt`, and
+  `golangci-lint`. Run `pre-commit install` once so it fires on every commit.
+* Before handing off, run `pre-commit run --all-files` **and** `go test ./...`;
+  both must pass. Mention which you ran.
+
 ## Frontend — React + Vite
 
 **Dependencies**: `react`, `react-dom`, `recharts`, `axios` (or plain fetch)
@@ -290,3 +344,5 @@ Before finishing, verify:
 * [ ] `docker-compose.yml` references correct service names in `nginx.conf`
 * [ ] `go.mod` module name matches all internal imports
 * [ ] README has the `go mod tidy` step clearly documented
+* [ ] `gofmt` and `golangci-lint run ./...` pass with zero issues (see *Go code conventions*)
+* [ ] `pre-commit run --all-files` and `go test ./...` both pass

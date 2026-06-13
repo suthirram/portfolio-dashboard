@@ -1,12 +1,13 @@
-// Package store is the persistence layer. It owns every MongoDB read and
-// write, split one type per collection (HoldingStore, UserStore,
-// SessionStore). Callers (handlers, middleware, CLI) work with domain types
-// and never touch *mongo.Collection or bson directly, so query construction
+// Package store is the persistence layer: every MongoDB read and write lives
+// here, one type per collection (HoldingStore, UserStore, SessionStore).
+// Callers (handlers, middleware, CLI) receive domain types and run no queries
+// of their own. The one Mongo detail that crosses the boundary is the bson
+// field patch passed to the update and list methods — a deliberate trade-off
+// for partial updates that keeps the API small. Query construction otherwise
 // lives in exactly one place per collection and is easy to audit.
 package store
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -22,7 +23,8 @@ var ErrNotFound = errors.New("store: document not found")
 var ErrDuplicate = errors.New("store: duplicate key")
 
 // Default per-operation timeouts. Reads are generous because a few endpoints
-// scan a whole portfolio; writes are short.
+// scan a whole portfolio; writes are short. Each store method derives a
+// child context bounded by one of these via context.WithTimeout.
 const (
 	readTimeout  = 15 * time.Second
 	writeTimeout = 5 * time.Second
@@ -42,11 +44,6 @@ func New(db *mongo.Database) *Store {
 		Users:    &UserStore{col: db.Collection("users")},
 		Sessions: &SessionStore{col: db.Collection("sessions")},
 	}
-}
-
-// withTimeout derives a bounded context for a single operation.
-func withTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, d)
 }
 
 // translateFindErr maps the driver's no-documents sentinel to ErrNotFound and
