@@ -1,14 +1,34 @@
 # Portfolio Dashboard
 
-A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs.
+A full-stack, multi-user portfolio tracker for NSE/BSE (Indian) and US
+stocks/ETFs. Every account has its own private portfolio.
 
 ## Stack
 
-* **Frontend**: React + Vite + Recharts
-* **Backend**: Go (chi router, cobra CLI) with OpenAPI spec
+* **Frontend**: React + Vite + Recharts + React Router
+* **Backend**: Go (echo router, cobra CLI) with an OpenAPI spec
 * **Database**: MongoDB (Docker)
+* **Auth**: username/password with server-side sessions (cookie `pd_session`)
 * **Prices**: Yahoo Finance v8 API (live, 5-min cache)
 * **Currencies**: INR and EUR holdings; live INR↔EUR forex rate
+
+## Accounts & roles
+
+Authentication and multi-tenancy are specified in
+[PRD-001](docs/prds/PRD-001-user-auth-and-multi-tenancy.md) /
+[DD-001](docs/designs/DD-001-user-auth-and-multi-tenancy.md).
+
+* **User** — signs up (username, password, region, three security questions),
+  manages their own private portfolio. Password recovery is by security
+  questions only; there is **no email**.
+* **Admin** — a user the super admin promoted; oversees the users in their own
+  **region** (India / Europe / US): can act on their portfolios, hide,
+  reactivate, reset lockouts, or delete them.
+* **Super admin** — the single owner. On a fresh deployment the system creates
+  `admin` / `admin` and **forces onboarding** (real password + security
+  questions) on first login. Appoints/demotes admins and assigns regions.
+
+See [First run & operations](#first-run--operations) below.
 
 ## Columns tracked
 
@@ -42,7 +62,7 @@ Use the **Test** button in the Add/Edit modal to verify a symbol before saving.
 ### Prerequisites
 
 * [Docker](https://docker.com) (for MongoDB)
-* [Go 1.21+](https://go.dev/dl/)
+* [Go 1.25+](https://go.dev/dl/)
 * [Node.js 20+](https://nodejs.org)
 
 ### 1. Start MongoDB
@@ -89,16 +109,48 @@ OpenAPI spec → <http://localhost:8080/api/openapi.yaml>
 
 ## API Endpoints
 
+All routes except the public auth/catalogue endpoints require a session
+cookie, and every state-changing request must send the
+`X-Requested-With: portfolio-dashboard` header (CSRF). Holdings, prices, and
+summary are scoped to the logged-in user.
+
+### Auth (public)
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/holdings` | List all holdings |
-| POST | `/api/holdings` | Add a holding |
-| PUT | `/api/holdings/{id}` | Edit a holding |
-| DELETE | `/api/holdings/{id}` | Delete a holding |
-| GET | `/api/prices` | All holdings with live prices + EUR |
+| GET | `/api/regions` | Region catalogue (signup dropdown) |
+| GET | `/api/auth/security-questions` | Security-question catalogue |
+| POST | `/api/auth/signup` | Create account + log in |
+| POST | `/api/auth/login` | Log in |
+| POST | `/api/auth/recover/questions` | Fetch an account's questions (step 1) |
+| POST | `/api/auth/recover` | Reset password via answers (step 2) |
+
+### Auth (session)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/auth/me` | Current account |
+| POST | `/api/auth/logout` | End the session |
+| PUT | `/api/auth/password` | Change own password |
+| PUT | `/api/auth/profile` | Change own name / username |
+| PUT | `/api/auth/security-questions/answers` | Replace own questions |
+| POST | `/api/auth/onboarding` | Forced first-login setup (super admin) |
+
+### Portfolio (per-user)
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/api/holdings` | List / add holdings |
+| PUT/DELETE | `/api/holdings/{id}` | Edit / delete a holding |
+| GET | `/api/prices` | Holdings with live prices + EUR |
 | GET | `/api/summary` | Portfolio totals |
 | GET | `/api/market/price?symbol=TCS.NS` | Live price for any symbol |
 | GET | `/api/market/forex?from=INR&to=EUR` | Forex rate |
+
+**Admin** (region-scoped; super admin sees all) — `/api/admin/users`,
+`/api/admin/users/{id}` (+ `/hide`, `/reactivate`, `/reset-lockout`,
+`/promote`, `/demote`, `/region`, and act-as `/holdings`, `/prices`,
+`/summary`), and `/api/admin/admins` (super admin only).
 
 Full spec: `/api/openapi.yaml`
 
@@ -111,16 +163,45 @@ Full spec: `/api/openapi.yaml`
 | Var / Flag | Default | Description |
 |---|---|---|
 | `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
+| `MONGODB_DATABASE` / `--mongo-db` | `portfolio` | Database name |
 | `PORT` / `--port` | `8080` | Server port |
-| `CORS_ALLOWED_ORIGINS` | _(unset → `*`)_ | Comma-separated allow-list of origins. Set explicitly in production (e.g. `https://<app>.pages.dev`). Empty / unset falls back to wildcard for local dev. |
+| `LOG_LEVEL` / `--log-level` | `info` | `debug` \| `info` \| `warn` \| `error` |
+| `LOG_FORMAT` / `--log-format` | `json` | `json` \| `text` |
+| `CORS_ALLOWED_ORIGINS` | dev: `http://localhost:3000,http://localhost:5173` | Comma-separated allow-list. **Required in production** — credentialed CORS forbids `*`, so set the real origin (e.g. `https://<app>.pages.dev`). |
+| `PD_NEW_PASSWORD` | _(unset)_ | Read only by `admin set-password` so the new password stays out of shell history |
 
-Env vars take precedence over flags. Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
+Flags take precedence over env vars, which take precedence over defaults.
+Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
 
 ### Frontend
 
 | Var | Default | Description |
 |---|---|---|
 | `VITE_API_URL` | (proxied via Vite) | Backend URL for production builds |
+
+Cross-origin auth needs HTTPS: the session cookie is `SameSite=None; Secure`
+in production. In local dev the Vite proxy keeps `/api` same-origin, so the
+cookie falls back to `SameSite=Lax` and plain HTTP works.
+
+---
+
+## First run & operations
+
+On a brand-new database the backend creates a single super admin
+`admin` / `admin` with `must_change_password` set. Log in and complete the
+forced onboarding (real password + three security questions) before anything
+else works.
+
+```bash
+cd backend
+
+# Assign any pre-auth holdings to an owner (run once after upgrading):
+go run . migrate users --owner admin
+
+# Break-glass for a locked-out super admin (no login; needs MONGODB_URI):
+go run . admin reset-lockout --username admin
+PD_NEW_PASSWORD='a-strong-password' go run . admin set-password --username admin
+```
 
 ---
 

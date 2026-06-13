@@ -99,13 +99,45 @@ needs no live Mongo.
    than a TTY prompt, so it works under `flyctl ssh console` and stays out of
    shell history.
 
+## Post-review refinements (2026-06-13)
+
+Landed after the initial implementation, in order:
+
+1. **Persistence layer extracted** — every MongoDB read/write moved out of the
+   handlers, middleware, and CLI into a dedicated package, one store type per
+   collection (`HoldingStore`/`UserStore`/`SessionStore`) with `ErrNotFound`/
+   `ErrDuplicate` sentinels. Holdings are owner-scoped by construction. The
+   wire-level mtest suite passed unchanged, proving the move was
+   behaviour-preserving.
+2. **Package renamed** `internal/store` → **`internal/persistence`** (directory,
+   package, and qualified references; `store.go` → `persistence.go`). The
+   `Handler.store` field and the per-collection type names are unchanged.
+3. **Quality gate enforced** — the configured `.pre-commit-config.yaml` hook was
+   never installed; ran `pre-commit install` and fixed every `golangci-lint`
+   finding (`modernize` → `maps.Copy` / `for range n`; dropped a pass-through
+   `withTimeout` wrapper and always-constant test params; reasoned
+   `//nolint:gosec` on request-side cookies). `golangci-lint run ./...` is now
+   clean and gates every commit.
+4. **Code review completed** — `migrate users` no longer opens a second Mongo
+   connection for the index rebuild. Flagged but not changed: the session
+   cookie's `Secure`/`SameSite` derive from `c.Scheme()` (works with the PD-012
+   proxy stack; a `COOKIE_SECURE` config flag is the hardening follow-up).
+5. **Go conventions captured** — added a strict-typing / idiomatic-Go / naming /
+   comments section plus the lint gate to `.claude/portfolio-dashboard.md`.
+
+Verification after refinements: `go test ./...` green across **9** packages
+(adds `internal/persistence`), `golangci-lint` 0 issues, frontend
+`typecheck` / `build` clean.
+
 ## Known follow-ups
 
-* **Re-run `/code-review high --comment`** on PR #23 — the first attempt's
-  finder subagents were interrupted by a session limit before producing
-  findings. Address any findings test-first per `tdd-no-fix-without-test`.
 * Frontend has no component-test harness; auth flows are covered only by
-  typecheck/build. Adding Vitest + Testing Library is a candidate follow-up.
+  typecheck/build. Adding Vitest + Testing Library is the next step — the
+  sibling PR #22 extracts pure routing/profile helpers and tests them with
+  `node:test`, a pattern worth borrowing (with a cleaner harness).
+* The session cookie's `Secure`/`SameSite` derive from `c.Scheme()`; consider a
+  `COOKIE_SECURE` config flag so it does not depend on the proxy forwarding
+  `X-Forwarded-Proto`.
 * Bundle is a single >500 kB chunk (pre-existing); code-splitting the admin
   area is optional.
 * v2 items already noted in PRD-001 §9 / DD-001 §12: login rate-limiting,
