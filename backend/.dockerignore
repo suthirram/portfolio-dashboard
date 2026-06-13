@@ -1,0 +1,16 @@
+# Keep the Docker build context (and Cloud Run source uploads) small.
+# The multi-stage build only needs go.mod/go.sum, the Go sources, and api/.
+
+# Prebuilt local binaries — 15MB+, never needed in the image
+portfolio-dashboard
+portfolio-api
+*.test
+*.out
+coverage*
+
+# Local-only scratch
+tmp/
+.DS_Store
+
+# Deploy configs are not part of the image
+fly.toml
