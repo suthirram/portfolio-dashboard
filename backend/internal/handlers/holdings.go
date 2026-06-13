@@ -101,21 +101,12 @@ func (h *Handler) updateHoldingFor(ctx context.Context, uid primitive.ObjectID, 
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
 	}
 
-	matched, err := h.store.Holdings.UpdateScoped(ctx, uid, id, update)
+	updated, err := h.store.Holdings.UpdateScopedAndReturn(ctx, uid, id, update)
 	if err != nil {
+		if errors.Is(err, persistence.ErrNotFound) {
+			return api.Holding{}, false, nil
+		}
 		h.reqLog(ctx).ErrorContext(ctx, "update holding failed",
-			slog.String("id", idHex),
-			slog.String("error", err.Error()),
-		)
-		return api.Holding{}, false, err
-	}
-	if !matched {
-		return api.Holding{}, false, nil
-	}
-
-	updated, err := h.store.Holdings.GetScoped(ctx, uid, id)
-	if err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "update holding re-read failed",
 			slog.String("id", idHex),
 			slog.String("error", err.Error()),
 		)

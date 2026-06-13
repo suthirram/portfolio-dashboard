@@ -236,19 +236,19 @@ func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 
 	mt.Run("update sets currency to EUR", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
-		ns := mt.DB.Name() + ".holdings"
 
-		// UpdateOne success + FindOne for the re-read
-		mt.AddMockResponses(
-			mtest.CreateSuccessResponse(bson.E{Key: "nModified", Value: 1}, bson.E{Key: "n", Value: 1}),
-			mtest.CreateCursorResponse(0, ns, mtest.FirstBatch, bson.D{
+		// FindOneAndUpdate(ReturnDocument: After) — single round-trip,
+		// post-image returned inline.
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{
+			Key: "value",
+			Value: bson.D{
 				{Key: "_id", Value: id},
 				{Key: "script", Value: "VWCE"},
 				{Key: "exchange", Value: "OTHER"},
 				{Key: "type", Value: "etf"},
 				{Key: "currency", Value: "EUR"},
-			}),
-		)
+			},
+		}))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
@@ -277,11 +277,10 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 
 	mt.Run("update sets optional fields", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
-		ns := mt.DB.Name() + ".holdings"
 
-		mt.AddMockResponses(
-			mtest.CreateSuccessResponse(bson.E{Key: "nModified", Value: 1}, bson.E{Key: "n", Value: 1}),
-			mtest.CreateCursorResponse(0, ns, mtest.FirstBatch, bson.D{
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{
+			Key: "value",
+			Value: bson.D{
 				{Key: "_id", Value: id},
 				{Key: "script", Value: "TCS"},
 				{Key: "symbol", Value: "TCS.NS"},
@@ -292,8 +291,8 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 				{Key: "realized_pnl", Value: 75.0},
 				{Key: "currency", Value: "INR"},
 				{Key: "notes", Value: "core position"},
-			}),
-		)
+			},
+		}))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
@@ -357,10 +356,8 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 
 	mt.Run("no matched document", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
-		mt.AddMockResponses(mtest.CreateSuccessResponse(
-			bson.E{Key: "nModified", Value: 0},
-			bson.E{Key: "n", Value: 0},
-		))
+		// findAndModify with no match returns {ok:1, value: null}.
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
