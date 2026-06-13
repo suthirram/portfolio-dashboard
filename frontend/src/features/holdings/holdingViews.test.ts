@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { filterByView, isActive, isNil, viewCounts } from './holdingViews'
 
-const h = (id: string, stocks_owned: number | null | undefined) =>
-  ({ id, stocks_owned } as unknown as { id: string; stocks_owned: number })
+const h = (id: string, stocks_owned: number | null | undefined) => ({ id, stocks_owned })
 
 describe('isActive / isNil', () => {
   it('treats > 0 as active', () => {
@@ -42,6 +41,9 @@ describe('filterByView', () => {
 
   it('handles null / undefined input safely', () => {
     expect(filterByView(null, 'active')).toEqual([])
+    expect(filterByView(null, 'all')).toEqual([])
+    expect(filterByView(null, 'nil')).toEqual([])
+    expect(filterByView(undefined, 'active')).toEqual([])
     expect(filterByView(undefined, 'all')).toEqual([])
     expect(filterByView(undefined, 'nil')).toEqual([])
   })
@@ -49,7 +51,15 @@ describe('filterByView', () => {
   it('does not mutate input array', () => {
     const original = [...data]
     filterByView(data, 'nil')
+    filterByView(data, 'all')
+    filterByView(data, 'active')
     expect(data).toEqual(original)
+  })
+
+  it('returns a copy for "all" so callers can mutate safely', () => {
+    const result = filterByView(data, 'all')
+    expect(result).not.toBe(data)
+    expect(result).toEqual(data)
   })
 })
 

@@ -103,6 +103,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
     return (
       <button
         key={key}
+        type="button"
         onClick={() => setView(key)}
         style={{
           background: active ? 'var(--bg-card)' : 'transparent',
@@ -117,8 +118,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
         {label}
         <span style={{
           marginLeft: 6, fontSize: 11, fontWeight: 500,
-          color: active ? 'var(--text-muted)' : 'var(--text-muted)',
-          opacity: 0.8,
+          color: 'var(--text-muted)', opacity: 0.8,
         }}>
           {count}
         </span>
@@ -127,7 +127,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
   }
 
   return (
-    <div>
+    <>
     <div style={{
       display: 'inline-flex', gap: 2, padding: 3, marginBottom: 10,
       background: 'var(--bg-secondary)', border: '1px solid var(--border)',
@@ -161,11 +161,13 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
           {sorted.length === 0 && !loading && (
             <tr>
               <td colSpan={14} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
-                {view === 'nil'
-                  ? 'No nil holdings. Fully-exited positions (0 shares) will appear here.'
-                  : view === 'all'
-                    ? 'No holdings yet. Click "Add Holding" to get started.'
-                    : 'No active holdings. Switch to "All" or "Nil" to see exited positions.'}
+                {counts.all === 0
+                  ? 'No holdings yet. Click "Add Holding" to get started.'
+                  : view === 'nil'
+                    ? 'No nil holdings. Fully-exited positions (0 shares) will appear here.'
+                    : view === 'active'
+                      ? 'No active holdings — all positions exited. Switch to "Nil" to see them.'
+                      : 'No holdings match.'}
               </td>
             </tr>
           )}
@@ -291,6 +293,6 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
         )}
       </table>
     </div>
-    </div>
+    </>
   )
 }
