@@ -111,6 +111,30 @@ func (s *HoldingStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID)
 	return err
 }
 
+// UpsertByScript inserts the holding, or replaces the existing one owned by the
+// same user with the same script. The match is owner-scoped via scopedFilter,
+// so the invariant "no write without naming the owner" still holds. Used by the
+// copy-holdings migration to mirror a portfolio into another database
+// idempotently (re-running upserts rather than duplicating). Returns true when a
+// new document was inserted (as opposed to an existing one replaced).
+func (s *HoldingStore) UpsertByScript(ctx context.Context, h domain.Holding) (inserted bool, err error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	// Let the upsert mint a fresh _id on insert and keep the matched _id on
+	// replace; carrying a source _id would clash with the destination's.
+	h.ID = primitive.NilObjectID
+	res, err := s.col.ReplaceOne(ctx,
+		scopedFilter(h.UserID, bson.M{"script": h.Script}),
+		h,
+		options.Replace().SetUpsert(true),
+	)
+	if err != nil {
+		return false, err
+	}
+	return res.UpsertedCount > 0, nil
+}
+
 // AssignUnownedTo stamps every legacy holding that has no owner with uid. It
 // returns the matched and modified counts. Used once by the migration that
 // backfills pre-auth data (DD-001 §10); this is the only unscoped write the
