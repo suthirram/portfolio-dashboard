@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
@@ -30,15 +31,17 @@ var migrateUsersCmd = &cobra.Command{
 	RunE:  runMigrateUsers,
 }
 
-// cliConnect dials Mongo for a one-shot command and returns the store plus a
-// disconnect func. Centralises the boilerplate shared by every CLI command.
-func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*store.Store, func(), error) {
+// cliConnect dials Mongo for a one-shot command and returns the store, the
+// underlying database (for index maintenance), and a disconnect func.
+// Centralises the boilerplate shared by every CLI command.
+func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*store.Store, *mongo.Database, func(), error) {
 	client, err := db.Connect(ctx, cfg.MongoURI, logger)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	database := client.Database(cfg.MongoDB)
 	disconnect := func() { _ = client.Disconnect(context.Background()) }
-	return store.New(client.Database(cfg.MongoDB)), disconnect, nil
+	return store.New(database), database, disconnect, nil
 }
 
 func runMigrateUsers(_ *cobra.Command, _ []string) error {
@@ -54,7 +57,7 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	st, disconnect, err := cliConnect(ctx, logger, cfg)
+	st, database, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
@@ -79,12 +82,7 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 	)
 
 	// Rebuild indexes so the new {user_id, script} index exists.
-	client, err := db.Connect(ctx, cfg.MongoURI, logger)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = client.Disconnect(context.Background()) }()
-	return db.EnsureIndexes(ctx, client.Database(cfg.MongoDB), logger)
+	return db.EnsureIndexes(ctx, database, logger)
 }
 
 // adminCmd hosts the break-glass CLI for the super admin (DD-001 §8).
@@ -113,7 +111,7 @@ func runResetLockout(_ *cobra.Command, _ []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	st, disconnect, err := cliConnect(ctx, logger, cfg)
+	st, _, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
@@ -169,7 +167,7 @@ func runSetPassword(_ *cobra.Command, _ []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	st, disconnect, err := cliConnect(ctx, logger, cfg)
+	st, _, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
