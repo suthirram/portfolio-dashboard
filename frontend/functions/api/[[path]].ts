@@ -19,11 +19,19 @@
 // e.g. https://portfolio-dashboard-api-xxxx.europe-west1.run.app
 // (no trailing slash, no /api suffix).
 
+// PagesFunction is provided as a global by the Pages Functions runtime, but
+// the type lives in @cloudflare/workers-types which we don't depend on here.
+// A minimal local shape keeps the file self-contained and TS-clean.
 interface Env {
   API_ORIGIN: string
 }
 
-export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
+interface PagesContext {
+  request: Request
+  env: Env
+}
+
+export const onRequest = async ({ request, env }: PagesContext): Promise<Response> => {
   const origin = env.API_ORIGIN?.replace(/\/$/, '')
   if (!origin) {
     return new Response(JSON.stringify({ error: 'API_ORIGIN is not configured' }), {
