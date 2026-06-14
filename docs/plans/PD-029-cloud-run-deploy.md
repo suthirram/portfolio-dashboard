@@ -78,10 +78,24 @@ curl -fsS "$(gcloud run services describe portfolio-dashboard-api \
 
 ## 4. Point the frontend at it
 
-In Cloudflare Pages → project → Settings → Environment variables, set
-`VITE_API_URL` to the Cloud Run URL, then redeploy the frontend. Confirm
-`CORS_ALLOWED_ORIGINS` (step 3) exactly matches the Pages origin — credentialed
-CORS forbids `*` and is origin-exact.
+The frontend calls the API **same-origin** at `/api`. The Pages Function
+[`frontend/functions/api/[[path]].ts`](../../frontend/functions/api/%5B%5Bpath%5D%5D.ts)
+reverse-proxies `/api/*` to Cloud Run, so the session cookie is stored
+first-party. This is required: a cross-origin API makes the cookie third-party,
+which iOS Safari/Chrome block — the app then looks logged in (from the in-memory
+login response) but every later request 401s with "not logged in". Desktop
+Chrome still allows the third-party cookie, so the bug only shows on iPad/iPhone.
+
+In Cloudflare Pages → project → Settings → Environment variables:
+
+* Set `API_ORIGIN` to the Cloud Run URL (no trailing slash, no `/api` suffix).
+* Leave `VITE_API_URL` **unset** — setting it sends the browser cross-origin and
+  reintroduces the third-party-cookie bug.
+
+Redeploy the frontend. `CORS_ALLOWED_ORIGINS` (step 3) is no longer used by the
+browser path (the Pages Function calls Cloud Run server-to-server), but keep it
+matching the Pages origin so direct/curl access and any non-proxied client still
+pass credentialed CORS.
 
 ## 5. Keyless CI/CD (Workload Identity Federation)
 
