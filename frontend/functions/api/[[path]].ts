@@ -1,58 +1,44 @@
-// Cloudflare Pages Function: same-origin proxy for /api/* → Cloud Run.
+// Cloudflare Pages Function: same-origin reverse proxy for /api/*.
 //
-// Why: pages.dev (frontend) and run.app (backend) are different eTLD+1, so
-// pd_session is a 3rd-party cookie. Safari ITP and other modern browsers
-// drop it on cross-site requests despite SameSite=None;Secure. Routing /api
-// through this Function makes the browser see only same-origin traffic; the
-// cookie is 1st-party for pages.dev and always sent.
+// The frontend (Cloudflare Pages, *.pages.dev) and backend (Cloud Run,
+// *.run.app) live on different registrable domains. Calling the API
+// cross-origin makes the session cookie (Secure; SameSite=None) a third-party
+// cookie, which iOS Safari / iOS Chrome (WebKit, ITP) block by default. The
+// symptom: after login the app looks authenticated (the user object comes from
+// the in-memory login response), but the cookie is never stored, so the next
+// API call — e.g. the Add-Holding "Test" price lookup — arrives with no cookie
+// and the AuthGate answers 401 "not logged in". Desktop Chrome still allows the
+// third-party cookie, which is why it only reproduces on iPad/iPhone.
 //
-// The Function does NOT touch the body, just forwards method + headers and
-// pipes the response back. Set-Cookie from the upstream lands on the
-// page-host response, becoming a 1st-party cookie on the user's browser.
+// Proxying /api through the Pages origin makes the cookie first-party, matching
+// how nginx (Docker stack) and the Vite dev server already serve the API
+// same-origin. With the proxy in place VITE_API_URL must be left unset so the
+// client targets the relative /api path (see lib/api/client.ts).
+//
+// Configure API_ORIGIN in the Pages project env to the Cloud Run service URL,
+// e.g. https://portfolio-dashboard-api-xxxx.europe-west1.run.app
+// (no trailing slash, no /api suffix).
 
 interface Env {
-  API_BASE: string
+  API_ORIGIN: string
 }
 
-interface PagesContext {
-  request: Request
-  env: Env
-}
-
-export const onRequest = async (ctx: PagesContext): Promise<Response> => {
-  if (!ctx.env.API_BASE) {
-    return new Response('API_BASE env var not configured', { status: 500 })
+export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
+  const origin = env.API_ORIGIN?.replace(/\/$/, '')
+  if (!origin) {
+    return new Response(JSON.stringify({ error: 'API_ORIGIN is not configured' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  const incoming = new URL(ctx.request.url)
-  const target = `${ctx.env.API_BASE.replace(/\/$/, '')}${incoming.pathname}${incoming.search}`
+  const incoming = new URL(request.url)
+  const target = origin + incoming.pathname + incoming.search
 
-  const headers = new Headers(ctx.request.headers)
-  // Strip hop-by-hop and CF-injected headers that would confuse the upstream
-  // host check or CORS logic. The upstream sees the real Origin so its
-  // CORS_ALLOWED_ORIGINS check still passes for pages.dev.
-  headers.delete('host')
-  headers.delete('cf-connecting-ip')
-  headers.delete('cf-ray')
-  headers.delete('cf-visitor')
-  headers.delete('cf-ipcountry')
-  headers.delete('x-forwarded-host')
-
-  const method = ctx.request.method
-  const hasBody = method !== 'GET' && method !== 'HEAD'
-
-  const upstream = await fetch(target, {
-    method,
-    headers,
-    body: hasBody ? ctx.request.body : undefined,
-    redirect: 'manual',
-  })
-
-  // Pass-through response. Set-Cookie lives in upstream headers; cloning into
-  // a new Response preserves it.
-  return new Response(upstream.body, {
-    status: upstream.status,
-    statusText: upstream.statusText,
-    headers: upstream.headers,
-  })
+  // Reuse the incoming request verbatim — method, headers (Cookie and
+  // X-Requested-With), and body all carry through. fetch() sets the Host
+  // header to the Cloud Run host, which its routing requires. The upstream
+  // Set-Cookie is returned unchanged; because the browser sees the Pages
+  // origin, the cookie is stored first-party.
+  return fetch(new Request(target, request))
 }
