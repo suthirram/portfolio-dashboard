@@ -286,16 +286,17 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, vie
           <tfoot>
             <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
               <TD style={{ textAlign: 'left', fontWeight: 700 }}>TOTAL</TD>
-              <td colSpan={2} style={{ borderBottom: '1px solid var(--border)' }} />
+              <td style={{ borderBottom: '1px solid var(--border)' }} />
+              <td className="col-hide-sm" style={{ borderBottom: '1px solid var(--border)' }} />
               <TD className="mono">{INR(totals.cost)}</TD>
-              <TD className="mono" style={{ fontSize: 12 }}>{EUR(totals.costEur)}</TD>
+              <TD className="mono col-hide-sm" style={{ fontSize: 12 }}>{EUR(totals.costEur)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
               <TD className="mono">{INR(totals.value)}</TD>
-              <TD className="mono" style={{ fontSize: 12 }}>{EUR(totals.valueEur)}</TD>
+              <TD className="mono col-hide-sm" style={{ fontSize: 12 }}>{EUR(totals.valueEur)}</TD>
               <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{INR(totals.unreal)}</TD>
-              <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.unrealEur)}</TD>
-              <TD className={`mono ${totals.real >= 0 ? 'pos' : 'neg'}`}>{INR(totals.real)}</TD>
-              <TD className={`mono ${totals.real >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.realEur)}</TD>
+              <TD className={`mono col-hide-sm ${totals.unreal >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.unrealEur)}</TD>
+              <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{INR(totals.real)}</TD>
+              <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.realEur)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
             </tr>
           </tfoot>
