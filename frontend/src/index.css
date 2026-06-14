@@ -44,6 +44,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Scrollbar */
@@ -85,4 +86,35 @@ input, select, textarea {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   display: inline-block;
+}
+
+/* Dashboard top nav: prevent button labels from wrapping mid-word and let the
+ * whole bar reflow on narrow viewports instead of overflowing horizontally. */
+.dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .dash-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
+  .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
+  .dash-nav-hide-sm { display: none !important; }
+  .dash-nav-label-sm { display: none; }
+  /* Hide low-priority columns on narrow screens. Avg-cost and realised
+   * always drop; native vs foreign money columns are picked per section
+   * based on the wrapper's `native-eur` modifier so each section only
+   * shows the currency it was bought in. */
+  .col-hide-sm { display: none !important; }
+  .holdings-table-wrap .col-eur-amt { display: none !important; }
+  .holdings-table-wrap.native-eur .col-eur-amt { display: table-cell !important; }
+  .holdings-table-wrap.native-eur .col-inr-amt { display: none !important; }
+  /* When the remaining columns still overflow (very narrow viewport), the
+   * wrapper scrolls horizontally. Sticky table headers are disabled in this
+   * mode because overflow-x:auto forces overflow-y:auto, which would clip
+   * the sticky header. */
+  /* touch-action: pan-x restricts touch gestures inside the wrapper to
+   * horizontal pans only; vertical swipes bubble up to the page, so users
+   * can still scroll past long tables on mobile. Without this, iOS Safari
+   * traps vertical touches inside the overflow container. */
+  .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+  .holdings-table-wrap table { min-width: 560px; }
+  .holdings-table-wrap th { position: static !important; }
+  .dash-main { padding: 16px 14px !important; }
 }

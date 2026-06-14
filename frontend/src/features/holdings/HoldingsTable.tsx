@@ -24,8 +24,8 @@ interface CellProps {
   className?: string
 }
 
-const TH = ({ children, style }: CellProps) => (
-  <th style={{
+const TH = ({ children, style, className }: CellProps) => (
+  <th className={className} style={{
     padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
@@ -48,13 +48,24 @@ interface HoldingsTableProps {
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
+  /** When set, the view tab strip is hidden and the table renders only the
+   * holdings matching this view. Used when a parent (e.g. the currency-grouped
+   * wrapper) owns a single shared view selector across multiple tables. */
+  view?: HoldingView
+  /** Drives which money columns drop out on mobile: INR-native sections hide
+   * the EUR conversion subcolumns, EUR-native sections hide the INR primary
+   * columns and promote the EUR subcolumns to primary instead. */
+  nativeCurrency?: 'INR' | 'EUR'
 }
 
-export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, loading, onEdit, onDelete, view: viewProp, nativeCurrency }: HoldingsTableProps) {
   const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
   const [sortDir, setSortDir] = useState(1)
   const [confirm, setConfirm] = useState<string | null>(null)
-  const [view, setView] = useState<HoldingView>('active')
+  const [internalView, setInternalView] = useState<HoldingView>('active')
+  const controlled = viewProp !== undefined
+  const view = viewProp ?? internalView
+  const setView = (v: HoldingView) => { if (!controlled) setInternalView(v) }
 
   const toggleSort = (key: keyof HoldingWithPrice) => {
     if (sortKey === key) setSortDir(d => -d)
@@ -128,31 +139,33 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
 
   return (
     <>
-    <div style={{
-      display: 'inline-flex', gap: 2, padding: 3, marginBottom: 10,
-      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-sm)',
-    }}>
-      {segBtn('active', 'Holdings', counts.active)}
-      {segBtn('all', 'All', counts.all)}
-      {segBtn('nil', 'Nil', counts.nil)}
-    </div>
-    <div style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+    {!controlled && (
+      <div style={{
+        display: 'inline-flex', gap: 2, padding: 3, marginBottom: 10,
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)',
+      }}>
+        {segBtn('active', 'Holdings', counts.active)}
+        {segBtn('all', 'All', counts.all)}
+        {segBtn('nil', 'Nil', counts.nil)}
+      </div>
+    )}
+    <div className={`holdings-table-wrap${nativeCurrency === 'EUR' ? ' native-eur' : ''}`} style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-secondary)' }}>
             <TH style={{ textAlign: 'left', width: 160 }}>Script</TH>
             {colHead('Shares', 'stocks_owned')}
-            {colHead('Avg Cost/Sh', 'avg_cost_price')}
-            <TH>Cost Price</TH>
-            <TH style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
+            <TH className="col-hide-sm">{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
+            <TH className="col-inr-amt">Cost Price</TH>
+            <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
             {colHead('Share Price', 'current_price')}
-            <TH>Current Value</TH>
-            <TH style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH>Money in Making</TH>
-            <TH style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH>Money Made</TH>
-            <TH style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
+            <TH className="col-inr-amt">Current Value</TH>
+            <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
+            <TH className="col-inr-amt">Money in Making</TH>
+            <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
+            <TH className="col-hide-sm">Money Made</TH>
+            <TH className="col-hide-sm" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
           </tr>
         </thead>
@@ -201,11 +214,11 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
                 <TD className="mono">{NUM(h.stocks_owned)}</TD>
 
                 {/* Avg cost — shown in the holding's native currency */}
-                <TD className="mono">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
+                <TD className="mono col-hide-sm">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
 
                 {/* Cost price */}
-                <TD className="mono">{h.cost_price ? INR(h.cost_price) : '—'}</TD>
-                <TD className="mono" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.cost_price_eur ? EUR(h.cost_price_eur) : '—'}</TD>
+                <TD className="mono col-inr-amt">{h.cost_price ? INR(h.cost_price) : '—'}</TD>
+                <TD className="mono col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.cost_price_eur ? EUR(h.cost_price_eur) : '—'}</TD>
 
                 {/* Share price — in the holding's native currency */}
                 <TD className="mono" style={{ color: hasPrice ? 'var(--text-primary)' : 'var(--text-muted)' }}>
@@ -213,22 +226,22 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
                 </TD>
 
                 {/* Current value */}
-                <TD className="mono">{h.current_value ? INR(h.current_value) : '—'}</TD>
-                <TD className="mono" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.current_value_eur ? EUR(h.current_value_eur) : '—'}</TD>
+                <TD className="mono col-inr-amt">{h.current_value ? INR(h.current_value) : '—'}</TD>
+                <TD className="mono col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.current_value_eur ? EUR(h.current_value_eur) : '—'}</TD>
 
                 {/* Unrealised (money in making) */}
-                <TD className={`mono ${unrealCls}`}>
+                <TD className={`mono col-inr-amt ${unrealCls}`}>
                   {hasPrice ? INR(h.unrealized_pnl) : '—'}
                 </TD>
-                <TD className={`mono ${unrealCls}`} style={{ fontSize: 12, opacity: 0.75 }}>
+                <TD className={`mono col-eur-amt ${unrealCls}`} style={{ fontSize: 12, opacity: 0.75 }}>
                   {hasPrice ? EUR(h.unrealized_pnl_eur) : '—'}
                 </TD>
 
                 {/* Realised (money made) — in the holding's native currency */}
-                <TD className={`mono ${realized !== 0 ? realCls : 'neutral'}`}>
+                <TD className={`mono col-hide-sm ${realized !== 0 ? realCls : 'neutral'}`}>
                   {realized !== 0 ? (h.currency === 'EUR' ? EUR(h.realized_pnl) : INR(h.realized_pnl)) : '—'}
                 </TD>
-                <TD className={`mono ${realized !== 0 ? realCls : 'neutral'}`} style={{ fontSize: 12, opacity: 0.75 }}>
+                <TD className={`mono col-hide-sm ${realized !== 0 ? realCls : 'neutral'}`} style={{ fontSize: 12, opacity: 0.75 }}>
                   {realized !== 0 ? EUR(h.realized_pnl_eur) : '—'}
                 </TD>
 
@@ -277,16 +290,17 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete }: H
           <tfoot>
             <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
               <TD style={{ textAlign: 'left', fontWeight: 700 }}>TOTAL</TD>
-              <td colSpan={2} style={{ borderBottom: '1px solid var(--border)' }} />
-              <TD className="mono">{INR(totals.cost)}</TD>
-              <TD className="mono" style={{ fontSize: 12 }}>{EUR(totals.costEur)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
-              <TD className="mono">{INR(totals.value)}</TD>
-              <TD className="mono" style={{ fontSize: 12 }}>{EUR(totals.valueEur)}</TD>
-              <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{INR(totals.unreal)}</TD>
-              <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.unrealEur)}</TD>
-              <TD className={`mono ${totals.real >= 0 ? 'pos' : 'neg'}`}>{INR(totals.real)}</TD>
-              <TD className={`mono ${totals.real >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.realEur)}</TD>
+              <td className="col-hide-sm" style={{ borderBottom: '1px solid var(--border)' }} />
+              <TD className="mono col-inr-amt">{INR(totals.cost)}</TD>
+              <TD className="mono col-eur-amt" style={{ fontSize: 12 }}>{EUR(totals.costEur)}</TD>
+              <td style={{ borderBottom: '1px solid var(--border)' }} />
+              <TD className="mono col-inr-amt">{INR(totals.value)}</TD>
+              <TD className="mono col-eur-amt" style={{ fontSize: 12 }}>{EUR(totals.valueEur)}</TD>
+              <TD className={`mono col-inr-amt ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{INR(totals.unreal)}</TD>
+              <TD className={`mono col-eur-amt ${totals.unreal >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.unrealEur)}</TD>
+              <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{INR(totals.real)}</TD>
+              <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 12 }}>{EUR(totals.realEur)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
             </tr>
           </tfoot>

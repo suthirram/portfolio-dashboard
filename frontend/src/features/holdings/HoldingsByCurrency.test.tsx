@@ -1,0 +1,133 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import HoldingsByCurrency from './HoldingsByCurrency'
+import type { HoldingWithPrice } from '../../types'
+
+const noop = () => {}
+
+const h = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+  id: overrides.id ?? Math.random().toString(),
+  script: 'TEST',
+  symbol: 'TEST',
+  exchange: 'NSE',
+  type: 'stock',
+  stocks_owned: 10,
+  avg_cost_price: 100,
+  realized_pnl: 0,
+  currency: 'INR',
+  cost_price: 1000,
+  cost_price_eur: 11,
+  current_price: 120,
+  current_value: 1200,
+  current_value_eur: 13.2,
+  unrealized_pnl: 200,
+  unrealized_pnl_eur: 2.2,
+  realized_pnl_eur: 0,
+  ...overrides,
+} as HoldingWithPrice)
+
+describe('HoldingsByCurrency', () => {
+  it('renders one section per distinct currency, INR before EUR', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'TCS.NS', currency: 'INR' }),
+        h({ id: '2', script: 'SAP.DE', currency: 'EUR' }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const sections = document.querySelectorAll('section')
+    expect(sections).toHaveLength(2)
+    expect(within(sections[0] as HTMLElement).getByText(/Indian Rupee/)).toBeInTheDocument()
+    expect(within(sections[1] as HTMLElement).getByText(/Euro/)).toBeInTheDocument()
+  })
+
+  it('marks the EUR section table wrapper with native-eur and leaves INR default', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', currency: 'INR' }),
+        h({ id: '2', currency: 'EUR' }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const wrappers = document.querySelectorAll('.holdings-table-wrap')
+    expect(wrappers).toHaveLength(2)
+    expect(wrappers[0].classList.contains('native-eur')).toBe(false)
+    expect(wrappers[1].classList.contains('native-eur')).toBe(true)
+  })
+
+  it('renders the empty state when nothing matches the active view', () => {
+    render(<HoldingsByCurrency
+      holdings={[]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+    expect(screen.getByText(/No holdings yet/)).toBeInTheDocument()
+    expect(document.querySelector('section')).toBeNull()
+  })
+
+  it('shows a per-section totals card with both currencies for each section', () => {
+    render(<HoldingsByCurrency
+      holdings={[h({ id: '1', currency: 'INR', cost_price: 1000, cost_price_eur: 11 })]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const section = document.querySelector('section') as HTMLElement
+    expect(section).not.toBeNull()
+    expect(within(section).getByText(/Cost \(INR\)/)).toBeInTheDocument()
+    // Native (₹1,000) primary, foreign (€11) secondary
+    expect(within(section).getByText('₹1,000')).toBeInTheDocument()
+    expect(within(section).getByText('(€11)')).toBeInTheDocument()
+  })
+
+  it('uses EUR primary in the EUR section card', () => {
+    render(<HoldingsByCurrency
+      holdings={[h({ id: '2', currency: 'EUR', cost_price: 1000, cost_price_eur: 11 })]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const section = document.querySelector('section') as HTMLElement
+    expect(within(section).getByText(/Cost \(EUR\)/)).toBeInTheDocument()
+    expect(within(section).getByText('€11')).toBeInTheDocument()
+    expect(within(section).getByText('(₹1,000)')).toBeInTheDocument()
+  })
+
+  it('view tabs filter the rendered holdings by active/nil', () => {
+    const user = vi.fn()
+    const { rerender } = render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
+        h({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
+      ]}
+      loading={false}
+      onEdit={user}
+      onDelete={noop}
+    />)
+    expect(screen.getByText('ACTIVE.NS')).toBeInTheDocument()
+    expect(screen.queryByText('EXITED.NS')).toBeNull()
+
+    // Switch to Nil
+    screen.getByRole('button', { name: /Nil/ }).click()
+    rerender(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
+        h({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
+      ]}
+      loading={false}
+      onEdit={user}
+      onDelete={noop}
+    />)
+    expect(screen.queryByText('ACTIVE.NS')).toBeNull()
+    expect(screen.getByText('EXITED.NS')).toBeInTheDocument()
+  })
+})
