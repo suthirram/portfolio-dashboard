@@ -99,7 +99,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg-primary)' }}>
       <header className="dash-nav" style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',

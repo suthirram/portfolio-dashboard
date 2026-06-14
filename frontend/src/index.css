@@ -44,6 +44,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Scrollbar */
@@ -108,7 +109,11 @@ input, select, textarea {
    * wrapper scrolls horizontally. Sticky table headers are disabled in this
    * mode because overflow-x:auto forces overflow-y:auto, which would clip
    * the sticky header. */
-  .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  /* touch-action: pan-x restricts touch gestures inside the wrapper to
+   * horizontal pans only; vertical swipes bubble up to the page, so users
+   * can still scroll past long tables on mobile. Without this, iOS Safari
+   * traps vertical touches inside the overflow container. */
+  .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
   .holdings-table-wrap table { min-width: 560px; }
   .holdings-table-wrap th { position: static !important; }
   .dash-main { padding: 16px 14px !important; }
