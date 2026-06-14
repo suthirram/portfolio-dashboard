@@ -43,12 +43,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link to="/" style={{
-            color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}>
-            <ArrowLeftIcon size={14} /> My portfolio
-          </Link>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user?.name || user?.username}</span>
           <button onClick={logout}
             style={{
@@ -63,20 +57,29 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div style={{
         background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
-        padding: '12px 28px', display: 'flex', gap: 10,
       }}>
-        <NavLink to="/admin" end style={({ isActive }) => ({
-          ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
-        })}>
-          <UsersIcon size={14} /> Users
-        </NavLink>
-        {isSuper && (
-          <NavLink to="/admin/admins" style={({ isActive }) => ({
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/" aria-label="My portfolio" title="My portfolio" style={{
+            color: 'var(--text-secondary)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', width: 32, height: 32,
+          }}>
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <NavLink to="/admin" end style={({ isActive }) => ({
             ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
           })}>
-            <ShieldIcon size={14} /> Admins
+            <UsersIcon size={14} /> Users
           </NavLink>
-        )}
+          {isSuper && (
+            <NavLink to="/admin/admins" style={({ isActive }) => ({
+              ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
+            })}>
+              <ShieldIcon size={14} /> Admins
+            </NavLink>
+          )}
+        </div>
       </div>
 
       <main style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>

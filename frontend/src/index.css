@@ -97,6 +97,7 @@ input, select, textarea {
   .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
   .dash-nav-hide-sm { display: none !important; }
   .dash-nav-label-sm { display: none; }
+  .back-btn-label { display: none; }
   /* Hide low-priority columns on narrow screens. Avg-cost and realised
    * always drop; native vs foreign money columns are picked per section
    * based on the wrapper's `native-eur` modifier so each section only

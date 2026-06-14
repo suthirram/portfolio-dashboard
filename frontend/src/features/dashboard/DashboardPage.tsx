@@ -10,7 +10,7 @@ import { api, type Region } from '../../lib/api/client'
 import type { HoldingWithPrice } from '../../types'
 import {
   ChartLineIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
-  UserIcon, SettingsIcon, LogOutIcon,
+  UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
 } from '../../components/Icon'
 
 type ModalState = 'add' | HoldingWithPrice | null
@@ -199,15 +199,24 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
       <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
-          <div style={{
-            background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-            color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-            marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
-            </span>
-            <Link to="/admin" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>← Back to admin</Link>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+            <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
+              color: 'var(--blue)', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+              borderRadius: 'var(--radius-sm)', padding: '0 14px', alignSelf: 'stretch',
+            }}>
+              <ArrowLeftIcon size={14} />
+            </Link>
+            <div style={{
+              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+              color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+              display: 'flex', alignItems: 'center', flex: 1,
+            }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
+              </span>
+            </div>
           </div>
         )}
 
