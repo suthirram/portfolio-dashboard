@@ -55,7 +55,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div style={{ padding: '12px 28px 0' }}>
+      <div style={{
+        background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
+        padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+      }}>
         <Link to="/" className="back-btn" style={{
           color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
           display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -64,12 +67,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
         }}>
           <ArrowLeftIcon size={14} /> My portfolio
         </Link>
-      </div>
-
-      <div style={{
-        background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
-        padding: '12px 28px', display: 'flex', gap: 10,
-      }}>
         <NavLink to="/admin" end style={({ isActive }) => ({
           ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
         })}>

@@ -199,25 +199,25 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
       <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
-          <>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" className="back-btn" style={{
               color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-              borderRadius: 'var(--radius-sm)', padding: '6px 12px', marginBottom: 12,
+              borderRadius: 'var(--radius-sm)', padding: '6px 12px',
             }}>
               <ArrowLeftIcon size={14} /> Back to admin
             </Link>
             <div style={{
               background: 'var(--blue-dim)', border: '1px solid var(--blue)',
               color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-              marginBottom: 16, display: 'flex', alignItems: 'center',
+              display: 'flex', alignItems: 'center', flex: 1,
             }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
               </span>
             </div>
-          </>
+          </div>
         )}
 
         <SummaryCards summary={summary} loading={loadingPrices} />
