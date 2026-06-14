@@ -10,7 +10,7 @@ import { api, type Region } from '../../lib/api/client'
 import type { HoldingWithPrice } from '../../types'
 import {
   ChartLineIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
-  UserIcon, SettingsIcon, LogOutIcon,
+  UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
 } from '../../components/Icon'
 
 type ModalState = 'add' | HoldingWithPrice | null
@@ -113,6 +113,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         zIndex: 50,
       }}>
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {actAsUserId && (
+            <Link to="/admin" className="back-btn" style={{
+              color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+              borderRadius: 'var(--radius-sm)', padding: '6px 10px',
+            }}>
+              <ArrowLeftIcon size={14} /> <span className="back-btn-label">Back to admin</span>
+            </Link>
+          )}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
               width: 32, height: 32, background: 'var(--blue)', color: '#fff',
@@ -202,12 +212,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <div style={{
             background: 'var(--blue-dim)', border: '1px solid var(--blue)',
             color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-            marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: 16, display: 'flex', alignItems: 'center',
           }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
             </span>
-            <Link to="/admin" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>← Back to admin</Link>
           </div>
         )}
 
