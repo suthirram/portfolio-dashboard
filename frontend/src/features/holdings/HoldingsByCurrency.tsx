@@ -125,6 +125,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               onEdit={onEdit}
               onDelete={onDelete}
               view="all"
+              nativeCurrency={g.currency === 'EUR' ? 'EUR' : 'INR'}
             />
           </section>
         )

@@ -96,9 +96,20 @@ input, select, textarea {
   .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
   .dash-nav-hide-sm { display: none !important; }
   .dash-nav-label-sm { display: none; }
-  /* Hide low-priority columns on narrow screens so the table fits without a
-   * horizontal scroll. EUR-converted subcolumns are also shown on the per-
-   * currency totals card, so dropping them in the table is safe. Avg-cost
-   * and money-made (realised) come back at >768px. */
+  /* Hide low-priority columns on narrow screens. Avg-cost and realised
+   * always drop; native vs foreign money columns are picked per section
+   * based on the wrapper's `native-eur` modifier so each section only
+   * shows the currency it was bought in. */
   .col-hide-sm { display: none !important; }
+  .holdings-table-wrap .col-eur-amt { display: none !important; }
+  .holdings-table-wrap.native-eur .col-eur-amt { display: table-cell !important; }
+  .holdings-table-wrap.native-eur .col-inr-amt { display: none !important; }
+  /* When the remaining columns still overflow (very narrow viewport), the
+   * wrapper scrolls horizontally. Sticky table headers are disabled in this
+   * mode because overflow-x:auto forces overflow-y:auto, which would clip
+   * the sticky header. */
+  .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .holdings-table-wrap table { min-width: 560px; }
+  .holdings-table-wrap th { position: static !important; }
+  .dash-main { padding: 16px 14px !important; }
 }
