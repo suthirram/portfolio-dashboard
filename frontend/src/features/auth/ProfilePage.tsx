@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type SecurityQuestion } from '../../lib/api/client'
 import { useAuth } from './AuthContext'
+import { ArrowLeftIcon } from '../../components/Icon'
 
 interface QAState { questionId: string; answer: string }
 
@@ -129,8 +130,18 @@ export default function ProfilePage() {
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Account settings</h1>
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link to="/" aria-label="Back to dashboard" title="Back to dashboard" style={{
+            color: 'var(--text-secondary)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', width: 32, height: 32,
+          }}>
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 22, fontWeight: 600 }}>Account settings</h1>
+        </div>
         <Link to="/" style={{ color: 'var(--blue)', textDecoration: 'none', fontSize: 13 }}>← Back to dashboard</Link>
       </div>
 

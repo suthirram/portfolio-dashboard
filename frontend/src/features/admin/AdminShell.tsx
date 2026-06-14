@@ -34,7 +34,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
               width: 32, height: 32, background: 'var(--blue)', color: '#fff', borderRadius: 8,
               display: 'grid', placeItems: 'center',
@@ -57,28 +57,30 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div style={{
         background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
-        padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+        padding: '12px 28px',
       }}>
-        <Link to="/" className="back-btn" style={{
-          color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--bg-card)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)', padding: '6px 12px',
-        }}>
-          <ArrowLeftIcon size={14} /> My portfolio
-        </Link>
-        <NavLink to="/admin" end style={({ isActive }) => ({
-          ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
-        })}>
-          <UsersIcon size={14} /> Users
-        </NavLink>
-        {isSuper && (
-          <NavLink to="/admin/admins" style={({ isActive }) => ({
+        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/" className="back-btn" style={{
+            color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+          }}>
+            <ArrowLeftIcon size={14} /> My portfolio
+          </Link>
+          <NavLink to="/admin" end style={({ isActive }) => ({
             ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
           })}>
-            <ShieldIcon size={14} /> Admins
+            <UsersIcon size={14} /> Users
           </NavLink>
-        )}
+          {isSuper && (
+            <NavLink to="/admin/admins" style={({ isActive }) => ({
+              ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
+            })}>
+              <ShieldIcon size={14} /> Admins
+            </NavLink>
+          )}
+        </div>
       </div>
 
       <main style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
