@@ -200,13 +200,13 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-            <Link to="/admin" className="back-btn" style={{
-              color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
+            <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
+              color: 'var(--blue)', textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-              borderRadius: 'var(--radius-sm)', padding: '10px 14px', alignSelf: 'stretch',
+              borderRadius: 'var(--radius-sm)', padding: '0 14px', alignSelf: 'stretch',
             }}>
-              <ArrowLeftIcon size={14} /> Back to admin
+              <ArrowLeftIcon size={14} />
             </Link>
             <div style={{
               background: 'var(--blue-dim)', border: '1px solid var(--blue)',

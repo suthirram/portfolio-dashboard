@@ -57,16 +57,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div style={{
         background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
-        padding: '12px 28px',
       }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link to="/" className="back-btn" style={{
-            color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/" aria-label="My portfolio" title="My portfolio" style={{
+            color: 'var(--text-secondary)', textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+            borderRadius: 'var(--radius-sm)', width: 32, height: 32,
           }}>
-            <ArrowLeftIcon size={14} /> My portfolio
+            <ArrowLeftIcon size={14} />
           </Link>
           <NavLink to="/admin" end style={({ isActive }) => ({
             ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
