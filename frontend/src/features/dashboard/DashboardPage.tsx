@@ -113,16 +113,6 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         zIndex: 50,
       }}>
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {actAsUserId && (
-            <Link to="/admin" className="back-btn" style={{
-              color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-              borderRadius: 'var(--radius-sm)', padding: '6px 10px',
-            }}>
-              <ArrowLeftIcon size={14} /> <span className="back-btn-label">Back to admin</span>
-            </Link>
-          )}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
               width: 32, height: 32, background: 'var(--blue)', color: '#fff',
@@ -209,15 +199,25 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
       <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
-          <div style={{
-            background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-            color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-            marginBottom: 16, display: 'flex', alignItems: 'center',
-          }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
-            </span>
-          </div>
+          <>
+            <Link to="/admin" className="back-btn" style={{
+              color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+              borderRadius: 'var(--radius-sm)', padding: '6px 12px', marginBottom: 12,
+            }}>
+              <ArrowLeftIcon size={14} /> Back to admin
+            </Link>
+            <div style={{
+              background: 'var(--blue-dim)', border: '1px solid var(--blue)',
+              color: 'var(--blue)', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+              marginBottom: 16, display: 'flex', alignItems: 'center',
+            }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <UserCheckIcon size={14} /> Acting as <strong>{actAsLabel || 'user'}</strong> — all changes will save to their portfolio.
+              </span>
+            </div>
+          </>
         )}
 
         <SummaryCards summary={summary} loading={loadingPrices} />

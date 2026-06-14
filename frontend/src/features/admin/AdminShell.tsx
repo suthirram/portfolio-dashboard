@@ -33,15 +33,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         top: 0,
         zIndex: 50,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Link to="/" className="back-btn" style={{
-            color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', padding: '6px 10px',
-          }}>
-            <ArrowLeftIcon size={14} /> <span className="back-btn-label">My portfolio</span>
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/admin" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div style={{
               width: 32, height: 32, background: 'var(--blue)', color: '#fff', borderRadius: 8,
@@ -62,6 +54,17 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </header>
+
+      <div style={{ padding: '12px 28px 0' }}>
+        <Link to="/" className="back-btn" style={{
+          color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+        }}>
+          <ArrowLeftIcon size={14} /> My portfolio
+        </Link>
+      </div>
 
       <div style={{
         background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
