@@ -204,7 +204,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               color: 'var(--blue)', textDecoration: 'none', fontSize: 13,
               display: 'inline-flex', alignItems: 'center', gap: 6,
               background: 'var(--blue-dim)', border: '1px solid var(--blue)',
-              borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)', padding: '10px 14px', alignSelf: 'stretch',
             }}>
               <ArrowLeftIcon size={14} /> Back to admin
             </Link>
