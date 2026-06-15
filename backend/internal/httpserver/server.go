@@ -56,7 +56,17 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 	e.Use(AuthGate(persistence.New(db), logger, cfg.CookieSecure))
 
 	e.GET("/api/healthz", healthHandler(db))
-	e.File("/api/openapi.yaml", "api/openapi.yaml")
+	// openapi.yaml is split by domain; the root file $refs sibling
+	// files (holdings/market/auth/admin/schemas/responses/parameters/
+	// security) in the same directory. Serve each one explicitly so a
+	// browser loading the live spec can follow the relative refs.
+	for _, name := range []string{
+		"openapi.yaml",
+		"holdings.yaml", "market.yaml", "auth.yaml", "admin.yaml",
+		"schemas.yaml", "responses.yaml", "parameters.yaml", "security.yaml",
+	} {
+		e.File("/api/"+name, "api/"+name)
+	}
 
 	// Stash the echo.Context on the request context so cookie-issuing
 	// handlers (signup/login/logout) can write Set-Cookie headers.

@@ -1,0 +1,125 @@
+holdings:
+  get:
+    tags: [Holdings]
+    summary: List all holdings
+    operationId: listHoldings
+    responses:
+      "200":
+        description: Array of holdings sorted by script name
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "./schemas.yaml#/Holding"
+
+  post:
+    tags: [Holdings]
+    summary: Add a new holding
+    operationId: createHolding
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/HoldingInput"
+    responses:
+      "201":
+        description: Created holding
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Holding"
+      "400":
+        $ref: "./responses.yaml#/BadRequest"
+
+holdings_id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MongoDB ObjectID
+
+  get:
+    tags: [Holdings]
+    summary: Get a single holding
+    operationId: getHolding
+    responses:
+      "200":
+        description: Holding found
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Holding"
+      "404":
+        $ref: "./responses.yaml#/NotFound"
+
+  put:
+    tags: [Holdings]
+    summary: Update a holding
+    operationId: updateHolding
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "./schemas.yaml#/HoldingInput"
+    responses:
+      "200":
+        description: Updated holding
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Holding"
+      "404":
+        $ref: "./responses.yaml#/NotFound"
+
+  delete:
+    tags: [Holdings]
+    summary: Delete a holding
+    operationId: deleteHolding
+    responses:
+      "200":
+        description: Deleted
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: deleted
+      "404":
+        $ref: "./responses.yaml#/NotFound"
+
+prices:
+  get:
+    tags: [Holdings]
+    summary: Get all holdings enriched with live market prices
+    description: |
+      Fetches current prices from Yahoo Finance for every holding that has a
+      `symbol` set. Also returns the live INR→EUR exchange rate.
+      Results are cached for 5 minutes to avoid rate-limiting.
+    operationId: getPrices
+    responses:
+      "200":
+        description: Holdings with live prices
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/PricesResponse"
+
+summary:
+  get:
+    tags: [Holdings]
+    summary: Portfolio-level summary with live P&L
+    operationId: getSummary
+    responses:
+      "200":
+        description: Aggregated portfolio metrics
+        content:
+          application/json:
+            schema:
+              $ref: "./schemas.yaml#/Summary"

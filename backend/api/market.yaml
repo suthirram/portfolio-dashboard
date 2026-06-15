@@ -1,0 +1,65 @@
+price:
+  get:
+    tags: [Market]
+    summary: Get live price for any symbol
+    operationId: getMarketPrice
+    parameters:
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Yahoo Finance ticker (e.g. TCS.NS, AAPL, GOLDBEES.NS)
+        example: TCS.NS
+    responses:
+      "200":
+        description: Current price
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                symbol:
+                  type: string
+                price:
+                  type: number
+                  format: double
+                currency:
+                  type: string
+      "400":
+        $ref: "./responses.yaml#/BadRequest"
+      "502":
+        $ref: "./responses.yaml#/BadGateway"
+
+forex:
+  get:
+    tags: [Market]
+    summary: Get forex exchange rate
+    operationId: getForexRate
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          default: INR
+      - name: to
+        in: query
+        schema:
+          type: string
+          default: EUR
+    responses:
+      "200":
+        description: Exchange rate
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+                rate:
+                  type: number
+                  format: double
+                  description: 1 unit of `from` in `to`

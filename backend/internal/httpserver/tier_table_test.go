@@ -25,7 +25,7 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 		e := New(config.Default(), logger, mt.DB, h)
 
 		for _, r := range e.Routes() {
-			if !strings.HasPrefix(r.Path, "/api/admin") {
+			if !strings.HasPrefix(r.Path, "/api/admin/") {
 				continue
 			}
 			key := r.Method + " " + r.Path
