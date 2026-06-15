@@ -13,7 +13,7 @@ regions:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/Region"
+                $ref: "../portfolio-api.yaml#/components/schemas/Region"
 
 security_questions:
   get:
@@ -29,7 +29,7 @@ security_questions:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/SecurityQuestion"
+                $ref: "../portfolio-api.yaml#/components/schemas/SecurityQuestion"
 
 signup:
   post:
@@ -42,18 +42,18 @@ signup:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/SignupRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/SignupRequest"
     responses:
       "201":
         description: Account created; session cookie issued
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "409":
-        $ref: "./responses.yaml#/Conflict"
+        $ref: "../portfolio-api.yaml#/components/responses/Conflict"
 
 login:
   post:
@@ -66,20 +66,20 @@ login:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/LoginRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/LoginRequest"
     responses:
       "200":
         description: Logged in; session cookie issued
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
       "423":
-        $ref: "./responses.yaml#/Locked"
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
 
 logout:
   post:
@@ -90,7 +90,7 @@ logout:
       "204":
         description: Session invalidated; cookie cleared
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
 
 me:
   get:
@@ -103,9 +103,9 @@ me:
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
 
 recover_questions:
   post:
@@ -120,7 +120,7 @@ recover_questions:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/RecoverQuestionsRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/RecoverQuestionsRequest"
     responses:
       "200":
         description: The three questions the account chose at signup
@@ -129,11 +129,11 @@ recover_questions:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/SecurityQuestion"
+                $ref: "../portfolio-api.yaml#/components/schemas/SecurityQuestion"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
       "423":
-        $ref: "./responses.yaml#/Locked"
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
 
 recover:
   post:
@@ -149,18 +149,18 @@ recover:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/RecoverRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/RecoverRequest"
     responses:
       "204":
         description: Password reset; all sessions invalidated
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
       "423":
-        $ref: "./responses.yaml#/Locked"
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
 
 password:
   put:
@@ -173,14 +173,14 @@ password:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/ChangePasswordRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/ChangePasswordRequest"
     responses:
       "204":
         description: Password changed; other sessions invalidated
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
 
 profile:
   put:
@@ -192,20 +192,20 @@ profile:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/UpdateProfileRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/UpdateProfileRequest"
     responses:
       "200":
         description: Updated account
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
       "409":
-        $ref: "./responses.yaml#/Conflict"
+        $ref: "../portfolio-api.yaml#/components/responses/Conflict"
 
 security_questions_answers:
   put:
@@ -217,14 +217,14 @@ security_questions_answers:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/UpdateSecurityQuestionsRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/UpdateSecurityQuestionsRequest"
     responses:
       "204":
         description: Security questions replaced
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
 
 onboarding:
   post:
@@ -239,15 +239,15 @@ onboarding:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/OnboardingRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/OnboardingRequest"
     responses:
       "200":
         description: Onboarding complete
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"

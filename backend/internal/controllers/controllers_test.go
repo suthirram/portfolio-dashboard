@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/services"
 )
 
 // ── mock price fetcher ─────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
 func TestReqLogPrefersRequestScopedLogger(t *testing.T) {
 	handlerLogger := slog.New(slog.DiscardHandler)
 	requestLogger := slog.New(slog.DiscardHandler)
-	h := &Handler{logger: handlerLogger}
+	h := &Controller{logger: handlerLogger}
 
 	got := h.reqLog(logging.IntoContext(context.Background(), requestLogger))
 	if got != requestLogger {
@@ -84,7 +85,7 @@ func TestReqLogPrefersRequestScopedLogger(t *testing.T) {
 }
 
 func TestGetMarketPrice_ReturnsPriceFromService(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{
+	h := &Controller{priceService: &mockPriceFetcher{
 		prices:     map[string]float64{"TCS.NS": 3600},
 		currencies: map[string]string{"TCS.NS": "INR"},
 	}}
@@ -108,7 +109,7 @@ func TestGetMarketPrice_ReturnsPriceFromService(t *testing.T) {
 }
 
 func TestGetMarketPrice_UpstreamErrorReturnsBadGateway(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{
+	h := &Controller{priceService: &mockPriceFetcher{
 		priceErrs: map[string]error{"TCS.NS": errors.New("price provider unavailable")},
 	}}
 
@@ -125,7 +126,7 @@ func TestGetMarketPrice_UpstreamErrorReturnsBadGateway(t *testing.T) {
 }
 
 func TestGetForexRate_UsesDefaultsAndCustomParams(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{forexRate: 0.011}}
+	h := &Controller{priceService: &mockPriceFetcher{forexRate: 0.011}}
 
 	defaultResp, err := h.GetForexRate(context.Background(), api.GetForexRateRequestObject{})
 	if err != nil {
@@ -151,7 +152,7 @@ func TestGetForexRate_UsesDefaultsAndCustomParams(t *testing.T) {
 }
 
 func TestGetForexRate_ServiceErrorIsReturned(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{forexErr: errors.New("forex provider unavailable")}}
+	h := &Controller{priceService: &mockPriceFetcher{forexErr: errors.New("forex provider unavailable")}}
 
 	resp, err := h.GetForexRate(context.Background(), api.GetForexRateRequestObject{})
 	if err == nil {
@@ -165,11 +166,11 @@ func TestGetForexRate_ServiceErrorIsReturned(t *testing.T) {
 	}
 }
 
-// ── holdingToAPI ───────────────────────────────────────────────────────────
+// ── services.HoldingToAPI ───────────────────────────────────────────────────────────
 
 func TestHoldingToAPI_DefaultsCurrencyToINR(t *testing.T) {
 	h := domain.Holding{ID: primitive.NewObjectID(), Currency: ""}
-	got := holdingToAPI(h)
+	got := services.HoldingToAPI(h)
 	if *got.Currency != "INR" {
 		t.Errorf("currency = %q, want INR", *got.Currency)
 	}
@@ -177,7 +178,7 @@ func TestHoldingToAPI_DefaultsCurrencyToINR(t *testing.T) {
 
 func TestHoldingToAPI_PreservesEURCurrency(t *testing.T) {
 	h := domain.Holding{ID: primitive.NewObjectID(), Currency: "EUR"}
-	got := holdingToAPI(h)
+	got := services.HoldingToAPI(h)
 	if *got.Currency != "EUR" {
 		t.Errorf("currency = %q, want EUR", *got.Currency)
 	}
@@ -200,7 +201,7 @@ func TestHoldingToAPI_MapsAllFields(t *testing.T) {
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	got := holdingToAPI(h)
+	got := services.HoldingToAPI(h)
 
 	checks := []struct {
 		name string
@@ -222,11 +223,11 @@ func TestHoldingToAPI_MapsAllFields(t *testing.T) {
 	}
 }
 
-// ── holdingFromInput ───────────────────────────────────────────────────────
+// ── services.HoldingFromInput ───────────────────────────────────────────────────────
 
 func TestHoldingFromInput_DefaultsCurrencyToINR(t *testing.T) {
 	input := api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock"}
-	got := holdingFromInput(input)
+	got := services.HoldingFromInput(input)
 	if got.Currency != "INR" {
 		t.Errorf("currency = %q, want INR", got.Currency)
 	}
@@ -235,7 +236,7 @@ func TestHoldingFromInput_DefaultsCurrencyToINR(t *testing.T) {
 func TestHoldingFromInput_AcceptsEUR(t *testing.T) {
 	cur := api.HoldingInputCurrency("EUR")
 	input := api.HoldingInput{Script: "VWCE", Exchange: "OTHER", Type: "etf", Currency: &cur}
-	got := holdingFromInput(input)
+	got := services.HoldingFromInput(input)
 	if got.Currency != "EUR" {
 		t.Errorf("currency = %q, want EUR", got.Currency)
 	}
@@ -244,7 +245,7 @@ func TestHoldingFromInput_AcceptsEUR(t *testing.T) {
 func TestHoldingFromInput_AcceptsINR(t *testing.T) {
 	cur := api.HoldingInputCurrency("INR")
 	input := api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Currency: &cur}
-	got := holdingFromInput(input)
+	got := services.HoldingFromInput(input)
 	if got.Currency != "INR" {
 		t.Errorf("currency = %q, want INR", got.Currency)
 	}
@@ -253,7 +254,7 @@ func TestHoldingFromInput_AcceptsINR(t *testing.T) {
 func TestHoldingFromInput_RejectsInvalidCurrencyFallsBackToINR(t *testing.T) {
 	cur := api.HoldingInputCurrency("USD")
 	input := api.HoldingInput{Script: "AAPL", Exchange: "NASDAQ", Type: "stock", Currency: &cur}
-	got := holdingFromInput(input)
+	got := services.HoldingFromInput(input)
 	if got.Currency != "INR" {
 		t.Errorf("invalid currency %q should fall back to INR, got %q", cur, got.Currency)
 	}
@@ -275,7 +276,7 @@ func TestHoldingFromInput_PopulatesOptionalFields(t *testing.T) {
 		RealizedPnl:  &rpnl,
 		Notes:        &note,
 	}
-	got := holdingFromInput(input)
+	got := services.HoldingFromInput(input)
 
 	if got.Symbol != "TCS.NS" {
 		t.Errorf("Symbol = %q", got.Symbol)
@@ -294,7 +295,7 @@ func TestHoldingFromInput_PopulatesOptionalFields(t *testing.T) {
 	}
 }
 
-// ── holdingWithPriceToAPI ──────────────────────────────────────────────────
+// ── services.HoldingWithPriceToAPI ──────────────────────────────────────────────────
 
 const testEurRate = 0.011 // 1 INR = 0.011 EUR  →  1 EUR ≈ 90.909 INR
 
@@ -316,7 +317,7 @@ func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 		AvgCostPrice: 3000.0,
 		RealizedPnL:  500.0,
 	}
-	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	// cost_price  = 10 × 3000 = 30 000 INR
 	// cost_eur    = 30 000 × 0.011 = 330 EUR
@@ -358,7 +359,7 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 		AvgCostPrice: 100.0, // EUR per share
 		RealizedPnL:  50.0,  // EUR
 	}
-	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	// cost_eur  = 5 × 100 = 500 EUR  (native)
 	// cost_inr  = 500 / 0.011 ≈ 45 454.5 INR
@@ -401,7 +402,7 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 		StocksOwned:  2,
 		AvgCostPrice: 1500.0,
 	}
-	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if *got.Currency != "INR" {
 		t.Errorf("Currency = %q, want INR for empty currency", *got.Currency)
@@ -419,7 +420,7 @@ func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 		Symbol:   "",
 		Currency: "INR",
 	}
-	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if got.CurrentPrice != nil {
 		t.Errorf("CurrentPrice should be nil for empty symbol, got %v", *got.CurrentPrice)
@@ -439,7 +440,7 @@ func TestHoldingWithPriceToAPI_PriceErrorSetsErrorField(t *testing.T) {
 		Symbol:   "UNKNOWN.NS",
 		Currency: "INR",
 	}
-	got := holdingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
 	if got.PriceError == nil {
 		t.Error("PriceError should be set when GetPrice fails")

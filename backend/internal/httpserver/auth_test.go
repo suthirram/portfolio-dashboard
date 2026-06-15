@@ -13,13 +13,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/handlers"
 )
 
 func newTestServer(mt *mtest.T) http.Handler {
 	logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-	h := handlers.New(mt.DB, logger, false)
+	h := controllers.New(mt.DB, logger, false)
 	return New(config.Default(), logger, mt.DB, h)
 }
 
@@ -78,7 +78,7 @@ func doRequest(t *testing.T, srv http.Handler, method, path string, cookie *http
 func sessionCookie(id string) *http.Cookie {
 	// A request cookie only carries the id; Secure/HttpOnly/SameSite are
 	// response-side attributes set by the server, not the client.
-	return &http.Cookie{Name: handlers.SessionCookieName, Value: id} //nolint:gosec // request-side cookie
+	return &http.Cookie{Name: controllers.SessionCookieName, Value: id} //nolint:gosec // request-side cookie
 }
 
 // ── Public vs protected ────────────────────────────────────────────────────

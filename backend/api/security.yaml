@@ -1,5 +1,0 @@
-cookieAuth:
-  type: apiKey
-  in: cookie
-  name: pd_session
-  description: Opaque server-side session id issued at signup/login

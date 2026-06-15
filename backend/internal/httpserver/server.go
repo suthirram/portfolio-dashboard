@@ -15,13 +15,13 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/config"
-	"portfolio-dashboard/internal/handlers"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 )
 
 // New builds an *echo.Echo with routes and middleware wired up.
-func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers.Handler) *echo.Echo {
+func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *controllers.Controller) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -56,23 +56,24 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *handlers
 	e.Use(AuthGate(persistence.New(db), logger, cfg.CookieSecure))
 
 	e.GET("/api/healthz", healthHandler(db))
-	// openapi.yaml is split by domain; the root file $refs sibling
-	// files (holdings/market/auth/admin/schemas/responses/parameters/
-	// security) in the same directory. Serve each one explicitly so a
-	// browser loading the live spec can follow the relative refs.
-	for _, name := range []string{
-		"openapi.yaml",
-		"holdings.yaml", "market.yaml", "auth.yaml", "admin.yaml",
-		"schemas.yaml", "responses.yaml", "parameters.yaml", "security.yaml",
+	// openapi.yaml is split by domain under api/specs/. The root file
+	// $refs the per-domain path files (under api/specs/<domain>/) plus
+	// portfolio-api.yaml (component surface). Serve each one at its
+	// path-preserving URL so a browser loading the live spec can
+	// follow the relative refs.
+	for _, rel := range []string{
+		"openapi.yaml", "portfolio-api.yaml",
+		"holdings/holdings.yaml", "market/market.yaml",
+		"auth/auth.yaml", "admin/admin.yaml",
 	} {
-		e.File("/api/"+name, "api/"+name)
+		e.File("/api/specs/"+rel, "api/specs/"+rel)
 	}
 
 	// Stash the echo.Context on the request context so cookie-issuing
 	// handlers (signup/login/logout) can write Set-Cookie headers.
 	stashEcho := func(f api.StrictHandlerFunc, _ string) api.StrictHandlerFunc {
 		return func(c echo.Context, req any) (any, error) {
-			c.SetRequest(c.Request().WithContext(handlers.WithEchoContext(c.Request().Context(), c)))
+			c.SetRequest(c.Request().WithContext(controllers.WithEchoContext(c.Request().Context(), c)))
 			return f(c, req)
 		}
 	}
@@ -115,7 +116,7 @@ func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logg
 }
 
 // errorHandler renders errors in the OpenAPI Error shape ({"error": "..."})
-// so non-strict routes match the contract used by generated handlers.
+// so non-strict routes match the contract used by generated controllers.
 func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		if c.Response().Committed {

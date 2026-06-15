@@ -581,89 +581,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Region: {
-            /** @description Stable region key (india, europe, us) */
-            id: string;
-            /** @description Display name */
-            label: string;
-        };
-        SecurityQuestion: {
-            /** @description Stable question key from the fixed catalogue */
-            id: string;
-            prompt: string;
-        };
-        SecurityAnswerInput: {
-            /** @description Question key from the catalogue */
-            question_id: string;
-            /** @description Answer text; compared case-insensitively, surrounding whitespace ignored */
-            answer: string;
-        };
-        User: {
-            /** @description MongoDB ObjectID */
-            id: string;
-            /** @description Username as originally typed (uniqueness is case-insensitive) */
-            username: string;
-            name: string;
-            /** @enum {string} */
-            role: "user" | "admin" | "superadmin";
-            /** @description Oversight region (india, europe, us); empty for the super admin */
-            region: string;
-            /** @description Hidden (reversibly blocked) by an admin */
-            disabled: boolean;
-            /** @description Security-question recovery locked after three wrong attempts */
-            locked: boolean;
-            /** @description Forced onboarding pending (bootstrap super admin) */
-            must_change_password: boolean;
-            /** @description The catalogue keys of the account's chosen questions (own account only) */
-            security_question_ids?: string[];
-            /** Format: date-time */
-            created_at?: string;
-            /** Format: date-time */
-            last_login_at?: string;
-        };
-        SignupRequest: {
-            /** @description Allowed characters: A–Z a–z 0–9 _ - */
-            username: string;
-            name: string;
-            password: string;
-            /** @description One of the /regions catalogue ids */
-            region: string;
-            security_answers: components["schemas"]["SecurityAnswerInput"][];
-        };
-        LoginRequest: {
-            username: string;
-            password: string;
-        };
-        RecoverQuestionsRequest: {
-            username: string;
-        };
-        RecoverRequest: {
-            username: string;
-            answers: components["schemas"]["SecurityAnswerInput"][];
-            new_password: string;
-        };
-        ChangePasswordRequest: {
-            current_password: string;
-            new_password: string;
-        };
-        UpdateProfileRequest: {
-            current_password: string;
-            name?: string;
-            username?: string;
-        };
-        UpdateSecurityQuestionsRequest: {
-            current_password: string;
-            security_answers: components["schemas"]["SecurityAnswerInput"][];
-        };
-        OnboardingRequest: {
-            current_password: string;
-            new_password: string;
-            security_answers: components["schemas"]["SecurityAnswerInput"][];
-        };
-        RegionUpdateRequest: {
-            /** @description One of the /regions catalogue ids */
-            region: string;
-        };
         Holding: {
             /** @description MongoDB ObjectID */
             id?: string;
@@ -732,6 +649,9 @@ export interface components {
             currency: "INR" | "EUR";
             notes?: string;
         };
+        Error: {
+            error?: string;
+        };
         HoldingWithPrice: components["schemas"]["Holding"] & {
             /** Format: double */
             current_price?: number;
@@ -788,13 +708,120 @@ export interface components {
             /** Format: double */
             eur_rate?: number;
         };
-        Error: {
-            error?: string;
+        Region: {
+            /** @description Stable region key (india, europe, us) */
+            id: string;
+            /** @description Display name */
+            label: string;
+        };
+        SecurityQuestion: {
+            /** @description Stable question key from the fixed catalogue */
+            id: string;
+            prompt: string;
+        };
+        SecurityAnswerInput: {
+            /** @description Question key from the catalogue */
+            question_id: string;
+            /** @description Answer text; compared case-insensitively, surrounding whitespace ignored */
+            answer: string;
+        };
+        SignupRequest: {
+            /** @description Allowed characters: A–Z a–z 0–9 _ - */
+            username: string;
+            name: string;
+            password: string;
+            /** @description One of the /regions catalogue ids */
+            region: string;
+            security_answers: components["schemas"]["SecurityAnswerInput"][];
+        };
+        User: {
+            /** @description MongoDB ObjectID */
+            id: string;
+            /** @description Username as originally typed (uniqueness is case-insensitive) */
+            username: string;
+            name: string;
+            /** @enum {string} */
+            role: "user" | "admin" | "superadmin";
+            /** @description Oversight region (india, europe, us); empty for the super admin */
+            region: string;
+            /** @description Hidden (reversibly blocked) by an admin */
+            disabled: boolean;
+            /** @description Security-question recovery locked after three wrong attempts */
+            locked: boolean;
+            /** @description Forced onboarding pending (bootstrap super admin) */
+            must_change_password: boolean;
+            /** @description The catalogue keys of the account's chosen questions (own account only) */
+            security_question_ids?: string[];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            last_login_at?: string;
+        };
+        LoginRequest: {
+            username: string;
+            password: string;
+        };
+        RecoverQuestionsRequest: {
+            username: string;
+        };
+        RecoverRequest: {
+            username: string;
+            answers: components["schemas"]["SecurityAnswerInput"][];
+            new_password: string;
+        };
+        ChangePasswordRequest: {
+            current_password: string;
+            new_password: string;
+        };
+        UpdateProfileRequest: {
+            current_password: string;
+            name?: string;
+            username?: string;
+        };
+        UpdateSecurityQuestionsRequest: {
+            current_password: string;
+            security_answers: components["schemas"]["SecurityAnswerInput"][];
+        };
+        OnboardingRequest: {
+            current_password: string;
+            new_password: string;
+            security_answers: components["schemas"]["SecurityAnswerInput"][];
+        };
+        RegionUpdateRequest: {
+            /** @description One of the /regions catalogue ids */
+            region: string;
         };
     };
     responses: {
         /** @description Bad request */
         BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Resource not found */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Upstream (Yahoo Finance) error */
+        BadGateway: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Username already taken */
+        Conflict: {
             headers: {
                 [name: string]: unknown;
             };
@@ -820,35 +847,8 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Username already taken */
-        Conflict: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
         /** @description Recovery locked after three wrong security-answer attempts */
         Locked: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
-        /** @description Resource not found */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
-        /** @description Upstream (Yahoo Finance) error */
-        BadGateway: {
             headers: {
                 [name: string]: unknown;
             };

@@ -11,7 +11,7 @@ holdings:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/Holding"
+                $ref: "../portfolio-api.yaml#/components/schemas/Holding"
 
   post:
     tags: [Holdings]
@@ -22,16 +22,16 @@ holdings:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/HoldingInput"
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingInput"
     responses:
       "201":
         description: Created holding
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Holding"
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
 
 holdings_id:
   parameters:
@@ -52,9 +52,9 @@ holdings_id:
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Holding"
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
   put:
     tags: [Holdings]
@@ -65,16 +65,16 @@ holdings_id:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/HoldingInput"
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingInput"
     responses:
       "200":
         description: Updated holding
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Holding"
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
   delete:
     tags: [Holdings]
@@ -92,7 +92,7 @@ holdings_id:
                   type: string
                   example: deleted
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 prices:
   get:
@@ -109,7 +109,7 @@ prices:
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/PricesResponse"
+              $ref: "../portfolio-api.yaml#/components/schemas/PricesResponse"
 
 summary:
   get:
@@ -122,4 +122,4 @@ summary:
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Summary"
+              $ref: "../portfolio-api.yaml#/components/schemas/Summary"

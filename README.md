@@ -103,7 +103,7 @@ docker compose up --build
 
 App → <http://localhost:3000>  
 API → <http://localhost:8080>  
-OpenAPI spec → <http://localhost:8080/api/openapi.yaml>
+OpenAPI spec → <http://localhost:8080/api/specs/openapi.yaml>
 
 ---
 
@@ -152,7 +152,7 @@ summary are scoped to the logged-in user.
 `/promote`, `/demote`, `/region`, and act-as `/holdings`, `/prices`,
 `/summary`), and `/api/admin/admins` (super admin only).
 
-Full spec: `/api/openapi.yaml`
+Full spec: `/api/specs/openapi.yaml`
 
 ---
 

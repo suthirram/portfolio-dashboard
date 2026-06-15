@@ -20,11 +20,11 @@ users:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/User"
+                $ref: "../portfolio-api.yaml#/components/schemas/User"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
 
 admins:
   get:
@@ -39,15 +39,15 @@ admins:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/User"
+                $ref: "../portfolio-api.yaml#/components/schemas/User"
       "401":
-        $ref: "./responses.yaml#/Unauthorized"
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
 
 users_id:
   parameters:
-    - $ref: "./parameters.yaml#/UserID"
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
 
   get:
     tags: [Admin]
@@ -59,9 +59,9 @@ users_id:
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
   delete:
     tags: [Admin]
@@ -71,7 +71,7 @@ users_id:
       "204":
         description: User and holdings deleted
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_reset_lockout:
   post:
@@ -79,12 +79,12 @@ users_id_reset_lockout:
     summary: Unlock a user who failed security-question recovery
     operationId: adminResetLockout
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "204":
         description: Lockout cleared
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_hide:
   post:
@@ -92,12 +92,12 @@ users_id_hide:
     summary: Hide a user (reversibly block access, keep data)
     operationId: adminHideUser
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "204":
         description: User hidden
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_reactivate:
   post:
@@ -105,12 +105,12 @@ users_id_reactivate:
     summary: Reactivate a hidden user
     operationId: adminReactivateUser
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "204":
         description: User reactivated
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_promote:
   post:
@@ -118,20 +118,20 @@ users_id_promote:
     summary: Promote a user to admin of their region (super admin only)
     operationId: adminPromoteUser
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "200":
         description: Updated account
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_demote:
   post:
@@ -139,20 +139,20 @@ users_id_demote:
     summary: Demote an admin back to a normal user (super admin only)
     operationId: adminDemoteUser
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "200":
         description: Updated account
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_region:
   put:
@@ -160,30 +160,30 @@ users_id_region:
     summary: Move an account to a different region (super admin only)
     operationId: adminSetUserRegion
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/RegionUpdateRequest"
+            $ref: "../portfolio-api.yaml#/components/schemas/RegionUpdateRequest"
     responses:
       "200":
         description: Updated account
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/User"
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "403":
-        $ref: "./responses.yaml#/Forbidden"
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_holdings:
   parameters:
-    - $ref: "./parameters.yaml#/UserID"
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
 
   get:
     tags: [Admin]
@@ -197,9 +197,9 @@ users_id_holdings:
             schema:
               type: array
               items:
-                $ref: "./schemas.yaml#/Holding"
+                $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
   post:
     tags: [Admin]
@@ -210,22 +210,22 @@ users_id_holdings:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/HoldingInput"
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingInput"
     responses:
       "201":
         description: Created holding
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Holding"
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_holdings_holdingid:
   parameters:
-    - $ref: "./parameters.yaml#/UserID"
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     - name: holdingId
       in: path
       required: true
@@ -242,16 +242,16 @@ users_id_holdings_holdingid:
       content:
         application/json:
           schema:
-            $ref: "./schemas.yaml#/HoldingInput"
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingInput"
     responses:
       "200":
         description: Updated holding
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Holding"
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
   delete:
     tags: [Admin]
@@ -269,7 +269,7 @@ users_id_holdings_holdingid:
                   type: string
                   example: deleted
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_prices:
   get:
@@ -277,16 +277,16 @@ users_id_prices:
     summary: A user's holdings enriched with live prices
     operationId: adminGetUserPrices
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "200":
         description: Holdings with live prices
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/PricesResponse"
+              $ref: "../portfolio-api.yaml#/components/schemas/PricesResponse"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_summary:
   get:
@@ -294,13 +294,13 @@ users_id_summary:
     summary: A user's portfolio summary
     operationId: adminGetUserSummary
     parameters:
-      - $ref: "./parameters.yaml#/UserID"
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
     responses:
       "200":
         description: Aggregated portfolio metrics
         content:
           application/json:
             schema:
-              $ref: "./schemas.yaml#/Summary"
+              $ref: "../portfolio-api.yaml#/components/schemas/Summary"
       "404":
-        $ref: "./responses.yaml#/NotFound"
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"

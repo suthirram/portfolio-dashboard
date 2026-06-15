@@ -9,8 +9,8 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"portfolio-dashboard/internal/auth"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/persistence"
 )
 
@@ -21,22 +21,19 @@ const CSRFHeaderValue = "portfolio-dashboard"
 
 // publicRoutes need no session. Keys are "<METHOD> <echo route pattern>".
 var publicRoutes = map[string]bool{
-	"GET /api/healthz":                 true,
-	"GET /api/openapi.yaml":            true,
-	"GET /api/holdings.yaml":           true,
-	"GET /api/market.yaml":             true,
-	"GET /api/auth.yaml":               true,
-	"GET /api/admin.yaml":              true,
-	"GET /api/schemas.yaml":            true,
-	"GET /api/responses.yaml":          true,
-	"GET /api/parameters.yaml":         true,
-	"GET /api/security.yaml":           true,
-	"GET /api/regions":                 true,
-	"GET /api/auth/security-questions": true,
-	"POST /api/auth/signup":            true,
-	"POST /api/auth/login":             true,
-	"POST /api/auth/recover":           true,
-	"POST /api/auth/recover/questions": true,
+	"GET /api/healthz":                      true,
+	"GET /api/specs/openapi.yaml":           true,
+	"GET /api/specs/portfolio-api.yaml":     true,
+	"GET /api/specs/holdings/holdings.yaml": true,
+	"GET /api/specs/market/market.yaml":     true,
+	"GET /api/specs/auth/auth.yaml":         true,
+	"GET /api/specs/admin/admin.yaml":       true,
+	"GET /api/regions":                      true,
+	"GET /api/auth/security-questions":      true,
+	"POST /api/auth/signup":                 true,
+	"POST /api/auth/login":                  true,
+	"POST /api/auth/recover":                true,
+	"POST /api/auth/recover/questions":      true,
 }
 
 // onboardingRoutes stay reachable while must_change_password is set, so the
@@ -67,7 +64,7 @@ const (
 
 // routeTiers maps "<METHOD> <echo route pattern>" to the tier required to
 // reach the route, mirroring the keys publicRoutes and onboardingRoutes
-// already use. Keep this table in lock-step with api/openapi.yaml — the
+// already use. Keep this table in lock-step with api/specs/openapi.yaml — the
 // TestAuthGate_TierTableMatchesGeneratedRoutes test fails when a new
 // /api/admin/... route is registered without a matching entry.
 var routeTiers = map[string]routeTier{
@@ -173,7 +170,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) ech
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
 func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, cookieSecure bool) (*domain.User, string) {
-	cookie, err := c.Cookie(handlers.SessionCookieName)
+	cookie, err := c.Cookie(controllers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
 	}
@@ -185,7 +182,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -195,7 +192,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if err := st.Sessions.Delete(ctx, sess.ID); err != nil {
 			logger.Warn("expired session delete failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -204,12 +201,12 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session user lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 	if user.Disabled {
 		// Hidden users lose access on their next request (PRD-001 §6.6).
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -228,5 +225,5 @@ func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session,
 		logger.Warn("session refresh failed", slog.String("error", err.Error()))
 		return
 	}
-	handlers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)
+	controllers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)
 }

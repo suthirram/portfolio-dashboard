@@ -56,20 +56,23 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`. Wires `CSRFCheck` (refuses state-changing requests without `X-Requested-With: portfolio-dashboard`) and `AuthGate` (session lookup, role/region/onboarding gates).
 * `internal/httpserver/middleware.go` — slog-backed request logger (severity tracks status, propagates `request_id` to context)
 * `internal/httpserver/auth.go` — `CSRFCheck`, `AuthGate`, session loading + sliding expiry
-* `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`. All MongoDB reads/writes live here; callers (handlers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`.
-* `internal/handlers/handlers.go` — `Handler` struct (owns `*persistence.Store` + `priceFetcher` + `*slog.Logger`) and shared helpers (`reqLog`)
-* `internal/handlers/auth.go` — signup, login, logout, recover (two-step), me, change password, update profile, update security questions, onboarding
-* `internal/handlers/admin.go` — admin/super-admin: list users/admins, get/hide/reactivate/delete user, reset-lockout, promote, demote, set region, act-as holdings CRUD/prices/summary. Region scope enforced server-side on every target.
-* `internal/handlers/holdings.go` — CRUD endpoints scoped to `user_id` (caller's own, or admin's act-as target). `scopedFilter(uid, extra)` composes the filter the same way at every call site (DD-001 §6.1).
-* `internal/handlers/market.go` — market endpoints (`GetPrices`, `GetMarketPrice`, `GetForexRate`)
-* `internal/handlers/summary.go` — `GetSummary` aggregate
-* `internal/handlers/mapper.go` — DBO↔DTO conversion helpers (`holdingFromInput`, `holdingToAPI`, `holdingWithPriceToAPI`)
+* `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`. All MongoDB reads/writes live here; callers (services, controllers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`.
+* `internal/controllers/controllers.go` — `Controller` struct (owns `*persistence.Store`, the per-domain services, and `*slog.Logger`). `New(db, logger, cookieSecure)` wires the default services; `newWithDeps` is the test seam.
+* `internal/controllers/auth.go` — signup, login, logout, recover (two-step), me, change password, update profile, update security questions, onboarding. Still owns the auth flow end-to-end because it composes credential checks with cookie writes.
+* `internal/controllers/admin.go` — admin/super-admin endpoints: list users/admins, get/hide/reactivate/delete user, reset-lockout, promote, demote, set region, act-as holdings CRUD/prices/summary. Region scope enforced server-side on every target; act-as endpoints delegate to `holdings`/`portfolio` services.
+* `internal/controllers/holdings.go` — thin HTTP wrappers; every method calls `Controller.holdings` (the `services.HoldingsService`) for the scoped CRUD.
+* `internal/controllers/market.go` — `GetPrices` delegates to `Controller.portfolio.Prices`; `GetMarketPrice` / `GetForexRate` thin-wrap `priceService`.
+* `internal/controllers/summary.go` — `GetSummary` delegates to `Controller.portfolio.Summary`.
+* `internal/services/mapper.go` — DBO↔DTO conversion helpers (`HoldingFromInput`, `HoldingToAPI`, `HoldingWithPriceToAPI`, `UserToAPI`) and the `PriceFetcher` interface every service depends on.
+* `internal/services/holdings.go` — `HoldingsService`: owner-scoped CRUD on top of `*persistence.HoldingStore`; returns api DTOs (`(api.Holding, found, err)`) so controllers stay marshaller-free.
+* `internal/services/portfolio.go` — `PortfolioService`: composes holdings + live prices + the INR↔EUR rate for `/prices` and `/summary` (own portfolio and admin act-as).
 * `internal/services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
 * `internal/domain/holding.go` — `Holding` struct (now carries `user_id`)
 * `internal/domain/user.go` — `User` (with `Role`, `Region`, lockout counters, `IsAdmin`/`IsSuperAdmin`/`Oversees` helpers)
 * `internal/domain/session.go` — `Session` (opaque id, sliding 30-day expiry); `SessionTTL` constant
 * `internal/db/mongo.go` — MongoDB connection + index creation for `holdings`, `users`, `sessions` (incl. TTL on `sessions.expires_at`)
-* `api/openapi.yaml` — root spec; served live at `/api/openapi.yaml`. Split by domain into sibling files: `api/holdings.yaml`, `api/market.yaml`, `api/auth.yaml`, `api/admin.yaml` for paths and `api/schemas.yaml`, `api/responses.yaml`, `api/parameters.yaml`, `api/security.yaml` for components. Root only holds info/servers/tags/security plus a flat `$ref` index. Each sibling is also registered as a public static route so a browser fetching the spec can follow the relative `$ref`s. `oapi-codegen` and `openapi-typescript` resolve external `$ref`s natively — regen with `go generate ./...` (backend) and `npm run gen:api` (frontend).
+* `api/specs/openapi.yaml` — root spec; served live at `/api/specs/openapi.yaml`. Path surface is split by domain under per-domain folders: `api/specs/holdings/holdings.yaml`, `api/specs/market/market.yaml`, `api/specs/auth/auth.yaml`, `api/specs/admin/admin.yaml`. Every component (schemas, responses, parameters) lives inline in `api/specs/portfolio-api.yaml`; the path files reference it via `../portfolio-api.yaml#/components/...`. Each sibling is registered as a public static route so a browser fetching the spec can follow the relative `$ref`s.
+* `api/oapi-codegen-models.yaml` + `api/oapi-codegen-server.yaml` — split codegen configs. Models config reads `api/specs/portfolio-api.yaml` (paths-empty, `skip-prune` on) and emits `api/models.gen.go` with the component types and the strict-server response wrappers. Server config reads `api/specs/openapi.yaml`, uses `import-mapping: ../portfolio-api.yaml: "-"` so external refs resolve to the same Go package, and emits `api/server.gen.go` with the operation params, request bodies, and Echo/strict-server scaffolding. Regen both with `go generate -tags tools ./...` from `backend/`; frontend types live at `frontend/src/lib/api/schema.gen.ts` and regen with `npm run gen:api` (openapi-typescript follows external `$ref`s natively).
 
 All app-private packages live under `internal/` per idiomatic Go layout.
 
@@ -91,7 +94,7 @@ React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folde
 * `components/SummaryCards.tsx` — totals bar (cost, current value, P&L); shared display component
 * `components/Charts.tsx` — Recharts pie/bar charts; shared display component
 * `lib/api/client.ts` — typed fetch wrapper with `credentials: 'include'` and `X-Requested-With` CSRF header on state-changing requests; in dev, Vite proxies `/api` → `localhost:8080`
-* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing any file under `backend/api/` (root `openapi.yaml` or a domain sibling)
+* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing any file under `backend/api/specs/` (`openapi.yaml`, `portfolio-api.yaml`, or a domain path file)
 * `types.ts` — public type aliases re-exported from `schema.gen.ts`
 
 ### Data flow

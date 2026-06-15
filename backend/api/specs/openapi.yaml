@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: Portfolio Dashboard API
+  description: |
+    REST API for managing a stock/ETF portfolio.
+    Live prices are fetched from Yahoo Finance (supports NSE `.NS`, BSE `.BO`, and US symbols).
+
+    Spec layout:
+      * `portfolio-api.yaml` — every component (schemas/responses/parameters/securitySchemes) inline.
+      * `openapi.yaml` (this file) — full spec; `$ref`s into the per-domain path files and into `portfolio-api.yaml` for components.
+      * `holdings.yaml`, `market.yaml`, `auth.yaml`, `admin.yaml` — path items grouped by domain.
+  version: 1.0.0
+  contact:
+    email: mailstosuthir@gmail.com
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+
+security:
+  - cookieAuth: []
+
+tags:
+  - name: Holdings
+    description: CRUD operations for portfolio positions (scoped to the logged-in user)
+  - name: Market
+    description: Live price and forex endpoints
+  - name: Auth
+    description: Signup, login, session, profile, and password recovery
+  - name: Admin
+    description: Region-scoped user oversight (admin) and admin management (super admin)
+
+paths:
+  /holdings:
+    $ref: "./holdings/holdings.yaml#/holdings"
+  /holdings/{id}:
+    $ref: "./holdings/holdings.yaml#/holdings_id"
+  /prices:
+    $ref: "./holdings/holdings.yaml#/prices"
+  /summary:
+    $ref: "./holdings/holdings.yaml#/summary"
+
+  /market/price:
+    $ref: "./market/market.yaml#/price"
+  /market/forex:
+    $ref: "./market/market.yaml#/forex"
+
+  /regions:
+    $ref: "./auth/auth.yaml#/regions"
+  /auth/security-questions:
+    $ref: "./auth/auth.yaml#/security_questions"
+  /auth/signup:
+    $ref: "./auth/auth.yaml#/signup"
+  /auth/login:
+    $ref: "./auth/auth.yaml#/login"
+  /auth/logout:
+    $ref: "./auth/auth.yaml#/logout"
+  /auth/me:
+    $ref: "./auth/auth.yaml#/me"
+  /auth/recover/questions:
+    $ref: "./auth/auth.yaml#/recover_questions"
+  /auth/recover:
+    $ref: "./auth/auth.yaml#/recover"
+  /auth/password:
+    $ref: "./auth/auth.yaml#/password"
+  /auth/profile:
+    $ref: "./auth/auth.yaml#/profile"
+  /auth/security-questions/answers:
+    $ref: "./auth/auth.yaml#/security_questions_answers"
+  /auth/onboarding:
+    $ref: "./auth/auth.yaml#/onboarding"
+
+  /admin/users:
+    $ref: "./admin/admin.yaml#/users"
+  /admin/admins:
+    $ref: "./admin/admin.yaml#/admins"
+  /admin/users/{id}:
+    $ref: "./admin/admin.yaml#/users_id"
+  /admin/users/{id}/reset-lockout:
+    $ref: "./admin/admin.yaml#/users_id_reset_lockout"
+  /admin/users/{id}/hide:
+    $ref: "./admin/admin.yaml#/users_id_hide"
+  /admin/users/{id}/reactivate:
+    $ref: "./admin/admin.yaml#/users_id_reactivate"
+  /admin/users/{id}/promote:
+    $ref: "./admin/admin.yaml#/users_id_promote"
+  /admin/users/{id}/demote:
+    $ref: "./admin/admin.yaml#/users_id_demote"
+  /admin/users/{id}/region:
+    $ref: "./admin/admin.yaml#/users_id_region"
+  /admin/users/{id}/holdings:
+    $ref: "./admin/admin.yaml#/users_id_holdings"
+  /admin/users/{id}/holdings/{holdingId}:
+    $ref: "./admin/admin.yaml#/users_id_holdings_holdingid"
+  /admin/users/{id}/prices:
+    $ref: "./admin/admin.yaml#/users_id_prices"
+  /admin/users/{id}/summary:
+    $ref: "./admin/admin.yaml#/users_id_summary"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: pd_session
+      description: Opaque server-side session id issued at signup/login

@@ -27,9 +27,9 @@ price:
                 currency:
                   type: string
       "400":
-        $ref: "./responses.yaml#/BadRequest"
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "502":
-        $ref: "./responses.yaml#/BadGateway"
+        $ref: "../portfolio-api.yaml#/components/responses/BadGateway"
 
 forex:
   get:

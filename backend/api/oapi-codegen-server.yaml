@@ -1,0 +1,8 @@
+package: api
+generate:
+  models: true
+  echo-server: true
+  strict-server: true
+output: api/server.gen.go
+import-mapping:
+  ../portfolio-api.yaml: "-"

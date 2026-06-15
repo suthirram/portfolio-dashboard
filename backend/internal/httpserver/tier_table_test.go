@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/internal/config"
-	"portfolio-dashboard/internal/handlers"
+	"portfolio-dashboard/internal/controllers"
 )
 
 // TestAuthGate_TierTableMatchesGeneratedRoutes guards the routeTiers
@@ -21,7 +21,7 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 
 	mt.Run("admin routes are explicitly classified", func(mt *mtest.T) {
 		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-		h := handlers.New(mt.DB, logger, false)
+		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
 		for _, r := range e.Routes() {

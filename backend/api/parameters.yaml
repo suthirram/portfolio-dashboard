@@ -1,7 +1,0 @@
-UserID:
-  name: id
-  in: path
-  required: true
-  schema:
-    type: string
-  description: MongoDB ObjectID of the target user

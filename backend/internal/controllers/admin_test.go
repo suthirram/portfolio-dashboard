@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"testing"
@@ -9,6 +9,7 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/persistence"
 )
 
 func regionalAdmin(region string) *domain.User {
@@ -562,7 +563,7 @@ func TestAdminListUserHoldings_ScopedToTarget(t *testing.T) {
 }
 
 func TestAdminGetUserSummary_PlainUserRefused(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{}}
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 	caller := scopedUser() // role: user
 	_, err := h.AdminGetUserSummary(userCtx(caller), api.AdminGetUserSummaryRequestObject{
 		Id: primitive.NewObjectID().Hex(),
