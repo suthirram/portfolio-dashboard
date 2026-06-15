@@ -11,6 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/samber/lo"
+
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
@@ -65,7 +67,7 @@ func (h *Controller) loadTargetUser(ctx context.Context, caller *domain.User, id
 }
 
 func notFoundUser() api.NotFoundJSONResponse {
-	return api.NotFoundJSONResponse{Error: services.ErrPtr("no such user")}
+	return api.NotFoundJSONResponse{Error: lo.ToPtr("no such user")}
 }
 
 // ── Listing ────────────────────────────────────────────────────────────────
@@ -104,7 +106,7 @@ func (h *Controller) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsR
 		return nil, err
 	}
 	if !caller.IsSuperAdmin() {
-		return api.AdminListAdmins403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: services.ErrPtr("super admin access required")}}, nil
+		return api.AdminListAdmins403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: lo.ToPtr("super admin access required")}}, nil
 	}
 
 	users, err := h.store.Users.List(ctx,
@@ -273,7 +275,7 @@ func superAdminCaller(ctx context.Context) (*domain.User, bool) {
 }
 
 func forbiddenMsg(msg string) api.ForbiddenJSONResponse {
-	return api.ForbiddenJSONResponse{Error: services.ErrPtr(msg)}
+	return api.ForbiddenJSONResponse{Error: lo.ToPtr(msg)}
 }
 
 func (h *Controller) AdminPromoteUser(ctx context.Context, request api.AdminPromoteUserRequestObject) (api.AdminPromoteUserResponseObject, error) {
@@ -292,7 +294,7 @@ func (h *Controller) AdminPromoteUser(ctx context.Context, request api.AdminProm
 		return api.AdminPromoteUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 	if target.Role != domain.RoleUser {
-		return api.AdminPromoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr("only a user can be promoted")}}, nil
+		return api.AdminPromoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("only a user can be promoted")}}, nil
 	}
 
 	if err := h.setRole(ctx, target.ID, domain.RoleAdmin); err != nil {
@@ -322,7 +324,7 @@ func (h *Controller) AdminDemoteUser(ctx context.Context, request api.AdminDemot
 		return api.AdminDemoteUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 	if target.Role != domain.RoleAdmin {
-		return api.AdminDemoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr("only an admin can be demoted")}}, nil
+		return api.AdminDemoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("only an admin can be demoted")}}, nil
 	}
 
 	if err := h.setRole(ctx, target.ID, domain.RoleUser); err != nil {
@@ -354,7 +356,7 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 		return api.AdminSetUserRegion403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("cannot change own account")}, nil
 	}
 	if !auth.ValidRegion(request.Body.Region) {
-		return api.AdminSetUserRegion400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr("region must be one of india, europe, us")}}, nil
+		return api.AdminSetUserRegion400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("region must be one of india, europe, us")}}, nil
 	}
 	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
 	if err != nil {
@@ -435,7 +437,7 @@ func (h *Controller) AdminUpdateUserHolding(ctx context.Context, request api.Adm
 		return nil, err
 	}
 	if !found {
-		return api.AdminUpdateUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: services.ErrPtr("no such holding")}}, nil
+		return api.AdminUpdateUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such holding")}}, nil
 	}
 	return api.AdminUpdateUserHolding200JSONResponse(updated), nil
 }
@@ -457,7 +459,7 @@ func (h *Controller) AdminDeleteUserHolding(ctx context.Context, request api.Adm
 		return nil, err
 	}
 	if !deleted {
-		return api.AdminDeleteUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: services.ErrPtr("no such holding")}}, nil
+		return api.AdminDeleteUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such holding")}}, nil
 	}
 	msg := "deleted"
 	return api.AdminDeleteUserHolding200JSONResponse{Message: &msg}, nil

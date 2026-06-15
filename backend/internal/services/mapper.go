@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 
+	"github.com/samber/lo"
+
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
@@ -95,7 +97,7 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 	}
 
 	hwp := api.HoldingWithPrice{
-		Id:             Ptr(hld.ID.Hex()),
+		Id:             lo.ToPtr(hld.ID.Hex()),
 		Script:         &hld.Script,
 		Symbol:         &hld.Symbol,
 		Exchange:       (*api.HoldingWithPriceExchange)(&hld.Exchange),
@@ -171,9 +173,3 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 	}
 	return out
 }
-
-// Ptr returns &v. Convenience for nullable api fields.
-func Ptr[T any](v T) *T { return &v }
-
-// ErrPtr returns &msg. Convenience for the api.Error.Error field.
-func ErrPtr(msg string) *string { return &msg }

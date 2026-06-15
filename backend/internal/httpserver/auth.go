@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -20,20 +21,23 @@ import (
 const CSRFHeaderValue = "portfolio-dashboard"
 
 // publicRoutes need no session. Keys are "<METHOD> <echo route pattern>".
+// The /api/specs/ tree is handled by isPublicSpecRoute so that adding a
+// new sibling spec file does not require editing this table.
 var publicRoutes = map[string]bool{
-	"GET /api/healthz":                      true,
-	"GET /api/specs/openapi.yaml":           true,
-	"GET /api/specs/portfolio-api.yaml":     true,
-	"GET /api/specs/holdings/holdings.yaml": true,
-	"GET /api/specs/market/market.yaml":     true,
-	"GET /api/specs/auth/auth.yaml":         true,
-	"GET /api/specs/admin/admin.yaml":       true,
-	"GET /api/regions":                      true,
-	"GET /api/auth/security-questions":      true,
-	"POST /api/auth/signup":                 true,
-	"POST /api/auth/login":                  true,
-	"POST /api/auth/recover":                true,
-	"POST /api/auth/recover/questions":      true,
+	"GET /api/healthz":                 true,
+	"GET /api/regions":                 true,
+	"GET /api/auth/security-questions": true,
+	"POST /api/auth/signup":            true,
+	"POST /api/auth/login":             true,
+	"POST /api/auth/recover":           true,
+	"POST /api/auth/recover/questions": true,
+}
+
+// isPublicSpecRoute reports whether the route serves a static OpenAPI
+// document under /api/specs/. The full tree is public because the spec
+// itself is public; gating it would only encourage out-of-band copies.
+func isPublicSpecRoute(method, path string) bool {
+	return method == http.MethodGet && strings.HasPrefix(path, "/api/specs/")
 }
 
 // onboardingRoutes stay reachable while must_change_password is set, so the
@@ -142,7 +146,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) ech
 			}
 
 			key := routeKey(c)
-			if publicRoutes[key] {
+			if publicRoutes[key] || isPublicSpecRoute(c.Request().Method, c.Path()) {
 				return next(c)
 			}
 			if user == nil {

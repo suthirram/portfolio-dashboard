@@ -6,6 +6,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/oapi-codegen/oapi-codegen/v2 v2.7.1
 	github.com/oapi-codegen/runtime v1.4.1
+	github.com/samber/lo v1.53.0
 	github.com/spf13/cobra v1.10.2
 	go.mongodb.org/mongo-driver v1.13.1
 	golang.org/x/crypto v0.50.0

@@ -11,6 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/samber/lo"
+
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
@@ -110,20 +112,20 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 	in := request.Body
 
 	if err := validateUsername(in.Username); err != nil {
-		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 	if err := validateName(in.Name); err != nil {
-		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 	if err := validatePassword(in.Password); err != nil {
-		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 	if !auth.ValidRegion(in.Region) {
-		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr("region must be one of india, europe, us")}}, nil
+		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("region must be one of india, europe, us")}}, nil
 	}
 	answers, err := hashSecurityAnswers(in.SecurityAnswers)
 	if err != nil {
-		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.Signup400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 
 	existing, err := h.findUserByUsername(ctx, in.Username)
@@ -131,7 +133,7 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 		return nil, err
 	}
 	if existing != nil {
-		return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: services.ErrPtr("username already taken")}}, nil
+		return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 	}
 
 	pwHash, err := auth.HashPassword(in.Password)
@@ -156,7 +158,7 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 	if err := h.store.Users.Insert(ctx, user); err != nil {
 		// The unique index is the authority; a concurrent signup loses here.
 		if errors.Is(err, persistence.ErrDuplicate) {
-			return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: services.ErrPtr("username already taken")}}, nil
+			return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "signup insert failed", slog.String("error", err.Error()))
 		return nil, err
@@ -184,19 +186,19 @@ func (h *Controller) Login(ctx context.Context, request api.LoginRequestObject) 
 		return nil, err
 	}
 	if user == nil {
-		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("invalid username or password")}}, nil
+		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("invalid username or password")}}, nil
 	}
 	if user.Disabled {
-		return api.Login403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: services.ErrPtr("account is hidden; contact your administrator")}}, nil
+		return api.Login403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: lo.ToPtr("account is hidden; contact your administrator")}}, nil
 	}
 	if user.Locked {
-		return api.Login423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: services.ErrPtr("account is locked; contact your administrator")}}, nil
+		return api.Login423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: lo.ToPtr("account is locked; contact your administrator")}}, nil
 	}
 	if !auth.CheckPassword(user.PasswordHash, in.Password) {
 		if err := h.store.Users.IncLoginFailures(ctx, user.ID); err != nil {
 			h.reqLog(ctx).WarnContext(ctx, "login failure counter update failed", slog.String("error", err.Error()))
 		}
-		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("invalid username or password")}}, nil
+		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("invalid username or password")}}, nil
 	}
 
 	if err := h.issueSession(ctx, user.ID); err != nil {
@@ -225,7 +227,7 @@ func (h *Controller) Logout(ctx context.Context, _ api.LogoutRequestObject) (api
 func (h *Controller) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMeResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return api.GetMe401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("not logged in")}}, nil
+		return api.GetMe401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("not logged in")}}, nil
 	}
 	return api.GetMe200JSONResponse(services.UserToAPI(user, true)), nil
 }
@@ -240,10 +242,10 @@ func (h *Controller) GetRecoveryQuestions(ctx context.Context, request api.GetRe
 	// A hidden account is reported as unknown — it must not be recoverable
 	// and its existence is not revealed.
 	if user == nil || user.Disabled {
-		return api.GetRecoveryQuestions404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: services.ErrPtr("no such account")}}, nil
+		return api.GetRecoveryQuestions404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such account")}}, nil
 	}
 	if user.Locked || user.SecurityQuestionFailures >= recoveryMaxFailures {
-		return api.GetRecoveryQuestions423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: services.ErrPtr("recovery is locked; contact your administrator")}}, nil
+		return api.GetRecoveryQuestions423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: lo.ToPtr("recovery is locked; contact your administrator")}}, nil
 	}
 
 	out := make(api.GetRecoveryQuestions200JSONResponse, 0, len(user.SecurityQuestions))
@@ -257,7 +259,7 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 	in := request.Body
 
 	if err := validatePassword(in.NewPassword); err != nil {
-		return api.RecoverPassword400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.RecoverPassword400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 
 	user, err := h.findUserByUsername(ctx, in.Username)
@@ -265,10 +267,10 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 		return nil, err
 	}
 	if user == nil || user.Disabled {
-		return api.RecoverPassword404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: services.ErrPtr("no such account")}}, nil
+		return api.RecoverPassword404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such account")}}, nil
 	}
 	if user.Locked || user.SecurityQuestionFailures >= recoveryMaxFailures {
-		return api.RecoverPassword423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: services.ErrPtr("recovery is locked; contact your administrator")}}, nil
+		return api.RecoverPassword423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: lo.ToPtr("recovery is locked; contact your administrator")}}, nil
 	}
 
 	// All three of the account's questions must be answered correctly.
@@ -297,9 +299,9 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 			slog.Bool("locked", locked),
 		)
 		if locked {
-			return api.RecoverPassword423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: services.ErrPtr("recovery is locked; contact your administrator")}}, nil
+			return api.RecoverPassword423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: lo.ToPtr("recovery is locked; contact your administrator")}}, nil
 		}
-		return api.RecoverPassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("one or more answers were incorrect")}}, nil
+		return api.RecoverPassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("one or more answers were incorrect")}}, nil
 	}
 
 	pwHash, err := auth.HashPassword(in.NewPassword)
@@ -328,14 +330,14 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 func (h *Controller) ChangePassword(ctx context.Context, request api.ChangePasswordRequestObject) (api.ChangePasswordResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return api.ChangePassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("not logged in")}}, nil
+		return api.ChangePassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("not logged in")}}, nil
 	}
 	in := request.Body
 	if !auth.CheckPassword(user.PasswordHash, in.CurrentPassword) {
-		return api.ChangePassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("current password is incorrect")}}, nil
+		return api.ChangePassword401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("current password is incorrect")}}, nil
 	}
 	if err := validatePassword(in.NewPassword); err != nil {
-		return api.ChangePassword400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.ChangePassword400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 
 	pwHash, err := auth.HashPassword(in.NewPassword)
@@ -361,11 +363,11 @@ func (h *Controller) ChangePassword(ctx context.Context, request api.ChangePassw
 func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfileRequestObject) (api.UpdateProfileResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return api.UpdateProfile401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("not logged in")}}, nil
+		return api.UpdateProfile401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("not logged in")}}, nil
 	}
 	in := request.Body
 	if !auth.CheckPassword(user.PasswordHash, in.CurrentPassword) {
-		return api.UpdateProfile401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("current password is incorrect")}}, nil
+		return api.UpdateProfile401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("current password is incorrect")}}, nil
 	}
 
 	updated := *user
@@ -373,7 +375,7 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 
 	if in.Name != nil {
 		if err := validateName(*in.Name); err != nil {
-			return api.UpdateProfile400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+			return api.UpdateProfile400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 		}
 		updated.Name = strings.TrimSpace(*in.Name)
 		set["name"] = updated.Name
@@ -381,7 +383,7 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 
 	if in.Username != nil {
 		if err := validateUsername(*in.Username); err != nil {
-			return api.UpdateProfile400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+			return api.UpdateProfile400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 		}
 		newLower := auth.NormalizeUsername(*in.Username)
 		if newLower != user.Username {
@@ -390,7 +392,7 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 				return nil, err
 			}
 			if existing != nil {
-				return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: services.ErrPtr("username already taken")}}, nil
+				return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 			}
 		}
 		updated.Username = newLower
@@ -401,7 +403,7 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 
 	if err := h.store.Users.Update(ctx, user.ID, set); err != nil {
 		if errors.Is(err, persistence.ErrDuplicate) {
-			return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: services.ErrPtr("username already taken")}}, nil
+			return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 		}
 		h.reqLog(ctx).ErrorContext(ctx, "profile update failed", slog.String("error", err.Error()))
 		return nil, err
@@ -414,15 +416,15 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 func (h *Controller) UpdateSecurityQuestions(ctx context.Context, request api.UpdateSecurityQuestionsRequestObject) (api.UpdateSecurityQuestionsResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return api.UpdateSecurityQuestions401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("not logged in")}}, nil
+		return api.UpdateSecurityQuestions401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("not logged in")}}, nil
 	}
 	in := request.Body
 	if !auth.CheckPassword(user.PasswordHash, in.CurrentPassword) {
-		return api.UpdateSecurityQuestions401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("current password is incorrect")}}, nil
+		return api.UpdateSecurityQuestions401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("current password is incorrect")}}, nil
 	}
 	answers, err := hashSecurityAnswers(in.SecurityAnswers)
 	if err != nil {
-		return api.UpdateSecurityQuestions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.UpdateSecurityQuestions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 
 	if err := h.store.Users.Update(ctx, user.ID, bson.M{
@@ -440,18 +442,18 @@ func (h *Controller) UpdateSecurityQuestions(ctx context.Context, request api.Up
 func (h *Controller) CompleteOnboarding(ctx context.Context, request api.CompleteOnboardingRequestObject) (api.CompleteOnboardingResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
 	if !ok {
-		return api.CompleteOnboarding401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("not logged in")}}, nil
+		return api.CompleteOnboarding401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("not logged in")}}, nil
 	}
 	in := request.Body
 	if !auth.CheckPassword(user.PasswordHash, in.CurrentPassword) {
-		return api.CompleteOnboarding401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: services.ErrPtr("current password is incorrect")}}, nil
+		return api.CompleteOnboarding401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("current password is incorrect")}}, nil
 	}
 	if err := validatePassword(in.NewPassword); err != nil {
-		return api.CompleteOnboarding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.CompleteOnboarding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 	answers, err := hashSecurityAnswers(in.SecurityAnswers)
 	if err != nil {
-		return api.CompleteOnboarding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: services.ErrPtr(err.Error())}}, nil
+		return api.CompleteOnboarding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
 	}
 
 	pwHash, err := auth.HashPassword(in.NewPassword)

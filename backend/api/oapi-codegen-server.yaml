@@ -4,5 +4,10 @@ generate:
   echo-server: true
   strict-server: true
 output: api/server.gen.go
+# The "-" target is oapi-codegen's same-package sentinel (see
+# pkg/codegen/codegen.go: importMappingCurrentPackage). It tells the
+# generator that refs to ../portfolio-api.yaml resolve to types already
+# emitted in this package by oapi-codegen-models.yaml, so server.gen.go
+# references them as bare names instead of importing itself.
 import-mapping:
   ../portfolio-api.yaml: "-"
