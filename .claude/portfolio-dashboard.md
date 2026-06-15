@@ -253,6 +253,7 @@ github.com/labstack/echo/v4 v4.13+
 github.com/spf13/cobra v1.9+
 github.com/oapi-codegen/oapi-codegen/v2 v2.4+         // tools.go
 github.com/oapi-codegen/runtime v1.1+
+github.com/samber/lo v1.53+                          // lo.ToPtr for nullable API fields
 go.mongodb.org/mongo-driver v1.17+
 golang.org/x/crypto                                  // bcrypt
 ```
