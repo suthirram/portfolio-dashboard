@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"context"
@@ -11,10 +11,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/samber/lo"
+
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
+	"portfolio-dashboard/internal/services"
 )
 
 // errAdminOnly is a defence-in-depth guard; the route middleware enforces the
@@ -38,7 +41,7 @@ func adminCaller(ctx context.Context) (*domain.User, error) {
 // DD-001 §6 scope rules: an admin reaches only role:"user" rows in their own
 // region; the super admin reaches everyone. Out-of-scope targets read as
 // not-found so account ids cannot be enumerated.
-func (h *Handler) loadTargetUser(ctx context.Context, caller *domain.User, idHex string) (*domain.User, bool, error) {
+func (h *Controller) loadTargetUser(ctx context.Context, caller *domain.User, idHex string) (*domain.User, bool, error) {
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return nil, false, nil
@@ -64,12 +67,12 @@ func (h *Handler) loadTargetUser(ctx context.Context, caller *domain.User, idHex
 }
 
 func notFoundUser() api.NotFoundJSONResponse {
-	return api.NotFoundJSONResponse{Error: errPtr("no such user")}
+	return api.NotFoundJSONResponse{Error: lo.ToPtr("no such user")}
 }
 
 // ── Listing ────────────────────────────────────────────────────────────────
 
-func (h *Handler) AdminListUsers(ctx context.Context, request api.AdminListUsersRequestObject) (api.AdminListUsersResponseObject, error) {
+func (h *Controller) AdminListUsers(ctx context.Context, request api.AdminListUsersRequestObject) (api.AdminListUsersResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -92,18 +95,18 @@ func (h *Handler) AdminListUsers(ctx context.Context, request api.AdminListUsers
 
 	out := make(api.AdminListUsers200JSONResponse, 0, len(users))
 	for i := range users {
-		out = append(out, userToAPI(&users[i], false))
+		out = append(out, services.UserToAPI(&users[i], false))
 	}
 	return out, nil
 }
 
-func (h *Handler) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsRequestObject) (api.AdminListAdminsResponseObject, error) {
+func (h *Controller) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsRequestObject) (api.AdminListAdminsResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if !caller.IsSuperAdmin() {
-		return api.AdminListAdmins403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: errPtr("super admin access required")}}, nil
+		return api.AdminListAdmins403JSONResponse{ForbiddenJSONResponse: api.ForbiddenJSONResponse{Error: lo.ToPtr("super admin access required")}}, nil
 	}
 
 	users, err := h.store.Users.List(ctx,
@@ -116,12 +119,12 @@ func (h *Handler) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsRequ
 
 	out := make(api.AdminListAdmins200JSONResponse, 0, len(users))
 	for i := range users {
-		out = append(out, userToAPI(&users[i], false))
+		out = append(out, services.UserToAPI(&users[i], false))
 	}
 	return out, nil
 }
 
-func (h *Handler) AdminGetUser(ctx context.Context, request api.AdminGetUserRequestObject) (api.AdminGetUserResponseObject, error) {
+func (h *Controller) AdminGetUser(ctx context.Context, request api.AdminGetUserRequestObject) (api.AdminGetUserResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -133,12 +136,12 @@ func (h *Handler) AdminGetUser(ctx context.Context, request api.AdminGetUserRequ
 	if !found {
 		return api.AdminGetUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	return api.AdminGetUser200JSONResponse(userToAPI(target, false)), nil
+	return api.AdminGetUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
 // ── Lockout / hide / delete ────────────────────────────────────────────────
 
-func (h *Handler) AdminResetLockout(ctx context.Context, request api.AdminResetLockoutRequestObject) (api.AdminResetLockoutResponseObject, error) {
+func (h *Controller) AdminResetLockout(ctx context.Context, request api.AdminResetLockoutRequestObject) (api.AdminResetLockoutResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -166,7 +169,7 @@ func (h *Handler) AdminResetLockout(ctx context.Context, request api.AdminResetL
 	return api.AdminResetLockout204Response{}, nil
 }
 
-func (h *Handler) AdminHideUser(ctx context.Context, request api.AdminHideUserRequestObject) (api.AdminHideUserResponseObject, error) {
+func (h *Controller) AdminHideUser(ctx context.Context, request api.AdminHideUserRequestObject) (api.AdminHideUserResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -201,7 +204,7 @@ func (h *Handler) AdminHideUser(ctx context.Context, request api.AdminHideUserRe
 	return api.AdminHideUser204Response{}, nil
 }
 
-func (h *Handler) AdminReactivateUser(ctx context.Context, request api.AdminReactivateUserRequestObject) (api.AdminReactivateUserResponseObject, error) {
+func (h *Controller) AdminReactivateUser(ctx context.Context, request api.AdminReactivateUserRequestObject) (api.AdminReactivateUserResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -227,7 +230,7 @@ func (h *Handler) AdminReactivateUser(ctx context.Context, request api.AdminReac
 	return api.AdminReactivateUser204Response{}, nil
 }
 
-func (h *Handler) AdminDeleteUser(ctx context.Context, request api.AdminDeleteUserRequestObject) (api.AdminDeleteUserResponseObject, error) {
+func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDeleteUserRequestObject) (api.AdminDeleteUserResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -272,10 +275,10 @@ func superAdminCaller(ctx context.Context) (*domain.User, bool) {
 }
 
 func forbiddenMsg(msg string) api.ForbiddenJSONResponse {
-	return api.ForbiddenJSONResponse{Error: errPtr(msg)}
+	return api.ForbiddenJSONResponse{Error: lo.ToPtr(msg)}
 }
 
-func (h *Handler) AdminPromoteUser(ctx context.Context, request api.AdminPromoteUserRequestObject) (api.AdminPromoteUserResponseObject, error) {
+func (h *Controller) AdminPromoteUser(ctx context.Context, request api.AdminPromoteUserRequestObject) (api.AdminPromoteUserResponseObject, error) {
 	caller, ok := superAdminCaller(ctx)
 	if !ok {
 		return api.AdminPromoteUser403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
@@ -291,7 +294,7 @@ func (h *Handler) AdminPromoteUser(ctx context.Context, request api.AdminPromote
 		return api.AdminPromoteUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 	if target.Role != domain.RoleUser {
-		return api.AdminPromoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: errPtr("only a user can be promoted")}}, nil
+		return api.AdminPromoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("only a user can be promoted")}}, nil
 	}
 
 	if err := h.setRole(ctx, target.ID, domain.RoleAdmin); err != nil {
@@ -301,10 +304,10 @@ func (h *Handler) AdminPromoteUser(ctx context.Context, request api.AdminPromote
 
 	h.reqLog(ctx).InfoContext(ctx, "user promoted to admin",
 		slog.String("target", target.ID.Hex()), slog.String("region", target.Region))
-	return api.AdminPromoteUser200JSONResponse(userToAPI(target, false)), nil
+	return api.AdminPromoteUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
-func (h *Handler) AdminDemoteUser(ctx context.Context, request api.AdminDemoteUserRequestObject) (api.AdminDemoteUserResponseObject, error) {
+func (h *Controller) AdminDemoteUser(ctx context.Context, request api.AdminDemoteUserRequestObject) (api.AdminDemoteUserResponseObject, error) {
 	caller, ok := superAdminCaller(ctx)
 	if !ok {
 		return api.AdminDemoteUser403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
@@ -321,7 +324,7 @@ func (h *Handler) AdminDemoteUser(ctx context.Context, request api.AdminDemoteUs
 		return api.AdminDemoteUser404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
 	if target.Role != domain.RoleAdmin {
-		return api.AdminDemoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: errPtr("only an admin can be demoted")}}, nil
+		return api.AdminDemoteUser400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("only an admin can be demoted")}}, nil
 	}
 
 	if err := h.setRole(ctx, target.ID, domain.RoleUser); err != nil {
@@ -330,10 +333,10 @@ func (h *Handler) AdminDemoteUser(ctx context.Context, request api.AdminDemoteUs
 	target.Role = domain.RoleUser
 
 	h.reqLog(ctx).InfoContext(ctx, "admin demoted to user", slog.String("target", target.ID.Hex()))
-	return api.AdminDemoteUser200JSONResponse(userToAPI(target, false)), nil
+	return api.AdminDemoteUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
-func (h *Handler) setRole(ctx context.Context, id primitive.ObjectID, role string) error {
+func (h *Controller) setRole(ctx context.Context, id primitive.ObjectID, role string) error {
 	if err := h.store.Users.Update(ctx, id, bson.M{
 		"role":       role,
 		"updated_at": time.Now(),
@@ -344,7 +347,7 @@ func (h *Handler) setRole(ctx context.Context, id primitive.ObjectID, role strin
 	return nil
 }
 
-func (h *Handler) AdminSetUserRegion(ctx context.Context, request api.AdminSetUserRegionRequestObject) (api.AdminSetUserRegionResponseObject, error) {
+func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSetUserRegionRequestObject) (api.AdminSetUserRegionResponseObject, error) {
 	caller, ok := superAdminCaller(ctx)
 	if !ok {
 		return api.AdminSetUserRegion403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
@@ -353,7 +356,7 @@ func (h *Handler) AdminSetUserRegion(ctx context.Context, request api.AdminSetUs
 		return api.AdminSetUserRegion403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("cannot change own account")}, nil
 	}
 	if !auth.ValidRegion(request.Body.Region) {
-		return api.AdminSetUserRegion400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: errPtr("region must be one of india, europe, us")}}, nil
+		return api.AdminSetUserRegion400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("region must be one of india, europe, us")}}, nil
 	}
 	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
 	if err != nil {
@@ -374,12 +377,12 @@ func (h *Handler) AdminSetUserRegion(ctx context.Context, request api.AdminSetUs
 
 	h.reqLog(ctx).InfoContext(ctx, "account moved to region",
 		slog.String("target", target.ID.Hex()), slog.String("region", target.Region))
-	return api.AdminSetUserRegion200JSONResponse(userToAPI(target, false)), nil
+	return api.AdminSetUserRegion200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
 // ── Act on a user's portfolio (region-scoped) ──────────────────────────────
 
-func (h *Handler) AdminListUserHoldings(ctx context.Context, request api.AdminListUserHoldingsRequestObject) (api.AdminListUserHoldingsResponseObject, error) {
+func (h *Controller) AdminListUserHoldings(ctx context.Context, request api.AdminListUserHoldingsRequestObject) (api.AdminListUserHoldingsResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -391,14 +394,14 @@ func (h *Handler) AdminListUserHoldings(ctx context.Context, request api.AdminLi
 	if !found {
 		return api.AdminListUserHoldings404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	holdings, err := h.listHoldingsFor(ctx, target.ID)
+	holdings, err := h.holdings.List(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}
 	return api.AdminListUserHoldings200JSONResponse(holdings), nil
 }
 
-func (h *Handler) AdminCreateUserHolding(ctx context.Context, request api.AdminCreateUserHoldingRequestObject) (api.AdminCreateUserHoldingResponseObject, error) {
+func (h *Controller) AdminCreateUserHolding(ctx context.Context, request api.AdminCreateUserHoldingRequestObject) (api.AdminCreateUserHoldingResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -410,14 +413,14 @@ func (h *Handler) AdminCreateUserHolding(ctx context.Context, request api.AdminC
 	if !found {
 		return api.AdminCreateUserHolding404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	created, err := h.createHoldingFor(ctx, target.ID, *request.Body)
+	created, err := h.holdings.Create(ctx, target.ID, *request.Body)
 	if err != nil {
 		return nil, err
 	}
 	return api.AdminCreateUserHolding201JSONResponse(created), nil
 }
 
-func (h *Handler) AdminUpdateUserHolding(ctx context.Context, request api.AdminUpdateUserHoldingRequestObject) (api.AdminUpdateUserHoldingResponseObject, error) {
+func (h *Controller) AdminUpdateUserHolding(ctx context.Context, request api.AdminUpdateUserHoldingRequestObject) (api.AdminUpdateUserHoldingResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -429,17 +432,17 @@ func (h *Handler) AdminUpdateUserHolding(ctx context.Context, request api.AdminU
 	if !found {
 		return api.AdminUpdateUserHolding404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	updated, found, err := h.updateHoldingFor(ctx, target.ID, request.HoldingId, *request.Body)
+	updated, found, err := h.holdings.Update(ctx, target.ID, request.HoldingId, *request.Body)
 	if err != nil {
 		return nil, err
 	}
 	if !found {
-		return api.AdminUpdateUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: errPtr("no such holding")}}, nil
+		return api.AdminUpdateUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such holding")}}, nil
 	}
 	return api.AdminUpdateUserHolding200JSONResponse(updated), nil
 }
 
-func (h *Handler) AdminDeleteUserHolding(ctx context.Context, request api.AdminDeleteUserHoldingRequestObject) (api.AdminDeleteUserHoldingResponseObject, error) {
+func (h *Controller) AdminDeleteUserHolding(ctx context.Context, request api.AdminDeleteUserHoldingRequestObject) (api.AdminDeleteUserHoldingResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -451,18 +454,18 @@ func (h *Handler) AdminDeleteUserHolding(ctx context.Context, request api.AdminD
 	if !found {
 		return api.AdminDeleteUserHolding404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	deleted, err := h.deleteHoldingFor(ctx, target.ID, request.HoldingId)
+	deleted, err := h.holdings.Delete(ctx, target.ID, request.HoldingId)
 	if err != nil {
 		return nil, err
 	}
 	if !deleted {
-		return api.AdminDeleteUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: errPtr("no such holding")}}, nil
+		return api.AdminDeleteUserHolding404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such holding")}}, nil
 	}
 	msg := "deleted"
 	return api.AdminDeleteUserHolding200JSONResponse{Message: &msg}, nil
 }
 
-func (h *Handler) AdminGetUserPrices(ctx context.Context, request api.AdminGetUserPricesRequestObject) (api.AdminGetUserPricesResponseObject, error) {
+func (h *Controller) AdminGetUserPrices(ctx context.Context, request api.AdminGetUserPricesRequestObject) (api.AdminGetUserPricesResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -474,14 +477,14 @@ func (h *Handler) AdminGetUserPrices(ctx context.Context, request api.AdminGetUs
 	if !found {
 		return api.AdminGetUserPrices404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	results, eurRate, err := h.pricesFor(ctx, target.ID)
+	results, eurRate, err := h.portfolio.Prices(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}
 	return api.AdminGetUserPrices200JSONResponse{Holdings: &results, EurRate: &eurRate}, nil
 }
 
-func (h *Handler) AdminGetUserSummary(ctx context.Context, request api.AdminGetUserSummaryRequestObject) (api.AdminGetUserSummaryResponseObject, error) {
+func (h *Controller) AdminGetUserSummary(ctx context.Context, request api.AdminGetUserSummaryRequestObject) (api.AdminGetUserSummaryResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -493,7 +496,7 @@ func (h *Handler) AdminGetUserSummary(ctx context.Context, request api.AdminGetU
 	if !found {
 		return api.AdminGetUserSummary404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-	summary, err := h.summaryFor(ctx, target.ID)
+	summary, err := h.portfolio.Summary(ctx, target.ID)
 	if err != nil {
 		return nil, err
 	}

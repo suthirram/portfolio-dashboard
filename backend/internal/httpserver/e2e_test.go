@@ -15,8 +15,8 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/handlers"
 )
 
 func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
@@ -76,10 +76,10 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		)
 
 		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-		h := handlers.New(mt.DB, logger, false)
+		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
-		cookie := &http.Cookie{Name: handlers.SessionCookieName, Value: "sess-e2e"} //nolint:gosec // request-side cookie
+		cookie := &http.Cookie{Name: controllers.SessionCookieName, Value: "sess-e2e"} //nolint:gosec // request-side cookie
 
 		createBody := []byte(`{"script":"TCS","exchange":"NSE","type":"stock","symbol":"TCS.NS","stocks_owned":10,"avg_cost_price":3000}`)
 		createReq := httptest.NewRequest(http.MethodPost, "/api/holdings", bytes.NewReader(createBody))

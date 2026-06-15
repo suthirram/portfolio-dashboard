@@ -14,8 +14,8 @@ import (
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/db"
-	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/httpserver"
 	"portfolio-dashboard/internal/logging"
 )
@@ -74,7 +74,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	defer disconnect()
 
-	h := handlers.New(database, logger, cfg.CookieSecure)
+	h := controllers.New(database, logger, cfg.CookieSecure)
 	e := httpserver.New(cfg, logger, database, h)
 
 	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {

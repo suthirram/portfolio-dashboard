@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"errors"
@@ -11,11 +11,12 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/persistence"
+	"portfolio-dashboard/internal/services"
 )
 
-// newIntegrationHandler builds a Handler backed by the mtest mock database.
-func newIntegrationHandler(mt *mtest.T, ps priceFetcher) *Handler {
-	return &Handler{store: persistence.New(mt.DB), priceService: ps}
+// newIntegrationHandler builds a Controller backed by the mtest mock database.
+func newIntegrationHandler(mt *mtest.T, ps services.PriceFetcher) *Controller {
+	return newWithDeps(persistence.New(mt.DB), ps, nil, false)
 }
 
 // holdingDocument builds an INR stock holding document for mtest cursor
@@ -37,7 +38,7 @@ func holdingDocument(id primitive.ObjectID, script, symbol, exchange string, qty
 // ── GetHolding ─────────────────────────────────────────────────────────────
 
 func TestIntegration_GetHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{}}
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 
 	resp, err := h.GetHolding(userCtx(scopedUser()), api.GetHoldingRequestObject{Id: "not-an-object-id"})
 	if err != nil {
@@ -333,7 +334,7 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 }
 
 func TestIntegration_UpdateHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{}}
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 
 	resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 		Id: "bad-id",
@@ -381,7 +382,7 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 // ── DeleteHolding ──────────────────────────────────────────────────────────
 
 func TestIntegration_DeleteHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{}}
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 
 	resp, err := h.DeleteHolding(userCtx(scopedUser()), api.DeleteHoldingRequestObject{Id: "bad-id"})
 	if err != nil {

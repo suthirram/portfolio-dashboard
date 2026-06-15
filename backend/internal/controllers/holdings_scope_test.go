@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // Every holdings/prices/summary query must pin user_id (DD-001 §6.1). These
@@ -111,7 +112,7 @@ func TestListHoldings_ScopesToCurrentUser(t *testing.T) {
 }
 
 func TestListHoldings_UnauthenticatedFails(t *testing.T) {
-	h := &Handler{priceService: &mockPriceFetcher{}}
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 	_, err := h.ListHoldings(context.Background(), api.ListHoldingsRequestObject{})
 	var httpErr *echo.HTTPError
 	if !errors.As(err, &httpErr) || httpErr.Code != 401 {

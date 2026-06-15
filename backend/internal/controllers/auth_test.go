@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/persistence"
 )
 
 // echoTestContext returns a request context carrying an echo.Context so
@@ -92,7 +93,7 @@ func usersNS(mt *mtest.T) string { return mt.DB.Name() + ".users" }
 // ── Catalogues ─────────────────────────────────────────────────────────────
 
 func TestGetRegions_ReturnsCatalogue(t *testing.T) {
-	h := &Handler{}
+	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetRegions(context.Background(), api.GetRegionsRequestObject{})
 	if err != nil {
 		t.Fatalf("GetRegions: %v", err)
@@ -107,7 +108,7 @@ func TestGetRegions_ReturnsCatalogue(t *testing.T) {
 }
 
 func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
-	h := &Handler{}
+	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetSecurityQuestionCatalogue(context.Background(), api.GetSecurityQuestionCatalogueRequestObject{})
 	if err != nil {
 		t.Fatalf("GetSecurityQuestionCatalogue: %v", err)
@@ -121,7 +122,7 @@ func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
 // ── Signup ─────────────────────────────────────────────────────────────────
 
 func TestSignup_RejectsInvalidInput(t *testing.T) {
-	h := &Handler{}
+	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 
 	cases := map[string]func(*api.SignupRequest){
 		"short username":         func(r *api.SignupRequest) { r.Username = "ab" },
@@ -330,7 +331,7 @@ func TestLogin_SuccessIssuesSessionCookie(t *testing.T) {
 // ── Me / Logout ────────────────────────────────────────────────────────────
 
 func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
-	h := &Handler{}
+	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	u := &domain.User{
 		ID:              primitive.NewObjectID(),
 		Username:        "alice",
@@ -361,7 +362,7 @@ func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
 }
 
 func TestGetMe_Unauthenticated(t *testing.T) {
-	h := &Handler{}
+	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetMe(context.Background(), api.GetMeRequestObject{})
 	if err != nil {
 		t.Fatalf("GetMe: %v", err)

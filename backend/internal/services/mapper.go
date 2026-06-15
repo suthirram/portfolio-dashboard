@@ -1,17 +1,27 @@
-package handlers
+package services
 
 import (
 	"context"
+
+	"github.com/samber/lo"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
 
-func validCurrency[T ~string](s T) bool { return s == "INR" || s == "EUR" }
+// PriceFetcher abstracts PriceService. Services and mappers depend on it
+// rather than the concrete type so tests can substitute a stub.
+type PriceFetcher interface {
+	GetPrice(ctx context.Context, symbol string) (float64, string, error)
+	GetForexRate(ctx context.Context, from, to string) (float64, error)
+}
 
-// holdingFromInput maps a DTO (HoldingInput) to a DBO (domain.Holding).
+// ValidCurrency reports whether s is one of the supported currency codes.
+func ValidCurrency[T ~string](s T) bool { return s == "INR" || s == "EUR" }
+
+// HoldingFromInput maps a DTO (HoldingInput) to a DBO (domain.Holding).
 // Currency defaults to INR; invalid values are rejected and fall back to INR.
-func holdingFromInput(input api.HoldingInput) domain.Holding {
+func HoldingFromInput(input api.HoldingInput) domain.Holding {
 	h := domain.Holding{
 		Script:   input.Script,
 		Exchange: string(input.Exchange),
@@ -30,7 +40,7 @@ func holdingFromInput(input api.HoldingInput) domain.Holding {
 	if input.RealizedPnl != nil {
 		h.RealizedPnL = *input.RealizedPnl
 	}
-	if input.Currency != nil && validCurrency(*input.Currency) {
+	if input.Currency != nil && ValidCurrency(*input.Currency) {
 		h.Currency = string(*input.Currency)
 	}
 	if input.Notes != nil {
@@ -39,9 +49,9 @@ func holdingFromInput(input api.HoldingInput) domain.Holding {
 	return h
 }
 
-// holdingToAPI maps a DBO (domain.Holding) to a DTO (api.Holding).
+// HoldingToAPI maps a DBO (domain.Holding) to a DTO (api.Holding).
 // Empty currency is normalised to INR for legacy documents.
-func holdingToAPI(h domain.Holding) api.Holding {
+func HoldingToAPI(h domain.Holding) api.Holding {
 	id := h.ID.Hex()
 	exchange := api.HoldingExchange(h.Exchange)
 	holdingType := api.HoldingType(h.Type)
@@ -65,10 +75,10 @@ func holdingToAPI(h domain.Holding) api.Holding {
 	}
 }
 
-// holdingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
+// HoldingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
 // All monetary values are normalised to INR; EUR equivalents are also populated.
 // eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
-func holdingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps priceFetcher, eurRate float64) api.HoldingWithPrice {
+func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetcher, eurRate float64) api.HoldingWithPrice {
 	isEUR := hld.Currency == "EUR"
 	currency := api.HoldingWithPriceCurrency(hld.Currency)
 	if currency == "" {
@@ -87,7 +97,7 @@ func holdingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps priceFetc
 	}
 
 	hwp := api.HoldingWithPrice{
-		Id:             ptr(hld.ID.Hex()),
+		Id:             lo.ToPtr(hld.ID.Hex()),
 		Script:         &hld.Script,
 		Symbol:         &hld.Symbol,
 		Exchange:       (*api.HoldingWithPriceExchange)(&hld.Exchange),
@@ -112,7 +122,6 @@ func holdingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps priceFetc
 		} else {
 			var currentValue, currentValueEUR, unrealizedPnL, unrealizedPnLEUR float64
 			if isEUR {
-				// Yahoo returns price in EUR for EUR-traded symbols (e.g. VWCE.DE)
 				currentValueEUR = hld.StocksOwned * price
 				currentValue = currentValueEUR / eurRate
 				unrealizedPnLEUR = currentValueEUR - costPriceEUR
@@ -135,4 +144,32 @@ func holdingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps priceFetc
 	return hwp
 }
 
-func ptr[T any](v T) *T { return &v }
+// UserToAPI maps a user DBO to the public DTO. Question ids are included
+// only for the account itself (profile screen), not in admin listings.
+func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
+	out := api.User{
+		Id:                 u.ID.Hex(),
+		Username:           u.UsernameDisplay,
+		Name:               u.Name,
+		Role:               api.UserRole(u.Role),
+		Region:             u.Region,
+		Disabled:           u.Disabled,
+		Locked:             u.Locked,
+		MustChangePassword: u.MustChangePassword,
+	}
+	if out.Username == "" {
+		out.Username = u.Username
+	}
+	if !u.CreatedAt.IsZero() {
+		out.CreatedAt = &u.CreatedAt
+	}
+	out.LastLoginAt = u.LastLoginAt
+	if includeQuestionIDs {
+		ids := make([]string, 0, len(u.SecurityQuestions))
+		for _, q := range u.SecurityQuestions {
+			ids = append(ids, q.QuestionID)
+		}
+		out.SecurityQuestionIds = &ids
+	}
+	return out
+}

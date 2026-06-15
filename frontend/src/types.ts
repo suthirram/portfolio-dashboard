@@ -1,5 +1,5 @@
 // Public API types. Sourced from generated OpenAPI schema (schema.gen.ts) —
-// regenerate via `npm run gen:api` whenever backend/api/openapi.yaml changes.
+// regenerate via `npm run gen:api` whenever any file under backend/api/specs/ changes.
 
 import type { components, operations } from './lib/api/schema.gen'
 

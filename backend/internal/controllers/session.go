@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"context"
@@ -18,7 +18,7 @@ const SessionCookieName = "pd_session"
 
 // issueSession creates a server-side session for userID and sets the session
 // cookie on the response (when an echo.Context is available).
-func (h *Handler) issueSession(ctx context.Context, userID primitive.ObjectID) error {
+func (h *Controller) issueSession(ctx context.Context, userID primitive.ObjectID) error {
 	id, err := auth.NewSessionID()
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (h *Handler) issueSession(ctx context.Context, userID primitive.ObjectID) e
 }
 
 // destroySession deletes the current session document and clears the cookie.
-func (h *Handler) destroySession(ctx context.Context) error {
+func (h *Controller) destroySession(ctx context.Context) error {
 	if sid, ok := auth.SessionIDFromContext(ctx); ok {
 		if err := h.store.Sessions.Delete(ctx, sid); err != nil {
 			return err
@@ -61,14 +61,14 @@ func (h *Handler) destroySession(ctx context.Context) error {
 
 // invalidateOtherSessions deletes every session of userID except the current
 // one (PRD-001 §6.3: changing the password signs out other sessions).
-func (h *Handler) invalidateOtherSessions(ctx context.Context, userID primitive.ObjectID) error {
+func (h *Controller) invalidateOtherSessions(ctx context.Context, userID primitive.ObjectID) error {
 	keep, _ := auth.SessionIDFromContext(ctx)
 	return h.store.Sessions.DeleteOthers(ctx, userID, keep)
 }
 
 // invalidateAllSessions deletes every session of userID (used by the
 // recover flow, where the caller holds no session).
-func (h *Handler) invalidateAllSessions(ctx context.Context, userID primitive.ObjectID) error {
+func (h *Controller) invalidateAllSessions(ctx context.Context, userID primitive.ObjectID) error {
 	return h.store.Sessions.DeleteByUser(ctx, userID)
 }
 
@@ -117,7 +117,7 @@ func ClearSessionCookie(c echo.Context, secure bool) {
 	c.SetCookie(cookie)
 }
 
-func (h *Handler) logSessionError(ctx context.Context, op string, err error) {
+func (h *Controller) logSessionError(ctx context.Context, op string, err error) {
 	h.reqLog(ctx).ErrorContext(ctx, "session operation failed",
 		slog.String("op", op),
 		slog.String("error", err.Error()),

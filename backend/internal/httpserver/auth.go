@@ -4,13 +4,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 
 	"portfolio-dashboard/internal/auth"
+	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/domain"
-	"portfolio-dashboard/internal/handlers"
 	"portfolio-dashboard/internal/persistence"
 )
 
@@ -20,15 +21,23 @@ import (
 const CSRFHeaderValue = "portfolio-dashboard"
 
 // publicRoutes need no session. Keys are "<METHOD> <echo route pattern>".
+// The /api/specs/ tree is handled by isPublicSpecRoute so that adding a
+// new sibling spec file does not require editing this table.
 var publicRoutes = map[string]bool{
 	"GET /api/healthz":                 true,
-	"GET /api/openapi.yaml":            true,
 	"GET /api/regions":                 true,
 	"GET /api/auth/security-questions": true,
 	"POST /api/auth/signup":            true,
 	"POST /api/auth/login":             true,
 	"POST /api/auth/recover":           true,
 	"POST /api/auth/recover/questions": true,
+}
+
+// isPublicSpecRoute reports whether the route serves a static OpenAPI
+// document under /api/specs/. The full tree is public because the spec
+// itself is public; gating it would only encourage out-of-band copies.
+func isPublicSpecRoute(method, path string) bool {
+	return method == http.MethodGet && strings.HasPrefix(path, "/api/specs/")
 }
 
 // onboardingRoutes stay reachable while must_change_password is set, so the
@@ -59,7 +68,7 @@ const (
 
 // routeTiers maps "<METHOD> <echo route pattern>" to the tier required to
 // reach the route, mirroring the keys publicRoutes and onboardingRoutes
-// already use. Keep this table in lock-step with api/openapi.yaml — the
+// already use. Keep this table in lock-step with api/specs/openapi.yaml — the
 // TestAuthGate_TierTableMatchesGeneratedRoutes test fails when a new
 // /api/admin/... route is registered without a matching entry.
 var routeTiers = map[string]routeTier{
@@ -137,7 +146,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) ech
 			}
 
 			key := routeKey(c)
-			if publicRoutes[key] {
+			if publicRoutes[key] || isPublicSpecRoute(c.Request().Method, c.Path()) {
 				return next(c)
 			}
 			if user == nil {
@@ -165,7 +174,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) ech
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
 func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, cookieSecure bool) (*domain.User, string) {
-	cookie, err := c.Cookie(handlers.SessionCookieName)
+	cookie, err := c.Cookie(controllers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
 	}
@@ -177,7 +186,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -187,7 +196,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if err := st.Sessions.Delete(ctx, sess.ID); err != nil {
 			logger.Warn("expired session delete failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -196,12 +205,12 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger.Error("session user lookup failed", slog.String("error", err.Error()))
 		}
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 	if user.Disabled {
 		// Hidden users lose access on their next request (PRD-001 §6.6).
-		handlers.ClearSessionCookie(c, cookieSecure)
+		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
 	}
 
@@ -220,5 +229,5 @@ func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session,
 		logger.Warn("session refresh failed", slog.String("error", err.Error()))
 		return
 	}
-	handlers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)
+	controllers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)
 }

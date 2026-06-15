@@ -1,0 +1,253 @@
+regions:
+  get:
+    tags: [Auth]
+    summary: Region catalogue
+    description: Fixed list of oversight regions for the signup dropdown.
+    operationId: getRegions
+    security: []
+    responses:
+      "200":
+        description: Region catalogue
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/Region"
+
+security_questions:
+  get:
+    tags: [Auth]
+    summary: Security-question catalogue
+    operationId: getSecurityQuestionCatalogue
+    security: []
+    responses:
+      "200":
+        description: Question catalogue
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/SecurityQuestion"
+
+signup:
+  post:
+    tags: [Auth]
+    summary: Create an account and log in
+    operationId: signup
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/SignupRequest"
+    responses:
+      "201":
+        description: Account created; session cookie issued
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "409":
+        $ref: "../portfolio-api.yaml#/components/responses/Conflict"
+
+login:
+  post:
+    tags: [Auth]
+    summary: Log in with username and password
+    operationId: login
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/LoginRequest"
+    responses:
+      "200":
+        description: Logged in; session cookie issued
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "423":
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
+
+logout:
+  post:
+    tags: [Auth]
+    summary: Log out the current session
+    operationId: logout
+    responses:
+      "204":
+        description: Session invalidated; cookie cleared
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+
+me:
+  get:
+    tags: [Auth]
+    summary: Current account
+    operationId: getMe
+    responses:
+      "200":
+        description: The logged-in account
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+
+recover_questions:
+  post:
+    tags: [Auth]
+    summary: Fetch the security questions for an account (forgot password, step 1)
+    description: |
+      Username travels in the body (not the URL) so it stays out of access logs.
+    operationId: getRecoveryQuestions
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/RecoverQuestionsRequest"
+    responses:
+      "200":
+        description: The three questions the account chose at signup
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/SecurityQuestion"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "423":
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
+
+recover:
+  post:
+    tags: [Auth]
+    summary: Reset a forgotten password by answering all three security questions
+    description: |
+      Three wrong attempts lock recovery (HTTP 423) until someone authorised
+      resets it: an admin for a user, the super admin for an admin.
+    operationId: recoverPassword
+    security: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/RecoverRequest"
+    responses:
+      "204":
+        description: Password reset; all sessions invalidated
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "423":
+        $ref: "../portfolio-api.yaml#/components/responses/Locked"
+
+password:
+  put:
+    tags: [Auth]
+    summary: Change own password
+    description: Signs out all other sessions.
+    operationId: changePassword
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/ChangePasswordRequest"
+    responses:
+      "204":
+        description: Password changed; other sessions invalidated
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+
+profile:
+  put:
+    tags: [Auth]
+    summary: Change own name and/or username
+    operationId: updateProfile
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/UpdateProfileRequest"
+    responses:
+      "200":
+        description: Updated account
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "409":
+        $ref: "../portfolio-api.yaml#/components/responses/Conflict"
+
+security_questions_answers:
+  put:
+    tags: [Auth]
+    summary: Replace own security questions and answers
+    operationId: updateSecurityQuestions
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/UpdateSecurityQuestionsRequest"
+    responses:
+      "204":
+        description: Security questions replaced
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+
+onboarding:
+  post:
+    tags: [Auth]
+    summary: Complete forced first-login onboarding
+    description: |
+      Atomically sets a real password and three real security questions and
+      clears `must_change_password`. Used by the bootstrap super admin.
+    operationId: completeOnboarding
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/OnboardingRequest"
+    responses:
+      "200":
+        description: Onboarding complete
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"

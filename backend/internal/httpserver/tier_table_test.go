@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/internal/config"
-	"portfolio-dashboard/internal/handlers"
+	"portfolio-dashboard/internal/controllers"
 )
 
 // TestAuthGate_TierTableMatchesGeneratedRoutes guards the routeTiers
@@ -21,11 +21,11 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 
 	mt.Run("admin routes are explicitly classified", func(mt *mtest.T) {
 		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
-		h := handlers.New(mt.DB, logger, false)
+		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
 		for _, r := range e.Routes() {
-			if !strings.HasPrefix(r.Path, "/api/admin") {
+			if !strings.HasPrefix(r.Path, "/api/admin/") {
 				continue
 			}
 			key := r.Method + " " + r.Path
@@ -34,6 +34,27 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestIsPublicSpecRoute documents the prefix gate: GETs under /api/specs/
+// pass unauthenticated, every other method or non-spec path does not.
+func TestIsPublicSpecRoute(t *testing.T) {
+	cases := []struct {
+		method, path string
+		want         bool
+	}{
+		{"GET", "/api/specs/openapi.yaml", true},
+		{"GET", "/api/specs/holdings/holdings.yaml", true},
+		{"GET", "/api/specs/portfolio-api.yaml", true},
+		{"GET", "/api/healthz", false},
+		{"POST", "/api/specs/openapi.yaml", false},
+		{"GET", "/api/admin/users", false},
+	}
+	for _, tc := range cases {
+		if got := isPublicSpecRoute(tc.method, tc.path); got != tc.want {
+			t.Errorf("isPublicSpecRoute(%q, %q) = %v, want %v", tc.method, tc.path, got, tc.want)
+		}
+	}
 }
 
 // TestTierFor checks the lookup helper returns the configured tier and

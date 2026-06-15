@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "gen:api": "openapi-typescript ../backend/api/openapi.yaml -o src/lib/api/schema.gen.ts"
+    "gen:api": "openapi-typescript ../backend/api/specs/openapi.yaml -o src/lib/api/schema.gen.ts"
   },
   "dependencies": {
     "playwright": "^1.60.0",

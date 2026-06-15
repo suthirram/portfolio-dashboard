@@ -54,8 +54,17 @@ idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
 │   ├── main.go                     # one-liner: cmd.Execute()
 │   ├── tools.go                    # //go:build tools — pins oapi-codegen
 │   ├── api/
-│   │   ├── openapi.yaml            # OpenAPI 3.0 contract
-│   │   └── api.gen.go              # generated strict server (DO NOT EDIT)
+│   │   ├── specs/                  # OpenAPI 3.0 contract, split
+│   │   │   ├── openapi.yaml        # root spec (paths $ref domain files)
+│   │   │   ├── portfolio-api.yaml  # components (schemas/responses/parameters) inline
+│   │   │   ├── holdings/holdings.yaml
+│   │   │   ├── market/market.yaml
+│   │   │   ├── auth/auth.yaml
+│   │   │   └── admin/admin.yaml
+│   │   ├── oapi-codegen-models.yaml  # codegen config: models + strict-server wrappers
+│   │   ├── oapi-codegen-server.yaml  # codegen config: echo + strict server, import-mapping
+│   │   ├── models.gen.go           # generated component types (DO NOT EDIT)
+│   │   └── server.gen.go           # generated echo/strict server (DO NOT EDIT)
 │   ├── cmd/                        # cobra commands
 │   │   ├── root.go
 │   │   ├── serve.go                # boot, wire handler + server
@@ -65,23 +74,27 @@ idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
 │       ├── config/                 # typed Config (defaults < env < flag)
 │       ├── db/mongo.go             # connect + EnsureIndexes for holdings/users/sessions
 │       ├── domain/                 # Holding, User, Session structs (BSON models)
-│       ├── handlers/               # echo handlers + DBO↔DTO mappers
-│       │   ├── handlers.go         # Handler struct (owns *persistence.Store + priceFetcher + slog)
-│       │   ├── auth.go             # signup/login/logout/me/recover/profile/password/onboarding
-│       │   ├── admin.go            # region-scoped admin + super-admin
-│       │   ├── holdings.go         # per-user CRUD (scopedFilter pins user_id)
-│       │   ├── market.go summary.go mapper.go
-│       ├── httpserver/             # echo wiring
-│       │   ├── server.go           # router, CORS, error renderer
-│       │   ├── middleware.go       # slog request logger
-│       │   └── auth.go             # CSRFCheck + AuthGate (session load, role/region/onboarding gates)
-│       ├── logging/                # slog factory + per-request logger on context
+│       ├── controllers/            # thin HTTP wrappers (strict OpenAPI server interface)
+│       │   ├── controllers.go      # Controller struct (owns *persistence.Store + services + slog); New / newWithDeps wire defaults / test deps
+│       │   ├── auth.go             # signup/login/logout/me/recover/profile/password/onboarding (composes credential checks + cookie writes)
+│       │   ├── admin.go            # region-scoped admin + super-admin; act-as endpoints delegate to holdings/portfolio services
+│       │   ├── holdings.go         # thin: delegates to services.HoldingsService
+│       │   ├── market.go summary.go session.go context.go
+│       ├── services/               # business-logic layer
+│       │   ├── mapper.go           # PriceFetcher interface + Holding/User DBO↔DTO converters
+│       │   ├── holdings.go         # HoldingsService — owner-scoped CRUD returning api DTOs
+│       │   ├── portfolio.go        # PortfolioService — composes holdings + prices + EUR rate for /prices and /summary
+│       │   └── price.go            # PriceService — Yahoo Finance fetcher + 5-min TTL cache
 │       ├── persistence/            # data-access layer (one store type per collection)
 │       │   ├── persistence.go      # New(db) → *Store{Holdings, Users, Sessions}
 │       │   ├── holdings.go         # HoldingStore — owner-scoped by construction
 │       │   ├── users.go            # UserStore — sentinels ErrNotFound, ErrDuplicate
 │       │   └── sessions.go         # SessionStore
-│       └── services/price.go       # Yahoo Finance fetcher + 5-min TTL cache
+│       ├── httpserver/             # echo wiring
+│       │   ├── server.go           # router, CORS, error renderer
+│       │   ├── middleware.go       # slog request logger
+│       │   └── auth.go             # CSRFCheck + AuthGate (session load, role/region/onboarding gates)
+│       └── logging/                # slog factory + per-request logger on context
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
@@ -102,7 +115,7 @@ idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
         │   └── holdings/           # useHoldings(userId?), HoldingsTable, AddEditModal
         └── lib/api/
             ├── client.ts           # fetch wrapper (credentials: include, X-Requested-With CSRF header)
-            └── schema.gen.ts       # generated from openapi.yaml via `npm run gen:api` (DO NOT EDIT)
+            └── schema.gen.ts       # generated from api/specs/openapi.yaml via `npm run gen:api` (DO NOT EDIT)
 ```
 
 ## Backend — Go
@@ -116,9 +129,14 @@ Recover middleware).
 subcommand lives in `cmd/`.
 
 **OpenAPI**: `github.com/oapi-codegen/oapi-codegen/v2` strict-server mode.
-`api/api.gen.go` is generated from `api/openapi.yaml`; the `Handler` struct
-implements every interface method. The contract is the source of truth — change
-`openapi.yaml`, run `make generate`, then implement the new methods.
+Contract is split under `api/specs/` (root `openapi.yaml` + `portfolio-api.yaml`
+for components + per-domain path files under `holdings/`, `market/`, `auth/`,
+`admin/`). Two codegen passes: `oapi-codegen-models.yaml` → `api/models.gen.go`
+(types + shared response wrappers); `oapi-codegen-server.yaml` → `api/server.gen.go`
+(echo + strict server, `import-mapping ../portfolio-api.yaml: "-"` to keep refs
+in the same Go package). The `Handler` struct implements every interface method.
+The contract is the source of truth — edit a file under `api/specs/`, run
+`go generate -tags tools ./...`, then implement the new methods.
 
 **Logging**: `log/slog` (JSON by default); per-request logger is stashed on
 `context.Context` so handlers log with the right `request_id`.
@@ -152,13 +170,14 @@ type Holding struct {
 // internal/domain/session.go  — opaque id, UserID, CreatedAt, ExpiresAt; SessionTTL = 30 days.
 ```
 
-DBO↔DTO conversion lives in `internal/handlers/mapper.go` and
-`auth_mapper.go`. Generated API types (`api.Holding`, `api.User`) stay
+DBO↔DTO conversion lives in `internal/services/mapper.go` (holdings + user
+converters, plus the `PriceFetcher` interface). Generated API types
+(`api.Holding`, `api.User`) stay
 JSON-shaped; domain types stay BSON-shaped. They never mix.
 
 ### API routes
 
-Defined in `api/openapi.yaml`; echo routes are wired by oapi-codegen's
+Defined in `api/specs/openapi.yaml` (+ per-domain path files); echo routes are wired by oapi-codegen's
 `RegisterHandlersWithBaseURL`. All non-public routes require a session cookie
 and CSRF header.
 
@@ -206,7 +225,7 @@ POST   /api/admin/users/{id}/holdings   # …+ /{id}, /prices, /summary
 GET    /api/admin/admins                          # super admin only
 
 # Spec
-GET    /api/openapi.yaml
+GET    /api/specs/openapi.yaml          (+ portfolio-api.yaml & per-domain files)
 GET    /api/healthz
 ```
 
@@ -234,6 +253,7 @@ github.com/labstack/echo/v4 v4.13+
 github.com/spf13/cobra v1.9+
 github.com/oapi-codegen/oapi-codegen/v2 v2.4+         // tools.go
 github.com/oapi-codegen/runtime v1.1+
+github.com/samber/lo v1.53+                          // lo.ToPtr for nullable API fields
 go.mongodb.org/mongo-driver v1.17+
 golang.org/x/crypto                                  // bcrypt
 ```
@@ -367,8 +387,8 @@ style preferences; the pre-commit hook rejects violations (see *Quality gate*).
 `openapi-typescript`.
 
 OpenAPI types are generated into `src/lib/api/schema.gen.ts` via
-`npm run gen:api` (`openapi-typescript ../backend/api/openapi.yaml -o
-src/lib/api/schema.gen.ts`). Re-run after every `openapi.yaml` change. Do not
+`npm run gen:api` (`openapi-typescript ../backend/api/specs/openapi.yaml -o
+src/lib/api/schema.gen.ts`). Re-run after any change under `backend/api/specs/`. Do not
 hand-edit the generated file. `src/types.ts` re-exports the names handlers
 consume.
 
@@ -503,8 +523,8 @@ MongoDB only — for running backend and frontend locally.
 ### `backend/Dockerfile`
 
 Multi-stage: `golang:1.25-alpine` builder → `alpine:3.20` runtime. Copy the
-compiled binary and `api/openapi.yaml` (served live by the backend). Entry
-point is `portfolio-dashboard serve`.
+compiled binary and the full `api/specs/` tree (served live by the backend).
+Entry point is `portfolio-dashboard serve`.
 
 ### `frontend/Dockerfile`
 
@@ -514,21 +534,31 @@ Multi-stage: `node:20-alpine` builder → `nginx:alpine`. Include `nginx.conf` t
 * Proxies `/api/` to `portfolio_backend:8080`
 * Enables gzip
 
-## OpenAPI spec (`api/openapi.yaml`)
+## OpenAPI spec (`api/specs/`)
 
-Write a proper OpenAPI 3.0 spec covering every route in the table above —
-auth, portfolio, admin (incl. act-as), market. Include `components/schemas`
-for `Holding`, `HoldingInput`, `HoldingWithPrice`, `PricesResponse`,
-`Summary`, `User`, `Session`, `Region`, `SecurityQuestion`,
-`SecurityAnswerInput`, and `Error`; declare 401/403/404/409/423 response
-shapes. Add a `cookieAuth` security scheme on `pd_session` and apply it to
-every non-public operation. Serve it at `GET /api/openapi.yaml`.
+OpenAPI 3.0 spec split across `api/specs/`:
 
-`api/api.gen.go` is generated by oapi-codegen (`tools.go` pins the version);
-`schema.gen.ts` is generated by `openapi-typescript`. **Both files are
-regenerated, never hand-edited** — change the YAML, run
-`make generate && (cd frontend && npm run gen:api)`, then implement the new
-interface methods.
+* `openapi.yaml` — root; paths reference per-domain files.
+* `portfolio-api.yaml` — every component (`schemas`, `responses`,
+  `parameters`) inline; covers `Holding`, `HoldingInput`, `HoldingWithPrice`,
+  `PricesResponse`, `Summary`, `User`, `Region`, `SecurityQuestion`,
+  `SecurityAnswerInput`, `Error`, and the 401/403/404/409/423 response
+  shapes.
+* `holdings/holdings.yaml`, `market/market.yaml`, `auth/auth.yaml`,
+  `admin/admin.yaml` — path items; ref components via
+  `../portfolio-api.yaml#/components/...`.
+
+`cookieAuth` (apiKey on `pd_session`) is declared inline in `openapi.yaml`
+and applied to every non-public operation. The root file plus every sibling
+is served at `GET /api/specs/<path>` so a browser can resolve the relative
+`$ref`s.
+
+`api/models.gen.go` and `api/server.gen.go` are generated by oapi-codegen
+(`tools.go` pins the version); `schema.gen.ts` is generated by
+`openapi-typescript`. **All three files are regenerated, never hand-edited** —
+edit a file under `api/specs/`, run
+`go generate -tags tools ./... && (cd ../frontend && npm run gen:api)`, then
+implement the new interface methods.
 
 ## Makefile
 
@@ -579,8 +609,9 @@ Before finishing, verify:
 
 * [ ] Module name is `portfolio-dashboard`; every `internal/…` import path
       resolves under it
-* [ ] Generated files (`api/api.gen.go`, `frontend/src/lib/api/schema.gen.ts`)
-      are in sync with `openapi.yaml`; the generators ran without diffs
+* [ ] Generated files (`api/models.gen.go`, `api/server.gen.go`,
+      `frontend/src/lib/api/schema.gen.ts`) are in sync with `api/specs/`;
+      the generators ran without diffs
 * [ ] `vite.config.ts` has the `/api` proxy configured
 * [ ] `docker-compose.yml` service names match what `nginx.conf` proxies to
 * [ ] README documents `go mod tidy` and the first-run super-admin onboarding
