@@ -69,7 +69,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/domain/user.go` — `User` (with `Role`, `Region`, lockout counters, `IsAdmin`/`IsSuperAdmin`/`Oversees` helpers)
 * `internal/domain/session.go` — `Session` (opaque id, sliding 30-day expiry); `SessionTTL` constant
 * `internal/db/mongo.go` — MongoDB connection + index creation for `holdings`, `users`, `sessions` (incl. TTL on `sessions.expires_at`)
-* `api/openapi.yaml` — served live at `/api/openapi.yaml`
+* `api/openapi.yaml` — root spec; served live at `/api/openapi.yaml`. Split by domain into sibling files: `api/holdings.yaml`, `api/market.yaml`, `api/auth.yaml`, `api/admin.yaml` for paths and `api/schemas.yaml`, `api/responses.yaml`, `api/parameters.yaml`, `api/security.yaml` for components. Root only holds info/servers/tags/security plus a flat `$ref` index. Each sibling is also registered as a public static route so a browser fetching the spec can follow the relative `$ref`s. `oapi-codegen` and `openapi-typescript` resolve external `$ref`s natively — regen with `go generate ./...` (backend) and `npm run gen:api` (frontend).
 
 All app-private packages live under `internal/` per idiomatic Go layout.
 
@@ -91,7 +91,7 @@ React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folde
 * `components/SummaryCards.tsx` — totals bar (cost, current value, P&L); shared display component
 * `components/Charts.tsx` — Recharts pie/bar charts; shared display component
 * `lib/api/client.ts` — typed fetch wrapper with `credentials: 'include'` and `X-Requested-With` CSRF header on state-changing requests; in dev, Vite proxies `/api` → `localhost:8080`
-* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing `backend/api/openapi.yaml`
+* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing any file under `backend/api/` (root `openapi.yaml` or a domain sibling)
 * `types.ts` — public type aliases re-exported from `schema.gen.ts`
 
 ### Data flow
