@@ -349,7 +349,7 @@ func TestHistoryService_Delete_DelegatesToStore(t *testing.T) {
 		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}))
 
 		svc := newHistorySvc(mt)
-		if err := svc.Delete(context.Background(), uid, "2026-06-15"); err != nil {
+		if err := svc.Delete(context.Background(), uid, "2026-06-15", false); err != nil {
 			t.Fatalf("Delete: %v", err)
 		}
 	})
@@ -518,7 +518,7 @@ func TestHistoryService_Delete_CronProtectedBubblesUp(t *testing.T) {
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, row))
 
 		svc := newHistorySvc(mt)
-		err := svc.Delete(context.Background(), uid, "2026-06-15")
+		err := svc.Delete(context.Background(), uid, "2026-06-15", false)
 		if !errors.Is(err, persistence.ErrCronProtected) {
 			t.Errorf("err = %v, want ErrCronProtected", err)
 		}

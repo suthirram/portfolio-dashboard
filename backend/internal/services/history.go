@@ -268,11 +268,15 @@ func originalCronFor(existing domain.RegionSnapshot) (*float64, *float64) {
 }
 
 // Delete removes a row only if every region is manual; cron-touched rows
-// surface ErrCronProtected from the store.
-func (s *HistoryService) Delete(ctx context.Context, uid primitive.ObjectID, dateStr string) error {
+// surface ErrCronProtected from the store. Pass force=true to bypass the
+// cron-protection guard (super-admin override).
+func (s *HistoryService) Delete(ctx context.Context, uid primitive.ObjectID, dateStr string, force bool) error {
 	date, err := parseDateNotFuture(dateStr, s.Now)
 	if err != nil {
 		return err
+	}
+	if force {
+		return s.store.ForceDelete(ctx, uid, date)
 	}
 	return s.store.Delete(ctx, uid, date)
 }

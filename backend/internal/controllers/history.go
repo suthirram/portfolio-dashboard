@@ -8,6 +8,7 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
 	"portfolio-dashboard/internal/services"
@@ -111,7 +112,11 @@ func (h *Controller) DeleteHistoryRow(ctx context.Context, req api.DeleteHistory
 		return nil, err
 	}
 	dateStr := req.Date.Format("2006-01-02")
-	if err := h.history.Delete(ctx, uid, dateStr); err != nil {
+	force := false
+	if u, ok := auth.UserFromContext(ctx); ok && u.IsSuperAdmin() {
+		force = true
+	}
+	if err := h.history.Delete(ctx, uid, dateStr, force); err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.DeleteHistoryRow404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: ptrString("not found")}}, nil
 		}
