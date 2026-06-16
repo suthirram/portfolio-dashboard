@@ -32,17 +32,19 @@ const (
 
 // Store bundles the per-collection stores behind one handle.
 type Store struct {
-	Holdings *HoldingStore
-	Users    *UserStore
-	Sessions *SessionStore
+	Holdings  *HoldingStore
+	Users     *UserStore
+	Sessions  *SessionStore
+	Snapshots *SnapshotStore
 }
 
 // New wires the collection stores onto db.
 func New(db *mongo.Database) *Store {
 	return &Store{
-		Holdings: &HoldingStore{col: db.Collection("holdings")},
-		Users:    &UserStore{col: db.Collection("users")},
-		Sessions: &SessionStore{col: db.Collection("sessions")},
+		Holdings:  &HoldingStore{col: db.Collection("holdings")},
+		Users:     &UserStore{col: db.Collection("users")},
+		Sessions:  &SessionStore{col: db.Collection("sessions")},
+		Snapshots: &SnapshotStore{col: db.Collection("portfolio_snapshots")},
 	}
 }
 

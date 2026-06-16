@@ -48,6 +48,16 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Lo
 			{Keys: bson.D{{Key: "expires_at", Value: 1}},
 				Options: options.Index().SetExpireAfterSeconds(0)},
 		},
+		"portfolio_snapshots": {
+			// at most one row per (user, UTC midnight). Also powers the
+			// month query `user_id = X AND date BETWEEN start AND end`
+			// (DD-002 §2.2).
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}},
+				Options: options.Index().SetUnique(true)},
+			// supports the snapshot job's "everyone who needs a row for date D"
+			// scan.
+			{Keys: bson.D{{Key: "date", Value: 1}}},
+		},
 	} {
 		names, err := database.Collection(col).Indexes().CreateMany(ctx, models)
 		if err != nil {

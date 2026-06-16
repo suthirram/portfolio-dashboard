@@ -22,8 +22,9 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("indexes created", func(mt *mtest.T) {
-		// One createIndexes command per collection: holdings, users, sessions.
-		for range 3 {
+		// One createIndexes command per collection: holdings, users,
+		// sessions, portfolio_snapshots.
+		for range 4 {
 			mt.AddMockResponses(mtest.CreateSuccessResponse(
 				bson.E{Key: "createdCollectionAutomatically", Value: false},
 				bson.E{Key: "numIndexesBefore", Value: 1},
@@ -37,7 +38,7 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 		if err := EnsureIndexes(context.Background(), mt.DB, logger); err != nil {
 			t.Fatalf("EnsureIndexes: %v", err)
 		}
-		for _, col := range []string{"holdings", "users", "sessions"} {
+		for _, col := range []string{"holdings", "users", "sessions", "portfolio_snapshots"} {
 			if !strings.Contains(buf.String(), `"collection":"`+col+`"`) {
 				t.Errorf("log output missing collection %q: %s", col, buf.String())
 			}
