@@ -3,13 +3,20 @@ package db
 import (
 	"bytes"
 	"context"
-	"log/slog"
 	"strings"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
+
+func newBufLogger(buf *bytes.Buffer) *zap.Logger {
+	enc := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	core := zapcore.NewCore(enc, zapcore.AddSync(buf), zapcore.DebugLevel)
+	return zap.New(core)
+}
 
 func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -25,7 +32,7 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		logger := slog.New(slog.NewJSONHandler(&buf, nil))
+		logger := newBufLogger(&buf)
 
 		if err := EnsureIndexes(context.Background(), mt.DB, logger); err != nil {
 			t.Fatalf("EnsureIndexes: %v", err)

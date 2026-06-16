@@ -1,12 +1,12 @@
 package httpserver
 
 import (
-	"bytes"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,7 +18,7 @@ import (
 )
 
 func newTestServer(mt *mtest.T) http.Handler {
-	logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
+	logger := zap.NewNop()
 	h := controllers.New(mt.DB, logger, false)
 	return New(config.Default(), logger, mt.DB, h)
 }

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
@@ -56,13 +56,14 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("init logger: %w", err)
 	}
-	slog.SetDefault(logger)
+	undo := zap.ReplaceGlobals(logger)
+	defer undo()
 
 	logger.Info("starting portfolio-dashboard",
-		slog.String("port", cfg.Port),
-		slog.String("mongo_db", cfg.MongoDB),
-		slog.String("log_level", cfg.LogLevel),
-		slog.String("log_format", cfg.LogFormat),
+		zap.String("port", cfg.Port),
+		zap.String("mongo_db", cfg.MongoDB),
+		zap.String("log_level", cfg.LogLevel),
+		zap.String("log_format", cfg.LogFormat),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -78,7 +79,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	e := httpserver.New(cfg, logger, database, h)
 
 	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {
-		logger.Error("server terminated with error", slog.String("error", err.Error()))
+		logger.Error("server terminated with error", zap.String("error", err.Error()))
 		return err
 	}
 	logger.Info("server stopped cleanly")
@@ -109,7 +110,7 @@ func buildConfig(cmd *cobra.Command) config.Config {
 	return cfg
 }
 
-func connectMongo(ctx context.Context, cfg config.Config, logger *slog.Logger) (*mongo.Database, func(), error) {
+func connectMongo(ctx context.Context, cfg config.Config, logger *zap.Logger) (*mongo.Database, func(), error) {
 	startCtx, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
 	defer cancel()
 
@@ -122,16 +123,16 @@ func connectMongo(ctx context.Context, cfg config.Config, logger *slog.Logger) (
 		discCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := client.Disconnect(discCtx); err != nil {
-			logger.Error("mongodb disconnect failed", slog.String("error", err.Error()))
+			logger.Error("mongodb disconnect failed", zap.String("error", err.Error()))
 		}
 	}
 
 	database := client.Database(cfg.MongoDB)
 	if err := db.EnsureIndexes(startCtx, database, logger); err != nil {
-		logger.Warn("index creation failed", slog.String("error", err.Error()))
+		logger.Warn("index creation failed", zap.String("error", err.Error()))
 	}
 	if err := auth.EnsureSuperAdmin(startCtx, database, logger); err != nil {
-		logger.Warn("super admin bootstrap failed", slog.String("error", err.Error()))
+		logger.Warn("super admin bootstrap failed", zap.String("error", err.Error()))
 	}
 	return database, disconnect, nil
 }

@@ -3,8 +3,9 @@ package services
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,29 +20,29 @@ import (
 // invariant so mis-routed reads return ErrNotFound, never another user's row.
 type HoldingsService struct {
 	store  *persistence.HoldingStore
-	logger *slog.Logger
+	logger *zap.Logger
 }
 
 // NewHoldingsService wires a HoldingsService.
-func NewHoldingsService(store *persistence.HoldingStore, logger *slog.Logger) *HoldingsService {
+func NewHoldingsService(store *persistence.HoldingStore, logger *zap.Logger) *HoldingsService {
 	return &HoldingsService{store: store, logger: logger}
 }
 
-func (s *HoldingsService) log(ctx context.Context) *slog.Logger {
+func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
 	if l, ok := logging.FromContext(ctx); ok {
 		return l
 	}
 	if s.logger != nil {
 		return s.logger
 	}
-	return slog.New(slog.DiscardHandler)
+	return zap.NewNop()
 }
 
 // List returns the holdings owned by uid, mapped to API DTOs.
 func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]api.Holding, error) {
 	holdings, err := s.store.ListByUser(ctx, uid)
 	if err != nil {
-		s.log(ctx).ErrorContext(ctx, "list holdings query failed", slog.String("error", err.Error()))
+		s.log(ctx).Error("list holdings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	out := make([]api.Holding, 0, len(holdings))
@@ -64,8 +65,8 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Holding{}, false, nil
 		}
-		s.log(ctx).ErrorContext(ctx, "get holding failed",
-			slog.String("id", idHex), slog.String("error", err.Error()))
+		s.log(ctx).Error("get holding failed",
+			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
 	return HoldingToAPI(holding), true, nil
@@ -81,15 +82,15 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	holding.UpdatedAt = now
 
 	if err := s.store.Insert(ctx, holding); err != nil {
-		s.log(ctx).ErrorContext(ctx, "create holding failed",
-			slog.String("script", holding.Script), slog.String("error", err.Error()))
+		s.log(ctx).Error("create holding failed",
+			zap.String("script", holding.Script), zap.String("error", err.Error()))
 		return api.Holding{}, err
 	}
-	s.log(ctx).InfoContext(ctx, "holding created",
-		slog.String("id", holding.ID.Hex()),
-		slog.String("owner", uid.Hex()),
-		slog.String("script", holding.Script),
-		slog.String("currency", holding.Currency),
+	s.log(ctx).Info("holding created",
+		zap.String("id", holding.ID.Hex()),
+		zap.String("owner", uid.Hex()),
+		zap.String("script", holding.Script),
+		zap.String("currency", holding.Currency),
 	)
 	return HoldingToAPI(holding), nil
 }
@@ -132,11 +133,11 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Holding{}, false, nil
 		}
-		s.log(ctx).ErrorContext(ctx, "update holding failed",
-			slog.String("id", idHex), slog.String("error", err.Error()))
+		s.log(ctx).Error("update holding failed",
+			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
-	s.log(ctx).InfoContext(ctx, "holding updated", slog.String("id", idHex))
+	s.log(ctx).Info("holding updated", zap.String("id", idHex))
 	return HoldingToAPI(updated), true, nil
 }
 
@@ -149,13 +150,13 @@ func (s *HoldingsService) Delete(ctx context.Context, uid primitive.ObjectID, id
 	}
 	deleted, err := s.store.DeleteScoped(ctx, uid, id)
 	if err != nil {
-		s.log(ctx).ErrorContext(ctx, "delete holding failed",
-			slog.String("id", idHex), slog.String("error", err.Error()))
+		s.log(ctx).Error("delete holding failed",
+			zap.String("id", idHex), zap.String("error", err.Error()))
 		return false, err
 	}
 	if !deleted {
 		return false, nil
 	}
-	s.log(ctx).InfoContext(ctx, "holding deleted", slog.String("id", idHex))
+	s.log(ctx).Info("holding deleted", zap.String("id", idHex))
 	return true, nil
 }

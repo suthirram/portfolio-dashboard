@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -25,22 +26,22 @@ const fallbackEURRate = 0.011
 type PortfolioService struct {
 	store        *persistence.HoldingStore
 	priceService PriceFetcher
-	logger       *slog.Logger
+	logger       *zap.Logger
 }
 
 // NewPortfolioService wires a PortfolioService.
-func NewPortfolioService(store *persistence.HoldingStore, priceService PriceFetcher, logger *slog.Logger) *PortfolioService {
+func NewPortfolioService(store *persistence.HoldingStore, priceService PriceFetcher, logger *zap.Logger) *PortfolioService {
 	return &PortfolioService{store: store, priceService: priceService, logger: logger}
 }
 
-func (s *PortfolioService) log(ctx context.Context) *slog.Logger {
+func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
 	if l, ok := logging.FromContext(ctx); ok {
 		return l
 	}
 	if s.logger != nil {
 		return s.logger
 	}
-	return slog.New(slog.DiscardHandler)
+	return zap.NewNop()
 }
 
 // Prices returns the holdings owned by uid enriched with live market data,
@@ -57,7 +58,7 @@ func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (
 		if err == nil {
 			err = errors.New("EUR rate is zero")
 		}
-		s.log(ctx).ErrorContext(ctx, "EUR rate fetch failed", slog.String("error", err.Error()))
+		s.log(ctx).Error("EUR rate fetch failed", zap.String("error", err.Error()))
 		return nil, 0, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
@@ -79,8 +80,8 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 
 	eurRate, err := s.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
-		s.log(ctx).WarnContext(ctx, "EUR rate unavailable, using fallback",
-			slog.Float64("fallback", fallbackEURRate))
+		s.log(ctx).Warn("EUR rate unavailable, using fallback",
+			zap.Float64("fallback", fallbackEURRate))
 		eurRate = fallbackEURRate
 	}
 

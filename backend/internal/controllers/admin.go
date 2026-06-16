@@ -3,9 +3,10 @@ package controllers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
@@ -52,8 +53,8 @@ func (h *Controller) loadTargetUser(ctx context.Context, caller *domain.User, id
 		if errors.Is(err, persistence.ErrNotFound) {
 			return nil, false, nil
 		}
-		h.reqLog(ctx).ErrorContext(ctx, "load target user failed",
-			slog.String("id", idHex), slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("load target user failed",
+			zap.String("id", idHex), zap.String("error", err.Error()))
 		return nil, false, err
 	}
 
@@ -89,7 +90,7 @@ func (h *Controller) AdminListUsers(ctx context.Context, request api.AdminListUs
 
 	users, err := h.store.Users.List(ctx, filter, bson.D{{Key: "username", Value: 1}})
 	if err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "admin list users failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("admin list users failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -113,7 +114,7 @@ func (h *Controller) AdminListAdmins(ctx context.Context, _ api.AdminListAdminsR
 		bson.M{"role": bson.M{"$in": bson.A{domain.RoleAdmin, domain.RoleSuperAdmin}}},
 		bson.D{{Key: "role", Value: 1}, {Key: "username", Value: 1}})
 	if err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "admin list admins failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("admin list admins failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -160,12 +161,12 @@ func (h *Controller) AdminResetLockout(ctx context.Context, request api.AdminRes
 		"security_question_failures": 0,
 		"updated_at":                 time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "reset lockout failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("reset lockout failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "lockout reset",
-		slog.String("target", target.ID.Hex()), slog.String("by", caller.ID.Hex()))
+	h.reqLog(ctx).Info("lockout reset",
+		zap.String("target", target.ID.Hex()), zap.String("by", caller.ID.Hex()))
 	return api.AdminResetLockout204Response{}, nil
 }
 
@@ -190,7 +191,7 @@ func (h *Controller) AdminHideUser(ctx context.Context, request api.AdminHideUse
 		"disabled":   true,
 		"updated_at": time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "hide user failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("hide user failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	// Kill live sessions so access ends now, not at next session expiry.
@@ -199,8 +200,8 @@ func (h *Controller) AdminHideUser(ctx context.Context, request api.AdminHideUse
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "user hidden",
-		slog.String("target", target.ID.Hex()), slog.String("by", caller.ID.Hex()))
+	h.reqLog(ctx).Info("user hidden",
+		zap.String("target", target.ID.Hex()), zap.String("by", caller.ID.Hex()))
 	return api.AdminHideUser204Response{}, nil
 }
 
@@ -221,12 +222,12 @@ func (h *Controller) AdminReactivateUser(ctx context.Context, request api.AdminR
 		"disabled":   false,
 		"updated_at": time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "reactivate user failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("reactivate user failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "user reactivated",
-		slog.String("target", target.ID.Hex()), slog.String("by", caller.ID.Hex()))
+	h.reqLog(ctx).Info("user reactivated",
+		zap.String("target", target.ID.Hex()), zap.String("by", caller.ID.Hex()))
 	return api.AdminReactivateUser204Response{}, nil
 }
 
@@ -249,20 +250,20 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 	// Holdings first: if anything fails midway the account still exists and
 	// the delete can be retried.
 	if err := h.store.Holdings.DeleteByUser(ctx, target.ID); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "delete user holdings failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("delete user holdings failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.store.Sessions.DeleteByUser(ctx, target.ID); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "delete user sessions failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("delete user sessions failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.store.Users.Delete(ctx, target.ID); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "delete user failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("delete user failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "user permanently deleted",
-		slog.String("target", target.ID.Hex()), slog.String("by", caller.ID.Hex()))
+	h.reqLog(ctx).Info("user permanently deleted",
+		zap.String("target", target.ID.Hex()), zap.String("by", caller.ID.Hex()))
 	return api.AdminDeleteUser204Response{}, nil
 }
 
@@ -302,8 +303,8 @@ func (h *Controller) AdminPromoteUser(ctx context.Context, request api.AdminProm
 	}
 	target.Role = domain.RoleAdmin
 
-	h.reqLog(ctx).InfoContext(ctx, "user promoted to admin",
-		slog.String("target", target.ID.Hex()), slog.String("region", target.Region))
+	h.reqLog(ctx).Info("user promoted to admin",
+		zap.String("target", target.ID.Hex()), zap.String("region", target.Region))
 	return api.AdminPromoteUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
@@ -332,7 +333,7 @@ func (h *Controller) AdminDemoteUser(ctx context.Context, request api.AdminDemot
 	}
 	target.Role = domain.RoleUser
 
-	h.reqLog(ctx).InfoContext(ctx, "admin demoted to user", slog.String("target", target.ID.Hex()))
+	h.reqLog(ctx).Info("admin demoted to user", zap.String("target", target.ID.Hex()))
 	return api.AdminDemoteUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
@@ -341,7 +342,7 @@ func (h *Controller) setRole(ctx context.Context, id primitive.ObjectID, role st
 		"role":       role,
 		"updated_at": time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "role update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("role update failed", zap.String("error", err.Error()))
 		return err
 	}
 	return nil
@@ -370,13 +371,13 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 		"region":     request.Body.Region,
 		"updated_at": time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "region update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("region update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	target.Region = request.Body.Region
 
-	h.reqLog(ctx).InfoContext(ctx, "account moved to region",
-		slog.String("target", target.ID.Hex()), slog.String("region", target.Region))
+	h.reqLog(ctx).Info("account moved to region",
+		zap.String("target", target.ID.Hex()), zap.String("region", target.Region))
 	return api.AdminSetUserRegion200JSONResponse(services.UserToAPI(target, false)), nil
 }
 

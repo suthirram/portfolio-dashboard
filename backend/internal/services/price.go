@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // cachedPrice holds a price with a timestamp for TTL-based invalidation.
@@ -28,11 +29,11 @@ type PriceService struct {
 	cache    map[string]cachedPrice
 	cacheMu  sync.RWMutex
 	cacheTTL time.Duration
-	logger   *slog.Logger
+	logger   *zap.Logger
 }
 
 // NewPriceService builds a PriceService with sensible defaults.
-func NewPriceService(logger *slog.Logger) *PriceService {
+func NewPriceService(logger *zap.Logger) *PriceService {
 	return &PriceService{
 		client:   &http.Client{Timeout: 12 * time.Second},
 		baseURL:  "https://query1.finance.yahoo.com",
@@ -44,9 +45,9 @@ func NewPriceService(logger *slog.Logger) *PriceService {
 
 // log returns the configured logger or a discarding one (for tests that
 // construct PriceService via struct literal).
-func (s *PriceService) log() *slog.Logger {
+func (s *PriceService) log() *zap.Logger {
 	if s.logger == nil {
-		return slog.New(slog.DiscardHandler)
+		return zap.NewNop()
 	}
 	return s.logger
 }
@@ -69,27 +70,27 @@ type yahooChartResp struct {
 // US symbols are plain (e.g. "AAPL").
 func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, string, error) {
 	if c, ok := s.cacheGet(symbol); ok {
-		s.log().DebugContext(ctx, "price cache hit",
-			slog.String("symbol", symbol),
-			slog.Float64("price", c.price),
+		s.log().Debug("price cache hit",
+			zap.String("symbol", symbol),
+			zap.Float64("price", c.price),
 		)
 		return c.price, c.currency, nil
 	}
 
 	price, currency, err := s.fetch(ctx, symbol)
 	if err != nil {
-		s.log().WarnContext(ctx, "price fetch failed",
-			slog.String("symbol", symbol),
-			slog.String("error", err.Error()),
+		s.log().Warn("price fetch failed",
+			zap.String("symbol", symbol),
+			zap.String("error", err.Error()),
 		)
 		return 0, "", err
 	}
 
 	s.cacheSet(symbol, price, currency)
-	s.log().DebugContext(ctx, "price fetched",
-		slog.String("symbol", symbol),
-		slog.Float64("price", price),
-		slog.String("currency", currency),
+	s.log().Debug("price fetched",
+		zap.String("symbol", symbol),
+		zap.Float64("price", price),
+		zap.String("currency", currency),
 	)
 	return price, currency, nil
 }

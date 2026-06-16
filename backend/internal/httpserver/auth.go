@@ -2,10 +2,11 @@ package httpserver
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 
@@ -135,7 +136,7 @@ func CSRFCheck() echo.MiddlewareFunc {
 // must_change_password is set, only the onboarding routes are reachable.
 // cookieSecure controls the Secure / SameSite attributes used when the
 // middleware re-issues or clears the session cookie.
-func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) echo.MiddlewareFunc {
+func AuthGate(st *persistence.Store, logger *zap.Logger, cookieSecure bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			user, sessionID := loadSession(c, st, logger, cookieSecure)
@@ -173,7 +174,7 @@ func AuthGate(st *persistence.Store, logger *slog.Logger, cookieSecure bool) ech
 // loadSession resolves the session cookie to a live user. Returns (nil, "")
 // for missing/expired sessions and hidden users; expired sessions are
 // deleted and the cookie is cleared so the browser stops sending it.
-func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, cookieSecure bool) (*domain.User, string) {
+func loadSession(c echo.Context, st *persistence.Store, logger *zap.Logger, cookieSecure bool) (*domain.User, string) {
 	cookie, err := c.Cookie(controllers.SessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil, ""
@@ -184,7 +185,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 	sess, err := st.Sessions.Get(ctx, cookie.Value)
 	if err != nil {
 		if !errors.Is(err, persistence.ErrNotFound) {
-			logger.Error("session lookup failed", slog.String("error", err.Error()))
+			logger.Error("session lookup failed", zap.String("error", err.Error()))
 		}
 		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
@@ -194,7 +195,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 		// The TTL index removes these eventually; delete eagerly so a stale
 		// cookie cannot linger until the TTL monitor runs.
 		if err := st.Sessions.Delete(ctx, sess.ID); err != nil {
-			logger.Warn("expired session delete failed", slog.String("error", err.Error()))
+			logger.Warn("expired session delete failed", zap.String("error", err.Error()))
 		}
 		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
@@ -203,7 +204,7 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 	user, err := st.Users.FindByID(ctx, sess.UserID)
 	if err != nil {
 		if !errors.Is(err, persistence.ErrNotFound) {
-			logger.Error("session user lookup failed", slog.String("error", err.Error()))
+			logger.Error("session user lookup failed", zap.String("error", err.Error()))
 		}
 		controllers.ClearSessionCookie(c, cookieSecure)
 		return nil, ""
@@ -220,13 +221,13 @@ func loadSession(c echo.Context, st *persistence.Store, logger *slog.Logger, coo
 
 // refreshSession slides the expiry forward, at most once per day so steady
 // traffic does not write on every request.
-func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session, logger *slog.Logger, cookieSecure bool) {
+func refreshSession(c echo.Context, st *persistence.Store, sess *domain.Session, logger *zap.Logger, cookieSecure bool) {
 	if time.Until(sess.ExpiresAt) > domain.SessionTTL-24*time.Hour {
 		return
 	}
 	newExpiry := time.Now().Add(domain.SessionTTL)
 	if err := st.Sessions.SetExpiry(c.Request().Context(), sess.ID, newExpiry); err != nil {
-		logger.Warn("session refresh failed", slog.String("error", err.Error()))
+		logger.Warn("session refresh failed", zap.String("error", err.Error()))
 		return
 	}
 	controllers.SetSessionCookie(c, sess.ID, newExpiry, cookieSecure)

@@ -75,7 +75,7 @@ idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
 │       ├── db/mongo.go             # connect + EnsureIndexes for holdings/users/sessions
 │       ├── domain/                 # Holding, User, Session structs (BSON models)
 │       ├── controllers/            # thin HTTP wrappers (strict OpenAPI server interface)
-│       │   ├── controllers.go      # Controller struct (owns *persistence.Store + services + slog); New / newWithDeps wire defaults / test deps
+│       │   ├── controllers.go      # Controller struct (owns *persistence.Store + services + zap); New / newWithDeps wire defaults / test deps
 │       │   ├── auth.go             # signup/login/logout/me/recover/profile/password/onboarding (composes credential checks + cookie writes)
 │       │   ├── admin.go            # region-scoped admin + super-admin; act-as endpoints delegate to holdings/portfolio services
 │       │   ├── holdings.go         # thin: delegates to services.HoldingsService
@@ -92,9 +92,9 @@ idiomatic Go layout; the entry point is a cobra CLI in `cmd/`, not a flat
 │       │   └── sessions.go         # SessionStore
 │       ├── httpserver/             # echo wiring
 │       │   ├── server.go           # router, CORS, error renderer
-│       │   ├── middleware.go       # slog request logger
+│       │   ├── middleware.go       # zap request logger
 │       │   └── auth.go             # CSRFCheck + AuthGate (session load, role/region/onboarding gates)
-│       └── logging/                # slog factory + per-request logger on context
+│       └── logging/                # zap factory + per-request logger on context
 └── frontend/
     ├── Dockerfile
     ├── nginx.conf
@@ -138,7 +138,7 @@ in the same Go package). The `Handler` struct implements every interface method.
 The contract is the source of truth — edit a file under `api/specs/`, run
 `go generate -tags tools ./...`, then implement the new methods.
 
-**Logging**: `log/slog` (JSON by default); per-request logger is stashed on
+**Logging**: `go.uber.org/zap` (JSON by default); per-request logger is stashed on
 `context.Context` so handlers log with the right `request_id`.
 
 **MongoDB driver**: `go.mongodb.org/mongo-driver v1.17+`.
@@ -255,6 +255,7 @@ github.com/oapi-codegen/oapi-codegen/v2 v2.4+         // tools.go
 github.com/oapi-codegen/runtime v1.1+
 github.com/samber/lo v1.53+                          // lo.ToPtr for nullable API fields
 go.mongodb.org/mongo-driver v1.17+
+go.uber.org/zap v1.28+                               // structured logging
 golang.org/x/crypto                                  // bcrypt
 ```
 

@@ -3,11 +3,12 @@ package httpserver
 import (
 	"bytes"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -75,7 +76,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
 		)
 
-		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
+		logger := zap.NewNop()
 		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 

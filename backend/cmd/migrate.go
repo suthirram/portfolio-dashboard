@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
@@ -34,7 +34,7 @@ var migrateUsersCmd = &cobra.Command{
 // cliConnect dials Mongo for a one-shot command and returns the store, the
 // underlying database (for index maintenance), and a disconnect func.
 // Centralises the boilerplate shared by every CLI command.
-func cliConnect(ctx context.Context, logger *slog.Logger, cfg config.Config) (*persistence.Store, *mongo.Database, func(), error) {
+func cliConnect(ctx context.Context, logger *zap.Logger, cfg config.Config) (*persistence.Store, *mongo.Database, func(), error) {
 	client, err := db.Connect(ctx, cfg.MongoURI, logger)
 	if err != nil {
 		return nil, nil, nil, err
@@ -76,9 +76,9 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("backfilling user_id: %w", err)
 	}
 	logger.Info("legacy holdings reassigned",
-		slog.Int64("matched", matched),
-		slog.Int64("modified", modified),
-		slog.String("owner", owner.Username),
+		zap.Int64("matched", matched),
+		zap.Int64("modified", modified),
+		zap.String("owner", owner.Username),
 	)
 
 	// Rebuild indexes so the new {user_id, script} index exists.
@@ -133,7 +133,7 @@ func runResetLockout(_ *cobra.Command, _ []string) error {
 	}); err != nil {
 		return err
 	}
-	logger.Info("lockout cleared", slog.String("username", user.Username))
+	logger.Info("lockout cleared", zap.String("username", user.Username))
 	return nil
 }
 
@@ -200,10 +200,10 @@ func runSetPassword(_ *cobra.Command, _ []string) error {
 	// Invalidate any active sessions; rotating the password must terminate
 	// other devices (PRD-001 §6.3, DD-001 §2.2).
 	if err := st.Sessions.DeleteByUser(ctx, user.ID); err != nil {
-		logger.Warn("session purge failed", slog.String("error", err.Error()))
+		logger.Warn("session purge failed", zap.String("error", err.Error()))
 	}
 
-	logger.Info("password reset", slog.String("username", user.Username))
+	logger.Info("password reset", zap.String("username", user.Username))
 	return nil
 }
 
