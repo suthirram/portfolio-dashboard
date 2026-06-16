@@ -82,6 +82,11 @@ func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controlle
 	strict := api.NewStrictHandler(h, []api.StrictMiddlewareFunc{stashEcho})
 	api.RegisterHandlersWithBaseURL(e, strict, "/api")
 
+	// PR6: /api/history endpoints are plain Echo handlers rather than
+	// strict-server routes — the OpenAPI surface migration is tracked in
+	// PD-042 §3.6. AuthGate + CSRFCheck above still apply.
+	h.RegisterHistoryRoutes(e)
+
 	return e
 }
 
