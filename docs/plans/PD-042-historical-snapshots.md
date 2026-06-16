@@ -98,7 +98,29 @@ Manual rows store the currency they were entered in. If the app later
 adds a per-user display currency switch, decide whether manual rows
 convert or stay frozen.
 
-### 3.5 Paste schema strictness — from DD-002 §10
+### 3.6 OpenAPI strict-server migration for /api/history — from PR6
+
+PR6 shipped the `/api/history` endpoints as plain Echo handlers rather
+than going through the OpenAPI strict-server scaffolding that the rest
+of the API uses. Reason: the request/response shapes were still
+churning during the implementation (see PR7's conflict-modal UX), and
+locking them into `openapi.yaml` mid-flight would have meant two
+codegen round-trips per shape tweak.
+
+Once PR7 is merged and the shapes are stable, migrate the routes:
+
+1. Add `api/specs/history/history.yaml` and component schemas in
+   `api/specs/portfolio-api.yaml`.
+2. Reference the path file from `api/specs/openapi.yaml`.
+3. Regenerate (`go generate -tags tools ./...`, then
+   `npm run gen:api`).
+4. Move handlers from `controllers/history.go` to strict-server method
+   bodies and drop `RegisterHistoryRoutes` from `httpserver/server.go`.
+
+The frontend `lib/api/client.ts` already exists; no FE change is
+required for the migration itself, only for any shape tweak.
+
+### 3.7 Paste schema strictness — from DD-002 §10
 
 The exact column order, header-row requirement, and date format for
 pasted blocks will be fixed in PR7 against real Google Sheets / Excel
