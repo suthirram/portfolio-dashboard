@@ -128,14 +128,14 @@ describe('HistoryTable', () => {
   it('hides the delete control on a cron row', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
       rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
-    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Delete row/ })).toBeNull()
   })
 
   it('shows delete on an all-manual row and fires onDelete with the date', () => {
     const onDelete = vi.fn()
     render(<HistoryTable currency="INR" onDelete={onDelete}
       rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'manual') } })]} />)
-    const btn = screen.getByRole('button', { name: 'Delete' })
+    const btn = screen.getByRole('button', { name: /Delete row/ })
     fireEvent.click(btn)
     expect(onDelete).toHaveBeenCalledWith('2026-06-16')
   })
@@ -147,7 +147,7 @@ describe('HistoryTable', () => {
       row({ date: '2026-06-15', regions: { INR: region(100, 100, 'manual') } }),
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit} rows={rows} />)
-    const edits = screen.getAllByRole('button', { name: 'Edit' })
+    const edits = screen.getAllByRole('button', { name: /Edit row/ })
     expect(edits.length).toBe(2)
     fireEvent.click(edits[0])
     expect(onEdit).toHaveBeenCalledWith(rows[0])
@@ -156,7 +156,7 @@ describe('HistoryTable', () => {
   it('does not render Edit when onEdit is omitted', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
       rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Edit row/ })).toBeNull()
   })
 
   it('renders Daily volatlity headers (one per currency group) and per-region values', () => {

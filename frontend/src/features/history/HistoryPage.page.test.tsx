@@ -102,7 +102,7 @@ describe('HistoryPage', () => {
     mockApi.deleteHistoryRow.mockResolvedValue(undefined)
     renderPage()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Delete row/ }))
     await waitFor(() => expect(mockApi.deleteHistoryRow).toHaveBeenCalledWith('2026-06-16'))
   })
 

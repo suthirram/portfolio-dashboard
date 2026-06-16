@@ -12,6 +12,7 @@ import {
   type RegionSnapshot,
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
+import { EditIcon, TrashIcon } from '../../components/Icon'
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -471,10 +472,16 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
                 ))}
                 <td style={{ ...td, display: 'flex', gap: 8 }}>
                   {onEdit && (
-                    <button onClick={() => onEdit(r)} style={btnLinkBlueStyle}>Edit</button>
+                    <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
+                      aria-label={`Edit row for ${r.date}`} title="Edit">
+                      <EditIcon size={16} />
+                    </button>
                   )}
                   {isAllManual(r.regions) && (
-                    <button onClick={() => onDelete(r.date)} style={btnLinkStyle}>Delete</button>
+                    <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
+                      aria-label={`Delete row for ${r.date}`} title="Delete">
+                      <TrashIcon size={16} />
+                    </button>
                   )}
                 </td>
               </tr>
@@ -555,13 +562,13 @@ const btnSecondaryStyle: React.CSSProperties = {
   padding: '6px 14px', background: 'transparent', color: 'var(--text-primary)',
   border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer',
 }
-const btnLinkStyle: React.CSSProperties = {
-  background: 'transparent', border: 'none', color: 'var(--red, #dc2626)',
-  cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 13,
-}
-const btnLinkBlueStyle: React.CSSProperties = {
+const iconBtnBlueStyle: React.CSSProperties = {
   background: 'transparent', border: 'none', color: 'var(--blue, #2563eb)',
-  cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 13,
+  cursor: 'pointer', padding: 4, display: 'inline-flex', alignItems: 'center',
+}
+const iconBtnRedStyle: React.CSSProperties = {
+  background: 'transparent', border: 'none', color: 'var(--red, #dc2626)',
+  cursor: 'pointer', padding: 4, display: 'inline-flex', alignItems: 'center',
 }
 
 export function AddRowModal({ onSubmit, onCancel }: {
