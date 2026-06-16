@@ -21,17 +21,20 @@ func (s SnapshotSource) IsValid() bool {
 	return s == SnapshotSourceCron || s == SnapshotSourceManual
 }
 
-// Known region slugs for the snapshot map. Mirrors the auth-side catalogue
-// but lives here so the persistence and service layers do not import auth.
+// Known snapshot bucket keys. PR7 design review (2026-06-16) switched the
+// snapshot key from region (india|europe|us) to currency (INR|EUR|USD).
+// Holdings whose buy price is in EUR live in the EUR bucket regardless of
+// which exchange they were bought on (PD-042 §3.x follow-up: PD-042 plan
+// records this decision and the "no migration of dev data" note).
 const (
-	RegionIndia  = "india"
-	RegionEurope = "europe"
-	RegionUS     = "us"
+	CurrencyINR = "INR"
+	CurrencyEUR = "EUR"
+	CurrencyUSD = "USD"
 )
 
-// AllRegions is the canonical iteration order for chart series and zero-row
-// initialisation (PRD-002 §6).
-var AllRegions = []string{RegionIndia, RegionEurope, RegionUS}
+// AllCurrencies is the canonical iteration order for chart series and
+// zero-row initialisation (PRD-002 §6).
+var AllCurrencies = []string{CurrencyINR, CurrencyEUR, CurrencyUSD}
 
 // RegionSnapshot is one region's contribution to a portfolio snapshot. Both
 // monetary fields are in the row's currency (PortfolioSnapshot.Currency).

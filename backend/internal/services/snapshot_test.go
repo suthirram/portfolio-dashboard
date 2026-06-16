@@ -14,41 +14,43 @@ import (
 	"portfolio-dashboard/internal/persistence"
 )
 
-func TestRegionOf(t *testing.T) {
+func TestCurrencyOf(t *testing.T) {
 	cases := []struct {
 		name    string
 		holding domain.Holding
 		want    string
 		wantOK  bool
 	}{
-		{"NSE", domain.Holding{Exchange: "NSE"}, domain.RegionIndia, true},
-		{"BSE lowercase", domain.Holding{Exchange: "bse"}, domain.RegionIndia, true},
-		{"NYSE", domain.Holding{Exchange: "NYSE"}, domain.RegionUS, true},
-		{"NASDAQ", domain.Holding{Exchange: "NASDAQ"}, domain.RegionUS, true},
-		{"LSE", domain.Holding{Exchange: "LSE"}, domain.RegionEurope, true},
-		{"XETRA", domain.Holding{Exchange: "XETRA"}, domain.RegionEurope, true},
-		{"EUR currency only", domain.Holding{Exchange: "OTHER", Currency: "EUR"}, domain.RegionEurope, true},
-		{"unknown exchange + INR currency", domain.Holding{Exchange: "OTHER", Currency: "INR"}, "unknown", false},
+		{"NSE", domain.Holding{Exchange: "NSE"}, domain.CurrencyINR, true},
+		{"BSE lowercase", domain.Holding{Exchange: "bse"}, domain.CurrencyINR, true},
+		{"NYSE", domain.Holding{Exchange: "NYSE"}, domain.CurrencyUSD, true},
+		{"NASDAQ", domain.Holding{Exchange: "NASDAQ"}, domain.CurrencyUSD, true},
+		{"LSE", domain.Holding{Exchange: "LSE"}, domain.CurrencyEUR, true},
+		{"XETRA", domain.Holding{Exchange: "XETRA"}, domain.CurrencyEUR, true},
+		{"USD currency fallback", domain.Holding{Exchange: "OTHER", Currency: "USD"}, domain.CurrencyUSD, true},
+		{"EUR currency fallback", domain.Holding{Exchange: "OTHER", Currency: "EUR"}, domain.CurrencyEUR, true},
+		{"INR currency fallback", domain.Holding{Exchange: "OTHER", Currency: "INR"}, domain.CurrencyINR, true},
+		{"unknown exchange + unknown currency", domain.Holding{Exchange: "OTHER", Currency: "GBP"}, "unknown", false},
 		{"empty exchange + empty currency", domain.Holding{}, "unknown", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got, ok := RegionOf(c.holding)
+			got, ok := CurrencyOf(c.holding)
 			if got != c.want || ok != c.wantOK {
-				t.Errorf("RegionOf(%+v) = (%q, %v), want (%q, %v)", c.holding, got, ok, c.want, c.wantOK)
+				t.Errorf("CurrencyOf(%+v) = (%q, %v), want (%q, %v)", c.holding, got, ok, c.want, c.wantOK)
 			}
 		})
 	}
 }
 
-func TestRegionOfIsTotal(t *testing.T) {
+func TestCurrencyOfIsTotal(t *testing.T) {
 	// Property: never panics, always returns a string. Catches accidental
 	// removal of the unknown fallback.
 	cases := []string{"", "?", "FOOBAR", "lse", "nse"}
 	for _, ex := range cases {
-		got, _ := RegionOf(domain.Holding{Exchange: ex})
+		got, _ := CurrencyOf(domain.Holding{Exchange: ex})
 		if got == "" {
-			t.Errorf("RegionOf(exchange=%q) returned empty string", ex)
+			t.Errorf("CurrencyOf(exchange=%q) returned empty string", ex)
 		}
 	}
 }
@@ -93,21 +95,21 @@ func TestBuildSnapshot_GroupsByRegionAndUsesLivePrice(t *testing.T) {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
 
-		india := snap.Regions[domain.RegionIndia]
-		if india.Invested != 30000 || india.Current != 35000 {
-			t.Errorf("India = (%v, %v), want (30000, 35000)", india.Invested, india.Current)
+		inr := snap.Regions[domain.CurrencyINR]
+		if inr.Invested != 30000 || inr.Current != 35000 {
+			t.Errorf("INR = (%v, %v), want (30000, 35000)", inr.Invested, inr.Current)
 		}
-		us := snap.Regions[domain.RegionUS]
-		if us.Invested != 500 || us.Current != 750 {
-			t.Errorf("US = (%v, %v), want (500, 750)", us.Invested, us.Current)
+		usd := snap.Regions[domain.CurrencyUSD]
+		if usd.Invested != 500 || usd.Current != 750 {
+			t.Errorf("USD = (%v, %v), want (500, 750)", usd.Invested, usd.Current)
 		}
-		eu := snap.Regions[domain.RegionEurope]
-		if eu.Invested != 100 || eu.Current != 120 {
-			t.Errorf("Europe = (%v, %v), want (100, 120)", eu.Invested, eu.Current)
+		eur := snap.Regions[domain.CurrencyEUR]
+		if eur.Invested != 100 || eur.Current != 120 {
+			t.Errorf("EUR = (%v, %v), want (100, 120)", eur.Invested, eur.Current)
 		}
 		for _, r := range snap.Regions {
 			if r.Source != domain.SnapshotSourceCron {
-				t.Errorf("region source = %q, want cron", r.Source)
+				t.Errorf("bucket source = %q, want cron", r.Source)
 			}
 		}
 	})
@@ -124,7 +126,7 @@ func TestBuildSnapshot_EmptyPortfolioReturnsAllZeros(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
-		for _, r := range domain.AllRegions {
+		for _, r := range domain.AllCurrencies {
 			rs, ok := snap.Regions[r]
 			if !ok {
 				t.Errorf("region %q missing", r)
@@ -155,21 +157,21 @@ func TestBuildSnapshot_PriceErrorFallsBackToInvested(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
-		india := snap.Regions[domain.RegionIndia]
+		inr := snap.Regions[domain.CurrencyINR]
 		// No synthetic gain: current == invested.
-		if india.Invested != 30000 || india.Current != 30000 {
-			t.Errorf("India = (%v, %v), want (30000, 30000) on price error", india.Invested, india.Current)
+		if inr.Invested != 30000 || inr.Current != 30000 {
+			t.Errorf("INR = (%v, %v), want (30000, 30000) on price error", inr.Invested, inr.Current)
 		}
 	})
 }
 
-func TestBuildSnapshot_UnknownRegionExcludedFromTotals(t *testing.T) {
+func TestBuildSnapshot_UnknownCurrencyExcludedFromTotals(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("unknown region excluded", func(mt *mtest.T) {
+	mt.Run("unknown currency excluded", func(mt *mtest.T) {
 		uid := primitive.NewObjectID()
-		// Exchange "JSE" doesn't map; INR currency keeps it from falling to europe.
+		// Exchange "JSE" doesn't map; GBP currency is not in our canonical set.
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
-			holdingDoc(uid, "JSE", "X", "INR", 1, 100),
+			holdingDoc(uid, "JSE", "X", "GBP", 1, 100),
 		))
 
 		svc := NewSnapshotService(persistence.New(mt.DB).Holdings, nil, nil, &stubPriceFetcher{price: 200}, nil)
@@ -177,10 +179,10 @@ func TestBuildSnapshot_UnknownRegionExcludedFromTotals(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
-		// All canonical regions are zero — the JSE holding was excluded.
-		for _, r := range domain.AllRegions {
+		// All canonical buckets are zero — the GBP holding was excluded.
+		for _, r := range domain.AllCurrencies {
 			if snap.Regions[r].Invested != 0 || snap.Regions[r].Current != 0 {
-				t.Errorf("region %s should be zero (unknown excluded), got %+v", r, snap.Regions[r])
+				t.Errorf("bucket %s should be zero (unknown excluded), got %+v", r, snap.Regions[r])
 			}
 		}
 	})

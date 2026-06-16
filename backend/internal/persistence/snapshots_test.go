@@ -46,7 +46,7 @@ func TestSnapshotUpsert_NewRowInsertsAllRegionsAsGiven(t *testing.T) {
 			Date:     time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
 			Currency: "INR",
 			Regions: map[string]domain.RegionSnapshot{
-				domain.RegionIndia: {Invested: 100, Current: 198, Source: domain.SnapshotSourceCron},
+				domain.CurrencyINR: {Invested: 100, Current: 198, Source: domain.SnapshotSourceCron},
 			},
 		})
 		if err != nil {
@@ -113,8 +113,8 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 		date := time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
 
 		existing := snapshotBSON(uid, date, map[string]domain.RegionSnapshot{
-			domain.RegionIndia:  {Invested: 999, Current: 999, Source: domain.SnapshotSourceManual},
-			domain.RegionEurope: {Invested: 10, Current: 10, Source: domain.SnapshotSourceCron},
+			domain.CurrencyINR: {Invested: 999, Current: 999, Source: domain.SnapshotSourceManual},
+			domain.CurrencyEUR: {Invested: 10, Current: 10, Source: domain.SnapshotSourceCron},
 		})
 
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, existing))
@@ -129,8 +129,8 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 			Date:     date,
 			Currency: "INR",
 			Regions: map[string]domain.RegionSnapshot{
-				domain.RegionIndia:  {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
-				domain.RegionEurope: {Invested: 20, Current: 25, Source: domain.SnapshotSourceCron},
+				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
+				domain.CurrencyEUR: {Invested: 20, Current: 25, Source: domain.SnapshotSourceCron},
 			},
 		})
 		if err != nil {
@@ -162,8 +162,8 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 
 		set := findSet(*update)
 		regions := normaliseRegions(set["regions"])
-		india := regions[domain.RegionIndia]
-		europe := regions[domain.RegionEurope]
+		india := regions[domain.CurrencyINR]
+		europe := regions[domain.CurrencyEUR]
 		if !regionHasInvested(india, 999) {
 			t.Errorf("merged India should keep manual invested=999, got %+v", india)
 		}
@@ -229,7 +229,7 @@ func TestSnapshotList_PinsUserIDAndUTCRange(t *testing.T) {
 		row := snapshotBSON(uid,
 			time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
 			map[string]domain.RegionSnapshot{
-				domain.RegionIndia: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
+				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
 			},
 		)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, row))
@@ -289,7 +289,7 @@ func TestSnapshotPatchRegion_MissingRowReturnsErrNotFound(t *testing.T) {
 		err := s.Snapshots.PatchRegion(context.Background(),
 			primitive.NewObjectID(),
 			time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
-			domain.RegionIndia,
+			domain.CurrencyINR,
 			domain.RegionSnapshot{Invested: 1, Current: 1, Source: domain.SnapshotSourceManual},
 		)
 		if !errors.Is(err, ErrNotFound) {
@@ -304,7 +304,7 @@ func TestSnapshotDelete_RejectsRowWithCronRegion(t *testing.T) {
 		uid := primitive.NewObjectID()
 		date := time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
 		row := snapshotBSON(uid, date, map[string]domain.RegionSnapshot{
-			domain.RegionIndia: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
+			domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
 		})
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, row))
 
@@ -322,7 +322,7 @@ func TestSnapshotDelete_AllManualRowDeletes(t *testing.T) {
 		uid := primitive.NewObjectID()
 		date := time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
 		row := snapshotBSON(uid, date, map[string]domain.RegionSnapshot{
-			domain.RegionIndia: {Invested: 1, Current: 1, Source: domain.SnapshotSourceManual},
+			domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceManual},
 		})
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, row))
 		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}))
@@ -396,7 +396,7 @@ func TestSnapshotEarliestYear_ReturnsYearOfOldestRow(t *testing.T) {
 		row := snapshotBSON(uid,
 			time.Date(2023, 3, 1, 0, 0, 0, 0, time.UTC),
 			map[string]domain.RegionSnapshot{
-				domain.RegionIndia: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
+				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
 			},
 		)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, row))

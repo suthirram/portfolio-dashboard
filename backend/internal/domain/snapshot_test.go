@@ -67,9 +67,9 @@ func TestUTCDateBeforeMidnightUTCMovesToPreviousUTCDay(t *testing.T) {
 func TestPortfolioSnapshotTotalsHappyPath(t *testing.T) {
 	p := PortfolioSnapshot{
 		Regions: map[string]RegionSnapshot{
-			RegionIndia:  {Invested: 100, Current: 198, Source: SnapshotSourceCron},
-			RegionEurope: {Invested: 50, Current: 60, Source: SnapshotSourceCron},
-			RegionUS:     {Invested: 0, Current: 0, Source: SnapshotSourceCron},
+			CurrencyINR: {Invested: 100, Current: 198, Source: SnapshotSourceCron},
+			CurrencyEUR: {Invested: 50, Current: 60, Source: SnapshotSourceCron},
+			CurrencyUSD: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
 		},
 	}
 	got := p.Totals()
@@ -87,7 +87,7 @@ func TestPortfolioSnapshotTotalsHappyPath(t *testing.T) {
 func TestPortfolioSnapshotTotalsZeroInvestedReturnsNilPnL(t *testing.T) {
 	p := PortfolioSnapshot{
 		Regions: map[string]RegionSnapshot{
-			RegionIndia: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
+			CurrencyINR: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
 		},
 	}
 	got := p.Totals()
@@ -99,7 +99,7 @@ func TestPortfolioSnapshotTotalsZeroInvestedReturnsNilPnL(t *testing.T) {
 func TestPortfolioSnapshotTotalsNegativePnL(t *testing.T) {
 	p := PortfolioSnapshot{
 		Regions: map[string]RegionSnapshot{
-			RegionIndia: {Invested: 200, Current: 150, Source: SnapshotSourceCron},
+			CurrencyINR: {Invested: 200, Current: 150, Source: SnapshotSourceCron},
 		},
 	}
 	got := p.Totals()
@@ -111,14 +111,14 @@ func TestPortfolioSnapshotTotalsNegativePnL(t *testing.T) {
 	}
 }
 
-func TestAllRegionsHasIndiaEuropeUS(t *testing.T) {
-	want := []string{"india", "europe", "us"}
-	if len(AllRegions) != len(want) {
-		t.Fatalf("AllRegions = %v, want %v", AllRegions, want)
+func TestAllCurrenciesHasINREURUSD(t *testing.T) {
+	want := []string{"INR", "EUR", "USD"}
+	if len(AllCurrencies) != len(want) {
+		t.Fatalf("AllCurrencies = %v, want %v", AllCurrencies, want)
 	}
 	for i, w := range want {
-		if AllRegions[i] != w {
-			t.Errorf("AllRegions[%d] = %q, want %q", i, AllRegions[i], w)
+		if AllCurrencies[i] != w {
+			t.Errorf("AllCurrencies[%d] = %q, want %q", i, AllCurrencies[i], w)
 		}
 	}
 }

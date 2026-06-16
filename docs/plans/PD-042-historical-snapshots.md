@@ -120,7 +120,47 @@ Once PR7 is merged and the shapes are stable, migrate the routes:
 The frontend `lib/api/client.ts` already exists; no FE change is
 required for the migration itself, only for any shape tweak.
 
-### 3.7 Paste schema strictness — from DD-002 §10
+### 3.7 Snapshot bucketing switched from region to currency — from PR7
+
+The PR7 design-review (Screenshot 2026-06-16 at 13.34.05) revealed
+that the region-based bucketing in PR4-6 was wrong: a holding's
+invested/current amount is naturally in the holding's currency, but
+the snapshot was summing per-region (india/europe/us) without
+converting. India happened to be all INR, Europe all EUR and US all
+USD only by lucky coincidence of how holdings get created.
+
+This commit (PR7 follow-up) renames the bucket dimension everywhere:
+
+* `domain.Region{India,Europe,US}` → `domain.Currency{INR,EUR,USD}`.
+* `domain.AllRegions` → `domain.AllCurrencies`.
+* `services.RegionOf(holding)` → `services.CurrencyOf(holding)`.
+  Rules: Exchange NSE/BSE → INR; NYSE/NASDAQ/AMEX → USD;
+  LSE/XETRA/EURONEXT/FWB/MIL/SIX/AMS/PAR → EUR; otherwise
+  `Holding.Currency` wins when it is one of INR/EUR/USD; else
+  excluded as `unknown`.
+* `PortfolioSnapshot.Regions` field stays named "Regions" for
+  storage-shape backwards-compat with PR4-era documents (the field
+  is a generic `map[string]RegionSnapshot`), but the **keys** are
+  currency codes from now on.
+* Frontend `REGIONS`, `RegionKey`, `REGION_LABELS`, `REGION_COLOURS`
+  rekeyed to `INR`/`EUR`/`USD`. `CURRENCY_BY_REGION` is now identity
+  but kept as a named export so the call sites do not assume the
+  key equals the currency code.
+* Frontend paste parser now writes `INR`/`EUR`/`USD` rather than
+  `india`/`europe`/`us`.
+
+**Migration of dev data:** any existing dev snapshots in the local
+Mongo with `regions: {india, europe, us}` are now stale shape. They
+will not be read by the new UI but won't cause errors either; drop
+the collection or wait for new midnight rows to overwrite. Document
+this when PR8 ships the deploy.
+
+**v2 schema follow-up:** when we revisit, rename the field from
+`Regions` → `Buckets` (or `Currencies`) and migrate the existing
+documents. Pure cosmetic at the data layer but worth doing once the
+shape is touched again.
+
+### 3.8 Paste schema strictness — from DD-002 §10
 
 The exact column order, header-row requirement, and date format for
 pasted blocks will be fixed in PR7 against real Google Sheets / Excel

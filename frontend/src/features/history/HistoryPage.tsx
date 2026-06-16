@@ -13,20 +13,23 @@ import {
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
 
-const REGIONS = ['india', 'europe', 'us'] as const
+// Snapshot buckets are keyed by currency after PR7 design-review
+// (2026-06-16); the backend's CurrencyOf decides which bucket a
+// holding falls into based on Exchange first, Currency fallback.
+const REGIONS = ['INR', 'EUR', 'USD'] as const
 type RegionKey = typeof REGIONS[number]
 
 const REGION_LABELS: Record<RegionKey, string> = {
-  india: 'India',
-  europe: 'Europe',
-  us: 'US',
+  INR: 'India (INR)',
+  EUR: 'Europe (EUR)',
+  USD: 'US (USD)',
 }
 
-// PRD-002 §7.2: orange = India, blue = Europe, US is a third family.
+// PRD-002 §7.2: orange = INR sleeve, blue = EUR sleeve, green = USD.
 const REGION_COLOURS: Record<RegionKey, { invested: string; current: string }> = {
-  india:  { invested: '#fdba74', current: '#f97316' },  // orange-300 / 500
-  europe: { invested: '#93c5fd', current: '#2563eb' },  // blue-300 / 600
-  us:     { invested: '#86efac', current: '#16a34a' },  // green-300 / 600
+  INR: { invested: '#fdba74', current: '#f97316' },  // orange-300 / 500
+  EUR: { invested: '#93c5fd', current: '#2563eb' },  // blue-300 / 600
+  USD: { invested: '#86efac', current: '#16a34a' },  // green-300 / 600
 }
 
 const MONTHS = [
@@ -52,9 +55,9 @@ type RegionFormState = Record<RegionKey, RegionFormValue>
 
 function emptyForm(): RegionFormState {
   return {
-    india:  { invested: '', current: '' },
-    europe: { invested: '', current: '' },
-    us:     { invested: '', current: '' },
+    INR: { invested: '', current: '' },
+    EUR: { invested: '', current: '' },
+    USD: { invested: '', current: '' },
   }
 }
 
@@ -114,11 +117,11 @@ export default function HistoryPage() {
     return out
   }, [rangeInfo, now])
 
-  // Three charts, one per currency. Compute series per region.
+  // Three charts, one per currency. Compute series per bucket.
   const chartsByRegion = useMemo(() => ({
-    india:  perCurrencyChartData(rows, 'india'),
-    europe: perCurrencyChartData(rows, 'europe'),
-    us:     perCurrencyChartData(rows, 'us'),
+    INR: perCurrencyChartData(rows, 'INR'),
+    EUR: perCurrencyChartData(rows, 'EUR'),
+    USD: perCurrencyChartData(rows, 'USD'),
   }), [rows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
@@ -301,10 +304,13 @@ export default function HistoryPage() {
 // because the user wants to read the table in native amounts (PR7
 // design-review on Screenshot 2026-06-16).
 
+// CURRENCY_BY_REGION is now identity since bucket keys are currency
+// codes, but kept as a named export so callers can read the table
+// without assuming key == code.
 export const CURRENCY_BY_REGION: Record<RegionKey, 'INR' | 'EUR' | 'USD'> = {
-  india:  'INR',
-  europe: 'EUR',
-  us:     'USD',
+  INR: 'INR',
+  EUR: 'EUR',
+  USD: 'USD',
 }
 
 export const CURRENCY_SYMBOL: Record<'INR' | 'EUR' | 'USD', string> = {
@@ -632,9 +638,9 @@ export function parsePasteText(text: string): { date: string; regions: Record<st
         regions[key] = { invested: a, current: b }
       }
     }
-    set('india',  ii, ic)
-    set('europe', ei, ec)
-    set('us',     ui, uc)
+    set('INR', ii, ic)
+    set('EUR', ei, ec)
+    set('USD', ui, uc)
     out.push({ date, regions })
   }
   return out
@@ -650,9 +656,9 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   onCancel: () => void
 }) {
   const initial: RegionFormState = {
-    india:  { invested: String(row.regions.india?.invested  ?? ''), current: String(row.regions.india?.current  ?? '') },
-    europe: { invested: String(row.regions.europe?.invested ?? ''), current: String(row.regions.europe?.current ?? '') },
-    us:     { invested: String(row.regions.us?.invested     ?? ''), current: String(row.regions.us?.current     ?? '') },
+    INR: { invested: String(row.regions.INR?.invested ?? ''), current: String(row.regions.INR?.current ?? '') },
+    EUR: { invested: String(row.regions.EUR?.invested ?? ''), current: String(row.regions.EUR?.current ?? '') },
+    USD: { invested: String(row.regions.USD?.invested ?? ''), current: String(row.regions.USD?.current ?? '') },
   }
   const [form, setForm] = useState<RegionFormState>(initial)
   const [busy, setBusy] = useState(false)
@@ -762,7 +768,7 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
   onSkip: () => void
 }) {
   const [picks, setPicks] = useState<Record<RegionKey, boolean>>({
-    india: false, europe: false, us: false,
+    INR: false, EUR: false, USD: false,
   })
 
   const toggle = (r: RegionKey) => setPicks(p => ({ ...p, [r]: !p[r] }))

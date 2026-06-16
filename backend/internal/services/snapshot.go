@@ -60,30 +60,34 @@ func (s *SnapshotService) log(ctx context.Context) *zap.Logger {
 	return zap.NewNop()
 }
 
-// RegionOf maps a holding to one of the canonical region slugs
-// (india|europe|us). Returns ("unknown", false) when the mapping rules
-// can't classify the holding; the caller logs and excludes it.
+// CurrencyOf maps a holding to one of the canonical snapshot bucket
+// keys (INR|EUR|USD). Returns ("unknown", false) when the mapping rules
+// can't classify the holding; the caller logs and excludes it. PR7
+// design-review (2026-06-16) moved snapshot bucketing from region to
+// currency — buckets are now what the user is actually pricing in.
 //
 // Rules, in order:
-//  1. Exchange NSE / BSE → india.
-//  2. Exchange NYSE / NASDAQ / AMEX → us.
+//  1. Exchange NSE / BSE → INR.
+//  2. Exchange NYSE / NASDAQ / AMEX → USD.
 //  3. Exchange LSE / XETRA / EURONEXT / FWB / MIL / SIX / AMS / PAR
-//     → europe.
-//  4. Currency EUR → europe (fallback for users who entered an EU
-//     holding without picking an EU exchange).
+//     → EUR.
+//  4. Holding.Currency, if it is one of the three canonical codes,
+//     wins as a fallback (covers users who entered an exchange we do
+//     not know but tagged the currency correctly).
 //
 // Anything else falls into "unknown".
-func RegionOf(h domain.Holding) (string, bool) {
+func CurrencyOf(h domain.Holding) (string, bool) {
 	switch strings.ToUpper(h.Exchange) {
 	case "NSE", "BSE":
-		return domain.RegionIndia, true
+		return domain.CurrencyINR, true
 	case "NYSE", "NASDAQ", "AMEX":
-		return domain.RegionUS, true
+		return domain.CurrencyUSD, true
 	case "LSE", "XETRA", "EURONEXT", "FWB", "MIL", "SIX", "AMS", "PAR":
-		return domain.RegionEurope, true
+		return domain.CurrencyEUR, true
 	}
-	if strings.EqualFold(h.Currency, "EUR") {
-		return domain.RegionEurope, true
+	switch strings.ToUpper(h.Currency) {
+	case domain.CurrencyINR, domain.CurrencyEUR, domain.CurrencyUSD:
+		return strings.ToUpper(h.Currency), true
 	}
 	return "unknown", false
 }
@@ -99,17 +103,18 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 		return domain.PortfolioSnapshot{}, fmt.Errorf("list holdings: %w", err)
 	}
 
-	regions := make(map[string]domain.RegionSnapshot, len(domain.AllRegions))
-	for _, r := range domain.AllRegions {
-		regions[r] = domain.RegionSnapshot{Source: domain.SnapshotSourceCron}
+	buckets := make(map[string]domain.RegionSnapshot, len(domain.AllCurrencies))
+	for _, c := range domain.AllCurrencies {
+		buckets[c] = domain.RegionSnapshot{Source: domain.SnapshotSourceCron}
 	}
 
 	for _, hld := range holdings {
-		region, ok := RegionOf(hld)
+		cur, ok := CurrencyOf(hld)
 		if !ok {
-			s.log(ctx).Warn("snapshot: holding has unknown region; excluded",
+			s.log(ctx).Warn("snapshot: holding has unknown currency; excluded",
 				zap.String("script", hld.Script),
 				zap.String("exchange", hld.Exchange),
+				zap.String("currency", hld.Currency),
 			)
 			continue
 		}
@@ -124,17 +129,20 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 				zap.Error(perr),
 			)
 		}
-		rs := regions[region]
+		rs := buckets[cur]
 		rs.Invested += invested
 		rs.Current += current
-		regions[region] = rs
+		buckets[cur] = rs
 	}
 
 	return domain.PortfolioSnapshot{
-		UserID:   uid,
-		Date:     domain.UTCDate(date),
+		UserID: uid,
+		Date:   domain.UTCDate(date),
+		// Currency on the document is the "display anchor" — kept as
+		// INR for backwards-compatibility with PR4-era docs. The actual
+		// per-bucket amounts live in their native currency under Regions.
 		Currency: "INR",
-		Regions:  regions,
+		Regions:  buckets,
 	}, nil
 }
 

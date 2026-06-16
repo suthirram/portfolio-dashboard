@@ -35,9 +35,9 @@ const range = (info: Partial<HistoryRangeInfo> = {}): HistoryRangeInfo =>
 const sampleRow: HistoryRow = {
   date: '2026-06-16',
   regions: {
-    india:  { invested: 100, current: 198, source: 'cron' },
-    europe: { invested: 0, current: 0, source: 'cron' },
-    us:     { invested: 0, current: 0, source: 'cron' },
+    INR:  { invested: 100, current: 198, source: 'cron' },
+    EUR: { invested: 0, current: 0, source: 'cron' },
+    USD:     { invested: 0, current: 0, source: 'cron' },
   },
   totals: { invested_total: 100, current_total: 198, pnl_pct: 98 },
 }
@@ -96,7 +96,7 @@ describe('HistoryPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     const manualRow: HistoryRow = {
       ...sampleRow,
-      regions: { india: { invested: 100, current: 198, source: 'manual' } },
+      regions: { INR: { invested: 100, current: 198, source: 'manual' } },
     }
     mockApi.listHistory.mockResolvedValue(list([manualRow]))
     mockApi.deleteHistoryRow.mockResolvedValue(undefined)
@@ -111,8 +111,8 @@ describe('HistoryPage', () => {
       applied: [],
       conflicts: [{
         date: '2026-06-02',
-        existing: { india: { invested: 100, current: 110, source: 'cron' } },
-        incoming: { india: { invested: 200, current: 220 } },
+        existing: { INR: { invested: 100, current: 110, source: 'cron' } },
+        incoming: { INR: { invested: 200, current: 220 } },
       }],
       rejected: [],
     })
@@ -132,7 +132,7 @@ describe('HistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith(
-      '2026-06-02', { regions: { india: { invested: 200, current: 220 } } },
+      '2026-06-02', { regions: { INR: { invested: 200, current: 220 } } },
     ))
   })
 

@@ -49,15 +49,15 @@ describe('parsePasteText', () => {
   it('parses Google-Sheets TSV into the §4.6 body shape', () => {
     const tsv = '2026-06-01\t100\t110\t50\t55\t0\t0\n2026-06-02\t200\t190\t0\t0\t10\t12'
     expect(parsePasteText(tsv)).toEqual([
-      { date: '2026-06-01', regions: { india: { invested: 100, current: 110 }, europe: { invested: 50, current: 55 } } },
-      { date: '2026-06-02', regions: { india: { invested: 200, current: 190 }, us: { invested: 10, current: 12 } } },
+      { date: '2026-06-01', regions: { INR: { invested: 100, current: 110 }, EUR: { invested: 50, current: 55 } } },
+      { date: '2026-06-02', regions: { INR: { invested: 200, current: 190 }, USD: { invested: 10, current: 12 } } },
     ])
   })
 
   it('parses Excel CSV too', () => {
     const csv = '2026-06-01,100,110,0,0,0,0'
     expect(parsePasteText(csv)).toEqual([
-      { date: '2026-06-01', regions: { india: { invested: 100, current: 110 } } },
+      { date: '2026-06-01', regions: { INR: { invested: 100, current: 110 } } },
     ])
   })
 
@@ -114,7 +114,7 @@ describe('HistoryTable', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
       rows={[row({
         date: '2026-06-16',
-        regions: { india: region(100, 198, 'cron') },
+        regions: { INR: region(100, 198, 'cron') },
         totals: { invested_total: 100, current_total: 198, pnl_pct: 98 },
       })]} />)
     // India cells show ₹-prefixed values.
@@ -127,14 +127,14 @@ describe('HistoryTable', () => {
 
   it('hides the delete control on a cron row', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
-      rows={[row({ date: '2026-06-16', regions: { india: region(100, 198, 'cron') } })]} />)
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
   })
 
   it('shows delete on an all-manual row and fires onDelete with the date', () => {
     const onDelete = vi.fn()
     render(<HistoryTable currency="INR" onDelete={onDelete}
-      rows={[row({ date: '2026-06-16', regions: { india: region(100, 198, 'manual') } })]} />)
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'manual') } })]} />)
     const btn = screen.getByRole('button', { name: 'Delete' })
     fireEvent.click(btn)
     expect(onDelete).toHaveBeenCalledWith('2026-06-16')
@@ -143,8 +143,8 @@ describe('HistoryTable', () => {
   it('renders an Edit button on every row when onEdit is provided', () => {
     const onEdit = vi.fn()
     const rows: HistoryRow[] = [
-      row({ date: '2026-06-16', regions: { india: region(100, 198, 'cron') } }),
-      row({ date: '2026-06-15', regions: { india: region(100, 100, 'manual') } }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } }),
+      row({ date: '2026-06-15', regions: { INR: region(100, 100, 'manual') } }),
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit} rows={rows} />)
     const edits = screen.getAllByRole('button', { name: 'Edit' })
@@ -155,7 +155,7 @@ describe('HistoryTable', () => {
 
   it('does not render Edit when onEdit is omitted', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
-      rows={[row({ date: '2026-06-16', regions: { india: region(100, 198, 'cron') } })]} />)
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
   })
 
@@ -163,12 +163,12 @@ describe('HistoryTable', () => {
     const rows: HistoryRow[] = [
       row({
         date: '2026-06-17',
-        regions: { india: region(100, 220, 'cron') },
+        regions: { INR: region(100, 220, 'cron') },
         totals: { invested_total: 100, current_total: 220, pnl_pct: 120 },
       }),
       row({
         date: '2026-06-16',
-        regions: { india: region(100, 200, 'cron') },
+        regions: { INR: region(100, 200, 'cron') },
         totals: { invested_total: 100, current_total: 200, pnl_pct: 100 },
       }),
     ]
@@ -195,7 +195,7 @@ describe('AddRowModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onSubmit).toHaveBeenCalledTimes(1)
     const arg = onSubmit.mock.calls[0][0]
-    expect(arg.regions).toEqual({ india: { invested: 100, current: 198 } })
+    expect(arg.regions).toEqual({ INR: { invested: 100, current: 198 } })
     expect(arg.regions.europe).toBeUndefined()
   })
 
@@ -211,8 +211,8 @@ describe('AddRowModal', () => {
 
 const conflict: DateConflict = {
   date: '2026-06-02',
-  existing: { india: region(100, 110, 'cron'), europe: region(50, 55, 'cron') },
-  incoming: { india: { invested: 200, current: 220 }, europe: { invested: 60, current: 66 } },
+  existing: { INR: region(100, 110, 'cron'), EUR: region(50, 55, 'cron') },
+  incoming: { INR: { invested: 200, current: 220 }, EUR: { invested: 60, current: 66 } },
 }
 
 describe('ConflictDialog', () => {
@@ -231,7 +231,7 @@ describe('ConflictDialog', () => {
     fireEvent.click(checkboxes[0])  // India
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
-    expect(onResolve).toHaveBeenCalledWith('2026-06-02', { india: { invested: 200, current: 220 } })
+    expect(onResolve).toHaveBeenCalledWith('2026-06-02', { INR: { invested: 200, current: 220 } })
   })
 
   it('skip calls onSkip and never resolves', () => {
@@ -263,7 +263,7 @@ describe('PasteModal', () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       month: '2026-06',
-      rows: [{ date: '2026-06-01', regions: { india: { invested: 100, current: 110 } } }],
+      rows: [{ date: '2026-06-01', regions: { INR: { invested: 100, current: 110 } } }],
     })
     // report summary renders after submit resolves
     expect(await screen.findByText(/Applied: 1/)).toBeInTheDocument()
