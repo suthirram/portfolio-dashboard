@@ -1,0 +1,231 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"go.uber.org/zap"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/persistence"
+)
+
+// SnapshotService builds and persists daily portfolio snapshots
+// (PRD-002 / DD-002). It composes the holding store with a PriceFetcher
+// the same way PortfolioService does, so the snapshot job benefits from
+// the existing 5-minute Yahoo price cache.
+type SnapshotService struct {
+	holdings  *persistence.HoldingStore
+	snapshots *persistence.SnapshotStore
+	users     *persistence.UserStore
+	prices    PriceFetcher
+	logger    *zap.Logger
+	// Now lets tests inject a deterministic clock without dragging in
+	// a time interface.
+	Now func() time.Time
+}
+
+// NewSnapshotService wires a SnapshotService.
+func NewSnapshotService(
+	holdings *persistence.HoldingStore,
+	snapshots *persistence.SnapshotStore,
+	users *persistence.UserStore,
+	prices PriceFetcher,
+	logger *zap.Logger,
+) *SnapshotService {
+	return &SnapshotService{
+		holdings:  holdings,
+		snapshots: snapshots,
+		users:     users,
+		prices:    prices,
+		logger:    logger,
+		Now:       func() time.Time { return time.Now().UTC() },
+	}
+}
+
+func (s *SnapshotService) log(ctx context.Context) *zap.Logger {
+	if l, ok := logging.FromContext(ctx); ok {
+		return l
+	}
+	if s.logger != nil {
+		return s.logger
+	}
+	return zap.NewNop()
+}
+
+// RegionOf maps a holding to one of the canonical region slugs
+// (india|europe|us). Returns ("unknown", false) when the mapping rules
+// can't classify the holding; the caller logs and excludes it.
+//
+// Rules, in order:
+//  1. Exchange NSE / BSE → india.
+//  2. Exchange NYSE / NASDAQ / AMEX → us.
+//  3. Exchange LSE / XETRA / EURONEXT / FWB / MIL / SIX / AMS / PAR
+//     → europe.
+//  4. Currency EUR → europe (fallback for users who entered an EU
+//     holding without picking an EU exchange).
+//
+// Anything else falls into "unknown".
+func RegionOf(h domain.Holding) (string, bool) {
+	switch strings.ToUpper(h.Exchange) {
+	case "NSE", "BSE":
+		return domain.RegionIndia, true
+	case "NYSE", "NASDAQ", "AMEX":
+		return domain.RegionUS, true
+	case "LSE", "XETRA", "EURONEXT", "FWB", "MIL", "SIX", "AMS", "PAR":
+		return domain.RegionEurope, true
+	}
+	if strings.EqualFold(h.Currency, "EUR") {
+		return domain.RegionEurope, true
+	}
+	return "unknown", false
+}
+
+// BuildSnapshot computes the (user, date) snapshot for uid using live
+// prices. A per-symbol price error degrades that symbol to current ==
+// invested for the day (no synthetic gain/loss) and is logged. An empty
+// portfolio still produces a row with all canonical regions at zero, so
+// the chart starts the day the user signed up (PRD-002 §6).
+func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
+	holdings, err := s.holdings.ListByUser(ctx, uid)
+	if err != nil {
+		return domain.PortfolioSnapshot{}, fmt.Errorf("list holdings: %w", err)
+	}
+
+	regions := make(map[string]domain.RegionSnapshot, len(domain.AllRegions))
+	for _, r := range domain.AllRegions {
+		regions[r] = domain.RegionSnapshot{Source: domain.SnapshotSourceCron}
+	}
+
+	for _, hld := range holdings {
+		region, ok := RegionOf(hld)
+		if !ok {
+			s.log(ctx).Warn("snapshot: holding has unknown region; excluded",
+				zap.String("script", hld.Script),
+				zap.String("exchange", hld.Exchange),
+			)
+			continue
+		}
+		invested := hld.StocksOwned * hld.AvgCostPrice
+		current := invested
+		price, _, perr := s.prices.GetPrice(ctx, hld.Symbol)
+		if perr == nil && price > 0 {
+			current = hld.StocksOwned * price
+		} else if perr != nil {
+			s.log(ctx).Warn("snapshot: price fetch failed; using invested as current",
+				zap.String("symbol", hld.Symbol),
+				zap.Error(perr),
+			)
+		}
+		rs := regions[region]
+		rs.Invested += invested
+		rs.Current += current
+		regions[region] = rs
+	}
+
+	return domain.PortfolioSnapshot{
+		UserID:   uid,
+		Date:     domain.UTCDate(date),
+		Currency: "INR",
+		Regions:  regions,
+	}, nil
+}
+
+// RunOptions configures a snapshot run. Zero-value RunOptions = today,
+// every non-disabled user, persist for real.
+type RunOptions struct {
+	Date   time.Time          // defaults to now (UTC)
+	UserID primitive.ObjectID // optional: restrict to one user
+	DryRun bool               // when true, no Upsert is called
+}
+
+// RunReport summarises a Run. UserErrors maps user-id hex → error message;
+// the run continues past a single user's failure (DD-002 §3.4).
+type RunReport struct {
+	Date       time.Time
+	Total      int
+	Succeeded  int
+	UserErrors map[string]string
+}
+
+// HasErrors reports whether the run hit any user-level failure.
+func (r RunReport) HasErrors() bool { return len(r.UserErrors) > 0 }
+
+// Run executes the snapshot job for the configured user set on the
+// configured date.
+func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, error) {
+	if opts.Date.IsZero() {
+		opts.Date = s.Now()
+	}
+	date := domain.UTCDate(opts.Date)
+
+	users, err := s.activeUsers(ctx, opts.UserID)
+	if err != nil {
+		return RunReport{Date: date}, err
+	}
+
+	report := RunReport{Date: date, Total: len(users), UserErrors: map[string]string{}}
+	for _, u := range users {
+		// Bail early on parent ctx cancellation rather than continue
+		// recording per-user failures that are really one cancellation
+		// in disguise. Surfaces a single ctx error to the caller.
+		if err := ctx.Err(); err != nil {
+			return report, err
+		}
+		snap, err := s.BuildSnapshot(ctx, u.ID, date)
+		if err != nil {
+			report.UserErrors[u.ID.Hex()] = err.Error()
+			s.log(ctx).Error("snapshot build failed",
+				zap.String("user_id", u.ID.Hex()),
+				zap.Error(err),
+			)
+			continue
+		}
+		if opts.DryRun {
+			report.Succeeded++
+			continue
+		}
+		if err := s.snapshots.Upsert(ctx, snap); err != nil {
+			report.UserErrors[u.ID.Hex()] = err.Error()
+			s.log(ctx).Error("snapshot upsert failed",
+				zap.String("user_id", u.ID.Hex()),
+				zap.Error(err),
+			)
+			continue
+		}
+		report.Succeeded++
+	}
+	return report, nil
+}
+
+// activeUsers returns the user set the run should iterate. When restrict
+// is non-zero, only that user is returned (still filtered for disabled).
+func (s *SnapshotService) activeUsers(ctx context.Context, restrict primitive.ObjectID) ([]domain.User, error) {
+	if !restrict.IsZero() {
+		u, err := s.users.FindByID(ctx, restrict)
+		if err != nil {
+			if errors.Is(err, persistence.ErrNotFound) {
+				return nil, fmt.Errorf("user %s not found", restrict.Hex())
+			}
+			return nil, err
+		}
+		if u.Disabled {
+			return nil, nil
+		}
+		return []domain.User{*u}, nil
+	}
+	// Non-disabled users only (PRD-002 §8). Sort by _id so a mid-run
+	// restart resumes deterministically; the upsert is idempotent so a
+	// re-run of already-snapshotted users is a no-op (DD-002 §3.1).
+	return s.users.List(ctx,
+		bson.M{"disabled": bson.M{"$ne": true}},
+		bson.D{{Key: "_id", Value: 1}},
+	)
+}
