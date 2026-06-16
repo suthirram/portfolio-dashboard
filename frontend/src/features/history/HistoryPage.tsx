@@ -28,10 +28,26 @@ const REGION_LABELS: Record<RegionKey, string> = {
 }
 
 // PRD-002 §7.2 + PR7 design review: saffron (INR), blue (EUR), red (USD).
-const REGION_COLOURS: Record<RegionKey, { invested: string; current: string }> = {
-  INR: { invested: '#fbbf24', current: '#f97316' },  // amber-400 (saffron-ish) / orange-500
-  EUR: { invested: '#93c5fd', current: '#2563eb' },  // blue-300 / 600
-  USD: { invested: '#86efac', current: '#16a34a' },  // green-300 / 600
+// Palettes are theme-aware: brighter hues for dark backgrounds, darker
+// hues for light. The previous single palette was muddy on white and
+// faded on near-black.
+type LinePalette = Record<RegionKey, { invested: string; current: string }>
+const REGION_COLOURS: Record<ThemeName, LinePalette> = {
+  dark: {
+    INR: { invested: '#fcd34d', current: '#f97316' }, // amber-300 / orange-500
+    EUR: { invested: '#60a5fa', current: '#3b82f6' }, // blue-400 / 500
+    USD: { invested: '#f87171', current: '#ef4444' }, // red-400 / 500
+  },
+  light: {
+    INR: { invested: '#d97706', current: '#9a3412' }, // amber-600 / orange-800
+    EUR: { invested: '#2563eb', current: '#1e3a8a' }, // blue-600  / 900
+    USD: { invested: '#dc2626', current: '#7f1d1d' }, // red-600   / 900
+  },
+}
+
+const PNL_LINE_COLOUR: Record<ThemeName, string> = {
+  dark:  '#c084fc', // purple-400, pops on dark
+  light: '#6d28d9', // purple-700, readable on white
 }
 
 // Per-theme background tints for each currency group in the table.
@@ -301,7 +317,7 @@ export default function HistoryPage() {
               onDelete={handleDelete} onEdit={r => setEditRow(r)} />
             <div style={{ height: 16 }} />
             {REGIONS.map(r => (
-              <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} />
+              <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
             ))}
           </>
         )}
@@ -363,8 +379,10 @@ export function fmtCurrency(amount: number, sym: string): string {
 // split 50/50 so the two surfaces are read independently — P/L % has
 // its own y-axis range and is not crushed by the amount axis it used to
 // share with invested/current in the previous combined ComposedChart.
-function CurrencyChartPanel({ region, data }: { region: RegionKey; data: any[] }) {
+function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
   const cur = CURRENCY_BY_REGION[region]
+  const palette = REGION_COLOURS[theme][region]
+  const pnlColour = PNL_LINE_COLOUR[theme]
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 8, padding: 16, marginBottom: 16 }}>
@@ -384,8 +402,8 @@ function CurrencyChartPanel({ region, data }: { region: RegionKey; data: any[] }
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="invested" name={`Invested (${cur})`} stroke={REGION_COLOURS[region].invested} strokeDasharray="4 2" dot={false} />
-                <Line dataKey="current"  name={`Current (${cur})`}  stroke={REGION_COLOURS[region].current}  dot={false} />
+                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} />
+                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -402,7 +420,7 @@ function CurrencyChartPanel({ region, data }: { region: RegionKey; data: any[] }
                 <YAxis tick={{ fontSize: 11 }} unit="%" />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="pnl_pct" name="P/L %" stroke="#a855f7" strokeWidth={2} dot={false} />
+                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
