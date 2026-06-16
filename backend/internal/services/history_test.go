@@ -140,6 +140,37 @@ func TestHistoryService_Add_RejectsNegative(t *testing.T) {
 	})
 }
 
+func TestHistoryService_Add_StampsWriteCurrencyFromBucketKey(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("write_currency stamp", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		// Get: not found
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch))
+		// Upsert FindOne: not found
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch))
+		// Upsert InsertOne ack
+		mt.AddMockResponses(mtest.CreateSuccessResponse())
+
+		svc := newHistorySvc(mt)
+		row, err := svc.Add(context.Background(), uid, AddRowInput{
+			Date: "2026-06-15",
+			Regions: map[string]domain.RegionSnapshot{
+				"INR": {Invested: 100, Current: 198},
+				"EUR": {Invested: 50, Current: 60},
+			},
+		})
+		if err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+		if got := row.Regions["INR"].WriteCurrency; got != "INR" {
+			t.Errorf("INR bucket WriteCurrency = %q, want INR", got)
+		}
+		if got := row.Regions["EUR"].WriteCurrency; got != "EUR" {
+			t.Errorf("EUR bucket WriteCurrency = %q, want EUR", got)
+		}
+	})
+}
+
 func TestHistoryService_Add_NewDateInsertsAsManual(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("insert", func(mt *mtest.T) {

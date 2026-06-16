@@ -181,6 +181,7 @@ func (s *HistoryService) Add(ctx context.Context, uid primitive.ObjectID, in Add
 	regions := make(map[string]domain.RegionSnapshot, len(in.Regions))
 	for k, r := range in.Regions {
 		r.Source = domain.SnapshotSourceManual
+		r.WriteCurrency = k // bucket key is the currency code (INR|EUR|USD)
 		regions[k] = r
 	}
 	snap := domain.PortfolioSnapshot{
@@ -227,6 +228,7 @@ func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectI
 	for k, incoming := range in.Regions {
 		merged := incoming
 		merged.Source = domain.SnapshotSourceManual
+		merged.WriteCurrency = k // bucket key is the currency code (INR|EUR|USD)
 		merged.OriginalCronInvested, merged.OriginalCronCurrent = originalCronFor(existing.Buckets[k])
 		patched[k] = merged
 	}
@@ -325,6 +327,7 @@ func (s *HistoryService) Paste(ctx context.Context, uid primitive.ObjectID, in P
 		regions := make(map[string]domain.RegionSnapshot, len(row.Regions))
 		for k, r := range row.Regions {
 			r.Source = domain.SnapshotSourceManual
+			r.WriteCurrency = k // bucket key is the currency code (INR|EUR|USD)
 			regions[k] = r
 		}
 		if err := s.store.Upsert(ctx, domain.PortfolioSnapshot{
