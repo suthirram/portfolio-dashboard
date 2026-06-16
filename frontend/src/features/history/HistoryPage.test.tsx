@@ -140,6 +140,25 @@ describe('HistoryTable', () => {
     expect(onDelete).toHaveBeenCalledWith('2026-06-16')
   })
 
+  it('renders an Edit button on every row when onEdit is provided', () => {
+    const onEdit = vi.fn()
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-16', regions: { india: region(100, 198, 'cron') } }),
+      row({ date: '2026-06-15', regions: { india: region(100, 100, 'manual') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit} rows={rows} />)
+    const edits = screen.getAllByRole('button', { name: 'Edit' })
+    expect(edits.length).toBe(2)
+    fireEvent.click(edits[0])
+    expect(onEdit).toHaveBeenCalledWith(rows[0])
+  })
+
+  it('does not render Edit when onEdit is omitted', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}}
+      rows={[row({ date: '2026-06-16', regions: { india: region(100, 198, 'cron') } })]} />)
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
+  })
+
   it('renders Daily volatlity headers (one per currency group) and per-region values', () => {
     const rows: HistoryRow[] = [
       row({

@@ -81,6 +81,7 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
+  const [editRow, setEditRow] = useState<HistoryRow | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
 
@@ -184,6 +185,16 @@ export default function HistoryPage() {
     setConflictQueue(q => q.slice(1))
   }
 
+  const handleEditSaved = async (date: string, regions: Record<string, { invested: number; current: number }>) => {
+    try {
+      await api.patchHistoryRegions(date, { regions })
+      setEditRow(null)
+      await reload()
+    } catch (e) {
+      alert('Edit failed: ' + (e instanceof Error ? e.message : String(e)))
+    }
+  }
+
   const handleDelete = async (date: string) => {
     if (!confirm(`Delete row for ${date}?`)) return
     try {
@@ -257,7 +268,7 @@ export default function HistoryPage() {
 
         {rows.length > 0 && (
           <>
-            <HistoryTable rows={rows} currency={currency} onDelete={handleDelete} />
+            <HistoryTable rows={rows} currency={currency} onDelete={handleDelete} onEdit={r => setEditRow(r)} />
             <div style={{ height: 16 }} />
             {REGIONS.map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} />
@@ -267,6 +278,7 @@ export default function HistoryPage() {
       </main>
 
       {addOpen && <AddRowModal onSubmit={handleAddSaved} onCancel={() => setAddOpen(false)} />}
+      {editRow && <EditRowModal row={editRow} onSubmit={handleEditSaved} onCancel={() => setEditRow(null)} />}
       {pasteOpen && <PasteModal monthLabel={`${year}-${String(month + 1).padStart(2, '0')}`}
         onSubmit={async input => {
           const report = await handlePasteSubmit(input)
@@ -413,10 +425,11 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
 // Header spelling "volatlity" matches the user's reference screenshot
 // verbatim. If we ever correct the typo, update the test expectation
 // in HistoryPage.test.tsx too.
-export function HistoryTable({ rows, currency: _currency, onDelete }: {
+export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
+  onEdit?: (row: HistoryRow) => void
 }) {
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
     Object.values(regions).every(r => r.source === 'manual')
@@ -450,7 +463,10 @@ export function HistoryTable({ rows, currency: _currency, onDelete }: {
                     last={idx === REGIONS.length - 1}
                   />
                 ))}
-                <td style={td}>
+                <td style={{ ...td, display: 'flex', gap: 8 }}>
+                  {onEdit && (
+                    <button onClick={() => onEdit(r)} style={btnLinkBlueStyle}>Edit</button>
+                  )}
                   {isAllManual(r.regions) && (
                     <button onClick={() => onDelete(r.date)} style={btnLinkStyle}>Delete</button>
                   )}
@@ -537,6 +553,10 @@ const btnLinkStyle: React.CSSProperties = {
   background: 'transparent', border: 'none', color: 'var(--red, #dc2626)',
   cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 13,
 }
+const btnLinkBlueStyle: React.CSSProperties = {
+  background: 'transparent', border: 'none', color: 'var(--blue, #2563eb)',
+  cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 13,
+}
 
 export function AddRowModal({ onSubmit, onCancel }: {
   onSubmit: (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => Promise<void>
@@ -618,6 +638,70 @@ export function parsePasteText(text: string): { date: string; regions: Record<st
     out.push({ date, regions })
   }
   return out
+}
+
+// EditRowModal pre-fills the form with an existing row and submits a
+// PUT /api/history/:date/regions, which flips every patched region's
+// source to manual (server-side rule). Use to override cron values or
+// fix an existing manual entry. PRD-002 §7.3 / DD-002 §4.4.
+export function EditRowModal({ row, onSubmit, onCancel }: {
+  row: HistoryRow
+  onSubmit: (date: string, regions: Record<string, { invested: number; current: number }>) => Promise<void>
+  onCancel: () => void
+}) {
+  const initial: RegionFormState = {
+    india:  { invested: String(row.regions.india?.invested  ?? ''), current: String(row.regions.india?.current  ?? '') },
+    europe: { invested: String(row.regions.europe?.invested ?? ''), current: String(row.regions.europe?.current ?? '') },
+    us:     { invested: String(row.regions.us?.invested     ?? ''), current: String(row.regions.us?.current     ?? '') },
+  }
+  const [form, setForm] = useState<RegionFormState>(initial)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      await onSubmit(row.date, formToBody(form))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={modalBackdrop}>
+      <div style={modalCard}>
+        <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
+        <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+          Saving will override any cron-written value with the manual value below.
+          Regions you leave at zero will be saved as zero.
+        </p>
+        {REGIONS.map(r => (
+          <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
+            <legend style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              {REGION_LABELS[r]} ({CURRENCY_SYMBOL[CURRENCY_BY_REGION[r]]})
+            </legend>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <label style={{ flex: 1 }}>
+                Invested
+                <input type="number" min="0" value={form[r].invested}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
+                  style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
+              </label>
+              <label style={{ flex: 1 }}>
+                Current
+                <input type="number" min="0" value={form[r].current}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
+                  style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
+              </label>
+            </div>
+          </fieldset>
+        ))}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
+          <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function PasteModal({ monthLabel, onSubmit, onCancel }: {
