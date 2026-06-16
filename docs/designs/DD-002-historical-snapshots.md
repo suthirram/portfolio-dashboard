@@ -415,9 +415,18 @@ Per PRD-002 and the PR split agreed with the owner:
    indexes, store wiring into `*Store`. No HTTP.
 5. **PR5** — `backend snapshot` subcommand, `internal/services/snapshot.go`,
    region inference, Yahoo fetch reuse. No HTTP yet.
-6. **PR6** — `/api/history` endpoints, OpenAPI spec, codegen regen.
+6. **PR6** — `/api/history` endpoints as plain Echo handlers
+   (`RegisterHistoryRoutes`). **Shipped without** the OpenAPI spec or
+   codegen: the routes are hand-wired and the frontend consumes them via
+   types inlined in `lib/api/client.ts`. The OpenAPI/codegen work is split
+   out to PR6b to keep PRs small (see below).
+6b. **PR6b** (follow-up) — `api/specs/history/history.yaml` + inline
+   schemas in `portfolio-api.yaml`, regen `api/*.gen.go` and
+   `schema.gen.ts`, then replace the inlined `lib/api/client.ts` history
+   types with the generated `Schemas[...]`. No behaviour change.
 7. **PR7** — frontend: `/history` route, table, chart, add-row,
-   paste, conflict dialog.
+   paste, conflict dialog, plus the `features/history` Vitest suite
+   (TDD-002 §7).
 8. **PR8** — Cloud Scheduler / cron wiring in the deploy (PD-042
    rollout plan).
 

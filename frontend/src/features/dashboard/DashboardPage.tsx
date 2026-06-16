@@ -132,6 +132,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
         </div>
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link to="/history" className="dash-nav-btn" style={{
+            background: 'var(--bg-card)', color: 'var(--text-secondary)',
+            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+            padding: '6px 14px', fontSize: 13, textDecoration: 'none',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
+          </Link>
           {isAdmin && (
             <Link to="/admin" className="dash-nav-btn" style={{
               background: 'var(--bg-card)', color: 'var(--text-secondary)',
