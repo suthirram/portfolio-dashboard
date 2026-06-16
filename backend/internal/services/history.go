@@ -201,6 +201,12 @@ func (s *HistoryService) Add(ctx context.Context, uid primitive.ObjectID, in Add
 
 // PatchRegions applies the user-accepted overrides from the conflict
 // modal. Every region in the body is written with source=manual.
+//
+// Captures the cron-written values into OriginalCron* the first time
+// each bucket is overridden so the original numbers stay recoverable
+// (PD-042 §3.3 audit trail). Subsequent overrides on a bucket that
+// already carries OriginalCron* values keep them — the audit anchor
+// is the *first* override, not the most recent one.
 func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectID, dateStr string, in PatchRegionsInput) (HistoryRow, error) {
 	date, err := parseDateNotFuture(dateStr, s.Now)
 	if err != nil {
@@ -209,9 +215,25 @@ func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectI
 	if err := validateRegions(in.Regions); err != nil {
 		return HistoryRow{}, err
 	}
+
+	// Read existing row so OriginalCron* can be set for first-time
+	// overrides and preserved for subsequent ones.
+	existing, err := s.store.Get(ctx, uid, date)
+	if err != nil {
+		return HistoryRow{}, err
+	}
+
+	patched := make(map[string]domain.RegionSnapshot, len(in.Regions))
+	for k, incoming := range in.Regions {
+		merged := incoming
+		merged.Source = domain.SnapshotSourceManual
+		merged.OriginalCronInvested, merged.OriginalCronCurrent = originalCronFor(existing.Buckets[k])
+		patched[k] = merged
+	}
+
 	// Atomic multi-region update so a failure mid-way through cannot
 	// leave half the override persisted (PD-042 PR6 review).
-	if err := s.store.PatchRegions(ctx, uid, date, in.Regions); err != nil {
+	if err := s.store.PatchRegions(ctx, uid, date, patched); err != nil {
 		return HistoryRow{}, err
 	}
 	updated, err := s.store.Get(ctx, uid, date)
@@ -223,6 +245,24 @@ func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectI
 		Regions: updated.Buckets,
 		Totals:  updated.Totals(),
 	}, nil
+}
+
+// originalCronFor decides the OriginalCron* values for an override.
+// Rules:
+//   - existing was cron → capture its invested/current as the anchor.
+//   - existing was manual with an OriginalCron* set → keep them (first
+//     override wins; never re-anchor).
+//   - existing was manual with no anchor → no anchor (the bucket was
+//     never cron-written, so there is no "original cron" to restore to).
+func originalCronFor(existing domain.RegionSnapshot) (*float64, *float64) {
+	switch existing.Source {
+	case domain.SnapshotSourceCron:
+		inv, cur := existing.Invested, existing.Current
+		return &inv, &cur
+	case domain.SnapshotSourceManual:
+		return existing.OriginalCronInvested, existing.OriginalCronCurrent
+	}
+	return nil, nil
 }
 
 // Delete removes a row only if every region is manual; cron-touched rows

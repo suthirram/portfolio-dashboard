@@ -173,8 +173,11 @@ func (s *SnapshotStore) PatchRegion(ctx context.Context, uid primitive.ObjectID,
 
 // PatchRegions replaces multiple regions atomically in one UpdateOne so
 // a partial failure cannot leave half the body persisted. Every region in
-// rs is written with source=manual. Returns ErrNotFound when no row for
-// (user, date) exists.
+// rs is written with source=manual; the caller is responsible for
+// populating OriginalCron* (HistoryService.PatchRegions does that). The
+// whole RegionSnapshot value is sent to Mongo, so any fields the caller
+// did not set serialise to their zero / omitempty. Returns ErrNotFound
+// when no row for (user, date) exists.
 func (s *SnapshotStore) PatchRegions(ctx context.Context, uid primitive.ObjectID, date time.Time, rs map[string]domain.RegionSnapshot) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
