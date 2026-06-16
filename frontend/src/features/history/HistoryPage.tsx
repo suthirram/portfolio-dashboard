@@ -660,21 +660,64 @@ export function AddRowModal({ onSubmit, onCancel }: {
   )
 }
 
-// Paste parser: TSV (tabs) or CSV. Expected columns:
-// date, india_invested, india_current, europe_invested, europe_current, us_invested, us_current
-// Header row is optional; if first cell parses as a date we assume no header.
+// parsePasteText accepts TSV (tabs) — what Google Sheets / Excel
+// copy-paste yields. Expected columns in order:
+//
+//   Date | INR invested | INR current | EUR invested | EUR current
+//        | USD invested | USD current | [Daily vol] | [P/L %]
+//
+// Trailing columns (Daily vol, P/L %) are ignored — they are derived
+// on read.
+//
+// Robustness in PR7 design-review follow-up:
+//   * Dates accepted in YYYY-MM-DD, dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+//     and normalised to YYYY-MM-DD.
+//   * Currency symbols (₹ € $ £) and thousands separators (, _ space)
+//     stripped before parsing.
+//   * Empty / blank cells become 0 — a row that has at least one
+//     non-zero (invested OR current) for any region is kept.
+//   * Header row detected by "first cell does not parse as a date"
+//     and skipped.
+
+const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
+
+export function parseAmount(s: string): number {
+  if (!s) return 0
+  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
+  if (!cleaned) return 0
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : NaN
+}
+
+// normaliseDate accepts the common European-style formats users paste
+// from spreadsheets and returns "YYYY-MM-DD". Returns "" when the input
+// can't be parsed as a date.
+export function normaliseDate(s: string): string {
+  const t = s.trim()
+  // Already ISO?
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
+  // dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+  const m = t.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/)
+  if (m) {
+    const dd = m[1].padStart(2, '0')
+    const mm = m[2].padStart(2, '0')
+    return `${m[3]}-${mm}-${dd}`
+  }
+  return ''
+}
+
 export function parsePasteText(text: string): { date: string; regions: Record<string, { invested: number; current: number }> }[] {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
-  const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s)
-  // Detect delimiter from first line.
   const out: { date: string; regions: Record<string, { invested: number; current: number }> }[] = []
   for (const line of lines) {
-    const cells = line.split(/\t|,/).map(c => c.trim())
-    if (!isDate(cells[0])) continue // skip header
-    const [date, ii, ic, ei, ec, ui, uc] = cells
+    const cells = line.split(/\t/).map(c => c.trim())
+    const date = normaliseDate(cells[0] ?? '')
+    if (!date) continue // skip header / malformed
+    const [, ii, ic, ei, ec, ui, uc] = cells
     const regions: Record<string, { invested: number; current: number }> = {}
-    const set = (key: string, inv: string, cur: string) => {
-      const a = Number(inv), b = Number(cur)
+    const set = (key: string, inv: string | undefined, cur: string | undefined) => {
+      const a = parseAmount(inv ?? '')
+      const b = parseAmount(cur ?? '')
       if (Number.isFinite(a) && Number.isFinite(b) && (a > 0 || b > 0)) {
         regions[key] = { invested: a, current: b }
       }
@@ -760,12 +803,29 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
   const [busy, setBusy] = useState(false)
   const [report, setReport] = useState<PasteHistoryReport | null>(null)
 
+  const [clientSkipped, setClientSkipped] = useState<number>(0)
+
   const submit = async () => {
     setBusy(true)
+    setReport(null)
+    setClientSkipped(0)
     try {
+      const inputLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).length
       const rows = parsePasteText(text)
+      const skipped = inputLines - rows.length
+      setClientSkipped(skipped)
+      if (rows.length === 0) {
+        alert(
+          'No rows recognised from the paste. Check the format hint above — ' +
+          'dates must be YYYY-MM-DD or dd/mm/yyyy, columns must be tab-separated.'
+        )
+        return
+      }
       const r = await onSubmit({ month: monthLabel, rows })
       setReport(r)
+      if (r.applied.length === 0 && r.conflicts.length === 0 && r.rejected.length === 0) {
+        alert('Server accepted no rows. They were likely all outside the selected month.')
+      }
     } catch (e) {
       alert('Paste failed: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
@@ -778,15 +838,26 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
       <div style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Paste month — {monthLabel}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-          Columns (TSV or CSV): date, india_invested, india_current, europe_invested, europe_current, us_invested, us_current
+          Paste tab-separated rows (Google Sheets / Excel). Columns:
+          {' '}<code>Date</code> | <code>INR invested</code> | <code>INR current</code> |
+          {' '}<code>EUR invested</code> | <code>EUR current</code> |
+          {' '}<code>USD invested</code> | <code>USD current</code>.
+          {' '}Extra trailing columns (Daily vol, P/L %) are ignored.
+          {' '}Dates accept <code>YYYY-MM-DD</code> or <code>dd/mm/yyyy</code>.
+          {' '}Currency symbols and thousands separators are stripped automatically.
         </p>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={10}
           style={{ width: '100%', fontFamily: 'monospace', padding: 8, boxSizing: 'border-box' }}/>
         {report && (
           <div style={{ marginTop: 12, fontSize: 13 }}>
-            <div>Applied: {report.applied.length}</div>
-            <div>Conflicts: {report.conflicts.length}</div>
-            <div>Rejected: {report.rejected.length}</div>
+            <div style={{ color: 'var(--green)' }}>✓ Applied: {report.applied.length}</div>
+            <div style={{ color: 'var(--yellow, #d97706)' }}>⚠ Conflicts (need confirmation): {report.conflicts.length}</div>
+            <div style={{ color: 'var(--red)' }}>✗ Server rejected: {report.rejected.length}</div>
+            {clientSkipped > 0 && (
+              <div style={{ color: 'var(--text-muted)' }}>
+                — Skipped on client (bad date / format): {clientSkipped}
+              </div>
+            )}
             {report.rejected.length > 0 && (
               <ul style={{ marginTop: 4, paddingLeft: 18, fontSize: 12 }}>
                 {report.rejected.map(r => <li key={r.date}>{r.date}: {r.reason}</li>)}

@@ -4,6 +4,8 @@ import {
   parsePasteText,
   monthRange,
   dailyVolatility,
+  parseAmount,
+  normaliseDate,
   HistoryTable,
   AddRowModal,
   ConflictDialog,
@@ -54,13 +56,6 @@ describe('parsePasteText', () => {
     ])
   })
 
-  it('parses Excel CSV too', () => {
-    const csv = '2026-06-01,100,110,0,0,0,0'
-    expect(parsePasteText(csv)).toEqual([
-      { date: '2026-06-01', regions: { INR: { invested: 100, current: 110 } } },
-    ])
-  })
-
   it('skips a header row whose first cell is not a date', () => {
     const tsv = 'date\tii\tic\tei\tec\tui\tuc\n2026-06-01\t100\t110\t0\t0\t0\t0'
     const out = parsePasteText(tsv)
@@ -69,8 +64,66 @@ describe('parsePasteText', () => {
   })
 
   it('omits a region whose invested and current are both zero', () => {
-    const [r] = parsePasteText('2026-06-01,0,0,0,0,0,0')
+    const [r] = parsePasteText('2026-06-01\t0\t0\t0\t0\t0\t0')
     expect(r.regions).toEqual({})
+  })
+
+  it('accepts dd/mm/yyyy dates and normalises to YYYY-MM-DD', () => {
+    const [r] = parsePasteText('28/02/2026\t100\t110\t0\t0\t0\t0')
+    expect(r.date).toBe('2026-02-28')
+  })
+
+  it('strips ₹, €, $ symbols and thousands separators', () => {
+    const [r] = parsePasteText('2026-06-01\t₹791,098.34\t₹1,057,757.67\t€5,621.76\t€5,880.73\t$0\t$0')
+    expect(r.regions).toEqual({
+      INR: { invested: 791098.34, current: 1057757.67 },
+      EUR: { invested: 5621.76, current: 5880.73 },
+    })
+  })
+
+  it('ignores trailing Daily-vol / P-L columns', () => {
+    const [r] = parsePasteText('28/02/2026\t₹100\t₹110\t€50\t€55\t\t\t1.23\t10.50%')
+    expect(r.date).toBe('2026-02-28')
+    expect(r.regions.INR).toEqual({ invested: 100, current: 110 })
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 55 })
+  })
+})
+
+// ---- parseAmount ----
+
+describe('parseAmount', () => {
+  it('strips currency symbols', () => {
+    expect(parseAmount('₹1234.56')).toBe(1234.56)
+    expect(parseAmount('€5621.76')).toBe(5621.76)
+    expect(parseAmount('$100')).toBe(100)
+  })
+  it('strips thousands commas', () => {
+    expect(parseAmount('1,057,757.67')).toBe(1057757.67)
+  })
+  it('empty / blank cell → 0', () => {
+    expect(parseAmount('')).toBe(0)
+    expect(parseAmount('   ')).toBe(0)
+  })
+})
+
+// ---- normaliseDate ----
+
+describe('normaliseDate', () => {
+  it('passes ISO through', () => {
+    expect(normaliseDate('2026-02-28')).toBe('2026-02-28')
+  })
+  it('converts dd/mm/yyyy', () => {
+    expect(normaliseDate('28/02/2026')).toBe('2026-02-28')
+  })
+  it('converts dd-mm-yyyy', () => {
+    expect(normaliseDate('28-02-2026')).toBe('2026-02-28')
+  })
+  it('converts dd.mm.yyyy', () => {
+    expect(normaliseDate('28.02.2026')).toBe('2026-02-28')
+  })
+  it('returns empty for nonsense', () => {
+    expect(normaliseDate('not a date')).toBe('')
+    expect(normaliseDate('')).toBe('')
   })
 })
 
