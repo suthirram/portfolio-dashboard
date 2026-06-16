@@ -28,6 +28,95 @@ in one final PR once every step below has landed.
 | PR8 | `feat/PD-042-deploy` | Cloud Scheduler / docker cron wiring, deps doc |
 | Final | `feat/PD-042-historical-snapshots` → `main` | Merge after all of the above |
 
+## 1a. Deploy wiring (PR8)
+
+PR8 ships the cron infrastructure that invokes `backend snapshot` at
+00:00 UTC. Three deploy paths are documented here; pick the one that
+matches the running stack.
+
+### Cloud Run + Cloud Scheduler (prod, mirrors PD-029)
+
+1. Build and push the same container image already used by the web
+   service. The `snapshot` subcommand is part of the same binary.
+2. Create a Cloud Run **Job** (not Service) that runs
+   `backend snapshot` once per invocation:
+
+   ```bash
+   gcloud run jobs create pd-snapshot \
+     --image="$REGION-docker.pkg.dev/$PROJECT_ID/pd/backend:$TAG" \
+     --region="$REGION" \
+     --task-timeout=10m \
+     --command=/app/backend \
+     --args=snapshot \
+     --set-env-vars=LOG_FORMAT=json,MONGODB_DATABASE=portfolio \
+     --set-secrets=MONGODB_URI=mongodb-uri:latest
+   ```
+
+3. Create the Cloud Scheduler job that fires the Run job:
+
+   ```bash
+   gcloud scheduler jobs create http pd-snapshot-daily \
+     --schedule="0 0 * * *" \
+     --time-zone="Etc/UTC" \
+     --uri="https://$REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/$PROJECT_ID/jobs/pd-snapshot:run" \
+     --http-method=POST \
+     --oauth-service-account-email="$RUNNER_SA@$PROJECT_ID.iam.gserviceaccount.com"
+   ```
+
+4. Smoke-test by invoking the job manually:
+
+   ```bash
+   gcloud run jobs execute pd-snapshot --region="$REGION" --wait
+   ```
+
+### Docker Compose (local / single-host)
+
+For someone running the stack on their own server via the compose
+file. Add a sidecar service that periodically `docker exec`s into the
+backend container — busybox `crond` is enough:
+
+```yaml
+# docker-compose.yml (excerpt)
+services:
+  pd-cron:
+    image: alpine:3.20
+    depends_on: [backend]
+    command: >
+      sh -c "echo '0 0 * * * docker exec backend /app/backend snapshot'
+      | crontab - && crond -f -L /dev/stdout"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+```
+
+Tradeoffs documented inline: this image needs the docker socket
+mounted, which is a privileged surface. A safer alternative is a host
+cron line:
+
+```cron
+0 0 * * * docker exec backend /app/backend snapshot
+```
+
+### k8s CronJob (out of v1)
+
+If we move off Cloud Run / single-host docker to a k8s cluster, a
+CronJob is the equivalent. Same image, same args. Manifest skeleton
+lives in PD-029 follow-ups; defer until the move happens.
+
+### Dev — empty-state and one-shot
+
+Local development does not run any cron. Manual one-shot:
+
+```bash
+cd backend
+go run . snapshot --date $(date -u +%Y-%m-%d)
+```
+
+For testing the catch-up story without waiting for midnight:
+
+```bash
+go run . snapshot --date 2026-06-16 --dry-run
+```
+
 ## 2. Environment changes
 
 * New Mongo collection: `portfolio_snapshots` (created on first index
