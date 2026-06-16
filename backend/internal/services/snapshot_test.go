@@ -21,16 +21,22 @@ func TestCurrencyOf(t *testing.T) {
 		want    string
 		wantOK  bool
 	}{
-		{"NSE", domain.Holding{Exchange: "NSE"}, domain.CurrencyINR, true},
-		{"BSE lowercase", domain.Holding{Exchange: "bse"}, domain.CurrencyINR, true},
-		{"NYSE", domain.Holding{Exchange: "NYSE"}, domain.CurrencyUSD, true},
-		{"NASDAQ", domain.Holding{Exchange: "NASDAQ"}, domain.CurrencyUSD, true},
-		{"LSE", domain.Holding{Exchange: "LSE"}, domain.CurrencyEUR, true},
-		{"XETRA", domain.Holding{Exchange: "XETRA"}, domain.CurrencyEUR, true},
-		{"USD currency fallback", domain.Holding{Exchange: "OTHER", Currency: "USD"}, domain.CurrencyUSD, true},
-		{"EUR currency fallback", domain.Holding{Exchange: "OTHER", Currency: "EUR"}, domain.CurrencyEUR, true},
-		{"INR currency fallback", domain.Holding{Exchange: "OTHER", Currency: "INR"}, domain.CurrencyINR, true},
-		{"unknown exchange + unknown currency", domain.Holding{Exchange: "OTHER", Currency: "GBP"}, "unknown", false},
+		// Currency-first: user's typed currency wins over Exchange.
+		{"INR currency wins over NYSE exchange", domain.Holding{Exchange: "NYSE", Currency: "INR"}, domain.CurrencyINR, true},
+		{"EUR currency wins over NASDAQ exchange", domain.Holding{Exchange: "NASDAQ", Currency: "EUR"}, domain.CurrencyEUR, true},
+		{"INR currency only", domain.Holding{Currency: "INR"}, domain.CurrencyINR, true},
+		{"EUR currency only", domain.Holding{Currency: "EUR"}, domain.CurrencyEUR, true},
+		// Exchange fallback when Currency is blank.
+		{"NSE no currency", domain.Holding{Exchange: "NSE"}, domain.CurrencyINR, true},
+		{"BSE lowercase no currency", domain.Holding{Exchange: "bse"}, domain.CurrencyINR, true},
+		{"LSE no currency", domain.Holding{Exchange: "LSE"}, domain.CurrencyEUR, true},
+		{"XETRA no currency", domain.Holding{Exchange: "XETRA"}, domain.CurrencyEUR, true},
+		// No USD fallback — UI does not allow USD-priced holdings, so NYSE
+		// + blank Currency is unmapped and excluded with a warn log.
+		{"NYSE no currency → unknown (UI cannot enter USD)", domain.Holding{Exchange: "NYSE"}, "unknown", false},
+		{"NASDAQ no currency → unknown", domain.Holding{Exchange: "NASDAQ"}, "unknown", false},
+		// Anything else.
+		{"unknown exchange + unsupported currency", domain.Holding{Exchange: "OTHER", Currency: "GBP"}, "unknown", false},
 		{"empty exchange + empty currency", domain.Holding{}, "unknown", false},
 	}
 	for _, c := range cases {
@@ -67,24 +73,24 @@ func holdingDoc(uid primitive.ObjectID, exchange, symbol, currency string, qty, 
 	}
 }
 
-func TestBuildSnapshot_GroupsByRegionAndUsesLivePrice(t *testing.T) {
+func TestBuildSnapshot_GroupsByCurrencyAndUsesLivePrice(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("group by region", func(mt *mtest.T) {
+	mt.Run("group by currency", func(mt *mtest.T) {
 		uid := primitive.NewObjectID()
-		// TCS in NSE: 10 @ 3000 invested, 10 @ 3500 current. India.
-		// AAPL in NASDAQ: 5 @ 100 invested, 5 @ 150 current. US.
-		// SAP in XETRA: 2 @ 50 invested, 2 @ 60 current. Europe.
+		// TCS on NSE, priced in INR: 10 @ 3000 → 10 @ 3500.
+		// AAPL on NASDAQ, but typed in INR (user bought US-listed via
+		// Indian broker, paid in rupees): 5 @ 8000 → 5 @ 9000. Goes to
+		// INR bucket per the post-bugfix Currency-first rule.
+		// SAP on XETRA, priced in EUR: 2 @ 50 → 2 @ 60.
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
 			holdingDoc(uid, "NSE", "TCS.NS", "INR", 10, 3000),
-			holdingDoc(uid, "NASDAQ", "AAPL", "USD", 5, 100),
+			holdingDoc(uid, "NASDAQ", "AAPL", "INR", 5, 8000),
 			holdingDoc(uid, "XETRA", "SAP.DE", "EUR", 2, 50),
 		))
 
-		// Stub returns different prices by symbol via the symbol-aware
-		// stub below.
 		prices := newMultiStub(map[string]float64{
 			"TCS.NS": 3500,
-			"AAPL":   150,
+			"AAPL":   9000,
 			"SAP.DE": 60,
 		})
 		svc := NewSnapshotService(persistence.New(mt.DB).Holdings, nil, nil, prices, nil)
@@ -96,12 +102,13 @@ func TestBuildSnapshot_GroupsByRegionAndUsesLivePrice(t *testing.T) {
 		}
 
 		inr := snap.Buckets[domain.CurrencyINR]
-		if inr.Invested != 30000 || inr.Current != 35000 {
-			t.Errorf("INR = (%v, %v), want (30000, 35000)", inr.Invested, inr.Current)
+		// 10×3000 + 5×8000 = 70000 invested; 10×3500 + 5×9000 = 80000 current.
+		if inr.Invested != 70000 || inr.Current != 80000 {
+			t.Errorf("INR = (%v, %v), want (70000, 80000)", inr.Invested, inr.Current)
 		}
 		usd := snap.Buckets[domain.CurrencyUSD]
-		if usd.Invested != 500 || usd.Current != 750 {
-			t.Errorf("USD = (%v, %v), want (500, 750)", usd.Invested, usd.Current)
+		if usd.Invested != 0 || usd.Current != 0 {
+			t.Errorf("USD = (%v, %v), want (0, 0) — UI cannot create USD-priced holdings", usd.Invested, usd.Current)
 		}
 		eur := snap.Buckets[domain.CurrencyEUR]
 		if eur.Invested != 100 || eur.Current != 120 {

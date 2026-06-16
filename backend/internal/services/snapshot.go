@@ -60,34 +60,38 @@ func (s *SnapshotService) log(ctx context.Context) *zap.Logger {
 	return zap.NewNop()
 }
 
-// CurrencyOf maps a holding to one of the canonical snapshot bucket
-// keys (INR|EUR|USD). Returns ("unknown", false) when the mapping rules
-// can't classify the holding; the caller logs and excludes it. PR7
-// design-review (2026-06-16) moved snapshot bucketing from region to
-// currency — buckets are now what the user is actually pricing in.
+// CurrencyOf maps a holding to its snapshot bucket key. The app only
+// accepts Holding.Currency in {INR, EUR} (see frontend HoldingInput),
+// so the USD bucket exists in the schema for shape symmetry but is
+// expected to always be empty in practice. Returns ("unknown", false)
+// when the mapping can't classify the holding; the caller logs and
+// excludes it.
+//
+// PR7 design-review (2026-06-16) moved bucketing from region to
+// currency. A prod-cron bug then surfaced: an NYSE holding typed
+// with Currency=INR (the user paid in rupees for a US-listed
+// security) was bucketed to USD because Exchange beat Currency. The
+// monetary amount (StocksOwned × AvgCostPrice) lives in
+// Holding.Currency — that field is now authoritative.
 //
 // Rules, in order:
-//  1. Exchange NSE / BSE → INR.
-//  2. Exchange NYSE / NASDAQ / AMEX → USD.
-//  3. Exchange LSE / XETRA / EURONEXT / FWB / MIL / SIX / AMS / PAR
-//     → EUR.
-//  4. Holding.Currency, if it is one of the three canonical codes,
-//     wins as a fallback (covers users who entered an exchange we do
-//     not know but tagged the currency correctly).
+//  1. Holding.Currency = INR or EUR → that bucket. Authoritative.
+//  2. Currency is blank — fall back to Exchange:
+//     NSE / BSE → INR
+//     LSE / XETRA / EURONEXT / FWB / MIL / SIX / AMS / PAR → EUR
+//     (No USD fallback — see paragraph above.)
 //
 // Anything else falls into "unknown".
 func CurrencyOf(h domain.Holding) (string, bool) {
+	switch strings.ToUpper(h.Currency) {
+	case domain.CurrencyINR, domain.CurrencyEUR:
+		return strings.ToUpper(h.Currency), true
+	}
 	switch strings.ToUpper(h.Exchange) {
 	case "NSE", "BSE":
 		return domain.CurrencyINR, true
-	case "NYSE", "NASDAQ", "AMEX":
-		return domain.CurrencyUSD, true
 	case "LSE", "XETRA", "EURONEXT", "FWB", "MIL", "SIX", "AMS", "PAR":
 		return domain.CurrencyEUR, true
-	}
-	switch strings.ToUpper(h.Currency) {
-	case domain.CurrencyINR, domain.CurrencyEUR, domain.CurrencyUSD:
-		return strings.ToUpper(h.Currency), true
 	}
 	return "unknown", false
 }
