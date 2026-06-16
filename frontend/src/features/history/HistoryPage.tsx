@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -113,7 +113,7 @@ export default function HistoryPage() {
     void api.historyRange().then(setRangeInfo).catch(() => setRangeInfo(null))
   }, [])
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -126,9 +126,9 @@ export default function HistoryPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [year, month])
 
-  useEffect(() => { void reload() }, [year, month])
+  useEffect(() => { void reload() }, [reload])
 
   const years = useMemo(() => {
     if (!rangeInfo) return [now.getUTCFullYear()]
@@ -761,8 +761,10 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
       <div style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-          Saving will override any cron-written value with the manual value below.
-          Regions you leave at zero will be saved as zero.
+          Saving overrides any cron-written value with the manual value below. A
+          region whose <em>both</em> fields are blank or zero is skipped — its
+          existing value stays unchanged. Type at least one positive number per
+          region to override it.
         </p>
         {REGIONS.map(r => (
           <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
