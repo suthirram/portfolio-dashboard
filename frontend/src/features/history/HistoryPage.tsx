@@ -314,6 +314,20 @@ function fmt(n: number) {
   return n === 0 ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
+// dailyVolatility computes day-over-day return % using the prior day's
+// current_total. `rows` is expected newest-first (the server's order), so
+// rows[i+1] is the day before rows[i]. Returns null when there is no
+// prior row in the window or the prior current value is zero (divide-by-
+// zero); callers render it as "—".
+export function dailyVolatility(rows: HistoryRow[], i: number): number | null {
+  const prev = rows[i + 1]
+  if (!prev) return null
+  const prevCur = prev.totals.current_total
+  if (prevCur === 0) return null
+  const today = rows[i].totals.current_total
+  return ((today - prevCur) / prevCur) * 100
+}
+
 export function HistoryTable({ rows, currency, onDelete }: {
   rows: HistoryRow[]
   currency: string
@@ -338,14 +352,17 @@ export function HistoryTable({ rows, currency, onDelete }: {
             <th style={th}>Total inv.</th>
             <th style={th}>Total cur.</th>
             <th style={th}>P/L %</th>
+            <th style={th} title="Day-over-day change in current value vs previous day">Daily vol %</th>
             <th style={th}>Source</th>
             <th style={th}></th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => {
+          {rows.map((r, i) => {
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
+            const vol = dailyVolatility(rows, i)
+            const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
             return (
               <tr key={r.date}>
                 <td style={td}>{r.date}</td>
@@ -358,6 +375,9 @@ export function HistoryTable({ rows, currency, onDelete }: {
                 <td style={td}>{fmt(r.totals.invested_total)} {currency}</td>
                 <td style={td}>{fmt(r.totals.current_total)} {currency}</td>
                 <td style={td}>{r.totals.pnl_pct === null ? '—' : r.totals.pnl_pct.toFixed(2)}</td>
+                <td style={{ ...td, color: volColor }}>
+                  {vol === null ? '—' : `${vol >= 0 ? '+' : ''}${vol.toFixed(2)}`}
+                </td>
                 <td style={td}>{sourceLabel}</td>
                 <td style={td}>
                   {isAllManual(r.regions) && (
