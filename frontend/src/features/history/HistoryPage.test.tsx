@@ -30,14 +30,16 @@ const row = (overrides: Partial<HistoryRow> & { date: string }): HistoryRow => (
 // ---- monthRange (TDD §7.1 range derivation) ----
 
 describe('monthRange', () => {
-  it('resolves a 31-day month to first/last UTC day', () => {
-    expect(monthRange(2026, 0)).toEqual({ from: '2026-01-01', to: '2026-01-31' })
+  // monthRange extends `from` back by one day so the first row of the
+  // selected month has a prior row for Daily volatlity.
+  it('resolves a 31-day month to (last-of-prev → last UTC day)', () => {
+    expect(monthRange(2026, 0)).toEqual({ from: '2025-12-31', to: '2026-01-31' })
   })
-  it('resolves February in a non-leap year to the 28th', () => {
-    expect(monthRange(2026, 1)).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+  it('resolves February in a non-leap year to (Jan 31 → Feb 28)', () => {
+    expect(monthRange(2026, 1)).toEqual({ from: '2026-01-31', to: '2026-02-28' })
   })
-  it('resolves February in a leap year to the 29th', () => {
-    expect(monthRange(2024, 1)).toEqual({ from: '2024-02-01', to: '2024-02-29' })
+  it('resolves February in a leap year to (Jan 31 → Feb 29)', () => {
+    expect(monthRange(2024, 1)).toEqual({ from: '2024-01-31', to: '2024-02-29' })
   })
 })
 
@@ -108,17 +110,19 @@ describe('dailyVolatility', () => {
 // ---- HistoryTable (TDD §7.3) ----
 
 describe('HistoryTable', () => {
-  it('renders — for absent regions', () => {
+  it('renders currency-prefixed values per group (₹/€/$) with absent regions at 0', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
       rows={[row({
         date: '2026-06-16',
         regions: { india: region(100, 198, 'cron') },
         totals: { invested_total: 100, current_total: 198, pnl_pct: 98 },
       })]} />)
-    // India cells show values, Europe/US show the em dash placeholder.
-    expect(screen.getByText('198')).toBeInTheDocument()
-    // Europe inv, Europe cur, US inv, US cur are all 0 → '—'.
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4)
+    // India cells show ₹-prefixed values.
+    expect(screen.getByText('₹100.00')).toBeInTheDocument()
+    expect(screen.getByText('₹198.00')).toBeInTheDocument()
+    // Absent Europe and US: invested + current both render as €0.00 / $0.00.
+    expect(screen.getAllByText('€0.00').length).toBe(2)
+    expect(screen.getAllByText('$0.00').length).toBe(2)
   })
 
   it('hides the delete control on a cron row', () => {
@@ -136,7 +140,7 @@ describe('HistoryTable', () => {
     expect(onDelete).toHaveBeenCalledWith('2026-06-16')
   })
 
-  it('renders the Daily vol % column and a signed value for non-first rows', () => {
+  it('renders Daily volatlity headers (one per currency group) and per-region values', () => {
     const rows: HistoryRow[] = [
       row({
         date: '2026-06-17',
@@ -150,9 +154,10 @@ describe('HistoryTable', () => {
       }),
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
-    expect(screen.getByText('Daily vol %')).toBeInTheDocument()
-    // 220 vs prior 200 → +10.00
-    expect(screen.getByText('+10.00')).toBeInTheDocument()
+    // One "Daily volatlity" header per currency group → 3 of them.
+    expect(screen.getAllByText('Daily volatlity').length).toBe(3)
+    // 220 vs prior 200 → +10.00 in the India column.
+    expect(screen.getByText('10.00')).toBeInTheDocument()
   })
 })
 

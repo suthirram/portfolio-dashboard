@@ -34,9 +34,12 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
+// monthRange returns the inclusive [from, to] for the month, with `from`
+// extended back by one day so the first day-of-month row has a prior row
+// to compute Daily volatlity against (PR7 design review).
 export function monthRange(year: number, month0: number): { from: string; to: string } {
-  const from = new Date(Date.UTC(year, month0, 1))
-  const to = new Date(Date.UTC(year, month0 + 1, 0))
+  const from = new Date(Date.UTC(year, month0, 0))   // last day of previous month
+  const to   = new Date(Date.UTC(year, month0 + 1, 0))
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
   return { from: fmt(from), to: fmt(to) }
 }
@@ -110,20 +113,12 @@ export default function HistoryPage() {
     return out
   }, [rangeInfo, now])
 
-  // Chart data: sort rows oldest-first so x-axis flows left-to-right.
-  const chartData = useMemo(() => {
-    const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
-    return oldestFirst.map(r => ({
-      date: r.date.slice(5), // MM-DD
-      india_invested:  r.regions.india?.invested  ?? 0,
-      india_current:   r.regions.india?.current   ?? 0,
-      europe_invested: r.regions.europe?.invested ?? 0,
-      europe_current:  r.regions.europe?.current  ?? 0,
-      us_invested:     r.regions.us?.invested     ?? 0,
-      us_current:      r.regions.us?.current      ?? 0,
-      pnl_pct:         r.totals.pnl_pct,
-    }))
-  }, [rows])
+  // Three charts, one per currency. Compute series per region.
+  const chartsByRegion = useMemo(() => ({
+    india:  perCurrencyChartData(rows, 'india'),
+    europe: perCurrencyChartData(rows, 'europe'),
+    us:     perCurrencyChartData(rows, 'us'),
+  }), [rows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
     try {
@@ -144,6 +139,11 @@ export default function HistoryPage() {
               incoming: input.regions,
             }])
             setAddOpen(false)
+          } else {
+            // 409 said the row exists, but list returned nothing —
+            // possible race between the POST and the refetch. Tell the
+            // user instead of silently swallowing.
+            alert('Conflict reported but row no longer exists. Try again.')
           }
         } catch {
           alert('Conflict, but failed to load existing row.')
@@ -157,7 +157,11 @@ export default function HistoryPage() {
   const handlePasteSubmit = async (input: { month: string; rows: { date: string; regions: Record<string, { invested: number; current: number }> }[] }): Promise<PasteHistoryReport> => {
     const report = await api.pasteHistory(input)
     if (report.conflicts.length) {
-      setConflictQueue(report.conflicts)
+      // PRD-002 §7.3: dialogs open in date order. Backend may return
+      // conflicts in non-deterministic order because the per-row map
+      // iteration order is undefined; sort here.
+      const sorted = [...report.conflicts].sort((a, b) => a.date.localeCompare(b.date))
+      setConflictQueue(sorted)
     }
     if (report.applied.length) await reload()
     return report
@@ -253,8 +257,11 @@ export default function HistoryPage() {
 
         {rows.length > 0 && (
           <>
-            <ChartPanel data={chartData} />
             <HistoryTable rows={rows} currency={currency} onDelete={handleDelete} />
+            <div style={{ height: 16 }} />
+            {REGIONS.map(r => (
+              <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} />
+            ))}
           </>
         )}
       </main>
@@ -276,16 +283,45 @@ export default function HistoryPage() {
   )
 }
 
+// ---- Currency mapping ----
+// Region → display currency. Holdings are stored per-region in the
+// snapshot (DD-002 §2.1); the UI here translates to original currency
+// because the user wants to read the table in native amounts (PR7
+// design-review on Screenshot 2026-06-16).
+
+export const CURRENCY_BY_REGION: Record<RegionKey, 'INR' | 'EUR' | 'USD'> = {
+  india:  'INR',
+  europe: 'EUR',
+  us:     'USD',
+}
+
+export const CURRENCY_SYMBOL: Record<'INR' | 'EUR' | 'USD', string> = {
+  INR: '₹',
+  EUR: '€',
+  USD: '$',
+}
+
+// fmtCurrency formats amount with the currency symbol and 2dp, e.g.
+// "₹1,019,620.00". An amount of 0 renders as "₹0.00" rather than the em
+// dash used elsewhere, because in the per-currency layout an absent
+// value collapses the whole row group instead.
+export function fmtCurrency(amount: number, sym: string): string {
+  return sym + amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  })
+}
+
 // ---- Chart ----
 
-function ChartPanel({ data }: { data: any[] }) {
+function CurrencyChartPanel({ region, data }: { region: RegionKey; data: any[] }) {
+  const cur = CURRENCY_BY_REGION[region]
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: 16, marginBottom: 24 }}>
+      borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>
-        Invested vs current by region — and daily P/L %
+        {REGION_LABELS[region]} — invested vs current ({cur}) and daily P/L %
       </h2>
-      <div style={{ height: 320 }}>
+      <div style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -294,18 +330,27 @@ function ChartPanel({ data }: { data: any[] }) {
             <YAxis yAxisId="pct" orientation="right" tick={{ fontSize: 11 }} unit="%" />
             <Tooltip />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line yAxisId="amt" dataKey="india_invested"  name="India invested"  stroke={REGION_COLOURS.india.invested}  strokeDasharray="4 2" dot={false} />
-            <Line yAxisId="amt" dataKey="india_current"   name="India current"   stroke={REGION_COLOURS.india.current}   dot={false} />
-            <Line yAxisId="amt" dataKey="europe_invested" name="Europe invested" stroke={REGION_COLOURS.europe.invested} strokeDasharray="4 2" dot={false} />
-            <Line yAxisId="amt" dataKey="europe_current"  name="Europe current"  stroke={REGION_COLOURS.europe.current}  dot={false} />
-            <Line yAxisId="amt" dataKey="us_invested"     name="US invested"     stroke={REGION_COLOURS.us.invested}     strokeDasharray="4 2" dot={false} />
-            <Line yAxisId="amt" dataKey="us_current"      name="US current"      stroke={REGION_COLOURS.us.current}      dot={false} />
-            <Line yAxisId="pct" dataKey="pnl_pct"         name="Total P/L %"     stroke="#a855f7" strokeWidth={2} dot={false} />
+            <Line yAxisId="amt" dataKey="invested" name={`Invested (${cur})`} stroke={REGION_COLOURS[region].invested} strokeDasharray="4 2" dot={false} />
+            <Line yAxisId="amt" dataKey="current"  name={`Current (${cur})`}  stroke={REGION_COLOURS[region].current}  dot={false} />
+            <Line yAxisId="pct" dataKey="pnl_pct"  name="P/L %"               stroke="#a855f7" strokeWidth={2} dot={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
   )
+}
+
+// perCurrencyChartData produces oldest-first chart series for one region.
+// pnl_pct on a per-region basis is (current - invested) / invested * 100.
+export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
+  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  return oldestFirst.map(r => {
+    const rs = r.regions[region]
+    const invested = rs?.invested ?? 0
+    const current  = rs?.current  ?? 0
+    const pnl_pct  = invested > 0 ? ((current - invested) / invested) * 100 : null
+    return { date: r.date.slice(5), invested, current, pnl_pct }
+  })
 }
 
 // ---- Table ----
@@ -328,7 +373,47 @@ export function dailyVolatility(rows: HistoryRow[], i: number): number | null {
   return ((today - prevCur) / prevCur) * 100
 }
 
-export function HistoryTable({ rows, currency, onDelete }: {
+// regionDailyVolatility is the per-region counterpart used by the
+// per-currency table column. Rows newest-first.
+export function regionDailyVolatility(rows: HistoryRow[], i: number, region: RegionKey): number | null {
+  const prev = rows[i + 1]
+  if (!prev) return null
+  const prevCur = prev.regions[region]?.current ?? 0
+  if (prevCur === 0) return null
+  const today = rows[i].regions[region]?.current ?? 0
+  return ((today - prevCur) / prevCur) * 100
+}
+
+// regionPnLPct is the per-region P/L %.
+export function regionPnLPct(r: HistoryRow, region: RegionKey): number | null {
+  const inv = r.regions[region]?.invested ?? 0
+  const cur = r.regions[region]?.current  ?? 0
+  if (inv === 0) return null
+  return ((cur - inv) / inv) * 100
+}
+
+// regionInvestedWentUp reports whether the region's invested amount on
+// this row is strictly greater than the prior day's — the user-added-
+// holdings highlight from PR7 design-review.
+export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: RegionKey): boolean {
+  const prev = rows[i + 1]
+  if (!prev) return false
+  const prevInv = prev.regions[region]?.invested ?? 0
+  const todayInv = rows[i].regions[region]?.invested ?? 0
+  return todayInv > prevInv
+}
+
+// HistoryTable lays out three side-by-side groups (one per currency:
+// India₹ / Europe€ / US$) each with [Amount invested | Actual value |
+// Daily volatlity | P/L%]. Values render in native currency with the
+// symbol prefixed. When invested goes up vs the prior day for a region,
+// the row's "Amount invested" cell highlights green — the "user added
+// holdings" signal from the PR7 design review.
+//
+// Header spelling "volatlity" matches the user's reference screenshot
+// verbatim. If we ever correct the typo, update the test expectation
+// in HistoryPage.test.tsx too.
+export function HistoryTable({ rows, currency: _currency, onDelete }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
@@ -342,18 +427,10 @@ export function HistoryTable({ rows, currency, onDelete }: {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={th}>Date</th>
-            <th style={th}>India inv.</th>
-            <th style={th}>India cur.</th>
-            <th style={th}>Europe inv.</th>
-            <th style={th}>Europe cur.</th>
-            <th style={th}>US inv.</th>
-            <th style={th}>US cur.</th>
-            <th style={th}>Total inv.</th>
-            <th style={th}>Total cur.</th>
-            <th style={th}>P/L %</th>
-            <th style={th} title="Day-over-day change in current value vs previous day">Daily vol %</th>
-            <th style={th}>Source</th>
+            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>Date</th>
+            {REGIONS.map((r, idx) => (
+              <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} />
+            ))}
             <th style={th}></th>
           </tr>
         </thead>
@@ -361,24 +438,18 @@ export function HistoryTable({ rows, currency, onDelete }: {
           {rows.map((r, i) => {
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
-            const vol = dailyVolatility(rows, i)
-            const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
             return (
-              <tr key={r.date}>
-                <td style={td}>{r.date}</td>
-                <td style={td}>{fmt(r.regions.india?.invested ?? 0)}</td>
-                <td style={td}>{fmt(r.regions.india?.current  ?? 0)}</td>
-                <td style={td}>{fmt(r.regions.europe?.invested ?? 0)}</td>
-                <td style={td}>{fmt(r.regions.europe?.current  ?? 0)}</td>
-                <td style={td}>{fmt(r.regions.us?.invested ?? 0)}</td>
-                <td style={td}>{fmt(r.regions.us?.current  ?? 0)}</td>
-                <td style={td}>{fmt(r.totals.invested_total)} {currency}</td>
-                <td style={td}>{fmt(r.totals.current_total)} {currency}</td>
-                <td style={td}>{r.totals.pnl_pct === null ? '—' : r.totals.pnl_pct.toFixed(2)}</td>
-                <td style={{ ...td, color: volColor }}>
-                  {vol === null ? '—' : `${vol >= 0 ? '+' : ''}${vol.toFixed(2)}`}
-                </td>
-                <td style={td}>{sourceLabel}</td>
+              <tr key={r.date} title={`Source: ${sourceLabel}`}>
+                <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{r.date}</td>
+                {REGIONS.map((region, idx) => (
+                  <CurrencyRowCells
+                    key={region}
+                    rows={rows}
+                    i={i}
+                    region={region}
+                    last={idx === REGIONS.length - 1}
+                  />
+                ))}
                 <td style={td}>
                   {isAllManual(r.regions) && (
                     <button onClick={() => onDelete(r.date)} style={btnLinkStyle}>Delete</button>
@@ -390,6 +461,54 @@ export function HistoryTable({ rows, currency, onDelete }: {
         </tbody>
       </table>
     </div>
+  )
+}
+
+function CurrencyHeaderGroup({ region: _region, last }: { region: RegionKey; last: boolean }) {
+  const sep = last ? {} : { borderRight: '2px solid var(--border)' }
+  return (
+    <>
+      <th style={th}>Amount invested</th>
+      <th style={th}>Actual value</th>
+      <th style={th}>Daily volatlity</th>
+      <th style={{ ...th, ...sep }}>P/L%</th>
+    </>
+  )
+}
+
+function CurrencyRowCells({ rows, i, region, last }: {
+  rows: HistoryRow[]
+  i: number
+  region: RegionKey
+  last: boolean
+}) {
+  const r = rows[i]
+  const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
+  const rs = r.regions[region]
+  const invested = rs?.invested ?? 0
+  const current  = rs?.current  ?? 0
+  const vol      = regionDailyVolatility(rows, i, region)
+  const pnl      = regionPnLPct(r, region)
+  const wentUp   = regionInvestedWentUp(rows, i, region)
+  const sep = last ? {} : { borderRight: '2px solid var(--border)' }
+  const investedStyle: React.CSSProperties = {
+    ...td,
+    background: wentUp ? 'rgba(34,197,94,0.18)' : undefined, // green-500/18%
+    fontWeight: wentUp ? 600 : undefined,
+  }
+  const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  const pnlColor = pnl === null ? undefined : pnl >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  return (
+    <>
+      <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
+      <td style={td}>{fmtCurrency(current, sym)}</td>
+      <td style={{ ...td, color: volColor }}>
+        {vol === null ? '—' : vol.toFixed(2)}
+      </td>
+      <td style={{ ...td, ...sep, color: pnlColor }}>
+        {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
+      </td>
+    </>
   )
 }
 

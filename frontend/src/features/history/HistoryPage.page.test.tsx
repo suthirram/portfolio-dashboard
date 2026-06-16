@@ -69,7 +69,8 @@ describe('HistoryPage', () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
     expect(await screen.findByText('2026-06-16')).toBeInTheDocument()
-    expect(screen.getByText(/India inv\./)).toBeInTheDocument()
+    // Header "Amount invested" appears once per currency group.
+    expect(screen.getAllByText('Amount invested').length).toBe(3)
   })
 
   it('surfaces a fetch error', async () => {
@@ -87,7 +88,8 @@ describe('HistoryPage', () => {
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
     const calls = mockApi.listHistory.mock.calls
     const lastArgs = calls[calls.length - 1]
-    expect(lastArgs?.[0]).toMatch(/-01-01$/)
+    // monthRange extends `from` back one day so Jan starts on Dec 31.
+    expect(lastArgs?.[0]).toMatch(/-12-31$/)
   })
 
   it('deletes a manual row and reloads', async () => {
