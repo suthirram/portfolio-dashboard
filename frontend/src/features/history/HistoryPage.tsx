@@ -14,6 +14,7 @@ import {
 import { ApiError } from '../../lib/api/client'
 import { EditIcon, TrashIcon } from '../../components/Icon'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
+import { useAuthOptional } from '../auth/AuthContext'
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -110,6 +111,8 @@ function formToBody(form: RegionFormState): Record<string, { invested: number; c
 
 export default function HistoryPage() {
   const { theme, toggle: toggleTheme } = useTheme()
+  const auth = useAuthOptional()
+  const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
   const [month, setMonth] = useState(now.getUTCMonth())
@@ -314,7 +317,8 @@ export default function HistoryPage() {
         {rows.length > 0 && (
           <>
             <HistoryTable rows={rows} currency={currency} theme={theme}
-              onDelete={handleDelete} onEdit={r => setEditRow(r)} />
+              onDelete={handleDelete} onEdit={r => setEditRow(r)}
+              canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
             {REGIONS.map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
@@ -503,12 +507,13 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
 // Header spelling "volatlity" matches the user's reference screenshot
 // verbatim. If we ever correct the typo, update the test expectation
 // in HistoryPage.test.tsx too.
-export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, theme = 'dark' }: {
+export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, theme = 'dark', canForceDelete = false }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
   onEdit?: (row: HistoryRow) => void
   theme?: ThemeName
+  canForceDelete?: boolean
 }) {
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
     Object.values(regions).every(r => r.source === 'manual')
@@ -550,9 +555,10 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                       <EditIcon size={16} />
                     </button>
                   )}
-                  {isAllManual(r.regions) && (
+                  {(isAllManual(r.regions) || canForceDelete) && (
                     <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
-                      aria-label={`Delete row for ${r.date}`} title="Delete">
+                      aria-label={`Delete row for ${r.date}`}
+                      title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
                       <TrashIcon size={16} />
                     </button>
                   )}

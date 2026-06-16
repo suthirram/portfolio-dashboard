@@ -55,3 +55,10 @@ export function useAuth(): AuthState {
   if (!ctx) throw new Error('useAuth outside AuthProvider')
   return ctx
 }
+
+// useAuthOptional returns null when called outside an AuthProvider rather
+// than throwing. Useful for components that want to soft-degrade in tests
+// or other unwrapped render contexts.
+export function useAuthOptional(): AuthState | null {
+  return useContext(AuthContext)
+}

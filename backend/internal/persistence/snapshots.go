@@ -203,8 +203,20 @@ func (s *SnapshotStore) PatchRegions(ctx context.Context, uid primitive.ObjectID
 
 // Delete removes a (user, date) row only when every region's source is
 // manual. Cron-touched rows return ErrCronProtected: the source of truth
-// cannot be deleted via API (PRD-002 §6 / DD-002 §4.5).
+// cannot be deleted via API (PRD-002 §6 / DD-002 §4.5). Use ForceDelete
+// to bypass the cron-protection guard (super-admin override).
 func (s *SnapshotStore) Delete(ctx context.Context, uid primitive.ObjectID, date time.Time) error {
+	return s.deleteInternal(ctx, uid, date, false)
+}
+
+// ForceDelete removes a (user, date) row regardless of region source.
+// Reserved for super-admin callers — bypasses the cron-protection guard
+// that Delete enforces.
+func (s *SnapshotStore) ForceDelete(ctx context.Context, uid primitive.ObjectID, date time.Time) error {
+	return s.deleteInternal(ctx, uid, date, true)
+}
+
+func (s *SnapshotStore) deleteInternal(ctx context.Context, uid primitive.ObjectID, date time.Time, force bool) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
@@ -213,9 +225,11 @@ func (s *SnapshotStore) Delete(ctx context.Context, uid primitive.ObjectID, date
 	if err != nil {
 		return translateFindErr(err)
 	}
-	for _, r := range existing.Buckets {
-		if r.Source == domain.SnapshotSourceCron {
-			return ErrCronProtected
+	if !force {
+		for _, r := range existing.Buckets {
+			if r.Source == domain.SnapshotSourceCron {
+				return ErrCronProtected
+			}
 		}
 	}
 	_, err = s.col.DeleteOne(ctx, snapshotFilter(uid, date))
