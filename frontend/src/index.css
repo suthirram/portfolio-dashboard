@@ -24,6 +24,10 @@
   --radius: 10px;
   --radius-sm: 6px;
   --nav-height: 56px;
+
+  /* SummaryCards highlight panels (Total Invested, Current Value). */
+  --card-highlight-bg: linear-gradient(135deg, #1e2a4a 0%, #1a1d30 100%);
+  --card-highlight-border: #2e4a8a;
 }
 
 /* Light theme — opt-in via <html data-theme="light"> (PD-042 PR7). */
@@ -50,6 +54,9 @@
   --purple: #7c3aed;
 
   --shadow: 0 4px 16px rgba(15, 23, 42, 0.10);
+
+  --card-highlight-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --card-highlight-border: #93c5fd;
 }
 
 * {

@@ -31,7 +31,7 @@ const REGION_LABELS: Record<RegionKey, string> = {
 const REGION_COLOURS: Record<RegionKey, { invested: string; current: string }> = {
   INR: { invested: '#fbbf24', current: '#f97316' },  // amber-400 (saffron-ish) / orange-500
   EUR: { invested: '#93c5fd', current: '#2563eb' },  // blue-300 / 600
-  USD: { invested: '#fca5a5', current: '#dc2626' },  // red-300 / 600
+  USD: { invested: '#86efac', current: '#16a34a' },  // green-300 / 600
 }
 
 // Per-theme background tints for each currency group in the table.
