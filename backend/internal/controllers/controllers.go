@@ -24,6 +24,7 @@ type Controller struct {
 	priceService services.PriceFetcher
 	holdings     *services.HoldingsService
 	portfolio    *services.PortfolioService
+	history      *services.HistoryService
 	logger       *zap.Logger
 	cookieSecure bool
 }
@@ -45,6 +46,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 		priceService: priceService,
 		holdings:     services.NewHoldingsService(store.Holdings, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, priceService, logger),
+		history:      services.NewHistoryService(store.Snapshots, logger),
 		logger:       logger,
 		cookieSecure: cookieSecure,
 	}

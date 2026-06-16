@@ -67,6 +67,7 @@ func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controlle
 		"openapi.yaml", "portfolio-api.yaml",
 		"holdings/holdings.yaml", "market/market.yaml",
 		"auth/auth.yaml", "admin/admin.yaml",
+		"history/history.yaml",
 	} {
 		e.File("/api/specs/"+rel, "api/specs/"+rel)
 	}

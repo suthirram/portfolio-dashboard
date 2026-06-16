@@ -21,8 +21,8 @@ function Card({ label, inr, eur, positive, negative, highlight }: CardProps) {
 
   return (
     <div style={{
-      background: highlight ? 'linear-gradient(135deg, #1e2a4a 0%, #1a1d30 100%)' : 'var(--bg-card)',
-      border: `1px solid ${highlight ? '#2e4a8a' : 'var(--border)'}`,
+      background: highlight ? 'var(--card-highlight-bg)' : 'var(--bg-card)',
+      border: `1px solid ${highlight ? 'var(--card-highlight-border)' : 'var(--border)'}`,
       borderRadius: 'var(--radius)',
       padding: '16px 20px',
       flex: '1 1 180px',

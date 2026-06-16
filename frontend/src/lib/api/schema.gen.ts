@@ -83,6 +83,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List historical snapshots in a date range */
+        get: operations["listHistory"];
+        put?: never;
+        /** Add a manual snapshot row */
+        post: operations["addHistoryRow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/history/range": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Year-dropdown bootstrap (earliest + latest year, has_data) */
+        get: operations["historyRange"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/history/{date}/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UTC date the patch targets */
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Override one or more regions on an existing row */
+        put: operations["patchHistoryRegions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/history/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a manual snapshot row */
+        delete: operations["deleteHistoryRow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/history/paste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk-paste a month of manual rows */
+        post: operations["pasteHistory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/price": {
         parameters: {
             query?: never;
@@ -708,6 +799,101 @@ export interface components {
             /** Format: double */
             eur_rate?: number;
         };
+        HistoryRegionSnapshot: {
+            /** Format: double */
+            invested: number;
+            /** Format: double */
+            current: number;
+            /** @enum {string} */
+            source: "cron" | "manual";
+            /**
+             * Format: double
+             * @description Pre-override cron value (audit anchor; PD-042 §3.3).
+             */
+            original_cron_invested?: number | null;
+            /** Format: double */
+            original_cron_current?: number | null;
+            /** @description Currency code (INR|EUR|USD) the manual amount was typed in. Empty on cron-written buckets. */
+            write_currency?: string;
+        };
+        HistoryTotals: {
+            /** Format: double */
+            invested_total: number;
+            /** Format: double */
+            current_total: number;
+            /**
+             * Format: double
+             * @description Null when invested_total is zero (divide-by-zero).
+             */
+            pnl_pct?: number | null;
+        };
+        HistoryRow: {
+            /** Format: date */
+            date: string;
+            regions: {
+                [key: string]: components["schemas"]["HistoryRegionSnapshot"];
+            };
+            totals: components["schemas"]["HistoryTotals"];
+        };
+        HistoryList: {
+            currency: string;
+            rows: components["schemas"]["HistoryRow"][];
+        };
+        HistoryRegionInput: {
+            /** Format: double */
+            invested: number;
+            /** Format: double */
+            current: number;
+        };
+        AddHistoryRowInput: {
+            /** Format: date */
+            date: string;
+            regions: {
+                [key: string]: components["schemas"]["HistoryRegionInput"];
+            };
+        };
+        HistoryConflictResponse: {
+            error: string;
+            conflicts: {
+                region: string;
+                existing: components["schemas"]["HistoryRegionSnapshot"];
+                incoming: components["schemas"]["HistoryRegionInput"];
+            }[];
+        };
+        HistoryRangeInfo: {
+            earliest_year: number;
+            latest_year: number;
+            has_data: boolean;
+        };
+        PatchHistoryRegionsInput: {
+            regions: {
+                [key: string]: components["schemas"]["HistoryRegionInput"];
+            };
+        };
+        PasteHistoryInput: {
+            /** @description YYYY-MM */
+            month: string;
+            rows: components["schemas"]["AddHistoryRowInput"][];
+        };
+        HistoryDateConflict: {
+            /** Format: date */
+            date: string;
+            existing: {
+                [key: string]: components["schemas"]["HistoryRegionSnapshot"];
+            };
+            incoming: {
+                [key: string]: components["schemas"]["HistoryRegionInput"];
+            };
+        };
+        RejectedPasteRow: {
+            date: string;
+            reason: string;
+        };
+        PasteHistoryReport: {
+            applied: string[];
+            conflicts: components["schemas"]["HistoryDateConflict"][];
+            rejected: components["schemas"]["RejectedPasteRow"][];
+        };
         Region: {
             /** @description Stable region key (india, europe, us) */
             id: string;
@@ -1029,6 +1215,169 @@ export interface operations {
                     "application/json": components["schemas"]["Summary"];
                 };
             };
+        };
+    };
+    listHistory: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshots ordered newest-first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    addHistoryRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddHistoryRowInput"];
+            };
+        };
+        responses: {
+            /** @description Created row */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryRow"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description A row already exists for this date — caller must resolve regions via PUT /history/{date}/regions */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryConflictResponse"];
+                };
+            };
+        };
+    };
+    historyRange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Range info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryRangeInfo"];
+                };
+            };
+        };
+    };
+    patchHistoryRegions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UTC date the patch targets */
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchHistoryRegionsInput"];
+            };
+        };
+        responses: {
+            /** @description Updated row */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryRow"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteHistoryRow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Row contains a cron-written bucket; override individual regions instead */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    pasteHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasteHistoryInput"];
+            };
+        };
+        responses: {
+            /** @description Three-bucket report — applied / conflicts / rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasteHistoryReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     getMarketPrice: {
