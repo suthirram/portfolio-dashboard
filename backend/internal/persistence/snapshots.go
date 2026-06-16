@@ -213,7 +213,7 @@ func (s *SnapshotStore) EarliestYear(ctx context.Context, uid primitive.ObjectID
 // DeleteByUser removes every snapshot owned by uid (used when a user is
 // permanently deleted).
 func (s *SnapshotStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID) error {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	_, err := s.col.DeleteMany(ctx, bson.M{"user_id": uid})
 	return err
