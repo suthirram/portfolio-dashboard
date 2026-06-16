@@ -135,7 +135,7 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		}
 		rows = append(rows, HistoryRow{
 			Date:    snap.Date.UTC().Format("2006-01-02"),
-			Regions: snap.Regions,
+			Regions: snap.Buckets,
 			Totals:  snap.Totals(),
 		})
 	}
@@ -170,7 +170,7 @@ func (s *HistoryService) Add(ctx context.Context, uid primitive.ObjectID, in Add
 	existing, err := s.store.Get(ctx, uid, date)
 	switch {
 	case err == nil:
-		conflicts := buildConflicts(in.Regions, existing.Regions)
+		conflicts := buildConflicts(in.Regions, existing.Buckets)
 		return HistoryRow{}, &ErrConflict{Conflicts: conflicts}
 	case errors.Is(err, persistence.ErrNotFound):
 		// happy path
@@ -187,7 +187,7 @@ func (s *HistoryService) Add(ctx context.Context, uid primitive.ObjectID, in Add
 		UserID:   uid,
 		Date:     date,
 		Currency: "INR",
-		Regions:  regions,
+		Buckets:  regions,
 	}
 	if err := s.store.Upsert(ctx, snap); err != nil {
 		return HistoryRow{}, err
@@ -220,7 +220,7 @@ func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectI
 	}
 	return HistoryRow{
 		Date:    updated.Date.UTC().Format("2006-01-02"),
-		Regions: updated.Regions,
+		Regions: updated.Buckets,
 		Totals:  updated.Totals(),
 	}, nil
 }
@@ -272,7 +272,7 @@ func (s *HistoryService) Paste(ctx context.Context, uid primitive.ObjectID, in P
 		case err == nil:
 			report.Conflicts = append(report.Conflicts, DateConflict{
 				Date:     date.UTC().Format("2006-01-02"),
-				Existing: existing.Regions,
+				Existing: existing.Buckets,
 				Incoming: row.Regions,
 			})
 			continue
@@ -291,7 +291,7 @@ func (s *HistoryService) Paste(ctx context.Context, uid primitive.ObjectID, in P
 			UserID:   uid,
 			Date:     date,
 			Currency: "INR",
-			Regions:  regions,
+			Buckets:  regions,
 		}); err != nil {
 			return PasteReport{}, err
 		}

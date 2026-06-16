@@ -95,19 +95,19 @@ func TestBuildSnapshot_GroupsByRegionAndUsesLivePrice(t *testing.T) {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
 
-		inr := snap.Regions[domain.CurrencyINR]
+		inr := snap.Buckets[domain.CurrencyINR]
 		if inr.Invested != 30000 || inr.Current != 35000 {
 			t.Errorf("INR = (%v, %v), want (30000, 35000)", inr.Invested, inr.Current)
 		}
-		usd := snap.Regions[domain.CurrencyUSD]
+		usd := snap.Buckets[domain.CurrencyUSD]
 		if usd.Invested != 500 || usd.Current != 750 {
 			t.Errorf("USD = (%v, %v), want (500, 750)", usd.Invested, usd.Current)
 		}
-		eur := snap.Regions[domain.CurrencyEUR]
+		eur := snap.Buckets[domain.CurrencyEUR]
 		if eur.Invested != 100 || eur.Current != 120 {
 			t.Errorf("EUR = (%v, %v), want (100, 120)", eur.Invested, eur.Current)
 		}
-		for _, r := range snap.Regions {
+		for _, r := range snap.Buckets {
 			if r.Source != domain.SnapshotSourceCron {
 				t.Errorf("bucket source = %q, want cron", r.Source)
 			}
@@ -127,7 +127,7 @@ func TestBuildSnapshot_EmptyPortfolioReturnsAllZeros(t *testing.T) {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
 		for _, r := range domain.AllCurrencies {
-			rs, ok := snap.Regions[r]
+			rs, ok := snap.Buckets[r]
 			if !ok {
 				t.Errorf("region %q missing", r)
 				continue
@@ -157,7 +157,7 @@ func TestBuildSnapshot_PriceErrorFallsBackToInvested(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
-		inr := snap.Regions[domain.CurrencyINR]
+		inr := snap.Buckets[domain.CurrencyINR]
 		// No synthetic gain: current == invested.
 		if inr.Invested != 30000 || inr.Current != 30000 {
 			t.Errorf("INR = (%v, %v), want (30000, 30000) on price error", inr.Invested, inr.Current)
@@ -181,8 +181,8 @@ func TestBuildSnapshot_UnknownCurrencyExcludedFromTotals(t *testing.T) {
 		}
 		// All canonical buckets are zero — the GBP holding was excluded.
 		for _, r := range domain.AllCurrencies {
-			if snap.Regions[r].Invested != 0 || snap.Regions[r].Current != 0 {
-				t.Errorf("bucket %s should be zero (unknown excluded), got %+v", r, snap.Regions[r])
+			if snap.Buckets[r].Invested != 0 || snap.Buckets[r].Current != 0 {
+				t.Errorf("bucket %s should be zero (unknown excluded), got %+v", r, snap.Buckets[r])
 			}
 		}
 	})

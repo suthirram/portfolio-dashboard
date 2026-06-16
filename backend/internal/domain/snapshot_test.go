@@ -66,7 +66,7 @@ func TestUTCDateBeforeMidnightUTCMovesToPreviousUTCDay(t *testing.T) {
 
 func TestPortfolioSnapshotTotalsHappyPath(t *testing.T) {
 	p := PortfolioSnapshot{
-		Regions: map[string]RegionSnapshot{
+		Buckets: map[string]RegionSnapshot{
 			CurrencyINR: {Invested: 100, Current: 198, Source: SnapshotSourceCron},
 			CurrencyEUR: {Invested: 50, Current: 60, Source: SnapshotSourceCron},
 			CurrencyUSD: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
@@ -86,7 +86,7 @@ func TestPortfolioSnapshotTotalsHappyPath(t *testing.T) {
 
 func TestPortfolioSnapshotTotalsZeroInvestedReturnsNilPnL(t *testing.T) {
 	p := PortfolioSnapshot{
-		Regions: map[string]RegionSnapshot{
+		Buckets: map[string]RegionSnapshot{
 			CurrencyINR: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
 		},
 	}
@@ -98,7 +98,7 @@ func TestPortfolioSnapshotTotalsZeroInvestedReturnsNilPnL(t *testing.T) {
 
 func TestPortfolioSnapshotTotalsNegativePnL(t *testing.T) {
 	p := PortfolioSnapshot{
-		Regions: map[string]RegionSnapshot{
+		Buckets: map[string]RegionSnapshot{
 			CurrencyINR: {Invested: 200, Current: 150, Source: SnapshotSourceCron},
 		},
 	}

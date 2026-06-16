@@ -49,12 +49,12 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 	if snap.UserID.IsZero() {
 		return errors.New("snapshot upsert: user_id required")
 	}
-	if len(snap.Regions) == 0 {
-		return errors.New("snapshot upsert: at least one region required")
+	if len(snap.Buckets) == 0 {
+		return errors.New("snapshot upsert: at least one bucket required")
 	}
-	for _, r := range snap.Regions {
+	for _, r := range snap.Buckets {
 		if !r.Source.IsValid() {
-			return errors.New("snapshot upsert: invalid region source")
+			return errors.New("snapshot upsert: invalid bucket source")
 		}
 	}
 
@@ -67,13 +67,13 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 	switch {
 	case err == nil:
 		// Existing row: merge.
-		merged := make(map[string]domain.RegionSnapshot, len(snap.Regions))
-		for k, v := range existing.Regions {
+		merged := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
+		for k, v := range existing.Buckets {
 			if v.Source == domain.SnapshotSourceManual {
 				merged[k] = v
 			}
 		}
-		for k, v := range snap.Regions {
+		for k, v := range snap.Buckets {
 			if _, kept := merged[k]; kept {
 				continue
 			}
@@ -95,7 +95,7 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 			UserID:    snap.UserID,
 			Date:      date,
 			Currency:  snap.Currency,
-			Regions:   snap.Regions,
+			Buckets:   snap.Buckets,
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
@@ -210,7 +210,7 @@ func (s *SnapshotStore) Delete(ctx context.Context, uid primitive.ObjectID, date
 	if err != nil {
 		return translateFindErr(err)
 	}
-	for _, r := range existing.Regions {
+	for _, r := range existing.Buckets {
 		if r.Source == domain.SnapshotSourceCron {
 			return ErrCronProtected
 		}

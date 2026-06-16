@@ -48,11 +48,17 @@ type RegionSnapshot struct {
 // UTC midnight. Totals are derived at read time so a manual override of one
 // region cannot drift the stored totals (DD-002 §2.1).
 type PortfolioSnapshot struct {
-	ID        primitive.ObjectID        `bson:"_id,omitempty" json:"-"`
-	UserID    primitive.ObjectID        `bson:"user_id" json:"-"`
-	Date      time.Time                 `bson:"date" json:"date"`         // UTC midnight
-	Currency  string                    `bson:"currency" json:"currency"` // e.g. "INR"
-	Regions   map[string]RegionSnapshot `bson:"regions" json:"regions"`
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"-"`
+	UserID   primitive.ObjectID `bson:"user_id" json:"-"`
+	Date     time.Time          `bson:"date" json:"date"`         // UTC midnight
+	Currency string             `bson:"currency" json:"currency"` // e.g. "INR"
+	// Buckets is the per-currency map (keys: "INR" | "EUR" | "USD"). The
+	// bson + json tags still say "regions" for backwards-compat with
+	// PR4-era documents that used the same field name; PR7 design-review
+	// switched the dimension from region to currency, and PD-042 §3.6/§6
+	// flagged the field-name rename as a v2 follow-up. Do not rename the
+	// tags without writing a Mongo migration.
+	Buckets   map[string]RegionSnapshot `bson:"regions" json:"regions"`
 	CreatedAt time.Time                 `bson:"created_at" json:"-"`
 	UpdatedAt time.Time                 `bson:"updated_at" json:"-"`
 }
@@ -66,11 +72,11 @@ type SnapshotTotals struct {
 	PnLPct        *float64 `json:"pnl_pct"`
 }
 
-// Totals derives the headline aggregate from the per-region map. It rounds
-// PnLPct to two decimals; callers should not round again.
+// Totals derives the headline aggregate from the per-bucket map. It
+// rounds PnLPct to two decimals; callers should not round again.
 func (p PortfolioSnapshot) Totals() SnapshotTotals {
 	var invested, current float64
-	for _, r := range p.Regions {
+	for _, r := range p.Buckets {
 		invested += r.Invested
 		current += r.Current
 	}
