@@ -187,27 +187,31 @@ Manual rows store the currency they were entered in. If the app later
 adds a per-user display currency switch, decide whether manual rows
 convert or stay frozen.
 
-### 3.6 OpenAPI strict-server migration for /api/history — from PR6
+### 3.6 OpenAPI strict-server migration for /api/history — DONE (PR fu#5)
 
-PR6 shipped the `/api/history` endpoints as plain Echo handlers rather
-than going through the OpenAPI strict-server scaffolding that the rest
-of the API uses. Reason: the request/response shapes were still
-churning during the implementation (see PR7's conflict-modal UX), and
-locking them into `openapi.yaml` mid-flight would have meant two
-codegen round-trips per shape tweak.
+PR6 shipped the `/api/history` endpoints as plain Echo handlers. The
+follow-up PR (`feat/PD-042-fu-history-openapi`) migrated them to the
+strict-server pattern used by the rest of the API:
 
-Once PR7 is merged and the shapes are stable, migrate the routes:
+* New `api/specs/history/history.yaml` with the six operations.
+* New schemas in `api/specs/portfolio-api.yaml` (`HistoryRow`,
+  `HistoryList`, `HistoryRangeInfo`, `HistoryRegionSnapshot`,
+  `HistoryRegionInput`, `HistoryTotals`, `AddHistoryRowInput`,
+  `PatchHistoryRegionsInput`, `PasteHistoryInput`, `PasteHistoryReport`,
+  `HistoryDateConflict`, `RejectedPasteRow`, `HistoryConflictResponse`).
+* `api/specs/openapi.yaml` references the new path file; tag `History`
+  added.
+* `controllers/history.go` rewritten as strict-server method bodies
+  (`ListHistory`, `HistoryRange`, `AddHistoryRow`, `PatchHistoryRegions`,
+  `DeleteHistoryRow`, `PasteHistory`) returning typed
+  `*ResponseObject`s; `RegisterHistoryRoutes` dropped from
+  `httpserver/server.go`.
+* Codegen regen ran for both Go (`go generate -tags tools ./...`) and
+  TypeScript (`npm run gen:api`).
 
-1. Add `api/specs/history/history.yaml` and component schemas in
-   `api/specs/portfolio-api.yaml`.
-2. Reference the path file from `api/specs/openapi.yaml`.
-3. Regenerate (`go generate -tags tools ./...`, then
-   `npm run gen:api`).
-4. Move handlers from `controllers/history.go` to strict-server method
-   bodies and drop `RegisterHistoryRoutes` from `httpserver/server.go`.
-
-The frontend `lib/api/client.ts` already exists; no FE change is
-required for the migration itself, only for any shape tweak.
+Frontend `lib/api/client.ts` still uses its inlined types; the
+generated `schema.gen.ts` now has the canonical shapes for any future
+caller that wants them.
 
 ### 3.7 Snapshot bucketing switched from region to currency — from PR7
 

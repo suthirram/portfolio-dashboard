@@ -29,6 +29,8 @@ tags:
     description: Signup, login, session, profile, and password recovery
   - name: Admin
     description: Region-scoped user oversight (admin) and admin management (super admin)
+  - name: History
+    description: Daily portfolio snapshots — read range, add/edit/delete manual rows, paste-from-sheet
 
 paths:
   /holdings:
@@ -39,6 +41,17 @@ paths:
     $ref: "./holdings/holdings.yaml#/prices"
   /summary:
     $ref: "./holdings/holdings.yaml#/summary"
+
+  /history:
+    $ref: "./history/history.yaml#/history"
+  /history/range:
+    $ref: "./history/history.yaml#/history_range"
+  /history/{date}/regions:
+    $ref: "./history/history.yaml#/history_date_regions"
+  /history/{date}:
+    $ref: "./history/history.yaml#/history_date"
+  /history/paste:
+    $ref: "./history/history.yaml#/history_paste"
 
   /market/price:
     $ref: "./market/market.yaml#/price"
