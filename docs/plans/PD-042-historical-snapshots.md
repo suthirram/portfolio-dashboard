@@ -73,19 +73,32 @@ deliver the same tick to multiple replicas), or as soon as anyone reports
 a duplicate-key error from `Upsert` in logs. Tracked here, not as a
 separate ticket.
 
-### 3.2 Audit trail on override — from DD-002 §10
+### 3.2 Sequential per-symbol price fetch — from PR5
+
+`SnapshotService.BuildSnapshot` calls `prices.GetPrice` for every holding
+in series. With the 5-minute Yahoo cache shared across users in a single
+job run the first user pays the latency, every subsequent user with the
+same symbols is a memory hit, so for a small user base this is fine.
+
+For a user with ~50 holdings on a cold cache it is up to ~50 sequential
+HTTP calls. If the run starts taking longer than the cron interval can
+absorb, parallelise inside `BuildSnapshot` with `errgroup` (per-user)
+and keep the cache as the synchronisation point. Tracked here, not as a
+separate ticket.
+
+### 3.3 Audit trail on override — from DD-002 §10
 
 When a user overrides a cron region, the original cron value is lost.
 DD-002 leaned destructive in v1 for simplicity. Revisit if anyone asks
 "can I see what the snapshot said before I edited it?".
 
-### 3.3 Manual-row currency on display-currency change — from DD-002 §10
+### 3.4 Manual-row currency on display-currency change — from DD-002 §10
 
 Manual rows store the currency they were entered in. If the app later
 adds a per-user display currency switch, decide whether manual rows
 convert or stay frozen.
 
-### 3.4 Paste schema strictness — from DD-002 §10
+### 3.5 Paste schema strictness — from DD-002 §10
 
 The exact column order, header-row requirement, and date format for
 pasted blocks will be fixed in PR7 against real Google Sheets / Excel

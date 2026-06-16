@@ -173,6 +173,12 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 
 	report := RunReport{Date: date, Total: len(users), UserErrors: map[string]string{}}
 	for _, u := range users {
+		// Bail early on parent ctx cancellation rather than continue
+		// recording per-user failures that are really one cancellation
+		// in disguise. Surfaces a single ctx error to the caller.
+		if err := ctx.Err(); err != nil {
+			return report, err
+		}
 		snap, err := s.BuildSnapshot(ctx, u.ID, date)
 		if err != nil {
 			report.UserErrors[u.ID.Hex()] = err.Error()
