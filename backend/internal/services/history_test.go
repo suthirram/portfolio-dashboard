@@ -329,7 +329,7 @@ func TestHistoryService_PatchRegions_FlipsRegionToManual(t *testing.T) {
 	mt.Run("patch", func(mt *mtest.T) {
 		uid := primitive.NewObjectID()
 		date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
-		// PatchRegion: UpdateOne matches one
+		// PatchRegions: one UpdateOne for the whole map
 		mt.AddMockResponses(mtest.CreateSuccessResponse(
 			bson.E{Key: "n", Value: 1},
 			bson.E{Key: "nModified", Value: 1},

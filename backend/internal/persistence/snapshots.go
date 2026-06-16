@@ -171,6 +171,33 @@ func (s *SnapshotStore) PatchRegion(ctx context.Context, uid primitive.ObjectID,
 	return nil
 }
 
+// PatchRegions replaces multiple regions atomically in one UpdateOne so
+// a partial failure cannot leave half the body persisted. Every region in
+// rs is written with source=manual. Returns ErrNotFound when no row for
+// (user, date) exists.
+func (s *SnapshotStore) PatchRegions(ctx context.Context, uid primitive.ObjectID, date time.Time, rs map[string]domain.RegionSnapshot) error {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	if len(rs) == 0 {
+		return errors.New("snapshot patch: at least one region required")
+	}
+
+	set := bson.M{"updated_at": time.Now().UTC()}
+	for k, r := range rs {
+		r.Source = domain.SnapshotSourceManual
+		set["regions."+k] = r
+	}
+	res, err := s.col.UpdateOne(ctx, snapshotFilter(uid, date), bson.M{"$set": set})
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // Delete removes a (user, date) row only when every region's source is
 // manual. Cron-touched rows return ErrCronProtected: the source of truth
 // cannot be deleted via API (PRD-002 §6 / DD-002 §4.5).

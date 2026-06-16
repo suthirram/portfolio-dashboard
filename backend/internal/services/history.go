@@ -209,10 +209,10 @@ func (s *HistoryService) PatchRegions(ctx context.Context, uid primitive.ObjectI
 	if err := validateRegions(in.Regions); err != nil {
 		return HistoryRow{}, err
 	}
-	for k, r := range in.Regions {
-		if err := s.store.PatchRegion(ctx, uid, date, k, r); err != nil {
-			return HistoryRow{}, err
-		}
+	// Atomic multi-region update so a failure mid-way through cannot
+	// leave half the override persisted (PD-042 PR6 review).
+	if err := s.store.PatchRegions(ctx, uid, date, in.Regions); err != nil {
+		return HistoryRow{}, err
 	}
 	updated, err := s.store.Get(ctx, uid, date)
 	if err != nil {
