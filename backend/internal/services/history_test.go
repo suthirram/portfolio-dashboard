@@ -324,31 +324,44 @@ func TestHistoryService_Delete_DelegatesToStore(t *testing.T) {
 	})
 }
 
-func TestHistoryService_PatchRegions_FlipsRegionToManual(t *testing.T) {
+func patchRegionsRow(uid primitive.ObjectID, date time.Time, bucket bson.D) bson.D {
+	return bson.D{
+		{Key: "_id", Value: primitive.NewObjectID()},
+		{Key: "user_id", Value: uid},
+		{Key: "date", Value: date},
+		{Key: "currency", Value: "INR"},
+		{Key: "regions", Value: bson.D{
+			{Key: "INR", Value: bucket},
+		}},
+	}
+}
+
+func TestHistoryService_PatchRegions_FlipsRegionToManualAndCapturesCronOriginal(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("patch", func(mt *mtest.T) {
+	mt.Run("first override of a cron bucket", func(mt *mtest.T) {
 		uid := primitive.NewObjectID()
 		date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
-		// PatchRegions: one UpdateOne for the whole map
+		// Existing row (Get): a cron-written INR bucket.
+		existing := patchRegionsRow(uid, date, bson.D{
+			{Key: "invested", Value: 50.0},
+			{Key: "current", Value: 55.0},
+			{Key: "source", Value: "cron"},
+		})
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, existing))
+		// Atomic PatchRegions UpdateOne ack.
 		mt.AddMockResponses(mtest.CreateSuccessResponse(
 			bson.E{Key: "n", Value: 1},
 			bson.E{Key: "nModified", Value: 1},
 		))
-		// Final Get returns the patched row
-		row := bson.D{
-			{Key: "_id", Value: primitive.NewObjectID()},
-			{Key: "user_id", Value: uid},
-			{Key: "date", Value: date},
-			{Key: "currency", Value: "INR"},
-			{Key: "regions", Value: bson.D{
-				{Key: "INR", Value: bson.D{
-					{Key: "invested", Value: 100.0},
-					{Key: "current", Value: 198.0},
-					{Key: "source", Value: "manual"},
-				}},
-			}},
-		}
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, row))
+		// Final Get: post-image row carries OriginalCron* the service wrote.
+		updated := patchRegionsRow(uid, date, bson.D{
+			{Key: "invested", Value: 100.0},
+			{Key: "current", Value: 198.0},
+			{Key: "source", Value: "manual"},
+			{Key: "original_cron_invested", Value: 50.0},
+			{Key: "original_cron_current", Value: 55.0},
+		})
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, updated))
 
 		svc := newHistorySvc(mt)
 		got, err := svc.PatchRegions(context.Background(), uid, "2026-06-15", PatchRegionsInput{
@@ -359,10 +372,72 @@ func TestHistoryService_PatchRegions_FlipsRegionToManual(t *testing.T) {
 		if err != nil {
 			t.Fatalf("PatchRegions: %v", err)
 		}
-		if got.Regions["INR"].Source != domain.SnapshotSourceManual {
-			t.Errorf("source = %q, want manual", got.Regions["INR"].Source)
+		inr := got.Regions["INR"]
+		if inr.Source != domain.SnapshotSourceManual {
+			t.Errorf("source = %q, want manual", inr.Source)
+		}
+		if inr.OriginalCronInvested == nil || *inr.OriginalCronInvested != 50.0 {
+			t.Errorf("OriginalCronInvested = %v, want 50.0", inr.OriginalCronInvested)
+		}
+		if inr.OriginalCronCurrent == nil || *inr.OriginalCronCurrent != 55.0 {
+			t.Errorf("OriginalCronCurrent = %v, want 55.0", inr.OriginalCronCurrent)
+		}
+
+		// Inspect the actual update we sent. It must carry OriginalCron*
+		// in the regions.INR sub-document so the store persists them.
+		events := mt.GetAllStartedEvents()
+		var sawCronAnchor bool
+		for _, e := range events {
+			if e.CommandName != "update" {
+				continue
+			}
+			if bytesContainKey([]byte(e.Command), "original_cron_invested") {
+				sawCronAnchor = true
+			}
+		}
+		if !sawCronAnchor {
+			t.Error("update command did not carry original_cron_invested; audit trail will be lost")
 		}
 	})
+}
+
+func TestOriginalCronFor(t *testing.T) {
+	cron := domain.RegionSnapshot{Invested: 10, Current: 20, Source: domain.SnapshotSourceCron}
+	gotInv, gotCur := originalCronFor(cron)
+	if gotInv == nil || *gotInv != 10 || gotCur == nil || *gotCur != 20 {
+		t.Errorf("cron source: anchor = (%v, %v), want (10, 20)", gotInv, gotCur)
+	}
+
+	prior := 7.0
+	priorCur := 9.0
+	manualWithAnchor := domain.RegionSnapshot{
+		Invested: 100, Current: 110, Source: domain.SnapshotSourceManual,
+		OriginalCronInvested: &prior, OriginalCronCurrent: &priorCur,
+	}
+	gotInv, gotCur = originalCronFor(manualWithAnchor)
+	if gotInv == nil || *gotInv != 7 || gotCur == nil || *gotCur != 9 {
+		t.Errorf("manual w/ anchor: kept = (%v, %v), want (7, 9) — first-override-wins broken",
+			gotInv, gotCur)
+	}
+
+	manualNoAnchor := domain.RegionSnapshot{Source: domain.SnapshotSourceManual}
+	gotInv, gotCur = originalCronFor(manualNoAnchor)
+	if gotInv != nil || gotCur != nil {
+		t.Errorf("manual no anchor: want (nil, nil), got (%v, %v)", gotInv, gotCur)
+	}
+}
+
+func bytesContainKey(b []byte, key string) bool {
+	// Cheap substring check — mtest's bytes are valid bson but searching
+	// for the key string in the marshalled output is enough to verify
+	// the field was included.
+	target := []byte(key)
+	for i := 0; i+len(target) <= len(b); i++ {
+		if string(b[i:i+len(target)]) == key {
+			return true
+		}
+	}
+	return false
 }
 
 func TestHistoryService_Range_WithDataReportsEarliestAndCurrent(t *testing.T) {

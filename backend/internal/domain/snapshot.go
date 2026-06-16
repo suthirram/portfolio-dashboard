@@ -38,10 +38,19 @@ var AllCurrencies = []string{CurrencyINR, CurrencyEUR, CurrencyUSD}
 
 // RegionSnapshot is one region's contribution to a portfolio snapshot. Both
 // monetary fields are in the row's currency (PortfolioSnapshot.Currency).
+//
+// OriginalCronInvested / OriginalCronCurrent are populated when the user
+// first overrides a cron-written bucket — they preserve the values the
+// snapshot job recorded so the override is reversible (PD-042 §3.3 audit
+// trail). Subsequent overrides do not clobber them; nil on both means
+// "no override has ever happened on this bucket".
 type RegionSnapshot struct {
 	Invested float64        `bson:"invested" json:"invested"`
 	Current  float64        `bson:"current" json:"current"`
 	Source   SnapshotSource `bson:"source" json:"source"`
+
+	OriginalCronInvested *float64 `bson:"original_cron_invested,omitempty" json:"original_cron_invested,omitempty"`
+	OriginalCronCurrent  *float64 `bson:"original_cron_current,omitempty"  json:"original_cron_current,omitempty"`
 }
 
 // PortfolioSnapshot is the cumulative state of one user's portfolio at one
