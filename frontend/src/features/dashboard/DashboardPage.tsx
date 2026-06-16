@@ -7,6 +7,7 @@ import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
+import { useTheme } from '../../lib/useTheme'
 import type { HoldingWithPrice } from '../../types'
 import {
   ChartLineIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
@@ -26,6 +27,7 @@ interface Props {
 
 export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const { user, logout } = useAuth()
+  const { theme, toggle: toggleTheme } = useTheme()
   const {
     holdings,
     enriched,
@@ -140,6 +142,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           }}>
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
           </Link>
+          <button onClick={toggleTheme} className="dash-nav-btn"
+            aria-label="Toggle theme"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              background: 'var(--bg-card)', color: 'var(--text-secondary)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              padding: '6px 10px', fontSize: 13, cursor: 'pointer',
+            }}>
+            {theme === 'dark' ? '☀' : '🌙'}
+          </button>
           {isAdmin && (
             <Link to="/admin" className="dash-nav-btn" style={{
               background: 'var(--bg-card)', color: 'var(--text-secondary)',

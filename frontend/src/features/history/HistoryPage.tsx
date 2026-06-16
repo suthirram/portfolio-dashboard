@@ -13,6 +13,7 @@ import {
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
 import { EditIcon, TrashIcon } from '../../components/Icon'
+import { useTheme, type ThemeName } from '../../lib/useTheme'
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -26,12 +27,29 @@ const REGION_LABELS: Record<RegionKey, string> = {
   USD: 'US (USD)',
 }
 
-// PRD-002 §7.2: orange = INR sleeve, blue = EUR sleeve, green = USD.
+// PRD-002 §7.2 + PR7 design review: saffron (INR), blue (EUR), red (USD).
 const REGION_COLOURS: Record<RegionKey, { invested: string; current: string }> = {
-  INR: { invested: '#fdba74', current: '#f97316' },  // orange-300 / 500
+  INR: { invested: '#fbbf24', current: '#f97316' },  // amber-400 (saffron-ish) / orange-500
   EUR: { invested: '#93c5fd', current: '#2563eb' },  // blue-300 / 600
-  USD: { invested: '#86efac', current: '#16a34a' },  // green-300 / 600
+  USD: { invested: '#fca5a5', current: '#dc2626' },  // red-300 / 600
 }
+
+// Per-theme background tints for each currency group in the table.
+// `header` lands behind the column-group header cells; `cell` is the
+// per-data-cell tint that propagates the group identity down the column.
+const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: string }>> = {
+  light: {
+    INR: { header: '#FFEDD5', cell: '#FFF7ED' }, // orange-100 / orange-50
+    EUR: { header: '#DBEAFE', cell: '#EFF6FF' }, // blue-100   / blue-50
+    USD: { header: '#FEE2E2', cell: '#FEF2F2' }, // red-100    / red-50
+  },
+  dark: {
+    INR: { header: 'rgba(251,146,60,0.22)', cell: 'rgba(251,146,60,0.10)' },
+    EUR: { header: 'rgba(96,165,250,0.22)', cell: 'rgba(96,165,250,0.10)' },
+    USD: { header: 'rgba(248,113,113,0.22)', cell: 'rgba(248,113,113,0.10)' },
+  },
+}
+
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -75,6 +93,7 @@ function formToBody(form: RegionFormState): Record<string, { invested: number; c
 }
 
 export default function HistoryPage() {
+  const { theme, toggle: toggleTheme } = useTheme()
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
   const [month, setMonth] = useState(now.getUTCMonth())
@@ -233,7 +252,13 @@ export default function HistoryPage() {
           ← Portfolio
         </Link>
         <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Historical data</h1>
-        <span style={{ width: 80 }} />
+        <button onClick={toggleTheme} style={{
+          background: 'var(--bg-card)', color: 'var(--text-primary)',
+          border: '1px solid var(--border)', borderRadius: 6,
+          padding: '6px 12px', cursor: 'pointer', fontSize: 13,
+        }} aria-label="Toggle theme">
+          {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
+        </button>
       </header>
 
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 28px' }}>
@@ -272,7 +297,8 @@ export default function HistoryPage() {
 
         {rows.length > 0 && (
           <>
-            <HistoryTable rows={rows} currency={currency} onDelete={handleDelete} onEdit={r => setEditRow(r)} />
+            <HistoryTable rows={rows} currency={currency} theme={theme}
+              onDelete={handleDelete} onEdit={r => setEditRow(r)} />
             <div style={{ height: 16 }} />
             {REGIONS.map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} />
@@ -432,11 +458,12 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
 // Header spelling "volatlity" matches the user's reference screenshot
 // verbatim. If we ever correct the typo, update the test expectation
 // in HistoryPage.test.tsx too.
-export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
+export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, theme = 'dark' }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
   onEdit?: (row: HistoryRow) => void
+  theme?: ThemeName
 }) {
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
     Object.values(regions).every(r => r.source === 'manual')
@@ -449,7 +476,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
           <tr style={{ background: 'var(--bg-card)' }}>
             <th style={{ ...th, borderRight: '2px solid var(--border)' }}>Date</th>
             {REGIONS.map((r, idx) => (
-              <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} />
+              <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
             <th style={th}></th>
           </tr>
@@ -468,6 +495,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
                     i={i}
                     region={region}
                     last={idx === REGIONS.length - 1}
+                    theme={theme}
                   />
                 ))}
                 <td style={{ ...td, display: 'flex', gap: 8 }}>
@@ -493,23 +521,26 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit }: {
   )
 }
 
-function CurrencyHeaderGroup({ region: _region, last }: { region: RegionKey; last: boolean }) {
+function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last: boolean; theme: ThemeName }) {
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
+  const tint = REGION_TINTS[theme][region].header
+  const hdr: React.CSSProperties = { ...th, background: tint }
   return (
     <>
-      <th style={th}>Amount invested</th>
-      <th style={th}>Actual value</th>
-      <th style={th}>Daily volatlity</th>
-      <th style={{ ...th, ...sep }}>P/L%</th>
+      <th style={hdr}>Amount invested</th>
+      <th style={hdr}>Actual value</th>
+      <th style={hdr}>Daily volatlity</th>
+      <th style={{ ...hdr, ...sep }}>P/L%</th>
     </>
   )
 }
 
-function CurrencyRowCells({ rows, i, region, last }: {
+function CurrencyRowCells({ rows, i, region, last, theme }: {
   rows: HistoryRow[]
   i: number
   region: RegionKey
   last: boolean
+  theme: ThemeName
 }) {
   const r = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
@@ -519,10 +550,13 @@ function CurrencyRowCells({ rows, i, region, last }: {
   const vol      = regionDailyVolatility(rows, i, region)
   const pnl      = regionPnLPct(r, region)
   const wentUp   = regionInvestedWentUp(rows, i, region)
+  const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
+  const base: React.CSSProperties = { ...td, background: tint }
+  // Invested-went-up override beats the group tint to keep the signal loud.
   const investedStyle: React.CSSProperties = {
-    ...td,
-    background: wentUp ? 'rgba(34,197,94,0.18)' : undefined, // green-500/18%
+    ...base,
+    background: wentUp ? 'rgba(34,197,94,0.28)' : tint,
     fontWeight: wentUp ? 600 : undefined,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
@@ -530,11 +564,11 @@ function CurrencyRowCells({ rows, i, region, last }: {
   return (
     <>
       <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td style={td}>{fmtCurrency(current, sym)}</td>
-      <td style={{ ...td, color: volColor }}>
+      <td style={base}>{fmtCurrency(current, sym)}</td>
+      <td style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={{ ...td, ...sep, color: pnlColor }}>
+      <td style={{ ...base, ...sep, color: pnlColor }}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
