@@ -160,7 +160,29 @@ this when PR8 ships the deploy.
 documents. Pure cosmetic at the data layer but worth doing once the
 shape is touched again.
 
-### 3.8 Paste schema strictness — from DD-002 §10
+### 3.8 Paste parser — residual real-world edge cases — from PR7
+
+PR7 hardened the paste parser for the most common spreadsheet-copy
+output (dd/mm/yyyy dates, ₹/€/$ symbols, thousands commas, trailing
+derived columns). User-reported follow-up: the parser still does not
+fully handle every clipboard variant seen in practice (specific
+breakages not yet enumerated by the reporter).
+
+Investigate in a follow-up PR. Likely candidates:
+
+* Locale-specific decimal commas (e.g. `1.057.757,67`).
+* Multi-line cells (newlines inside quoted CSV cells).
+* Excess whitespace / non-breaking spaces.
+* Mixed delimiters (some cells separated by tab, others by comma).
+* Currency symbols other than ₹/€/$/£ (CHF, JPY ¥).
+* Rows where a region is left blank vs explicit 0 — currently both
+  collapse to "absent"; consider distinguishing.
+
+When the next reporter shares a failing paste, add a regression
+fixture to `HistoryPage.test.tsx > describe('parsePasteText')` and
+extend `parseAmount` / `normaliseDate` accordingly.
+
+### 3.9 Paste schema strictness — from DD-002 §10
 
 The exact column order, header-row requirement, and date format for
 pasted blocks will be fixed in PR7 against real Google Sheets / Excel
