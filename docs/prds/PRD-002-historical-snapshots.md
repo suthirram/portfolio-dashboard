@@ -115,7 +115,9 @@ of the portfolio at that midnight:
 * The **currency** the values are expressed in (the user's display currency
   is currently INR; conversion follows the same rules as the live dashboard).
 * A **source** marker — `cron` for rows the snapshot subcommand wrote, or
-  `manual` for rows the user entered by hand.
+  `manual` for rows the user entered or overrode by hand. A row's source
+  flips to `manual` the moment the user accepts an override for any of its
+  values (see §7.3).
 
 ### Worked example (the model in one picture)
 
@@ -172,24 +174,53 @@ the user picks "All"):
   current, US invested, US current, Total invested, Total current, P/L %,
   Source.
 * If a region has no holdings on that date, its cells render as "—".
-* Cron-written rows are read-only. Manual rows show inline edit/delete
-  controls.
+* Every row is editable. Cron-written rows can be overridden; doing so
+  flips the row's `source` to `manual` (see §7.3 for the conflict UX).
+  Manual rows can be edited or deleted freely.
 
-### 7.3 Manual entry — typing and pasting
+### 7.3 Manual entry — typing, pasting, and overriding cron rows
 
-The user can fill historical data by hand. Two paths:
+The user can fill or correct historical data by hand. Three paths:
 
 * **Add row** opens a form: pick a date, type per-region `invested` and
   `current` for India / Europe / US. The system computes totals and P/L %.
-  Saving creates a row with `source: manual`. A manual entry cannot
-  overwrite a `cron` row for the same date (the cron row is the source of
-  truth for that date).
+  Saving creates a row with `source: manual`. If the date already has any
+  row (cron or manual), the conflict dialog described below opens
+  instead.
+* **Inline edit on an existing row** — clicking edit on any row, including
+  a cron row, opens the same per-region form pre-filled with the current
+  values. Saving an override flips the row's `source` from `cron` to
+  `manual` for the values the user changed; untouched cells stay as the
+  cron values they were.
 * **Paste per month** — when the user is viewing a month, they can paste a
   block of rows copied from Excel or Google Sheets. The expected shape is
-  one row per date in that month, with the same columns as the table; the
-  paste handler validates each row, shows a per-row pass/fail summary, and
-  inserts the valid ones as `source: manual`. Dates that already have a
-  `cron` row are skipped (the user is told which).
+  one row per date in that month, with the same columns as the table. The
+  paste handler validates each row, shows a per-row pass/fail summary,
+  and processes the valid rows in date order:
+  * Rows for dates that have no existing entry are inserted as
+    `source: manual`.
+  * Rows for dates that conflict with an existing row (cron *or* manual)
+    queue a conflict dialog.
+
+**Conflict dialog — per date, per region.**
+
+When a manual value collides with an existing row for the same date, a
+modal opens for that one date. The modal shows, for each region (India,
+Europe, US):
+
+* The **existing** value (with a tag — `cron` or `manual`) for `invested`
+  and `current`.
+* The **incoming** value the user just typed or pasted.
+* A checkbox in front of each region; ticking the checkbox means "keep
+  the incoming value for this region", leaving it unticked means "keep
+  the existing value".
+
+The user confirms once per date. If a paste produced conflicts on
+multiple dates, the dialogs are shown sequentially — one date at a time,
+in date order — so the user explicitly decides each one. Any region the
+user overrode has its `source` flipped to `manual` on save; regions left
+unchanged keep their original source. A "Cancel" on any dialog leaves
+that date alone and continues to the next.
 
 ### 7.4 Empty / partial states
 
@@ -228,7 +259,8 @@ We will consider v1 successful when:
 4. A user can paste a month of rows from Excel / Google Sheets and have
    the chart and table reflect them within one page refresh.
 5. A `cron`-written row is never silently overwritten by a `manual` entry;
-   conflicts are surfaced to the user.
+   every conflict surfaces a per-date, per-region confirmation dialog
+   before any change is persisted.
 
 ## 10. Open questions (to resolve in DD-002)
 
@@ -248,6 +280,7 @@ We will consider v1 successful when:
 * **Paste schema.** The exact paste format (headers required? column order
   fixed? date format?) and the error-handling UX for partial pastes are a
   DD-002 / UI-spec concern.
-* **Editing cron rows.** v1 default is "cron rows are read-only, only manual
-  rows are editable, with a `source` tag distinguishing them". DD-002 may
-  revisit this once the audit story (who changed what when) is clearer.
+* **Audit trail on override.** When a user overrides a cron row, do we
+  keep the original cron values somewhere (e.g. an `original_cron`
+  sub-document) so the override is reversible, or is the override
+  destructive? v1 leans destructive for simplicity; DD-002 will confirm.
