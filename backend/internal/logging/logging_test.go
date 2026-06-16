@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log/slog"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestNewJSONLoggerAddsServiceAndFiltersByLevel(t *testing.T) {
@@ -33,12 +35,12 @@ func TestNewJSONLoggerAddsServiceAndFiltersByLevel(t *testing.T) {
 	if line["service"] != "portfolio-api" {
 		t.Errorf("service = %v, want portfolio-api", line["service"])
 	}
-	if line["level"] != "WARN" {
-		t.Errorf("level = %v, want WARN", line["level"])
+	if line["level"] != "warn" {
+		t.Errorf("level = %v, want warn", line["level"])
 	}
 }
 
-func TestNewTextLoggerWritesExpectedFields(t *testing.T) {
+func TestNewConsoleLoggerWritesExpectedFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger, err := New(&buf, "text", "info")
 	if err != nil {
@@ -48,11 +50,11 @@ func TestNewTextLoggerWritesExpectedFields(t *testing.T) {
 	logger.Info("started")
 
 	got := buf.String()
-	if !strings.Contains(got, "msg=started") {
+	if !strings.Contains(got, "started") {
 		t.Errorf("log output missing message: %s", got)
 	}
-	if !strings.Contains(got, "service=portfolio-api") {
-		t.Errorf("log output missing service attr: %s", got)
+	if !strings.Contains(got, "portfolio-api") {
+		t.Errorf("log output missing service value: %s", got)
 	}
 }
 
@@ -78,30 +80,30 @@ func TestNewRejectsInvalidFormatAndLevel(t *testing.T) {
 func TestParseLevelAcceptsSupportedValues(t *testing.T) {
 	cases := []struct {
 		in   string
-		want slog.Level
+		want zapcore.Level
 	}{
-		{"debug", slog.LevelDebug},
-		{"INFO", slog.LevelInfo},
-		{"warn", slog.LevelWarn},
-		{"warning", slog.LevelWarn},
-		{"error", slog.LevelError},
+		{"debug", zapcore.DebugLevel},
+		{"INFO", zapcore.InfoLevel},
+		{"warn", zapcore.WarnLevel},
+		{"warning", zapcore.WarnLevel},
+		{"error", zapcore.ErrorLevel},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
-			got, err := parseLevel(tc.in)
+			got, err := ParseLevel(tc.in)
 			if err != nil {
-				t.Fatalf("parseLevel(%q): %v", tc.in, err)
+				t.Fatalf("ParseLevel(%q): %v", tc.in, err)
 			}
 			if got != tc.want {
-				t.Errorf("parseLevel(%q) = %s, want %s", tc.in, got, tc.want)
+				t.Errorf("ParseLevel(%q) = %s, want %s", tc.in, got, tc.want)
 			}
 		})
 	}
 }
 
 func TestContextStoresAndRetrievesLogger(t *testing.T) {
-	base := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
+	base := zap.NewNop()
 
 	if _, ok := FromContext(context.Background()); ok {
 		t.Fatal("FromContext on empty context ok = true")

@@ -3,7 +3,6 @@ package httpserver
 import (
 	"bytes"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"portfolio-dashboard/internal/logging"
 )
@@ -18,10 +19,12 @@ import (
 // newTestEcho wires RequestID + RequestLogger and returns the echo instance,
 // the captured log buffer, and the base logger so tests can also install the
 // HTTP error handler against the same sink.
-func newTestEcho(t *testing.T) (*echo.Echo, *bytes.Buffer, *slog.Logger) {
+func newTestEcho(t *testing.T) (*echo.Echo, *bytes.Buffer, *zap.Logger) {
 	t.Helper()
 	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	enc := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	core := zapcore.NewCore(enc, zapcore.AddSync(&buf), zapcore.DebugLevel)
+	logger := zap.New(core)
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.RequestID())
@@ -100,9 +103,9 @@ func TestRequestLogger_LevelTracksStatus(t *testing.T) {
 		status int
 		want   string
 	}{
-		{"2xx", http.StatusOK, "INFO"},
-		{"4xx", http.StatusBadRequest, "WARN"},
-		{"5xx", http.StatusInternalServerError, "ERROR"},
+		{"2xx", http.StatusOK, "info"},
+		{"4xx", http.StatusBadRequest, "warn"},
+		{"5xx", http.StatusInternalServerError, "error"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

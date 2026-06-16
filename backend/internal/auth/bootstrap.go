@@ -5,8 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,7 +20,7 @@ import (
 // super admin exists yet. The placeholder security answers are random
 // crypto-rand bytes, so the recover flow cannot bypass onboarding (PRD-001
 // §6.5, DD-001 §7).
-func EnsureSuperAdmin(ctx context.Context, db *mongo.Database, logger *slog.Logger) error {
+func EnsureSuperAdmin(ctx context.Context, db *mongo.Database, logger *zap.Logger) error {
 	users := db.Collection("users")
 	count, err := users.CountDocuments(ctx, bson.M{"role": domain.RoleSuperAdmin})
 	if err != nil {
@@ -71,7 +72,7 @@ func EnsureSuperAdmin(ctx context.Context, db *mongo.Database, logger *slog.Logg
 	if _, err := users.InsertOne(ctx, user); err != nil {
 		return fmt.Errorf("inserting bootstrap super admin: %w", err)
 	}
-	logger.Info("bootstrap super admin created", slog.String("username", "admin"))
+	logger.Info("bootstrap super admin created", zap.String("username", "admin"))
 	return nil
 }
 

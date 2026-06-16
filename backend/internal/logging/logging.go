@@ -1,49 +1,63 @@
-// Package logging builds a structured slog.Logger for the API server.
+// Package logging builds a structured zap.Logger for the API server.
 package logging
 
 import (
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-// New constructs a slog.Logger. format is "json" or "text"; level is
+// New constructs a *zap.Logger. format is "json" or "text" (console); level is
 // "debug", "info", "warn", or "error". Output is written to w.
-func New(w io.Writer, format, level string) (*slog.Logger, error) {
-	lvl, err := parseLevel(level)
+func New(w io.Writer, format, level string) (*zap.Logger, error) {
+	lvl, err := ParseLevel(level)
 	if err != nil {
 		return nil, err
 	}
 
-	opts := &slog.HandlerOptions{
-		Level:     lvl,
-		AddSource: lvl == slog.LevelDebug,
-	}
+	encCfg := zap.NewProductionEncoderConfig()
+	encCfg.TimeKey = "ts"
+	encCfg.MessageKey = "msg"
+	encCfg.LevelKey = "level"
+	encCfg.CallerKey = "caller"
+	encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	encCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
 
-	var h slog.Handler
+	var enc zapcore.Encoder
 	switch strings.ToLower(format) {
 	case "json":
-		h = slog.NewJSONHandler(w, opts)
-	case "text":
-		h = slog.NewTextHandler(w, opts)
+		enc = zapcore.NewJSONEncoder(encCfg)
+	case "text", "console":
+		enc = zapcore.NewConsoleEncoder(encCfg)
 	default:
 		return nil, fmt.Errorf("invalid log format %q (want 'json' or 'text')", format)
 	}
 
-	return slog.New(h).With(slog.String("service", "portfolio-api")), nil
+	core := zapcore.NewCore(enc, zapcore.AddSync(w), lvl)
+
+	opts := []zap.Option{zap.ErrorOutput(zapcore.AddSync(w))}
+	if lvl == zapcore.DebugLevel {
+		opts = append(opts, zap.AddCaller())
+	}
+
+	return zap.New(core, opts...).With(zap.String("service", "portfolio-api")), nil
 }
 
-func parseLevel(s string) (slog.Level, error) {
+// ParseLevel converts the human-friendly level strings the CLI accepts
+// into a zapcore.Level.
+func ParseLevel(s string) (zapcore.Level, error) {
 	switch strings.ToLower(s) {
 	case "debug":
-		return slog.LevelDebug, nil
+		return zapcore.DebugLevel, nil
 	case "info":
-		return slog.LevelInfo, nil
+		return zapcore.InfoLevel, nil
 	case "warn", "warning":
-		return slog.LevelWarn, nil
+		return zapcore.WarnLevel, nil
 	case "error":
-		return slog.LevelError, nil
+		return zapcore.ErrorLevel, nil
 	default:
 		return 0, fmt.Errorf("invalid log level %q (want debug|info|warn|error)", s)
 	}

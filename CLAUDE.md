@@ -45,19 +45,19 @@ cd frontend && npm run preview     # preview production build locally
 
 ### Backend (`backend/`)
 
-Go service using **echo** router and **cobra** CLI with structured logging via `log/slog`. Entry point: `main.go` calls `cmd.Execute()`.
+Go service using **echo** router and **cobra** CLI with structured logging via `go.uber.org/zap`. Entry point: `main.go` calls `cmd.Execute()`.
 
 * `cmd/root.go` — cobra root command; registers subcommands
 * `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, ensures indexes + bootstrap super admin, wires the `Handler` and HTTP server, runs with graceful shutdown
 * `cmd/migrate.go` — one-shot subcommands: `migrate users --owner <name>` (stamp legacy holdings with `user_id`) and `admin reset-lockout|set-password --username <name>` break-glass CLI (DD-001 §8/§10)
 * `internal/auth/` — catalogues (regions, security questions), password/answer hashing (bcrypt), session id generator, super-admin bootstrap, request-context helpers (`WithUser`, `WithSessionID`)
 * `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
-* `internal/logging/logging.go` — slog factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
+* `internal/logging/logging.go` — zap factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
 * `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`. Wires `CSRFCheck` (refuses state-changing requests without `X-Requested-With: portfolio-dashboard`) and `AuthGate` (session lookup, role/region/onboarding gates).
-* `internal/httpserver/middleware.go` — slog-backed request logger (severity tracks status, propagates `request_id` to context)
+* `internal/httpserver/middleware.go` — zap-backed request logger (severity tracks status, propagates `request_id` to context)
 * `internal/httpserver/auth.go` — `CSRFCheck`, `AuthGate`, session loading + sliding expiry
 * `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`. All MongoDB reads/writes live here; callers (services, controllers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`.
-* `internal/controllers/controllers.go` — `Controller` struct (owns `*persistence.Store`, the per-domain services, and `*slog.Logger`). `New(db, logger, cookieSecure)` wires the default services; `newWithDeps` is the test seam.
+* `internal/controllers/controllers.go` — `Controller` struct (owns `*persistence.Store`, the per-domain services, and `*zap.Logger`). `New(db, logger, cookieSecure)` wires the default services; `newWithDeps` is the test seam.
 * `internal/controllers/auth.go` — signup, login, logout, recover (two-step), me, change password, update profile, update security questions, onboarding. Still owns the auth flow end-to-end because it composes credential checks with cookie writes.
 * `internal/controllers/admin.go` — admin/super-admin endpoints: list users/admins, get/hide/reactivate/delete user, reset-lockout, promote, demote, set region, act-as holdings CRUD/prices/summary. Region scope enforced server-side on every target; act-as endpoints delegate to `holdings`/`portfolio` services.
 * `internal/controllers/holdings.go` — thin HTTP wrappers; every method calls `Controller.holdings` (the `services.HoldingsService`) for the scoped CRUD.

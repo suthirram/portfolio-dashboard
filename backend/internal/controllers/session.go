@@ -2,9 +2,10 @@ package controllers
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -118,8 +119,8 @@ func ClearSessionCookie(c echo.Context, secure bool) {
 }
 
 func (h *Controller) logSessionError(ctx context.Context, op string, err error) {
-	h.reqLog(ctx).ErrorContext(ctx, "session operation failed",
-		slog.String("op", op),
-		slog.String("error", err.Error()),
+	h.reqLog(ctx).Error("session operation failed",
+		zap.String("op", op),
+		zap.String("error", err.Error()),
 	)
 }

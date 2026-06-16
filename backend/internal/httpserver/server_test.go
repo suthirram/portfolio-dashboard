@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"github.com/labstack/echo/v4"
 
@@ -20,7 +21,7 @@ func TestRunReturnsServerStartupError(t *testing.T) {
 	e := echo.New()
 	cfg := config.Default()
 	cfg.Port = "not-a-valid-port"
-	logger := slog.New(slog.DiscardHandler)
+	logger := zap.NewNop()
 
 	err := Run(context.Background(), e, cfg, logger)
 	if err == nil {

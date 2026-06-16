@@ -3,7 +3,8 @@ package db
 
 import (
 	"context"
-	"log/slog"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -11,7 +12,7 @@ import (
 )
 
 // Connect dials MongoDB and verifies the connection with a Ping.
-func Connect(ctx context.Context, uri string, logger *slog.Logger) (*mongo.Client, error) {
+func Connect(ctx context.Context, uri string, logger *zap.Logger) (*mongo.Client, error) {
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func Connect(ctx context.Context, uri string, logger *slog.Logger) (*mongo.Clien
 }
 
 // EnsureIndexes creates the indexes for all collections (DD-001 §2).
-func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *slog.Logger) error {
+func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Logger) error {
 	for col, models := range map[string][]mongo.IndexModel{
 		"holdings": {
 			{Keys: bson.D{{Key: "symbol", Value: 1}}},
@@ -53,8 +54,8 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *slog.L
 			return err
 		}
 		logger.Info("mongodb indexes ensured",
-			slog.String("collection", col),
-			slog.Any("indexes", names),
+			zap.String("collection", col),
+			zap.Any("indexes", names),
 		)
 	}
 	return nil

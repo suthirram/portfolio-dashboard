@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/config"
@@ -21,11 +22,12 @@ import (
 )
 
 // New builds an *echo.Echo with routes and middleware wired up.
-func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *controllers.Controller) *echo.Echo {
+func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controllers.Controller) *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.StdLogger = slog.NewLogLogger(logger.Handler(), slog.LevelError)
+	stdLogger, _ := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
+	e.StdLogger = stdLogger
 	e.HTTPErrorHandler = errorHandler(logger)
 
 	e.Server.ReadTimeout = cfg.ReadTimeout
@@ -85,11 +87,11 @@ func New(cfg config.Config, logger *slog.Logger, db *mongo.Database, h *controll
 
 // Run starts e and blocks until ctx is cancelled or the server fails.
 // On ctx cancellation it performs a graceful shutdown bounded by cfg.ShutdownTimeout.
-func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logger) error {
+func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *zap.Logger) error {
 	errCh := make(chan error, 1)
 	go func() {
 		addr := ":" + cfg.Port
-		logger.Info("http server listening", slog.String("addr", addr))
+		logger.Info("http server listening", zap.String("addr", addr))
 		if err := e.Start(addr); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 			return
@@ -102,12 +104,12 @@ func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logg
 		return err
 	case <-ctx.Done():
 		logger.Info("shutdown signal received, draining connections",
-			slog.Duration("timeout", cfg.ShutdownTimeout))
+			zap.Duration("timeout", cfg.ShutdownTimeout))
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 		defer cancel()
 		if err := e.Shutdown(shutdownCtx); err != nil {
 			if listenErr := <-errCh; listenErr != nil {
-				logger.Error("listener error during shutdown", slog.String("error", listenErr.Error()))
+				logger.Error("listener error during shutdown", zap.String("error", listenErr.Error()))
 			}
 			return err
 		}
@@ -117,7 +119,7 @@ func Run(ctx context.Context, e *echo.Echo, cfg config.Config, logger *slog.Logg
 
 // errorHandler renders errors in the OpenAPI Error shape ({"error": "..."})
 // so non-strict routes match the contract used by generated controllers.
-func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
+func errorHandler(base *zap.Logger) echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
 		if c.Response().Committed {
 			return
@@ -146,23 +148,25 @@ func errorHandler(base *slog.Logger) echo.HTTPErrorHandler {
 				message = fmt.Sprintf("%v", m)
 			}
 			if httpErr.Internal != nil {
-				log.LogAttrs(ctx, levelForStatus(status), "http error with internal cause",
-					slog.Int("status", status),
-					slog.String("path", c.Request().URL.Path),
-					slog.String("message", message),
-					slog.String("internal", httpErr.Internal.Error()),
-				)
+				if ce := log.Check(levelForStatus(status), "http error with internal cause"); ce != nil {
+					ce.Write(
+						zap.Int("status", status),
+						zap.String("path", c.Request().URL.Path),
+						zap.String("message", message),
+						zap.String("internal", httpErr.Internal.Error()),
+					)
+				}
 			}
 		} else {
-			log.ErrorContext(ctx, "unhandled error",
-				slog.String("path", c.Request().URL.Path),
-				slog.String("error", err.Error()),
+			log.Error("unhandled error",
+				zap.String("path", c.Request().URL.Path),
+				zap.String("error", err.Error()),
 			)
 		}
 
 		if writeErr := c.JSON(status, map[string]string{"error": message}); writeErr != nil {
-			log.ErrorContext(ctx, "failed writing error response",
-				slog.String("error", writeErr.Error()),
+			log.Error("failed writing error response",
+				zap.String("error", writeErr.Error()),
 			)
 		}
 	}

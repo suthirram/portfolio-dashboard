@@ -1,10 +1,10 @@
 package httpserver
 
 import (
-	"bytes"
-	"log/slog"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
@@ -20,7 +20,7 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("admin routes are explicitly classified", func(mt *mtest.T) {
-		logger := slog.New(slog.NewJSONHandler(&bytes.Buffer{}, nil))
+		logger := zap.NewNop()
 		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 

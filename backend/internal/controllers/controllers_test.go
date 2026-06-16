@@ -3,10 +3,11 @@ package controllers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"math"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
@@ -71,8 +72,8 @@ func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
 }
 
 func TestReqLogPrefersRequestScopedLogger(t *testing.T) {
-	handlerLogger := slog.New(slog.DiscardHandler)
-	requestLogger := slog.New(slog.DiscardHandler)
+	handlerLogger := zap.NewNop()
+	requestLogger := zap.NewNop()
 	h := &Controller{logger: handlerLogger}
 
 	got := h.reqLog(logging.IntoContext(context.Background(), requestLogger))

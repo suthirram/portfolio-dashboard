@@ -3,10 +3,11 @@ package controllers
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"regexp"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -160,7 +161,7 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 		if errors.Is(err, persistence.ErrDuplicate) {
 			return api.Signup409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 		}
-		h.reqLog(ctx).ErrorContext(ctx, "signup insert failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("signup insert failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -169,9 +170,9 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "user signed up",
-		slog.String("user_id", user.ID.Hex()),
-		slog.String("region", user.Region),
+	h.reqLog(ctx).Info("user signed up",
+		zap.String("user_id", user.ID.Hex()),
+		zap.String("region", user.Region),
 	)
 	return api.Signup201JSONResponse(services.UserToAPI(&user, true)), nil
 }
@@ -196,7 +197,7 @@ func (h *Controller) Login(ctx context.Context, request api.LoginRequestObject) 
 	}
 	if !auth.CheckPassword(user.PasswordHash, in.Password) {
 		if err := h.store.Users.IncLoginFailures(ctx, user.ID); err != nil {
-			h.reqLog(ctx).WarnContext(ctx, "login failure counter update failed", slog.String("error", err.Error()))
+			h.reqLog(ctx).Warn("login failure counter update failed", zap.String("error", err.Error()))
 		}
 		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("invalid username or password")}}, nil
 	}
@@ -208,11 +209,11 @@ func (h *Controller) Login(ctx context.Context, request api.LoginRequestObject) 
 
 	now := time.Now()
 	if err := h.store.Users.Update(ctx, user.ID, bson.M{"last_login_at": now, "login_failures": 0}); err != nil {
-		h.reqLog(ctx).WarnContext(ctx, "last login update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Warn("last login update failed", zap.String("error", err.Error()))
 	}
 	user.LastLoginAt = &now
 
-	h.reqLog(ctx).InfoContext(ctx, "user logged in", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("user logged in", zap.String("user_id", user.ID.Hex()))
 	return api.Login200JSONResponse(services.UserToAPI(user, true)), nil
 }
 
@@ -290,13 +291,13 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 		failures := user.SecurityQuestionFailures + 1
 		locked := failures >= recoveryMaxFailures
 		if err := h.store.Users.RegisterRecoveryFailure(ctx, user.ID, locked); err != nil {
-			h.reqLog(ctx).ErrorContext(ctx, "recovery failure counter update failed", slog.String("error", err.Error()))
+			h.reqLog(ctx).Error("recovery failure counter update failed", zap.String("error", err.Error()))
 			return nil, err
 		}
-		h.reqLog(ctx).WarnContext(ctx, "password recovery attempt failed",
-			slog.String("user_id", user.ID.Hex()),
-			slog.Int("failures", failures),
-			slog.Bool("locked", locked),
+		h.reqLog(ctx).Warn("password recovery attempt failed",
+			zap.String("user_id", user.ID.Hex()),
+			zap.Int("failures", failures),
+			zap.Bool("locked", locked),
 		)
 		if locked {
 			return api.RecoverPassword423JSONResponse{LockedJSONResponse: api.LockedJSONResponse{Error: lo.ToPtr("recovery is locked; contact your administrator")}}, nil
@@ -313,7 +314,7 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 		"security_question_failures": 0,
 		"updated_at":                 time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "recovery password update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("recovery password update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.invalidateAllSessions(ctx, user.ID); err != nil {
@@ -321,7 +322,7 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "password recovered via security questions", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("password recovered via security questions", zap.String("user_id", user.ID.Hex()))
 	return api.RecoverPassword204Response{}, nil
 }
 
@@ -348,7 +349,7 @@ func (h *Controller) ChangePassword(ctx context.Context, request api.ChangePassw
 		"password_hash": pwHash,
 		"updated_at":    time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "password change failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("password change failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.invalidateOtherSessions(ctx, user.ID); err != nil {
@@ -356,7 +357,7 @@ func (h *Controller) ChangePassword(ctx context.Context, request api.ChangePassw
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "password changed", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("password changed", zap.String("user_id", user.ID.Hex()))
 	return api.ChangePassword204Response{}, nil
 }
 
@@ -405,11 +406,11 @@ func (h *Controller) UpdateProfile(ctx context.Context, request api.UpdateProfil
 		if errors.Is(err, persistence.ErrDuplicate) {
 			return api.UpdateProfile409JSONResponse{ConflictJSONResponse: api.ConflictJSONResponse{Error: lo.ToPtr("username already taken")}}, nil
 		}
-		h.reqLog(ctx).ErrorContext(ctx, "profile update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("profile update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "profile updated", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("profile updated", zap.String("user_id", user.ID.Hex()))
 	return api.UpdateProfile200JSONResponse(services.UserToAPI(&updated, true)), nil
 }
 
@@ -431,11 +432,11 @@ func (h *Controller) UpdateSecurityQuestions(ctx context.Context, request api.Up
 		"security_questions": answers,
 		"updated_at":         time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "security questions update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("security questions update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 
-	h.reqLog(ctx).InfoContext(ctx, "security questions updated", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("security questions updated", zap.String("user_id", user.ID.Hex()))
 	return api.UpdateSecurityQuestions204Response{}, nil
 }
 
@@ -466,7 +467,7 @@ func (h *Controller) CompleteOnboarding(ctx context.Context, request api.Complet
 		"must_change_password": false,
 		"updated_at":           time.Now(),
 	}); err != nil {
-		h.reqLog(ctx).ErrorContext(ctx, "onboarding update failed", slog.String("error", err.Error()))
+		h.reqLog(ctx).Error("onboarding update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.invalidateOtherSessions(ctx, user.ID); err != nil {
@@ -478,6 +479,6 @@ func (h *Controller) CompleteOnboarding(ctx context.Context, request api.Complet
 	updated.MustChangePassword = false
 	updated.SecurityQuestions = answers
 
-	h.reqLog(ctx).InfoContext(ctx, "onboarding completed", slog.String("user_id", user.ID.Hex()))
+	h.reqLog(ctx).Info("onboarding completed", zap.String("user_id", user.ID.Hex()))
 	return api.CompleteOnboarding200JSONResponse(services.UserToAPI(&updated, true)), nil
 }

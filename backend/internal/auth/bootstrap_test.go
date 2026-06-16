@@ -2,8 +2,9 @@ package auth
 
 import (
 	"context"
-	"log/slog"
 	"testing"
+
+	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,7 +25,7 @@ func TestEnsureSuperAdmin_CreatesWhenAbsent(t *testing.T) {
 			mtest.CreateSuccessResponse(),
 		)
 
-		if err := EnsureSuperAdmin(context.Background(), mt.DB, slog.Default()); err != nil {
+		if err := EnsureSuperAdmin(context.Background(), mt.DB, zap.NewNop()); err != nil {
 			t.Fatalf("EnsureSuperAdmin: %v", err)
 		}
 
@@ -91,7 +92,7 @@ func TestEnsureSuperAdmin_NoOpWhenPresent(t *testing.T) {
 			}),
 		)
 
-		if err := EnsureSuperAdmin(context.Background(), mt.DB, slog.Default()); err != nil {
+		if err := EnsureSuperAdmin(context.Background(), mt.DB, zap.NewNop()); err != nil {
 			t.Fatalf("EnsureSuperAdmin: %v", err)
 		}
 

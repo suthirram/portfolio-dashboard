@@ -1,10 +1,11 @@
 package httpserver
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"portfolio-dashboard/internal/logging"
 )
@@ -15,13 +16,13 @@ import (
 //
 // Must be installed AFTER middleware.RequestID so the response header is
 // already populated when this middleware reads it.
-func RequestLogger(base *slog.Logger) echo.MiddlewareFunc {
+func RequestLogger(base *zap.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()
 
 			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
-			reqLogger := base.With(slog.String("request_id", reqID))
+			reqLogger := base.With(zap.String("request_id", reqID))
 			ctx := logging.IntoContext(c.Request().Context(), reqLogger)
 			c.SetRequest(c.Request().WithContext(ctx))
 
@@ -32,30 +33,31 @@ func RequestLogger(base *slog.Logger) echo.MiddlewareFunc {
 
 			req := c.Request()
 			res := c.Response()
-			base.LogAttrs(ctx, levelForStatus(res.Status),
-				"http_request",
-				slog.String("request_id", reqID),
-				slog.String("method", req.Method),
-				slog.String("path", req.URL.Path),
-				slog.String("query", req.URL.RawQuery),
-				slog.String("remote", c.RealIP()),
-				slog.String("user_agent", req.UserAgent()),
-				slog.Int("status", res.Status),
-				slog.Int64("bytes", res.Size),
-				slog.Duration("duration", time.Since(start)),
-			)
+			if ce := base.Check(levelForStatus(res.Status), "http_request"); ce != nil {
+				ce.Write(
+					zap.String("request_id", reqID),
+					zap.String("method", req.Method),
+					zap.String("path", req.URL.Path),
+					zap.String("query", req.URL.RawQuery),
+					zap.String("remote", c.RealIP()),
+					zap.String("user_agent", req.UserAgent()),
+					zap.Int("status", res.Status),
+					zap.Int64("bytes", res.Size),
+					zap.Duration("duration", time.Since(start)),
+				)
+			}
 			return nil
 		}
 	}
 }
 
-func levelForStatus(status int) slog.Level {
+func levelForStatus(status int) zapcore.Level {
 	switch {
 	case status >= 500:
-		return slog.LevelError
+		return zapcore.ErrorLevel
 	case status >= 400:
-		return slog.LevelWarn
+		return zapcore.WarnLevel
 	default:
-		return slog.LevelInfo
+		return zapcore.InfoLevel
 	}
 }
