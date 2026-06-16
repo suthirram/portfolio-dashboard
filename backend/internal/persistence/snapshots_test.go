@@ -45,7 +45,7 @@ func TestSnapshotUpsert_NewRowInsertsAllRegionsAsGiven(t *testing.T) {
 			UserID:   primitive.NewObjectID(),
 			Date:     time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC),
 			Currency: "INR",
-			Regions: map[string]domain.RegionSnapshot{
+			Buckets: map[string]domain.RegionSnapshot{
 				domain.CurrencyINR: {Invested: 100, Current: 198, Source: domain.SnapshotSourceCron},
 			},
 		})
@@ -63,7 +63,7 @@ func TestSnapshotUpsert_RejectsInvalidSource(t *testing.T) {
 			UserID:   primitive.NewObjectID(),
 			Date:     time.Now(),
 			Currency: "INR",
-			Regions: map[string]domain.RegionSnapshot{
+			Buckets: map[string]domain.RegionSnapshot{
 				"india": {Invested: 1, Current: 1, Source: "auto"},
 			},
 		})
@@ -80,7 +80,7 @@ func TestSnapshotUpsert_RejectsZeroUserID(t *testing.T) {
 		err := s.Snapshots.Upsert(context.Background(), domain.PortfolioSnapshot{
 			Date:     time.Now(),
 			Currency: "INR",
-			Regions: map[string]domain.RegionSnapshot{
+			Buckets: map[string]domain.RegionSnapshot{
 				"india": {Source: domain.SnapshotSourceCron},
 			},
 		})
@@ -98,7 +98,7 @@ func TestSnapshotUpsert_RejectsEmptyRegions(t *testing.T) {
 			UserID:   primitive.NewObjectID(),
 			Date:     time.Now(),
 			Currency: "INR",
-			Regions:  map[string]domain.RegionSnapshot{},
+			Buckets:  map[string]domain.RegionSnapshot{},
 		})
 		if err == nil {
 			t.Fatal("Upsert with no regions: want error, got nil")
@@ -128,7 +128,7 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 			UserID:   uid,
 			Date:     date,
 			Currency: "INR",
-			Regions: map[string]domain.RegionSnapshot{
+			Buckets: map[string]domain.RegionSnapshot{
 				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
 				domain.CurrencyEUR: {Invested: 20, Current: 25, Source: domain.SnapshotSourceCron},
 			},

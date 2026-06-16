@@ -142,7 +142,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 		// INR for backwards-compatibility with PR4-era docs. The actual
 		// per-bucket amounts live in their native currency under Regions.
 		Currency: "INR",
-		Regions:  buckets,
+		Buckets:  buckets,
 	}, nil
 }
 
