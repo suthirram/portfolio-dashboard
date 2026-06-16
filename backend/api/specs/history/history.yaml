@@ -1,0 +1,146 @@
+history:
+  get:
+    tags: [History]
+    summary: List historical snapshots in a date range
+    operationId: listHistory
+    parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+    responses:
+      "200":
+        description: Snapshots ordered newest-first
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/HistoryList"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+  post:
+    tags: [History]
+    summary: Add a manual snapshot row
+    operationId: addHistoryRow
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/AddHistoryRowInput"
+    responses:
+      "201":
+        description: Created row
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/HistoryRow"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "409":
+        description: A row already exists for this date — caller must resolve regions via PUT /history/{date}/regions
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/HistoryConflictResponse"
+
+history_range:
+  get:
+    tags: [History]
+    summary: Year-dropdown bootstrap (earliest + latest year, has_data)
+    operationId: historyRange
+    responses:
+      "200":
+        description: Range info
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/HistoryRangeInfo"
+
+history_date_regions:
+  parameters:
+    - name: date
+      in: path
+      required: true
+      schema:
+        type: string
+        format: date
+      description: UTC date the patch targets
+
+  put:
+    tags: [History]
+    summary: Override one or more regions on an existing row
+    operationId: patchHistoryRegions
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/PatchHistoryRegionsInput"
+    responses:
+      "200":
+        description: Updated row
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/HistoryRow"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+history_date:
+  parameters:
+    - name: date
+      in: path
+      required: true
+      schema:
+        type: string
+        format: date
+
+  delete:
+    tags: [History]
+    summary: Delete a manual snapshot row
+    operationId: deleteHistoryRow
+    responses:
+      "204":
+        description: Deleted
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "409":
+        description: Row contains a cron-written bucket; override individual regions instead
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Error"
+
+history_paste:
+  post:
+    tags: [History]
+    summary: Bulk-paste a month of manual rows
+    operationId: pasteHistory
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/PasteHistoryInput"
+    responses:
+      "200":
+        description: Three-bucket report — applied / conflicts / rejected
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/PasteHistoryReport"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

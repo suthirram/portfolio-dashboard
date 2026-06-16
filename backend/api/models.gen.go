@@ -5,7 +5,27 @@ package api
 
 import (
 	"time"
+
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for HistoryRegionSnapshotSource.
+const (
+	Cron   HistoryRegionSnapshotSource = "cron"
+	Manual HistoryRegionSnapshotSource = "manual"
+)
+
+// Valid indicates whether the value is a known member of the HistoryRegionSnapshotSource enum.
+func (e HistoryRegionSnapshotSource) Valid() bool {
+	switch e {
+	case Cron:
+		return true
+	case Manual:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HoldingCurrency.
 const (
@@ -217,6 +237,12 @@ func (e UserRole) Valid() bool {
 	}
 }
 
+// AddHistoryRowInput defines model for AddHistoryRowInput.
+type AddHistoryRowInput struct {
+	Date    openapi_types.Date            `json:"date"`
+	Regions map[string]HistoryRegionInput `json:"regions"`
+}
+
 // ChangePasswordRequest defines model for ChangePasswordRequest.
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
@@ -226,6 +252,75 @@ type ChangePasswordRequest struct {
 // Error defines model for Error.
 type Error struct {
 	Error *string `json:"error,omitempty"`
+}
+
+// HistoryConflictResponse defines model for HistoryConflictResponse.
+type HistoryConflictResponse struct {
+	Conflicts []struct {
+		Existing HistoryRegionSnapshot `json:"existing"`
+		Incoming HistoryRegionInput    `json:"incoming"`
+		Region   string                `json:"region"`
+	} `json:"conflicts"`
+	Error string `json:"error"`
+}
+
+// HistoryDateConflict defines model for HistoryDateConflict.
+type HistoryDateConflict struct {
+	Date     openapi_types.Date               `json:"date"`
+	Existing map[string]HistoryRegionSnapshot `json:"existing"`
+	Incoming map[string]HistoryRegionInput    `json:"incoming"`
+}
+
+// HistoryList defines model for HistoryList.
+type HistoryList struct {
+	Currency string       `json:"currency"`
+	Rows     []HistoryRow `json:"rows"`
+}
+
+// HistoryRangeInfo defines model for HistoryRangeInfo.
+type HistoryRangeInfo struct {
+	EarliestYear int  `json:"earliest_year"`
+	HasData      bool `json:"has_data"`
+	LatestYear   int  `json:"latest_year"`
+}
+
+// HistoryRegionInput defines model for HistoryRegionInput.
+type HistoryRegionInput struct {
+	Current  float64 `json:"current"`
+	Invested float64 `json:"invested"`
+}
+
+// HistoryRegionSnapshot defines model for HistoryRegionSnapshot.
+type HistoryRegionSnapshot struct {
+	Current             float64  `json:"current"`
+	Invested            float64  `json:"invested"`
+	OriginalCronCurrent *float64 `json:"original_cron_current,omitempty"`
+
+	// OriginalCronInvested Pre-override cron value (audit anchor; PD-042 §3.3).
+	OriginalCronInvested *float64                    `json:"original_cron_invested,omitempty"`
+	Source               HistoryRegionSnapshotSource `json:"source"`
+
+	// WriteCurrency Currency code (INR|EUR|USD) the manual amount was typed in. Empty on cron-written buckets.
+	WriteCurrency *string `json:"write_currency,omitempty"`
+}
+
+// HistoryRegionSnapshotSource defines model for HistoryRegionSnapshot.Source.
+type HistoryRegionSnapshotSource string
+
+// HistoryRow defines model for HistoryRow.
+type HistoryRow struct {
+	Date    openapi_types.Date               `json:"date"`
+	Regions map[string]HistoryRegionSnapshot `json:"regions"`
+	Totals  HistoryTotals                    `json:"totals"`
+}
+
+// HistoryTotals defines model for HistoryTotals.
+type HistoryTotals struct {
+	CurrentTotal  float64 `json:"current_total"`
+	InvestedTotal float64 `json:"invested_total"`
+
+	// PnlPct Null when invested_total is zero (divide-by-zero).
+	PnlPct *float64 `json:"pnl_pct,omitempty"`
 }
 
 // Holding defines model for Holding.
@@ -356,6 +451,25 @@ type OnboardingRequest struct {
 	SecurityAnswers []SecurityAnswerInput `json:"security_answers"`
 }
 
+// PasteHistoryInput defines model for PasteHistoryInput.
+type PasteHistoryInput struct {
+	// Month YYYY-MM
+	Month string               `json:"month"`
+	Rows  []AddHistoryRowInput `json:"rows"`
+}
+
+// PasteHistoryReport defines model for PasteHistoryReport.
+type PasteHistoryReport struct {
+	Applied   []openapi_types.Date  `json:"applied"`
+	Conflicts []HistoryDateConflict `json:"conflicts"`
+	Rejected  []RejectedPasteRow    `json:"rejected"`
+}
+
+// PatchHistoryRegionsInput defines model for PatchHistoryRegionsInput.
+type PatchHistoryRegionsInput struct {
+	Regions map[string]HistoryRegionInput `json:"regions"`
+}
+
 // PricesResponse defines model for PricesResponse.
 type PricesResponse struct {
 	// EurRate Live INR→EUR rate used for conversions
@@ -388,6 +502,12 @@ type Region struct {
 type RegionUpdateRequest struct {
 	// Region One of the /regions catalogue ids
 	Region string `json:"region"`
+}
+
+// RejectedPasteRow defines model for RejectedPasteRow.
+type RejectedPasteRow struct {
+	Date   string `json:"date"`
+	Reason string `json:"reason"`
 }
 
 // SecurityAnswerInput defines model for SecurityAnswerInput.

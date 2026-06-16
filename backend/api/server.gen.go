@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -24,6 +25,12 @@ type cookieAuthContextKey string
 // AdminListUsersParams defines parameters for AdminListUsers.
 type AdminListUsersParams struct {
 	IncludeHidden *bool `form:"include_hidden,omitempty" json:"include_hidden,omitempty"`
+}
+
+// ListHistoryParams defines parameters for ListHistory.
+type ListHistoryParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
 }
 
 // GetForexRateParams defines parameters for GetForexRate.
@@ -70,6 +77,15 @@ type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
 
 // SignupJSONRequestBody defines body for Signup for application/json ContentType.
 type SignupJSONRequestBody = SignupRequest
+
+// AddHistoryRowJSONRequestBody defines body for AddHistoryRow for application/json ContentType.
+type AddHistoryRowJSONRequestBody = AddHistoryRowInput
+
+// PasteHistoryJSONRequestBody defines body for PasteHistory for application/json ContentType.
+type PasteHistoryJSONRequestBody = PasteHistoryInput
+
+// PatchHistoryRegionsJSONRequestBody defines body for PatchHistoryRegions for application/json ContentType.
+type PatchHistoryRegionsJSONRequestBody = PatchHistoryRegionsInput
 
 // CreateHoldingJSONRequestBody defines body for CreateHolding for application/json ContentType.
 type CreateHoldingJSONRequestBody = HoldingInput
@@ -160,6 +176,24 @@ type ServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx echo.Context) error
+	// List historical snapshots in a date range
+	// (GET /history)
+	ListHistory(ctx echo.Context, params ListHistoryParams) error
+	// Add a manual snapshot row
+	// (POST /history)
+	AddHistoryRow(ctx echo.Context) error
+	// Bulk-paste a month of manual rows
+	// (POST /history/paste)
+	PasteHistory(ctx echo.Context) error
+	// Year-dropdown bootstrap (earliest + latest year, has_data)
+	// (GET /history/range)
+	HistoryRange(ctx echo.Context) error
+	// Delete a manual snapshot row
+	// (DELETE /history/{date})
+	DeleteHistoryRow(ctx echo.Context, date openapi_types.Date) error
+	// Override one or more regions on an existing row
+	// (PUT /history/{date}/regions)
+	PatchHistoryRegions(ctx echo.Context, date openapi_types.Date) error
 	// List all holdings
 	// (GET /holdings)
 	ListHoldings(ctx echo.Context) error
@@ -607,6 +641,102 @@ func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
 	return err
 }
 
+// ListHistory converts echo context to params.
+func (w *ServerInterfaceWrapper) ListHistory(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListHistoryParams
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", ctx.QueryParams(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter from: %s", err))
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", ctx.QueryParams(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListHistory(ctx, params)
+	return err
+}
+
+// AddHistoryRow converts echo context to params.
+func (w *ServerInterfaceWrapper) AddHistoryRow(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AddHistoryRow(ctx)
+	return err
+}
+
+// PasteHistory converts echo context to params.
+func (w *ServerInterfaceWrapper) PasteHistory(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PasteHistory(ctx)
+	return err
+}
+
+// HistoryRange converts echo context to params.
+func (w *ServerInterfaceWrapper) HistoryRange(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HistoryRange(ctx)
+	return err
+}
+
+// DeleteHistoryRow converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteHistoryRow(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "date" -------------
+	var date openapi_types.Date
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", ctx.Param("date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter date: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteHistoryRow(ctx, date)
+	return err
+}
+
+// PatchHistoryRegions converts echo context to params.
+func (w *ServerInterfaceWrapper) PatchHistoryRegions(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "date" -------------
+	var date openapi_types.Date
+
+	err = runtime.BindStyledParameterWithOptions("simple", "date", ctx.Param("date"), &date, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter date: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PatchHistoryRegions(ctx, date)
+	return err
+}
+
 // ListHoldings converts echo context to params.
 func (w *ServerInterfaceWrapper) ListHoldings(ctx echo.Context) error {
 	var err error
@@ -835,6 +965,12 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/auth/security-questions", wrapper.GetSecurityQuestionCatalogue, options.OperationMiddlewares["getSecurityQuestionCatalogue"]...)
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
+	router.GET(options.BaseURL+"/history", wrapper.ListHistory, options.OperationMiddlewares["listHistory"]...)
+	router.POST(options.BaseURL+"/history", wrapper.AddHistoryRow, options.OperationMiddlewares["addHistoryRow"]...)
+	router.POST(options.BaseURL+"/history/paste", wrapper.PasteHistory, options.OperationMiddlewares["pasteHistory"]...)
+	router.GET(options.BaseURL+"/history/range", wrapper.HistoryRange, options.OperationMiddlewares["historyRange"]...)
+	router.DELETE(options.BaseURL+"/history/:date", wrapper.DeleteHistoryRow, options.OperationMiddlewares["deleteHistoryRow"]...)
+	router.PUT(options.BaseURL+"/history/:date/regions", wrapper.PatchHistoryRegions, options.OperationMiddlewares["patchHistoryRegions"]...)
 	router.GET(options.BaseURL+"/holdings", wrapper.ListHoldings, options.OperationMiddlewares["listHoldings"]...)
 	router.POST(options.BaseURL+"/holdings", wrapper.CreateHolding, options.OperationMiddlewares["createHolding"]...)
 	router.DELETE(options.BaseURL+"/holdings/:id", wrapper.DeleteHolding, options.OperationMiddlewares["deleteHolding"]...)
@@ -2055,6 +2191,258 @@ func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter)
 	return err
 }
 
+type ListHistoryRequestObject struct {
+	Params ListHistoryParams
+}
+
+type ListHistoryResponseObject interface {
+	VisitListHistoryResponse(w http.ResponseWriter) error
+}
+
+type ListHistory200JSONResponse HistoryList
+
+func (response ListHistory200JSONResponse) VisitListHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHistory400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListHistory400JSONResponse) VisitListHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddHistoryRowRequestObject struct {
+	Body *AddHistoryRowJSONRequestBody
+}
+
+type AddHistoryRowResponseObject interface {
+	VisitAddHistoryRowResponse(w http.ResponseWriter) error
+}
+
+type AddHistoryRow201JSONResponse HistoryRow
+
+func (response AddHistoryRow201JSONResponse) VisitAddHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddHistoryRow400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddHistoryRow400JSONResponse) VisitAddHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddHistoryRow409JSONResponse HistoryConflictResponse
+
+func (response AddHistoryRow409JSONResponse) VisitAddHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasteHistoryRequestObject struct {
+	Body *PasteHistoryJSONRequestBody
+}
+
+type PasteHistoryResponseObject interface {
+	VisitPasteHistoryResponse(w http.ResponseWriter) error
+}
+
+type PasteHistory200JSONResponse PasteHistoryReport
+
+func (response PasteHistory200JSONResponse) VisitPasteHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasteHistory400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PasteHistory400JSONResponse) VisitPasteHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type HistoryRangeRequestObject struct {
+}
+
+type HistoryRangeResponseObject interface {
+	VisitHistoryRangeResponse(w http.ResponseWriter) error
+}
+
+type HistoryRange200JSONResponse HistoryRangeInfo
+
+func (response HistoryRange200JSONResponse) VisitHistoryRangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHistoryRowRequestObject struct {
+	Date openapi_types.Date `json:"date"`
+}
+
+type DeleteHistoryRowResponseObject interface {
+	VisitDeleteHistoryRowResponse(w http.ResponseWriter) error
+}
+
+type DeleteHistoryRow204Response struct {
+}
+
+func (response DeleteHistoryRow204Response) VisitDeleteHistoryRowResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteHistoryRow400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteHistoryRow400JSONResponse) VisitDeleteHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHistoryRow404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteHistoryRow404JSONResponse) VisitDeleteHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHistoryRow409JSONResponse Error
+
+func (response DeleteHistoryRow409JSONResponse) VisitDeleteHistoryRowResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchHistoryRegionsRequestObject struct {
+	Date openapi_types.Date `json:"date"`
+	Body *PatchHistoryRegionsJSONRequestBody
+}
+
+type PatchHistoryRegionsResponseObject interface {
+	VisitPatchHistoryRegionsResponse(w http.ResponseWriter) error
+}
+
+type PatchHistoryRegions200JSONResponse HistoryRow
+
+func (response PatchHistoryRegions200JSONResponse) VisitPatchHistoryRegionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchHistoryRegions400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PatchHistoryRegions400JSONResponse) VisitPatchHistoryRegionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchHistoryRegions404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PatchHistoryRegions404JSONResponse) VisitPatchHistoryRegionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListHoldingsRequestObject struct {
 }
 
@@ -2451,6 +2839,24 @@ type StrictServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
+	// List historical snapshots in a date range
+	// (GET /history)
+	ListHistory(ctx context.Context, request ListHistoryRequestObject) (ListHistoryResponseObject, error)
+	// Add a manual snapshot row
+	// (POST /history)
+	AddHistoryRow(ctx context.Context, request AddHistoryRowRequestObject) (AddHistoryRowResponseObject, error)
+	// Bulk-paste a month of manual rows
+	// (POST /history/paste)
+	PasteHistory(ctx context.Context, request PasteHistoryRequestObject) (PasteHistoryResponseObject, error)
+	// Year-dropdown bootstrap (earliest + latest year, has_data)
+	// (GET /history/range)
+	HistoryRange(ctx context.Context, request HistoryRangeRequestObject) (HistoryRangeResponseObject, error)
+	// Delete a manual snapshot row
+	// (DELETE /history/{date})
+	DeleteHistoryRow(ctx context.Context, request DeleteHistoryRowRequestObject) (DeleteHistoryRowResponseObject, error)
+	// Override one or more regions on an existing row
+	// (PUT /history/{date}/regions)
+	PatchHistoryRegions(ctx context.Context, request PatchHistoryRegionsRequestObject) (PatchHistoryRegionsResponseObject, error)
 	// List all holdings
 	// (GET /holdings)
 	ListHoldings(ctx context.Context, request ListHoldingsRequestObject) (ListHoldingsResponseObject, error)
@@ -3208,6 +3614,168 @@ func (sh *strictHandler) Signup(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(SignupResponseObject); ok {
 		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListHistory operation middleware
+func (sh *strictHandler) ListHistory(ctx echo.Context, params ListHistoryParams) error {
+	var request ListHistoryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListHistory(ctx.Request().Context(), request.(ListHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListHistory")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListHistoryResponseObject); ok {
+		return validResponse.VisitListHistoryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AddHistoryRow operation middleware
+func (sh *strictHandler) AddHistoryRow(ctx echo.Context) error {
+	var request AddHistoryRowRequestObject
+
+	var body AddHistoryRowJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddHistoryRow(ctx.Request().Context(), request.(AddHistoryRowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddHistoryRow")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AddHistoryRowResponseObject); ok {
+		return validResponse.VisitAddHistoryRowResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PasteHistory operation middleware
+func (sh *strictHandler) PasteHistory(ctx echo.Context) error {
+	var request PasteHistoryRequestObject
+
+	var body PasteHistoryJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PasteHistory(ctx.Request().Context(), request.(PasteHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PasteHistory")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PasteHistoryResponseObject); ok {
+		return validResponse.VisitPasteHistoryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// HistoryRange operation middleware
+func (sh *strictHandler) HistoryRange(ctx echo.Context) error {
+	var request HistoryRangeRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.HistoryRange(ctx.Request().Context(), request.(HistoryRangeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "HistoryRange")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(HistoryRangeResponseObject); ok {
+		return validResponse.VisitHistoryRangeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteHistoryRow operation middleware
+func (sh *strictHandler) DeleteHistoryRow(ctx echo.Context, date openapi_types.Date) error {
+	var request DeleteHistoryRowRequestObject
+
+	request.Date = date
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteHistoryRow(ctx.Request().Context(), request.(DeleteHistoryRowRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteHistoryRow")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteHistoryRowResponseObject); ok {
+		return validResponse.VisitDeleteHistoryRowResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PatchHistoryRegions operation middleware
+func (sh *strictHandler) PatchHistoryRegions(ctx echo.Context, date openapi_types.Date) error {
+	var request PatchHistoryRegionsRequestObject
+
+	request.Date = date
+
+	var body PatchHistoryRegionsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchHistoryRegions(ctx.Request().Context(), request.(PatchHistoryRegionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchHistoryRegions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PatchHistoryRegionsResponseObject); ok {
+		return validResponse.VisitPatchHistoryRegionsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

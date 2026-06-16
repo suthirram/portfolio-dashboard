@@ -380,6 +380,192 @@ components:
         error:
           type: string
 
+    # ---- /api/history ----
+
+    HistoryRegionSnapshot:
+      type: object
+      required: [invested, current, source]
+      properties:
+        invested:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+        source:
+          type: string
+          enum: [cron, manual]
+        original_cron_invested:
+          type: number
+          format: double
+          nullable: true
+          description: Pre-override cron value (audit anchor; PD-042 §3.3).
+        original_cron_current:
+          type: number
+          format: double
+          nullable: true
+        write_currency:
+          type: string
+          description: Currency code (INR|EUR|USD) the manual amount was typed in. Empty on cron-written buckets.
+
+    HistoryTotals:
+      type: object
+      required: [invested_total, current_total]
+      properties:
+        invested_total:
+          type: number
+          format: double
+        current_total:
+          type: number
+          format: double
+        pnl_pct:
+          type: number
+          format: double
+          nullable: true
+          description: Null when invested_total is zero (divide-by-zero).
+
+    HistoryRow:
+      type: object
+      required: [date, regions, totals]
+      properties:
+        date:
+          type: string
+          format: date
+        regions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HistoryRegionSnapshot"
+        totals:
+          $ref: "#/components/schemas/HistoryTotals"
+
+    HistoryList:
+      type: object
+      required: [currency, rows]
+      properties:
+        currency:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryRow"
+
+    HistoryRangeInfo:
+      type: object
+      required: [earliest_year, latest_year, has_data]
+      properties:
+        earliest_year:
+          type: integer
+        latest_year:
+          type: integer
+        has_data:
+          type: boolean
+
+    HistoryRegionInput:
+      type: object
+      required: [invested, current]
+      properties:
+        invested:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+
+    AddHistoryRowInput:
+      type: object
+      required: [date, regions]
+      properties:
+        date:
+          type: string
+          format: date
+        regions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HistoryRegionInput"
+
+    PatchHistoryRegionsInput:
+      type: object
+      required: [regions]
+      properties:
+        regions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HistoryRegionInput"
+
+    PasteHistoryInput:
+      type: object
+      required: [month, rows]
+      properties:
+        month:
+          type: string
+          description: YYYY-MM
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddHistoryRowInput"
+
+    HistoryDateConflict:
+      type: object
+      required: [date, existing, incoming]
+      properties:
+        date:
+          type: string
+          format: date
+        existing:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HistoryRegionSnapshot"
+        incoming:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/HistoryRegionInput"
+
+    RejectedPasteRow:
+      type: object
+      required: [date, reason]
+      properties:
+        date:
+          type: string
+        reason:
+          type: string
+
+    PasteHistoryReport:
+      type: object
+      required: [applied, conflicts, rejected]
+      properties:
+        applied:
+          type: array
+          items:
+            type: string
+            format: date
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryDateConflict"
+        rejected:
+          type: array
+          items:
+            $ref: "#/components/schemas/RejectedPasteRow"
+
+    HistoryConflictResponse:
+      type: object
+      required: [error, conflicts]
+      properties:
+        error:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            required: [region, existing, incoming]
+            properties:
+              region:
+                type: string
+              existing:
+                $ref: "#/components/schemas/HistoryRegionSnapshot"
+              incoming:
+                $ref: "#/components/schemas/HistoryRegionInput"
+
   responses:
     BadRequest:
       description: Bad request
