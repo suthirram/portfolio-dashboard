@@ -321,9 +321,9 @@ func validateRegions(in map[string]domain.RegionSnapshot) error {
 		return fmt.Errorf("%w: empty", ErrInvalidRegions)
 	}
 	known := map[string]struct{}{
-		domain.RegionIndia:  {},
-		domain.RegionEurope: {},
-		domain.RegionUS:     {},
+		domain.CurrencyINR: {},
+		domain.CurrencyEUR: {},
+		domain.CurrencyUSD: {},
 	}
 	for k, r := range in {
 		if _, ok := known[k]; !ok {

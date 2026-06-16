@@ -115,6 +115,14 @@ export const api = {
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),
   getForexRate:   (from = 'INR', to = 'EUR') => request<ForexRate>('GET', `/market/forex?from=${from}&to=${to}`),
 
+  // History (PR6 — plain Echo routes, not yet in OpenAPI; types inlined below).
+  listHistory:        (from: string, to: string) => request<HistoryList>('GET', `/history?from=${from}&to=${to}`),
+  historyRange:       () => request<HistoryRangeInfo>('GET', '/history/range'),
+  addHistoryRow:      (body: AddHistoryRowInput) => request<HistoryRow>('POST', '/history', body),
+  patchHistoryRegions:(date: string, body: PatchHistoryRegionsInput) => request<HistoryRow>('PUT', `/history/${date}/regions`, body),
+  deleteHistoryRow:   (date: string) => request<void>('DELETE', `/history/${date}`),
+  pasteHistory:       (body: PasteHistoryInput) => request<PasteHistoryReport>('POST', '/history/paste', body),
+
   // Admin.
   adminListUsers:       (includeHidden = false) => request<User[]>('GET', `/admin/users${includeHidden ? '?include_hidden=1' : ''}`),
   adminGetUser:         (id: string) => request<User>('GET', `/admin/users/${id}`),
@@ -126,6 +134,73 @@ export const api = {
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
+}
+
+// ---- History types ----
+// Shape mirrors backend/internal/services/history.go. When the strict-
+// server migration in PD-042 §3.6 happens, replace these with
+// Schemas['HistoryRow'] etc.
+
+export type SnapshotSource = 'cron' | 'manual'
+
+export interface RegionSnapshot {
+  invested: number
+  current: number
+  source: SnapshotSource
+}
+
+export interface HistoryTotals {
+  invested_total: number
+  current_total: number
+  pnl_pct: number | null
+}
+
+export interface HistoryRow {
+  date: string
+  regions: Record<string, RegionSnapshot>
+  totals: HistoryTotals
+}
+
+export interface HistoryList {
+  currency: string
+  rows: HistoryRow[]
+}
+
+export interface HistoryRangeInfo {
+  earliest_year: number
+  latest_year: number
+  has_data: boolean
+}
+
+export interface AddHistoryRowInput {
+  date: string
+  regions: Record<string, Omit<RegionSnapshot, 'source'>>
+}
+
+export interface PatchHistoryRegionsInput {
+  regions: Record<string, Omit<RegionSnapshot, 'source'>>
+}
+
+export interface PasteHistoryInput {
+  month: string
+  rows: AddHistoryRowInput[]
+}
+
+export interface DateConflict {
+  date: string
+  existing: Record<string, RegionSnapshot>
+  incoming: Record<string, Omit<RegionSnapshot, 'source'>>
+}
+
+export interface RejectedPasteRow {
+  date: string
+  reason: string
+}
+
+export interface PasteHistoryReport {
+  applied: string[]
+  conflicts: DateConflict[]
+  rejected: RejectedPasteRow[]
 }
 
 // Helper re-exports for callers that want price-enriched holdings.

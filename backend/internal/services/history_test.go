@@ -45,7 +45,7 @@ func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 			{Key: "date", Value: date},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 100.0},
 					{Key: "current", Value: 198.0},
 					{Key: "source", Value: "cron"},
@@ -99,7 +99,7 @@ func TestHistoryService_Add_RejectsFutureDate(t *testing.T) {
 		_, err := svc.Add(context.Background(), primitive.NewObjectID(), AddRowInput{
 			Date: "2099-01-01",
 			Regions: map[string]domain.RegionSnapshot{
-				"india": {Invested: 1, Current: 1},
+				"INR": {Invested: 1, Current: 1},
 			},
 		})
 		if !errors.Is(err, ErrInvalidDate) {
@@ -131,7 +131,7 @@ func TestHistoryService_Add_RejectsNegative(t *testing.T) {
 		_, err := svc.Add(context.Background(), primitive.NewObjectID(), AddRowInput{
 			Date: "2026-06-15",
 			Regions: map[string]domain.RegionSnapshot{
-				"india": {Invested: -1, Current: 1},
+				"INR": {Invested: -1, Current: 1},
 			},
 		})
 		if !errors.Is(err, ErrInvalidRegions) {
@@ -155,14 +155,14 @@ func TestHistoryService_Add_NewDateInsertsAsManual(t *testing.T) {
 		row, err := svc.Add(context.Background(), uid, AddRowInput{
 			Date: "2026-06-15",
 			Regions: map[string]domain.RegionSnapshot{
-				"india": {Invested: 100, Current: 198},
+				"INR": {Invested: 100, Current: 198},
 			},
 		})
 		if err != nil {
 			t.Fatalf("Add: %v", err)
 		}
-		if row.Regions["india"].Source != domain.SnapshotSourceManual {
-			t.Errorf("source = %q, want manual", row.Regions["india"].Source)
+		if row.Regions["INR"].Source != domain.SnapshotSourceManual {
+			t.Errorf("source = %q, want manual", row.Regions["INR"].Source)
 		}
 		if row.Date != "2026-06-15" {
 			t.Errorf("date = %q, want 2026-06-15", row.Date)
@@ -181,7 +181,7 @@ func TestHistoryService_Add_ExistingDateReturnsConflict(t *testing.T) {
 			{Key: "date", Value: date},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 50.0},
 					{Key: "current", Value: 55.0},
 					{Key: "source", Value: "cron"},
@@ -194,7 +194,7 @@ func TestHistoryService_Add_ExistingDateReturnsConflict(t *testing.T) {
 		_, err := svc.Add(context.Background(), uid, AddRowInput{
 			Date: "2026-06-15",
 			Regions: map[string]domain.RegionSnapshot{
-				"india": {Invested: 100, Current: 198},
+				"INR": {Invested: 100, Current: 198},
 			},
 		})
 		var conflict *ErrConflict
@@ -218,7 +218,7 @@ func TestHistoryService_Paste_RejectsRowsOutsideMonth(t *testing.T) {
 		got, err := svc.Paste(context.Background(), primitive.NewObjectID(), PasteInput{
 			Month: "2026-06",
 			Rows: []AddRowInput{
-				{Date: "2026-05-30", Regions: map[string]domain.RegionSnapshot{"india": {Invested: 1, Current: 1}}},
+				{Date: "2026-05-30", Regions: map[string]domain.RegionSnapshot{"INR": {Invested: 1, Current: 1}}},
 			},
 		})
 		if err != nil {
@@ -246,7 +246,7 @@ func TestHistoryService_Paste_ConflictsAndAppliedSplit(t *testing.T) {
 			{Key: "date", Value: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 10.0},
 					{Key: "current", Value: 12.0},
 					{Key: "source", Value: "cron"},
@@ -266,8 +266,8 @@ func TestHistoryService_Paste_ConflictsAndAppliedSplit(t *testing.T) {
 		got, err := svc.Paste(context.Background(), uid, PasteInput{
 			Month: "2026-06",
 			Rows: []AddRowInput{
-				{Date: "2026-06-01", Regions: map[string]domain.RegionSnapshot{"india": {Invested: 99, Current: 99}}},
-				{Date: "2026-06-02", Regions: map[string]domain.RegionSnapshot{"india": {Invested: 1, Current: 1}}},
+				{Date: "2026-06-01", Regions: map[string]domain.RegionSnapshot{"INR": {Invested: 99, Current: 99}}},
+				{Date: "2026-06-02", Regions: map[string]domain.RegionSnapshot{"INR": {Invested: 1, Current: 1}}},
 			},
 		})
 		if err != nil {
@@ -307,7 +307,7 @@ func TestHistoryService_Delete_DelegatesToStore(t *testing.T) {
 			{Key: "date", Value: time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 1.0},
 					{Key: "current", Value: 1.0},
 					{Key: "source", Value: "manual"},
@@ -341,7 +341,7 @@ func TestHistoryService_PatchRegions_FlipsRegionToManual(t *testing.T) {
 			{Key: "date", Value: date},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 100.0},
 					{Key: "current", Value: 198.0},
 					{Key: "source", Value: "manual"},
@@ -353,14 +353,14 @@ func TestHistoryService_PatchRegions_FlipsRegionToManual(t *testing.T) {
 		svc := newHistorySvc(mt)
 		got, err := svc.PatchRegions(context.Background(), uid, "2026-06-15", PatchRegionsInput{
 			Regions: map[string]domain.RegionSnapshot{
-				"india": {Invested: 100, Current: 198},
+				"INR": {Invested: 100, Current: 198},
 			},
 		})
 		if err != nil {
 			t.Fatalf("PatchRegions: %v", err)
 		}
-		if got.Regions["india"].Source != domain.SnapshotSourceManual {
-			t.Errorf("source = %q, want manual", got.Regions["india"].Source)
+		if got.Regions["INR"].Source != domain.SnapshotSourceManual {
+			t.Errorf("source = %q, want manual", got.Regions["INR"].Source)
 		}
 	})
 }
@@ -402,7 +402,7 @@ func TestHistoryService_Delete_CronProtectedBubblesUp(t *testing.T) {
 			{Key: "date", Value: time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
-				{Key: "india", Value: bson.D{
+				{Key: "INR", Value: bson.D{
 					{Key: "invested", Value: 1.0},
 					{Key: "current", Value: 1.0},
 					{Key: "source", Value: "cron"},
