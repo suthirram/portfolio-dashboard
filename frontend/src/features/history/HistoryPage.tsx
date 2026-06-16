@@ -358,28 +358,55 @@ export function fmtCurrency(amount: number, sym: string): string {
 
 // ---- Chart ----
 
+// CurrencyChartPanel renders two side-by-side mini-charts per currency:
+// left = invested vs current value, right = P/L %. The viewport is
+// split 50/50 so the two surfaces are read independently — P/L % has
+// its own y-axis range and is not crushed by the amount axis it used to
+// share with invested/current in the previous combined ComposedChart.
 function CurrencyChartPanel({ region, data }: { region: RegionKey; data: any[] }) {
   const cur = CURRENCY_BY_REGION[region]
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>
-        {REGION_LABELS[region]} — invested vs current ({cur}) and daily P/L %
+        {REGION_LABELS[region]} ({cur})
       </h2>
-      <div style={{ height: 260 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-            <YAxis yAxisId="amt" tick={{ fontSize: 11 }} />
-            <YAxis yAxisId="pct" orientation="right" tick={{ fontSize: 11 }} unit="%" />
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Line yAxisId="amt" dataKey="invested" name={`Invested (${cur})`} stroke={REGION_COLOURS[region].invested} strokeDasharray="4 2" dot={false} />
-            <Line yAxisId="amt" dataKey="current"  name={`Current (${cur})`}  stroke={REGION_COLOURS[region].current}  dot={false} />
-            <Line yAxisId="pct" dataKey="pnl_pct"  name="P/L %"               stroke="#a855f7" strokeWidth={2} dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Invested vs Current
+          </div>
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line dataKey="invested" name={`Invested (${cur})`} stroke={REGION_COLOURS[region].invested} strokeDasharray="4 2" dot={false} />
+                <Line dataKey="current"  name={`Current (${cur})`}  stroke={REGION_COLOURS[region].current}  dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+            P/L %
+          </div>
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} unit="%" />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line dataKey="pnl_pct" name="P/L %" stroke="#a855f7" strokeWidth={2} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   )
