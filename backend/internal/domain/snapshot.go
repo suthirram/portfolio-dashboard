@@ -51,6 +51,15 @@ type RegionSnapshot struct {
 
 	OriginalCronInvested *float64 `bson:"original_cron_invested,omitempty" json:"original_cron_invested,omitempty"`
 	OriginalCronCurrent  *float64 `bson:"original_cron_current,omitempty"  json:"original_cron_current,omitempty"`
+
+	// WriteCurrency is the currency code the manual amount was typed in.
+	// In v1 it always equals the bucket key (the PortfolioSnapshot map
+	// is currency-keyed) and is therefore redundant, but it is stored
+	// explicitly so a future per-user display-currency toggle can decide
+	// without ambiguity whether a manual row converts or stays frozen
+	// (PD-042 §3.4). Empty on cron-written buckets — cron values inherit
+	// the bucket key by definition.
+	WriteCurrency string `bson:"write_currency,omitempty" json:"write_currency,omitempty"`
 }
 
 // PortfolioSnapshot is the cumulative state of one user's portfolio at one
