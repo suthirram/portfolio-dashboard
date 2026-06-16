@@ -36,6 +36,10 @@ matches the running stack.
 
 ### Cloud Run + Cloud Scheduler (prod, mirrors PD-029)
 
+The bootstrap script `infra/gcp/snapshot-job.sh` does steps 2 and 3
+below idempotently — re-run it on every deploy. README:
+[`infra/gcp/README.md`](../../infra/gcp/README.md).
+
 1. Build and push the same container image already used by the web
    service. The `snapshot` subcommand is part of the same binary.
 2. Create a Cloud Run **Job** (not Service) that runs
