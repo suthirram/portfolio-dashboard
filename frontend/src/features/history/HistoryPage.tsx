@@ -514,8 +514,26 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
   theme?: ThemeName
   canForceDelete?: boolean
 }) {
+  // Click the Date header to flip order. Default true = oldest-first.
+  const [sortAsc, setSortAsc] = useState(true)
+
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
     Object.values(regions).every(r => r.source === 'manual')
+
+  // Canonical newest-first array drives the day-over-day math: the
+  // volatility / invested-went-up helpers assume rows[i+1] is the prior
+  // day. Display order is independent — ascending just reverses what we
+  // render, while every cell still computes against the canonical index.
+  const byDateDesc = useMemo(
+    () => [...rows].sort((a, b) => b.date.localeCompare(a.date)),
+    [rows],
+  )
+  const indexOfDate = useMemo(() => {
+    const m = new Map<string, number>()
+    byDateDesc.forEach((r, i) => m.set(r.date, i))
+    return m
+  }, [byDateDesc])
+  const display = sortAsc ? [...byDateDesc].reverse() : byDateDesc
 
   return (
     <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)',
@@ -523,7 +541,13 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>Date</th>
+            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>
+              <button onClick={() => setSortAsc(s => !s)} style={sortHeaderBtn}
+                aria-label="Sort by date"
+                title={sortAsc ? 'Oldest first — click for newest' : 'Newest first — click for oldest'}>
+                Date {sortAsc ? '▲' : '▼'}
+              </button>
+            </th>
             {REGIONS.map((r, idx) => (
               <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
@@ -531,7 +555,8 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => {
+          {display.map((r) => {
+            const i = indexOfDate.get(r.date)!
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
             return (
@@ -540,7 +565,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
                     key={region}
-                    rows={rows}
+                    rows={byDateDesc}
                     i={i}
                     region={region}
                     last={idx === REGIONS.length - 1}
@@ -626,6 +651,11 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
 }
 
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)' }
+const sortHeaderBtn: React.CSSProperties = {
+  background: 'transparent', border: 'none', padding: 0, margin: 0,
+  font: 'inherit', color: 'inherit', fontWeight: 600, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 4,
+}
 const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid var(--border)' }
 
 // ---- Modals ----
