@@ -3,7 +3,7 @@ generate:
   models: true
   echo-server: true
   strict-server: true
-output: api/server.gen.go
+output: server.gen.go
 # The "-" target is oapi-codegen's same-package sentinel (see
 # pkg/codegen/codegen.go: importMappingCurrentPackage). It tells the
 # generator that refs to ../portfolio-api.yaml resolve to types already
