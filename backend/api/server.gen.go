@@ -185,9 +185,6 @@ type ServerInterface interface {
 	// Bulk-paste a month of manual rows
 	// (POST /history/paste)
 	PasteHistory(ctx echo.Context) error
-	// Year-dropdown bootstrap (earliest + latest year, has_data)
-	// (GET /history/range)
-	HistoryRange(ctx echo.Context) error
 	// Delete a manual snapshot row
 	// (DELETE /history/{date})
 	DeleteHistoryRow(ctx echo.Context, date openapi_types.Date) error
@@ -690,17 +687,6 @@ func (w *ServerInterfaceWrapper) PasteHistory(ctx echo.Context) error {
 	return err
 }
 
-// HistoryRange converts echo context to params.
-func (w *ServerInterfaceWrapper) HistoryRange(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(string(CookieAuthScopes), []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HistoryRange(ctx)
-	return err
-}
-
 // DeleteHistoryRow converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteHistoryRow(ctx echo.Context) error {
 	var err error
@@ -968,7 +954,6 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/history", wrapper.ListHistory, options.OperationMiddlewares["listHistory"]...)
 	router.POST(options.BaseURL+"/history", wrapper.AddHistoryRow, options.OperationMiddlewares["addHistoryRow"]...)
 	router.POST(options.BaseURL+"/history/paste", wrapper.PasteHistory, options.OperationMiddlewares["pasteHistory"]...)
-	router.GET(options.BaseURL+"/history/range", wrapper.HistoryRange, options.OperationMiddlewares["historyRange"]...)
 	router.DELETE(options.BaseURL+"/history/:date", wrapper.DeleteHistoryRow, options.OperationMiddlewares["deleteHistoryRow"]...)
 	router.PUT(options.BaseURL+"/history/:date/regions", wrapper.PatchHistoryRegions, options.OperationMiddlewares["patchHistoryRegions"]...)
 	router.GET(options.BaseURL+"/holdings", wrapper.ListHoldings, options.OperationMiddlewares["listHoldings"]...)
@@ -2313,27 +2298,6 @@ func (response PasteHistory400JSONResponse) VisitPasteHistoryResponse(w http.Res
 	return err
 }
 
-type HistoryRangeRequestObject struct {
-}
-
-type HistoryRangeResponseObject interface {
-	VisitHistoryRangeResponse(w http.ResponseWriter) error
-}
-
-type HistoryRange200JSONResponse HistoryRangeInfo
-
-func (response HistoryRange200JSONResponse) VisitHistoryRangeResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
 type DeleteHistoryRowRequestObject struct {
 	Date openapi_types.Date `json:"date"`
 }
@@ -2848,9 +2812,6 @@ type StrictServerInterface interface {
 	// Bulk-paste a month of manual rows
 	// (POST /history/paste)
 	PasteHistory(ctx context.Context, request PasteHistoryRequestObject) (PasteHistoryResponseObject, error)
-	// Year-dropdown bootstrap (earliest + latest year, has_data)
-	// (GET /history/range)
-	HistoryRange(ctx context.Context, request HistoryRangeRequestObject) (HistoryRangeResponseObject, error)
 	// Delete a manual snapshot row
 	// (DELETE /history/{date})
 	DeleteHistoryRow(ctx context.Context, request DeleteHistoryRowRequestObject) (DeleteHistoryRowResponseObject, error)
@@ -3697,29 +3658,6 @@ func (sh *strictHandler) PasteHistory(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(PasteHistoryResponseObject); ok {
 		return validResponse.VisitPasteHistoryResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// HistoryRange operation middleware
-func (sh *strictHandler) HistoryRange(ctx echo.Context) error {
-	var request HistoryRangeRequestObject
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.HistoryRange(ctx.Request().Context(), request.(HistoryRangeRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "HistoryRange")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(HistoryRangeResponseObject); ok {
-		return validResponse.VisitHistoryRangeResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

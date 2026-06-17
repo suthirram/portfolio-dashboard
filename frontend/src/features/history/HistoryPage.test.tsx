@@ -202,7 +202,8 @@ describe('HistoryTable', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit} rows={rows} />)
     const edits = screen.getAllByRole('button', { name: /Edit row/ })
     expect(edits.length).toBe(2)
-    fireEvent.click(edits[0])
+    // Target by row date, not display position (default order is oldest-first).
+    fireEvent.click(screen.getByRole('button', { name: 'Edit row for 2026-06-16' }))
     expect(onEdit).toHaveBeenCalledWith(rows[0])
   })
 
@@ -230,6 +231,39 @@ describe('HistoryTable', () => {
     expect(screen.getAllByText('Daily volatlity').length).toBe(3)
     // 220 vs prior 200 → +10.00 in the India column.
     expect(screen.getByText('10.00')).toBeInTheDocument()
+  })
+
+  it('clicking the Date header flips to oldest-first while volatility stays pinned to the prior day', () => {
+    const rows: HistoryRow[] = [
+      // server order = newest-first
+      row({
+        date: '2026-06-17',
+        regions: { INR: region(100, 220, 'cron') },
+        totals: { invested_total: 100, current_total: 220, pnl_pct: 120 },
+      }),
+      row({
+        date: '2026-06-16',
+        regions: { INR: region(100, 200, 'cron') },
+        totals: { invested_total: 100, current_total: 200, pnl_pct: 100 },
+      }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+
+    // Default is oldest-first: 06-16 on top, 06-17 below.
+    let bodyRows = document.querySelectorAll('tbody tr')
+    expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-16')
+    expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-17')
+
+    // Math is unchanged by display order: 06-17 still reads +10.00 vs its
+    // prior day (200), and 06-16 (no prior in window) renders "—".
+    const lastCells = bodyRows[1].querySelectorAll('td')
+    expect(Array.from(lastCells).some(c => c.textContent === '10.00')).toBe(true)
+
+    // Click the Date header → newest-first: 06-17 back on top.
+    fireEvent.click(screen.getByRole('button', { name: /Sort by date/ }))
+    bodyRows = document.querySelectorAll('tbody tr')
+    expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-17')
+    expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-16')
   })
 })
 

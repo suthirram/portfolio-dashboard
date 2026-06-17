@@ -236,24 +236,6 @@ func (s *SnapshotStore) deleteInternal(ctx context.Context, uid primitive.Object
 	return err
 }
 
-// EarliestYear returns the calendar year (UTC) of uid's oldest snapshot.
-// Returns ErrNotFound when the user has no snapshots — callers should
-// translate this to "use the current year" in the UI bootstrap.
-func (s *SnapshotStore) EarliestYear(ctx context.Context, uid primitive.ObjectID) (int, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
-
-	opts := options.FindOne().
-		SetProjection(bson.M{"date": 1}).
-		SetSort(bson.D{{Key: "date", Value: 1}})
-
-	var out domain.PortfolioSnapshot
-	if err := s.col.FindOne(ctx, bson.M{"user_id": uid}, opts).Decode(&out); err != nil {
-		return 0, translateFindErr(err)
-	}
-	return out.Date.UTC().Year(), nil
-}
-
 // DeleteByUser removes every snapshot owned by uid (used when a user is
 // permanently deleted).
 func (s *SnapshotStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID) error {

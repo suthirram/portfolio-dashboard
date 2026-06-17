@@ -101,23 +101,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/history/range": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Year-dropdown bootstrap (earliest + latest year, has_data) */
-        get: operations["historyRange"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/history/{date}/regions": {
         parameters: {
             query?: never;
@@ -860,11 +843,6 @@ export interface components {
                 incoming: components["schemas"]["HistoryRegionInput"];
             }[];
         };
-        HistoryRangeInfo: {
-            earliest_year: number;
-            latest_year: number;
-            has_data: boolean;
-        };
         PatchHistoryRegionsInput: {
             regions: {
                 [key: string]: components["schemas"]["HistoryRegionInput"];
@@ -1271,26 +1249,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryConflictResponse"];
-                };
-            };
-        };
-    };
-    historyRange: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Range info */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HistoryRangeInfo"];
                 };
             };
         };

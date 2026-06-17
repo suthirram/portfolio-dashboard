@@ -449,17 +449,6 @@ components:
           items:
             $ref: "#/components/schemas/HistoryRow"
 
-    HistoryRangeInfo:
-      type: object
-      required: [earliest_year, latest_year, has_data]
-      properties:
-        earliest_year:
-          type: integer
-        latest_year:
-          type: integer
-        has_data:
-          type: boolean
-
     HistoryRegionInput:
       type: object
       required: [invested, current]

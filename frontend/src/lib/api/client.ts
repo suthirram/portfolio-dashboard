@@ -117,7 +117,6 @@ export const api = {
 
   // History (PR6 — plain Echo routes, not yet in OpenAPI; types inlined below).
   listHistory:        (from: string, to: string) => request<HistoryList>('GET', `/history?from=${from}&to=${to}`),
-  historyRange:       () => request<HistoryRangeInfo>('GET', '/history/range'),
   addHistoryRow:      (body: AddHistoryRowInput) => request<HistoryRow>('POST', '/history', body),
   patchHistoryRegions:(date: string, body: PatchHistoryRegionsInput) => request<HistoryRow>('PUT', `/history/${date}/regions`, body),
   deleteHistoryRow:   (date: string) => request<void>('DELETE', `/history/${date}`),
@@ -164,12 +163,6 @@ export interface HistoryRow {
 export interface HistoryList {
   currency: string
   rows: HistoryRow[]
-}
-
-export interface HistoryRangeInfo {
-  earliest_year: number
-  latest_year: number
-  has_data: boolean
 }
 
 export interface AddHistoryRowInput {

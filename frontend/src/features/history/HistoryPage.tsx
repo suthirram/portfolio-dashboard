@@ -6,7 +6,6 @@ import {
 import {
   api,
   type DateConflict,
-  type HistoryRangeInfo,
   type HistoryRow,
   type PasteHistoryReport,
   type RegionSnapshot,
@@ -68,6 +67,11 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
 }
 
 
+// Year selector lower bound. Lets users browse back through 2020 even
+// before any snapshot exists for that year — useful for manually pasting
+// backfilled history.
+const MIN_YEAR = 2020
+
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -116,7 +120,6 @@ export default function HistoryPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
   const [month, setMonth] = useState(now.getUTCMonth())
-  const [rangeInfo, setRangeInfo] = useState<HistoryRangeInfo | null>(null)
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
@@ -126,11 +129,6 @@ export default function HistoryPage() {
   const [editRow, setEditRow] = useState<HistoryRow | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
-
-  // Load year range once.
-  useEffect(() => {
-    void api.historyRange().then(setRangeInfo).catch(() => setRangeInfo(null))
-  }, [])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -150,11 +148,12 @@ export default function HistoryPage() {
   useEffect(() => { void reload() }, [reload])
 
   const years = useMemo(() => {
-    if (!rangeInfo) return [now.getUTCFullYear()]
+    const current = now.getUTCFullYear()
+    const start = Math.min(MIN_YEAR, current)
     const out: number[] = []
-    for (let y = rangeInfo.earliest_year; y <= rangeInfo.latest_year; y++) out.push(y)
+    for (let y = start; y <= current; y++) out.push(y)
     return out
-  }, [rangeInfo, now])
+  }, [now])
 
   // Three charts, one per currency. Compute series per bucket.
   const chartsByRegion = useMemo(() => ({
@@ -515,8 +514,26 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
   theme?: ThemeName
   canForceDelete?: boolean
 }) {
+  // Click the Date header to flip order. Default true = oldest-first.
+  const [sortAsc, setSortAsc] = useState(true)
+
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
     Object.values(regions).every(r => r.source === 'manual')
+
+  // Canonical newest-first array drives the day-over-day math: the
+  // volatility / invested-went-up helpers assume rows[i+1] is the prior
+  // day. Display order is independent — ascending just reverses what we
+  // render, while every cell still computes against the canonical index.
+  const byDateDesc = useMemo(
+    () => [...rows].sort((a, b) => b.date.localeCompare(a.date)),
+    [rows],
+  )
+  const indexOfDate = useMemo(() => {
+    const m = new Map<string, number>()
+    byDateDesc.forEach((r, i) => m.set(r.date, i))
+    return m
+  }, [byDateDesc])
+  const display = sortAsc ? [...byDateDesc].reverse() : byDateDesc
 
   return (
     <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)',
@@ -524,7 +541,13 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>Date</th>
+            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>
+              <button onClick={() => setSortAsc(s => !s)} style={sortHeaderBtn}
+                aria-label="Sort by date"
+                title={sortAsc ? 'Oldest first — click for newest' : 'Newest first — click for oldest'}>
+                Date {sortAsc ? '▲' : '▼'}
+              </button>
+            </th>
             {REGIONS.map((r, idx) => (
               <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
@@ -532,7 +555,8 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => {
+          {display.map((r) => {
+            const i = indexOfDate.get(r.date)!
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
             return (
@@ -541,7 +565,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
                     key={region}
-                    rows={rows}
+                    rows={byDateDesc}
                     i={i}
                     region={region}
                     last={idx === REGIONS.length - 1}
@@ -627,6 +651,11 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
 }
 
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)' }
+const sortHeaderBtn: React.CSSProperties = {
+  background: 'transparent', border: 'none', padding: 0, margin: 0,
+  font: 'inherit', color: 'inherit', fontWeight: 600, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 4,
+}
 const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid var(--border)' }
 
 // ---- Modals ----

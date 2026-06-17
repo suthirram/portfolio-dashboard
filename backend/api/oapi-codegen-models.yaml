@@ -2,6 +2,6 @@ package: api
 generate:
   models: true
   strict-server: true
-output: api/models.gen.go
+output: models.gen.go
 output-options:
   skip-prune: true
