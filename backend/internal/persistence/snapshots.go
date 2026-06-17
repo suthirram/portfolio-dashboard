@@ -132,6 +132,23 @@ func (s *SnapshotStore) List(ctx context.Context, uid primitive.ObjectID, from, 
 	return out, nil
 }
 
+// LatestBefore returns uid's most recent snapshot with date strictly
+// before the given date — the "previous close" reference for the daily
+// change indicator. ErrNotFound when the user has no earlier snapshot.
+func (s *SnapshotStore) LatestBefore(ctx context.Context, uid primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	filter := bson.M{"user_id": uid, "date": bson.M{"$lt": domain.UTCDate(date)}}
+	opts := options.FindOne().SetSort(bson.D{{Key: "date", Value: -1}})
+
+	var out domain.PortfolioSnapshot
+	if err := s.col.FindOne(ctx, filter, opts).Decode(&out); err != nil {
+		return domain.PortfolioSnapshot{}, translateFindErr(err)
+	}
+	return out, nil
+}
+
 // Get returns the single (user, date) row or ErrNotFound.
 func (s *SnapshotStore) Get(ctx context.Context, uid primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)

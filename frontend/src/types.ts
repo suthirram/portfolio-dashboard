@@ -10,6 +10,7 @@ export type HoldingInput = Schemas['HoldingInput']
 export type HoldingWithPrice = Schemas['HoldingWithPrice']
 export type PricesResponse = Schemas['PricesResponse']
 export type Summary = Schemas['Summary']
+export type CurrencyChange = Schemas['CurrencyChange']
 
 export type Exchange = NonNullable<Holding['exchange']>
 export type HoldingType = NonNullable<Holding['type']>

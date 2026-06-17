@@ -249,6 +249,21 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"new_password"`
 }
 
+// CurrencyChange defines model for CurrencyChange.
+type CurrencyChange struct {
+	ChangePct   *float64 `json:"change_pct,omitempty"`
+	ChangeValue *float64 `json:"change_value,omitempty"`
+
+	// Currency INR | EUR | USD
+	Currency *string `json:"currency,omitempty"`
+
+	// Current Today's live current value in the native currency.
+	Current *float64 `json:"current,omitempty"`
+
+	// PreviousClose Snapshot current value in the native currency.
+	PreviousClose *float64 `json:"previous_close,omitempty"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	Error *string `json:"error,omitempty"`
@@ -534,15 +549,31 @@ type SignupRequest struct {
 
 // Summary defines model for Summary.
 type Summary struct {
-	EurRate              *float64 `json:"eur_rate,omitempty"`
-	TotalCost            *float64 `json:"total_cost,omitempty"`
-	TotalCostEur         *float64 `json:"total_cost_eur,omitempty"`
-	TotalCurrentValue    *float64 `json:"total_current_value,omitempty"`
-	TotalCurrentValueEur *float64 `json:"total_current_value_eur,omitempty"`
-	TotalRealized        *float64 `json:"total_realized,omitempty"`
-	TotalRealizedEur     *float64 `json:"total_realized_eur,omitempty"`
-	TotalUnrealized      *float64 `json:"total_unrealized,omitempty"`
-	TotalUnrealizedEur   *float64 `json:"total_unrealized_eur,omitempty"`
+	// ChangePct Percent change vs previous close. Null when previous_close_value is zero.
+	ChangePct *float64 `json:"change_pct,omitempty"`
+
+	// ChangeValue total_current_value − previous_close_value (INR base).
+	ChangeValue    *float64 `json:"change_value,omitempty"`
+	ChangeValueEur *float64 `json:"change_value_eur,omitempty"`
+	EurRate        *float64 `json:"eur_rate,omitempty"`
+
+	// PerCurrency Per-currency change vs previous close, in native amounts (no FX conversion), so currency moves don't muddy the price move.
+	PerCurrency *[]CurrencyChange `json:"per_currency,omitempty"`
+
+	// PreviousCloseDate YYYY-MM-DD of the snapshot used as the previous close.
+	PreviousCloseDate *string `json:"previous_close_date,omitempty"`
+
+	// PreviousCloseValue Portfolio current value (INR base) at the most recent snapshot strictly before today — the previous close. Omitted when the user has no prior snapshot.
+	PreviousCloseValue    *float64 `json:"previous_close_value,omitempty"`
+	PreviousCloseValueEur *float64 `json:"previous_close_value_eur,omitempty"`
+	TotalCost             *float64 `json:"total_cost,omitempty"`
+	TotalCostEur          *float64 `json:"total_cost_eur,omitempty"`
+	TotalCurrentValue     *float64 `json:"total_current_value,omitempty"`
+	TotalCurrentValueEur  *float64 `json:"total_current_value_eur,omitempty"`
+	TotalRealized         *float64 `json:"total_realized,omitempty"`
+	TotalRealizedEur      *float64 `json:"total_realized_eur,omitempty"`
+	TotalUnrealized       *float64 `json:"total_unrealized,omitempty"`
+	TotalUnrealizedEur    *float64 `json:"total_unrealized_eur,omitempty"`
 }
 
 // UpdateProfileRequest defines model for UpdateProfileRequest.

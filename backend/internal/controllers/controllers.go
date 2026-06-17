@@ -45,7 +45,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 		store:        store,
 		priceService: priceService,
 		holdings:     services.NewHoldingsService(store.Holdings, logger),
-		portfolio:    services.NewPortfolioService(store.Holdings, priceService, logger),
+		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
 		logger:       logger,
 		cookieSecure: cookieSecure,
