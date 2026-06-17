@@ -74,24 +74,6 @@ func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 	})
 }
 
-func TestHistoryService_Range_EmptyReturnsCurrentYear(t *testing.T) {
-	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("empty", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch))
-		svc := newHistorySvc(mt)
-		got, err := svc.Range(context.Background(), primitive.NewObjectID())
-		if err != nil {
-			t.Fatalf("Range: %v", err)
-		}
-		if got.HasData {
-			t.Error("HasData = true, want false")
-		}
-		if got.EarliestYear != 2026 || got.LatestYear != 2026 {
-			t.Errorf("years = (%d, %d), want (2026, 2026)", got.EarliestYear, got.LatestYear)
-		}
-	})
-}
-
 func TestHistoryService_Add_RejectsFutureDate(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("future", func(mt *mtest.T) {
@@ -469,26 +451,6 @@ func bytesContainKey(b []byte, key string) bool {
 		}
 	}
 	return false
-}
-
-func TestHistoryService_Range_WithDataReportsEarliestAndCurrent(t *testing.T) {
-	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("with data", func(mt *mtest.T) {
-		uid := primitive.NewObjectID()
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, bson.D{
-			{Key: "_id", Value: primitive.NewObjectID()},
-			{Key: "user_id", Value: uid},
-			{Key: "date", Value: time.Date(2023, 5, 1, 0, 0, 0, 0, time.UTC)},
-		}))
-		svc := newHistorySvc(mt)
-		got, err := svc.Range(context.Background(), uid)
-		if err != nil {
-			t.Fatalf("Range: %v", err)
-		}
-		if !got.HasData || got.EarliestYear != 2023 || got.LatestYear != 2026 {
-			t.Errorf("Range = %+v, want HasData=true EarliestYear=2023 LatestYear=2026", got)
-		}
-	})
 }
 
 func TestErrConflictMessage(t *testing.T) {

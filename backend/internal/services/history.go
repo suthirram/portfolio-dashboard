@@ -94,14 +94,6 @@ type RejectedPasteRow struct {
 	Reason string `json:"reason"`
 }
 
-// HistoryRangeInfo is the GET /api/history/range response. Used by the
-// frontend year-dropdown bootstrap.
-type HistoryRangeInfo struct {
-	EarliestYear int  `json:"earliest_year"`
-	LatestYear   int  `json:"latest_year"`
-	HasData      bool `json:"has_data"`
-}
-
 // ErrInvalidDate is returned when a YYYY-MM-DD body field is malformed,
 // in the future, or out of the requested month.
 var ErrInvalidDate = errors.New("history: invalid date")
@@ -140,20 +132,6 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		})
 	}
 	return HistoryList{Currency: currency, Rows: rows}, nil
-}
-
-// Range returns the year-dropdown bootstrap data.
-func (s *HistoryService) Range(ctx context.Context, uid primitive.ObjectID) (HistoryRangeInfo, error) {
-	earliest, err := s.store.EarliestYear(ctx, uid)
-	if err != nil {
-		if errors.Is(err, persistence.ErrNotFound) {
-			now := s.Now().UTC().Year()
-			return HistoryRangeInfo{EarliestYear: now, LatestYear: now, HasData: false}, nil
-		}
-		return HistoryRangeInfo{}, err
-	}
-	now := s.Now().UTC().Year()
-	return HistoryRangeInfo{EarliestYear: earliest, LatestYear: now, HasData: true}, nil
 }
 
 // Add inserts a new manual row or returns *ErrConflict when the date

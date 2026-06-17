@@ -347,18 +347,6 @@ func TestSnapshotDelete_MissingReturnsErrNotFound(t *testing.T) {
 	})
 }
 
-func TestSnapshotEarliestYear_NoRowsReturnsErrNotFound(t *testing.T) {
-	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("no rows", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch))
-		s := New(mt.DB)
-		_, err := s.Snapshots.EarliestYear(context.Background(), primitive.NewObjectID())
-		if !errors.Is(err, ErrNotFound) {
-			t.Fatalf("err = %v, want ErrNotFound", err)
-		}
-	})
-}
-
 func TestSnapshotDeleteByUser_IssuesDeleteManyScopedToUser(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("delete by user", func(mt *mtest.T) {
@@ -385,28 +373,6 @@ func TestSnapshotDeleteByUser_IssuesDeleteManyScopedToUser(t *testing.T) {
 		gotUID, _ := uidVal.ObjectIDOK()
 		if gotUID != uid {
 			t.Errorf("delete scoped to %s, want %s", gotUID.Hex(), uid.Hex())
-		}
-	})
-}
-
-func TestSnapshotEarliestYear_ReturnsYearOfOldestRow(t *testing.T) {
-	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("oldest year", func(mt *mtest.T) {
-		uid := primitive.NewObjectID()
-		row := snapshotBSON(uid,
-			time.Date(2023, 3, 1, 0, 0, 0, 0, time.UTC),
-			map[string]domain.RegionSnapshot{
-				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
-			},
-		)
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, row))
-		s := New(mt.DB)
-		got, err := s.Snapshots.EarliestYear(context.Background(), uid)
-		if err != nil {
-			t.Fatalf("EarliestYear: %v", err)
-		}
-		if got != 2023 {
-			t.Errorf("year = %d, want 2023", got)
 		}
 	})
 }

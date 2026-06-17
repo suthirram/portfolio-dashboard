@@ -277,13 +277,6 @@ type HistoryList struct {
 	Rows     []HistoryRow `json:"rows"`
 }
 
-// HistoryRangeInfo defines model for HistoryRangeInfo.
-type HistoryRangeInfo struct {
-	EarliestYear int  `json:"earliest_year"`
-	HasData      bool `json:"has_data"`
-	LatestYear   int  `json:"latest_year"`
-}
-
 // HistoryRegionInput defines model for HistoryRegionInput.
 type HistoryRegionInput struct {
 	Current  float64 `json:"current"`

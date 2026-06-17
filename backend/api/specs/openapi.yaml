@@ -44,8 +44,6 @@ paths:
 
   /history:
     $ref: "./history/history.yaml#/history"
-  /history/range:
-    $ref: "./history/history.yaml#/history_range"
   /history/{date}/regions:
     $ref: "./history/history.yaml#/history_date_regions"
   /history/{date}:

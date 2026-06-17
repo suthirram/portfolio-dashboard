@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { HistoryList, HistoryRangeInfo, HistoryRow } from '../../lib/api/client'
+import type { HistoryList, HistoryRow } from '../../lib/api/client'
 
 // Recharts' ResponsiveContainer needs ResizeObserver, absent in jsdom.
 globalThis.ResizeObserver ||= class {
@@ -12,7 +12,6 @@ globalThis.ResizeObserver ||= class {
 
 // Mock the API client; keep the real ApiError so the 409 branch works.
 const mockApi = vi.hoisted(() => ({
-  historyRange: vi.fn(),
   listHistory: vi.fn(),
   addHistoryRow: vi.fn(),
   patchHistoryRegions: vi.fn(),
@@ -29,8 +28,9 @@ import HistoryPage from './HistoryPage'
 
 const renderPage = () => render(<MemoryRouter><HistoryPage /></MemoryRouter>)
 
-const range = (info: Partial<HistoryRangeInfo> = {}): HistoryRangeInfo =>
-  ({ earliest_year: 2024, latest_year: 2026, has_data: true, ...info })
+// Freeze the clock so the year-dropdown assertion is deterministic across
+// real wall-clock rollovers.
+const FROZEN_NOW = new Date('2026-06-16T12:00:00Z')
 
 const sampleRow: HistoryRow = {
   date: '2026-06-16',
@@ -45,23 +45,23 @@ const sampleRow: HistoryRow = {
 const list = (rows: HistoryRow[]): HistoryList => ({ currency: 'INR', rows })
 
 describe('HistoryPage', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(FROZEN_NOW)
+  })
+  afterAll(() => {
+    vi.useRealTimers()
+  })
   beforeEach(() => {
     vi.clearAllMocks()
-    mockApi.historyRange.mockResolvedValue(range())
     mockApi.listHistory.mockResolvedValue(list([]))
   })
 
   it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
     renderPage()
-    const currentYear = new Date().getUTCFullYear()
-    await waitFor(() => {
-      const opts = Array.from(document.querySelectorAll('option')).map(o => o.textContent)
-      expect(opts).toContain('2020')
-      expect(opts).toContain(String(currentYear))
-    })
     const opts = Array.from(document.querySelectorAll('option')).map(o => o.textContent)
     // Years are contiguous, oldest first.
-    for (let y = 2020; y <= currentYear; y++) {
+    for (let y = 2020; y <= 2026; y++) {
       expect(opts).toContain(String(y))
     }
   })

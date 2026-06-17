@@ -37,22 +37,6 @@ func (h *Controller) ListHistory(ctx context.Context, req api.ListHistoryRequest
 	return api.ListHistory200JSONResponse(toAPIHistoryList(list)), nil
 }
 
-func (h *Controller) HistoryRange(ctx context.Context, _ api.HistoryRangeRequestObject) (api.HistoryRangeResponseObject, error) {
-	uid, err := currentUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-	info, err := h.history.Range(ctx, uid)
-	if err != nil {
-		return nil, err
-	}
-	return api.HistoryRange200JSONResponse{
-		EarliestYear: info.EarliestYear,
-		LatestYear:   info.LatestYear,
-		HasData:      info.HasData,
-	}, nil
-}
-
 func (h *Controller) AddHistoryRow(ctx context.Context, req api.AddHistoryRowRequestObject) (api.AddHistoryRowResponseObject, error) {
 	uid, err := currentUserID(ctx)
 	if err != nil {

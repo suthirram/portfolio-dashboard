@@ -52,19 +52,6 @@ history:
             schema:
               $ref: "../portfolio-api.yaml#/components/schemas/HistoryConflictResponse"
 
-history_range:
-  get:
-    tags: [History]
-    summary: Year-dropdown bootstrap (earliest + latest year, has_data)
-    operationId: historyRange
-    responses:
-      "200":
-        description: Range info
-        content:
-          application/json:
-            schema:
-              $ref: "../portfolio-api.yaml#/components/schemas/HistoryRangeInfo"
-
 history_date_regions:
   parameters:
     - name: date
