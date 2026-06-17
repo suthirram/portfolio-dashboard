@@ -62,7 +62,7 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
 
-	date := time.Now().UTC()
+	date := time.Now().UTC().AddDate(0, 0, -1)
 	if flagSnapshotDate != "" {
 		parsed, err := time.Parse("2006-01-02", flagSnapshotDate)
 		if err != nil {
