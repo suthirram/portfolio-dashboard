@@ -29,9 +29,11 @@ var snapshotCmd = &cobra.Command{
 	Long: `Builds a daily portfolio snapshot for every non-disabled user on
 the configured date and persists it in the portfolio_snapshots collection.
 
-Defaults to today (UTC) and every active user. The job is idempotent: a
-re-run for the same (user, date) overwrites cron-sourced regions and
-preserves manual overrides (PRD-002 / DD-002).
+Defaults to yesterday (UTC) and every active user. Yesterday because the
+cron fires after midnight, when that day's market sessions have closed —
+so we record settled close values, not a mid-session snapshot. The job is
+idempotent: a re-run for the same (user, date) overwrites cron-sourced
+regions and preserves manual overrides (PRD-002 / DD-002).
 
 This subcommand is what the external cron / Cloud Scheduler invokes; the
 web 'serve' process does not own any schedule.`,
@@ -40,7 +42,7 @@ web 'serve' process does not own any schedule.`,
 
 func init() {
 	snapshotCmd.Flags().StringVar(&flagSnapshotDate, "date", "",
-		"UTC date in YYYY-MM-DD; defaults to today")
+		"UTC date in YYYY-MM-DD; defaults to yesterday")
 	snapshotCmd.Flags().StringVar(&flagSnapshotUser, "user", "",
 		"restrict the run to one user id (hex); defaults to all active users")
 	snapshotCmd.Flags().BoolVar(&flagSnapshotDryRun, "dry-run", false,
@@ -62,7 +64,7 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
 
-	date := time.Now().UTC()
+	date := time.Now().UTC().AddDate(0, 0, -1)
 	if flagSnapshotDate != "" {
 		parsed, err := time.Parse("2006-01-02", flagSnapshotDate)
 		if err != nil {
