@@ -373,6 +373,62 @@ components:
         eur_rate:
           type: number
           format: double
+        previous_close_value:
+          type: number
+          format: double
+          description: >-
+            Portfolio current value (INR base) at the most recent snapshot
+            strictly before today — the previous close. Omitted when the
+            user has no prior snapshot.
+        previous_close_value_eur:
+          type: number
+          format: double
+        previous_close_date:
+          type: string
+          description: YYYY-MM-DD of the snapshot used as the previous close.
+        change_value:
+          type: number
+          format: double
+          description: total_current_value − previous_close_value (INR base).
+        change_value_eur:
+          type: number
+          format: double
+        change_pct:
+          type: number
+          format: double
+          nullable: true
+          description: >-
+            Percent change vs previous close. Null when previous_close_value
+            is zero.
+        per_currency:
+          type: array
+          description: >-
+            Per-currency change vs previous close, in native amounts (no FX
+            conversion), so currency moves don't muddy the price move.
+          items:
+            $ref: '#/components/schemas/CurrencyChange'
+
+    CurrencyChange:
+      type: object
+      properties:
+        currency:
+          type: string
+          description: INR | EUR | USD
+        current:
+          type: number
+          format: double
+          description: Today's live current value in the native currency.
+        previous_close:
+          type: number
+          format: double
+          description: Snapshot current value in the native currency.
+        change_value:
+          type: number
+          format: double
+        change_pct:
+          type: number
+          format: double
+          nullable: true
 
     Error:
       type: object

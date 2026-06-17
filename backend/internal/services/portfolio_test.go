@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -52,7 +53,7 @@ func TestPortfolioService_Summary_INRHolding(t *testing.T) {
 		})
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, docs...))
 
-		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, &stubPriceFetcher{
+		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, nil, &stubPriceFetcher{
 			price: 3500, rate: 0.011,
 		}, nil)
 
@@ -90,7 +91,7 @@ func TestPortfolioService_Summary_EURHoldingDividesByRate(t *testing.T) {
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, docs...))
 
 		rate := 0.011
-		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, &stubPriceFetcher{
+		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, nil, &stubPriceFetcher{
 			price: 120, rate: rate,
 		}, nil)
 
@@ -125,7 +126,7 @@ func TestPortfolioService_Summary_FallbackRateWhenForexFails(t *testing.T) {
 		})
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, docs...))
 
-		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, &stubPriceFetcher{
+		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, nil, &stubPriceFetcher{
 			rateErr: errors.New("forex out"),
 		}, nil)
 
@@ -142,6 +143,101 @@ func TestPortfolioService_Summary_FallbackRateWhenForexFails(t *testing.T) {
 	})
 }
 
+func TestPortfolioService_Summary_PreviousClose(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("change vs previous close, INR base + native per-currency", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		holdings := holdingsCursor(uid, bson.D{
+			{Key: "script", Value: "TCS"},
+			{Key: "symbol", Value: "TCS.NS"},
+			{Key: "currency", Value: "INR"},
+			{Key: "stocks_owned", Value: 10.0},
+			{Key: "avg_cost_price", Value: 3000.0},
+		})
+		// Previous-close snapshot: INR bucket worth 30000 at close.
+		snap := bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "date", Value: primitive.NewDateTimeFromTime(time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC))},
+			{Key: "currency", Value: "INR"},
+			{Key: "regions", Value: bson.D{
+				{Key: "INR", Value: bson.D{
+					{Key: "invested", Value: 28000.0},
+					{Key: "current", Value: 30000.0},
+					{Key: "source", Value: "cron"},
+				}},
+			}},
+		}
+		// ListByUser cursor, then LatestBefore FindOne.
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, holdings...),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, snap),
+		)
+
+		store := persistence.New(mt.DB)
+		svc := NewPortfolioService(store.Holdings, store.Snapshots, &stubPriceFetcher{
+			price: 3500, rate: 0.011,
+		}, nil)
+
+		got, err := svc.Summary(context.Background(), uid)
+		if err != nil {
+			t.Fatalf("summary: %v", err)
+		}
+		// Today current = 10 * 3500 = 35000 INR; prev close = 30000.
+		if got.PreviousCloseValue == nil || *got.PreviousCloseValue != 30000 {
+			t.Fatalf("PreviousCloseValue = %v, want 30000", got.PreviousCloseValue)
+		}
+		if got.ChangeValue == nil || *got.ChangeValue != 5000 {
+			t.Errorf("ChangeValue = %v, want 5000", got.ChangeValue)
+		}
+		if got.ChangePct == nil || math.Abs(*got.ChangePct-(5000.0/30000*100)) > 0.001 {
+			t.Errorf("ChangePct = %v, want ~16.667", got.ChangePct)
+		}
+		if got.PreviousCloseDate == nil || *got.PreviousCloseDate != "2026-06-16" {
+			t.Errorf("PreviousCloseDate = %v, want 2026-06-16", got.PreviousCloseDate)
+		}
+		if got.PerCurrency == nil || len(*got.PerCurrency) != 1 {
+			t.Fatalf("PerCurrency = %v, want 1 entry", got.PerCurrency)
+		}
+		inr := (*got.PerCurrency)[0]
+		if inr.Currency == nil || *inr.Currency != "INR" {
+			t.Errorf("per-currency[0].Currency = %v, want INR", inr.Currency)
+		}
+		if inr.Current == nil || *inr.Current != 35000 || inr.PreviousClose == nil || *inr.PreviousClose != 30000 {
+			t.Errorf("per-currency INR current/prev = %v/%v, want 35000/30000", inr.Current, inr.PreviousClose)
+		}
+	})
+
+	mt.Run("no prior snapshot leaves change fields nil", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		holdings := holdingsCursor(uid, bson.D{
+			{Key: "symbol", Value: "TCS.NS"},
+			{Key: "currency", Value: "INR"},
+			{Key: "stocks_owned", Value: 10.0},
+			{Key: "avg_cost_price", Value: 3000.0},
+		})
+		// Empty FirstBatch → LatestBefore returns ErrNotFound.
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, holdings...),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch),
+		)
+
+		store := persistence.New(mt.DB)
+		svc := NewPortfolioService(store.Holdings, store.Snapshots, &stubPriceFetcher{
+			price: 3500, rate: 0.011,
+		}, nil)
+
+		got, err := svc.Summary(context.Background(), uid)
+		if err != nil {
+			t.Fatalf("summary: %v", err)
+		}
+		if got.PreviousCloseValue != nil || got.ChangeValue != nil || got.PerCurrency != nil {
+			t.Errorf("expected nil change fields without a prior snapshot, got prev=%v change=%v perCcy=%v",
+				got.PreviousCloseValue, got.ChangeValue, got.PerCurrency)
+		}
+	})
+}
+
 func TestPortfolioService_Prices_RateFailureBubblesUp(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -149,7 +245,7 @@ func TestPortfolioService_Prices_RateFailureBubblesUp(t *testing.T) {
 		uid := primitive.NewObjectID()
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch))
 
-		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, &stubPriceFetcher{
+		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, nil, &stubPriceFetcher{
 			rateErr: errors.New("forex out"),
 		}, nil)
 

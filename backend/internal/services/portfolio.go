@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 )
@@ -25,13 +27,22 @@ const fallbackEURRate = 0.011
 // for both the caller's own portfolio and admin act-as views.
 type PortfolioService struct {
 	store        *persistence.HoldingStore
+	snapshots    *persistence.SnapshotStore
 	priceService PriceFetcher
 	logger       *zap.Logger
+	// Now lets tests pin "today" for the previous-close lookup.
+	Now func() time.Time
 }
 
 // NewPortfolioService wires a PortfolioService.
-func NewPortfolioService(store *persistence.HoldingStore, priceService PriceFetcher, logger *zap.Logger) *PortfolioService {
-	return &PortfolioService{store: store, priceService: priceService, logger: logger}
+func NewPortfolioService(store *persistence.HoldingStore, snapshots *persistence.SnapshotStore, priceService PriceFetcher, logger *zap.Logger) *PortfolioService {
+	return &PortfolioService{
+		store:        store,
+		snapshots:    snapshots,
+		priceService: priceService,
+		logger:       logger,
+		Now:          func() time.Time { return time.Now().UTC() },
+	}
 }
 
 func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
@@ -86,6 +97,10 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 	}
 
 	var totalCost, totalCurrentValue, totalUnrealized, totalRealized float64
+	// nativeCurrent holds today's live current value per currency in its
+	// own units (no FX), keyed "INR"|"EUR"|"USD" — the basis for the
+	// per-currency change vs previous close.
+	nativeCurrent := map[string]float64{}
 	for _, hld := range holdings {
 		isEUR := hld.Currency == "EUR"
 
@@ -102,11 +117,13 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 
 		if hld.Symbol != "" && hld.StocksOwned > 0 {
 			if price, _, pErr := s.priceService.GetPrice(ctx, hld.Symbol); pErr == nil {
+				native := hld.StocksOwned * price
+				nativeCurrent[currencyOf(hld.Currency)] += native
 				var cv float64
 				if isEUR {
-					cv = (hld.StocksOwned * price) / eurRate
+					cv = native / eurRate
 				} else {
-					cv = hld.StocksOwned * price
+					cv = native
 				}
 				totalCurrentValue += cv
 				totalUnrealized += cv - cost
@@ -119,7 +136,7 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 	totalUnrealizedEUR := totalUnrealized * eurRate
 	totalRealizedEUR := totalRealized * eurRate
 
-	return api.Summary{
+	summary := api.Summary{
 		TotalCost:            &totalCost,
 		TotalCurrentValue:    &totalCurrentValue,
 		TotalUnrealized:      &totalUnrealized,
@@ -129,5 +146,105 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 		TotalUnrealizedEur:   &totalUnrealizedEUR,
 		TotalRealizedEur:     &totalRealizedEUR,
 		EurRate:              &eurRate,
-	}, nil
+	}
+	s.attachPreviousClose(ctx, uid, &summary, nativeCurrent, totalCurrentValue, eurRate)
+	return summary, nil
+}
+
+// currencyOf normalises a holding's currency to a snapshot bucket key,
+// defaulting empty to INR (Holding.Currency defaults to "INR").
+func currencyOf(c string) string {
+	if c == "" {
+		return domain.CurrencyINR
+	}
+	return c
+}
+
+// attachPreviousClose enriches summary with the daily-change fields by
+// comparing today's value against the most recent snapshot strictly before
+// today. A missing snapshot store, no prior snapshot, or a lookup error
+// leaves the change fields nil (the indicator simply hides). The headline
+// uses the INR base (same conversion as totalCurrentValue: EUR ÷ rate,
+// other currencies treated as base); per-currency entries stay native.
+func (s *PortfolioService) attachPreviousClose(
+	ctx context.Context, uid primitive.ObjectID, summary *api.Summary,
+	nativeCurrent map[string]float64, totalCurrentValue, eurRate float64,
+) {
+	if s.snapshots == nil {
+		return
+	}
+	snap, err := s.snapshots.LatestBefore(ctx, uid, s.Now())
+	if err != nil {
+		if !errors.Is(err, persistence.ErrNotFound) {
+			s.log(ctx).Warn("previous-close lookup failed", zap.String("error", err.Error()))
+		}
+		return
+	}
+
+	prevNative := func(ccy string) float64 { return snap.Buckets[ccy].Current }
+
+	// Headline previous close in INR base: EUR bucket converts via the
+	// live rate; INR and any other currency count as base, mirroring how
+	// totalCurrentValue is built above. Deliberately uses today's rate for
+	// the previous close too, so the headline change absorbs FX drift on
+	// mixed-currency portfolios; the native per-currency strip below is the
+	// FX-clean view of each price move.
+	var prevBaseINR float64
+	for ccy, bucket := range snap.Buckets {
+		if ccy == domain.CurrencyEUR {
+			prevBaseINR += bucket.Current / eurRate
+		} else {
+			prevBaseINR += bucket.Current
+		}
+	}
+
+	prevEUR := prevBaseINR * eurRate
+	changeValue := totalCurrentValue - prevBaseINR
+	changeEUR := changeValue * eurRate
+	dateStr := domain.UTCDate(snap.Date).Format("2006-01-02")
+
+	summary.PreviousCloseValue = &prevBaseINR
+	summary.PreviousCloseValueEur = &prevEUR
+	summary.PreviousCloseDate = &dateStr
+	summary.ChangeValue = &changeValue
+	summary.ChangeValueEur = &changeEUR
+	if pct := pctChange(prevBaseINR, changeValue); pct != nil {
+		summary.ChangePct = pct
+	}
+
+	// Per-currency native deltas. Include a currency when it has value
+	// today or had value at the previous close.
+	perCcy := make([]api.CurrencyChange, 0, len(domain.AllCurrencies))
+	for _, ccy := range domain.AllCurrencies {
+		cur := nativeCurrent[ccy]
+		prev := prevNative(ccy)
+		if cur == 0 && prev == 0 {
+			continue
+		}
+		change := cur - prev
+		code := ccy
+		entry := api.CurrencyChange{
+			Currency:      &code,
+			Current:       &cur,
+			PreviousClose: &prev,
+			ChangeValue:   &change,
+		}
+		if pct := pctChange(prev, change); pct != nil {
+			entry.ChangePct = pct
+		}
+		perCcy = append(perCcy, entry)
+	}
+	if len(perCcy) > 0 {
+		summary.PerCurrency = &perCcy
+	}
+}
+
+// pctChange returns 100*change/base, or nil when base is zero (the change
+// percentage is undefined against a zero previous close).
+func pctChange(base, change float64) *float64 {
+	if base == 0 {
+		return nil
+	}
+	pct := change / base * 100
+	return &pct
 }

@@ -762,6 +762,24 @@ export interface components {
              */
             eur_rate?: number;
         };
+        CurrencyChange: {
+            /** @description INR | EUR | USD */
+            currency?: string;
+            /**
+             * Format: double
+             * @description Today's live current value in the native currency.
+             */
+            current?: number;
+            /**
+             * Format: double
+             * @description Snapshot current value in the native currency.
+             */
+            previous_close?: number;
+            /** Format: double */
+            change_value?: number;
+            /** Format: double */
+            change_pct?: number | null;
+        };
         Summary: {
             /** Format: double */
             total_cost?: number;
@@ -781,6 +799,29 @@ export interface components {
             total_realized_eur?: number;
             /** Format: double */
             eur_rate?: number;
+            /**
+             * Format: double
+             * @description Portfolio current value (INR base) at the most recent snapshot strictly before today — the previous close. Omitted when the user has no prior snapshot.
+             */
+            previous_close_value?: number;
+            /** Format: double */
+            previous_close_value_eur?: number;
+            /** @description YYYY-MM-DD of the snapshot used as the previous close. */
+            previous_close_date?: string;
+            /**
+             * Format: double
+             * @description total_current_value − previous_close_value (INR base).
+             */
+            change_value?: number;
+            /** Format: double */
+            change_value_eur?: number;
+            /**
+             * Format: double
+             * @description Percent change vs previous close. Null when previous_close_value is zero.
+             */
+            change_pct?: number | null;
+            /** @description Per-currency change vs previous close, in native amounts (no FX conversion), so currency moves don't muddy the price move. */
+            per_currency?: components["schemas"]["CurrencyChange"][];
         };
         HistoryRegionSnapshot: {
             /** Format: double */
