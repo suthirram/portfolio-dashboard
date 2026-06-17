@@ -282,6 +282,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           userId={actAsUserId}
         />
       )}
+
+      <footer style={{
+        padding: '16px 24px',
+        textAlign: 'center',
+        fontSize: 12,
+        color: 'var(--text-secondary)',
+        borderTop: '1px solid var(--border)',
+      }}>
+        © {new Date().getUTCFullYear()} Suthir. All rights reserved.
+      </footer>
     </div>
   )
 }
