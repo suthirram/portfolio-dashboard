@@ -6,7 +6,6 @@ import {
 import {
   api,
   type DateConflict,
-  type HistoryRangeInfo,
   type HistoryRow,
   type PasteHistoryReport,
   type RegionSnapshot,
@@ -68,6 +67,11 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
 }
 
 
+// Year selector lower bound. Lets users browse back through 2020 even
+// before any snapshot exists for that year — useful for manually pasting
+// backfilled history.
+const MIN_YEAR = 2020
+
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -116,7 +120,6 @@ export default function HistoryPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
   const [month, setMonth] = useState(now.getUTCMonth())
-  const [rangeInfo, setRangeInfo] = useState<HistoryRangeInfo | null>(null)
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
@@ -126,11 +129,6 @@ export default function HistoryPage() {
   const [editRow, setEditRow] = useState<HistoryRow | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
-
-  // Load year range once.
-  useEffect(() => {
-    void api.historyRange().then(setRangeInfo).catch(() => setRangeInfo(null))
-  }, [])
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -150,11 +148,12 @@ export default function HistoryPage() {
   useEffect(() => { void reload() }, [reload])
 
   const years = useMemo(() => {
-    if (!rangeInfo) return [now.getUTCFullYear()]
+    const current = now.getUTCFullYear()
+    const start = Math.min(MIN_YEAR, current)
     const out: number[] = []
-    for (let y = rangeInfo.earliest_year; y <= rangeInfo.latest_year; y++) out.push(y)
+    for (let y = start; y <= current; y++) out.push(y)
     return out
-  }, [rangeInfo, now])
+  }, [now])
 
   // Three charts, one per currency. Compute series per bucket.
   const chartsByRegion = useMemo(() => ({

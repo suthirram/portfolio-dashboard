@@ -51,12 +51,19 @@ describe('HistoryPage', () => {
     mockApi.listHistory.mockResolvedValue(list([]))
   })
 
-  it('populates the year dropdown from /history/range', async () => {
+  it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
     renderPage()
+    const currentYear = new Date().getUTCFullYear()
     await waitFor(() => {
       const opts = Array.from(document.querySelectorAll('option')).map(o => o.textContent)
-      expect(opts).toEqual(expect.arrayContaining(['2024', '2025', '2026']))
+      expect(opts).toContain('2020')
+      expect(opts).toContain(String(currentYear))
     })
+    const opts = Array.from(document.querySelectorAll('option')).map(o => o.textContent)
+    // Years are contiguous, oldest first.
+    for (let y = 2020; y <= currentYear; y++) {
+      expect(opts).toContain(String(y))
+    }
   })
 
   it('renders the friendly empty state when the month has no rows', async () => {
