@@ -134,7 +134,7 @@ direct snapshot-service code is duplicated.
 
 | # | Case | What it pins |
 |---|---|---|
-| 1 | `snapshot` with no flags → calls service with `today UTC` and no user filter. | Defaults. |
+| 1 | `snapshot` with no flags → calls service with `yesterday UTC` and no user filter. | Defaults. |
 | 2 | `snapshot --date 2026-06-15` → date parsed at UTC midnight. | Flag wiring. |
 | 3 | `snapshot --date 2026-13-99` → exits 1 with parse error. | Validation. |
 | 4 | `snapshot --user <id>` → service receives that user filter. | Replay path. |

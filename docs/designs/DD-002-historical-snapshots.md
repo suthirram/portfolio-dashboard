@@ -109,7 +109,7 @@ func (s *SnapshotStore) Delete(ctx, userID primitive.ObjectID, date time.Time) e
 
 `Upsert` uses Mongo `findOneAndUpdate` with `$setOnInsert` for the cron
 path and `$set` for the same-date re-run case, so a re-run of the
-snapshot job for today is safe.
+snapshot job for the same date is safe.
 
 ## 3. The snapshot job
 
@@ -122,8 +122,11 @@ A cobra subcommand alongside `serve` and the existing `migrate` /
 backend snapshot [--date YYYY-MM-DD] [--user <id>] [--dry-run]
 ```
 
-* Default `--date` is today (UTC). The flag is mostly for replays and
-  tests; the cron always invokes with no flag.
+* Default `--date` is yesterday (UTC) — the cron fires after midnight,
+  by which point that day's market sessions have closed, so the job
+  records settled close values rather than a mid-session snapshot. The
+  flag is mostly for replays and backfills; the cron always invokes with
+  no flag.
 * `--user` restricts the run to one user — useful for debugging and
   one-shot fixes; default is "every non-disabled user".
 * `--dry-run` runs the full Yahoo fetch and prints what *would* be
@@ -137,7 +140,7 @@ Process per user:
    existing 5-minute cache, so a single job run shares cache across
    users and is cheap.
 4. Compute `RegionSnapshot{Invested, Current}` per region.
-5. `SnapshotStore.Upsert` for `(userID, todayUTC)` with all regions
+5. `SnapshotStore.Upsert` for `(userID, yesterdayUTC)` with all regions
    tagged `source: cron`.
 
 Iteration order is by `_id` so resume-after-crash is deterministic.

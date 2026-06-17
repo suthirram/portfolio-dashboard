@@ -150,10 +150,11 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	}, nil
 }
 
-// RunOptions configures a snapshot run. Zero-value RunOptions = today,
-// every non-disabled user, persist for real.
+// RunOptions configures a snapshot run. Zero-value RunOptions = now (UTC),
+// every non-disabled user, persist for real. The cron entry point
+// (cmd/snapshot) passes yesterday, not now — see that command for why.
 type RunOptions struct {
-	Date   time.Time          // defaults to now (UTC)
+	Date   time.Time          // zero value = now (UTC); cron passes yesterday
 	UserID primitive.ObjectID // optional: restrict to one user
 	DryRun bool               // when true, no Upsert is called
 }

@@ -29,9 +29,11 @@ var snapshotCmd = &cobra.Command{
 	Long: `Builds a daily portfolio snapshot for every non-disabled user on
 the configured date and persists it in the portfolio_snapshots collection.
 
-Defaults to last yesterday (UTC) and every active user. The job is idempotent: a
-re-run for the same (user, date) overwrites cron-sourced regions and
-preserves manual overrides (PRD-002 / DD-002).
+Defaults to yesterday (UTC) and every active user. Yesterday because the
+cron fires after midnight, when that day's market sessions have closed —
+so we record settled close values, not a mid-session snapshot. The job is
+idempotent: a re-run for the same (user, date) overwrites cron-sourced
+regions and preserves manual overrides (PRD-002 / DD-002).
 
 This subcommand is what the external cron / Cloud Scheduler invokes; the
 web 'serve' process does not own any schedule.`,
