@@ -185,7 +185,10 @@ func (s *PortfolioService) attachPreviousClose(
 
 	// Headline previous close in INR base: EUR bucket converts via the
 	// live rate; INR and any other currency count as base, mirroring how
-	// totalCurrentValue is built above.
+	// totalCurrentValue is built above. Deliberately uses today's rate for
+	// the previous close too, so the headline change absorbs FX drift on
+	// mixed-currency portfolios; the native per-currency strip below is the
+	// FX-clean view of each price move.
 	var prevBaseINR float64
 	for ccy, bucket := range snap.Buckets {
 		if ccy == domain.CurrencyEUR {

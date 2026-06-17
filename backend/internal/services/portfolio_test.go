@@ -171,7 +171,7 @@ func TestPortfolioService_Summary_PreviousClose(t *testing.T) {
 		// ListByUser cursor, then LatestBefore FindOne.
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, holdings...),
-			mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, snap),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, snap),
 		)
 
 		store := persistence.New(mt.DB)
@@ -219,7 +219,7 @@ func TestPortfolioService_Summary_PreviousClose(t *testing.T) {
 		// Empty FirstBatch → LatestBefore returns ErrNotFound.
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, holdings...),
-			mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch),
 		)
 
 		store := persistence.New(mt.DB)
