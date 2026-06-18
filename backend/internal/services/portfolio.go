@@ -181,22 +181,28 @@ func (s *PortfolioService) attachPreviousClose(
 		return
 	}
 
-	prevNative := func(ccy string) float64 { return snap.Buckets[ccy].Current }
+	// Legacy snapshots written before the 2026-06 currency-only bucketing can
+	// carry a USD bucket: US-listed holdings paid for in rupees were
+	// mislabelled USD because the old cron bucketed by listing exchange, not
+	// currency (see services.CurrencyOf). That money is really INR — the UI
+	// only ever denominates positions in INR or EUR — and today those holdings
+	// sit in the INR bucket. Fold the legacy USD bucket back into INR so the
+	// per-currency comparison is like-for-like and no phantom USD row appears.
+	prevNative := func(ccy string) float64 {
+		v := snap.Buckets[ccy].Current
+		if ccy == domain.CurrencyINR {
+			v += snap.Buckets[domain.CurrencyUSD].Current
+		}
+		return v
+	}
 
 	// Headline previous close in INR base: EUR bucket converts via the
-	// live rate; INR and any other currency count as base, mirroring how
-	// totalCurrentValue is built above. Deliberately uses today's rate for
+	// live rate; INR (incl. the folded USD bucket) counts as base, mirroring
+	// how totalCurrentValue is built above. Deliberately uses today's rate for
 	// the previous close too, so the headline change absorbs FX drift on
 	// mixed-currency portfolios; the native per-currency strip below is the
 	// FX-clean view of each price move.
-	var prevBaseINR float64
-	for ccy, bucket := range snap.Buckets {
-		if ccy == domain.CurrencyEUR {
-			prevBaseINR += bucket.Current / eurRate
-		} else {
-			prevBaseINR += bucket.Current
-		}
-	}
+	prevBaseINR := prevNative(domain.CurrencyINR) + prevNative(domain.CurrencyEUR)/eurRate
 
 	prevEUR := prevBaseINR * eurRate
 	changeValue := totalCurrentValue - prevBaseINR
@@ -216,6 +222,9 @@ func (s *PortfolioService) attachPreviousClose(
 	// today or had value at the previous close.
 	perCcy := make([]api.CurrencyChange, 0, len(domain.AllCurrencies))
 	for _, ccy := range domain.AllCurrencies {
+		if ccy == domain.CurrencyUSD {
+			continue // folded into INR above; the UI never holds native USD
+		}
 		cur := nativeCurrent[ccy]
 		prev := prevNative(ccy)
 		if cur == 0 && prev == 0 {

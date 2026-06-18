@@ -238,6 +238,78 @@ func TestPortfolioService_Summary_PreviousClose(t *testing.T) {
 	})
 }
 
+// TestPortfolioService_Summary_PreviousClose_LegacyUSD covers the prev-close
+// fold of a legacy USD snapshot bucket into INR. Kept separate from
+// TestPortfolioService_Summary_PreviousClose to stay under the gocyclo limit.
+func TestPortfolioService_Summary_PreviousClose_LegacyUSD(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("legacy USD bucket folds into INR, no phantom USD row", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		// One INR holding today, worth 10*3500 = 35000 INR.
+		holdings := holdingsCursor(uid, bson.D{
+			{Key: "script", Value: "TCS"},
+			{Key: "symbol", Value: "TCS.NS"},
+			{Key: "currency", Value: "INR"},
+			{Key: "stocks_owned", Value: 10.0},
+			{Key: "avg_cost_price", Value: 3000.0},
+		})
+		// Legacy snapshot: the same rupee-paid US-listed money sits in a USD
+		// bucket (old exchange-based bucketing). INR bucket = 20000, legacy
+		// USD bucket = 10000. Both are really INR → prev INR should be 30000.
+		snap := bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "date", Value: primitive.NewDateTimeFromTime(time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC))},
+			{Key: "currency", Value: "INR"},
+			{Key: "regions", Value: bson.D{
+				{Key: "INR", Value: bson.D{
+					{Key: "invested", Value: 18000.0},
+					{Key: "current", Value: 20000.0},
+					{Key: "source", Value: "cron"},
+				}},
+				{Key: "USD", Value: bson.D{
+					{Key: "invested", Value: 9000.0},
+					{Key: "current", Value: 10000.0},
+					{Key: "source", Value: "cron"},
+				}},
+			}},
+		}
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, holdings...),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, snap),
+		)
+
+		store := persistence.New(mt.DB)
+		svc := NewPortfolioService(store.Holdings, store.Snapshots, &stubPriceFetcher{
+			price: 3500, rate: 0.011,
+		}, nil)
+
+		got, err := svc.Summary(context.Background(), uid)
+		if err != nil {
+			t.Fatalf("summary: %v", err)
+		}
+		// Prev close (INR base) folds USD into INR: 20000 + 10000 = 30000.
+		if got.PreviousCloseValue == nil || *got.PreviousCloseValue != 30000 {
+			t.Fatalf("PreviousCloseValue = %v, want 30000 (USD folded into INR)", got.PreviousCloseValue)
+		}
+		if got.ChangeValue == nil || *got.ChangeValue != 5000 {
+			t.Errorf("ChangeValue = %v, want 5000", got.ChangeValue)
+		}
+		// Exactly one row — INR — with no phantom USD row.
+		if got.PerCurrency == nil || len(*got.PerCurrency) != 1 {
+			t.Fatalf("PerCurrency = %v, want exactly 1 row (INR, no USD)", got.PerCurrency)
+		}
+		inr := (*got.PerCurrency)[0]
+		if inr.Currency == nil || *inr.Currency != "INR" {
+			t.Errorf("per-currency[0].Currency = %v, want INR", inr.Currency)
+		}
+		if inr.Current == nil || *inr.Current != 35000 || inr.PreviousClose == nil || *inr.PreviousClose != 30000 {
+			t.Errorf("per-currency INR current/prev = %v/%v, want 35000/30000",
+				inr.Current, inr.PreviousClose)
+		}
+	})
+}
+
 func TestPortfolioService_Prices_RateFailureBubblesUp(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
