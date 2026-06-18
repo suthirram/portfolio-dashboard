@@ -28,33 +28,33 @@ var errAdminOnly = echo.NewHTTPError(http.StatusForbidden, "admin access require
 // adminCaller returns the calling user when they hold admin or super-admin
 // powers.
 func adminCaller(ctx context.Context) (*domain.User, error) {
-	u, ok := auth.UserFromContext(ctx)
+	user, ok := auth.UserFromContext(ctx)
 	if !ok {
 		return nil, errNotLoggedIn
 	}
-	if !u.IsAdmin() {
+	if !user.IsAdmin() {
 		return nil, errAdminOnly
 	}
-	return u, nil
+	return user, nil
 }
 
 // loadTargetUser resolves an /admin/users/:id target for caller, applying
 // DD-001 §6 scope rules: an admin reaches only role:"user" rows in their own
 // region; the super admin reaches everyone. Out-of-scope targets read as
 // not-found so account ids cannot be enumerated.
-func (h *Controller) loadTargetUser(ctx context.Context, caller *domain.User, idHex string) (*domain.User, bool, error) {
-	id, err := primitive.ObjectIDFromHex(idHex)
+func (h *Controller) loadTargetUser(ctx context.Context, caller *domain.User, userIdHex string) (*domain.User, bool, error) {
+	userId, err := primitive.ObjectIDFromHex(userIdHex)
 	if err != nil {
 		return nil, false, nil
 	}
 
-	target, err := h.store.Users.FindByID(ctx, id)
+	target, err := h.store.Users.FindByID(ctx, userId)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return nil, false, nil
 		}
 		h.reqLog(ctx).Error("load target user failed",
-			zap.String("id", idHex), zap.String("error", err.Error()))
+			zap.String("id", userIdHex), zap.String("error", err.Error()))
 		return nil, false, err
 	}
 

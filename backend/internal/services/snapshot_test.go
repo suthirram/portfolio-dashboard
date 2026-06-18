@@ -21,23 +21,21 @@ func TestCurrencyOf(t *testing.T) {
 		want    string
 		wantOK  bool
 	}{
-		// Currency-first: user's typed currency wins over Exchange.
-		{"INR currency wins over NYSE exchange", domain.Holding{Exchange: "NYSE", Currency: "INR"}, domain.CurrencyINR, true},
-		{"EUR currency wins over NASDAQ exchange", domain.Holding{Exchange: "NASDAQ", Currency: "EUR"}, domain.CurrencyEUR, true},
+		// Currency is the sole decider; Exchange is never consulted.
+		{"INR currency over NYSE exchange", domain.Holding{Exchange: "NYSE", Currency: "INR"}, domain.CurrencyINR, true},
+		{"EUR currency over NASDAQ exchange", domain.Holding{Exchange: "NASDAQ", Currency: "EUR"}, domain.CurrencyEUR, true},
+		{"USD currency over NSE exchange", domain.Holding{Exchange: "NSE", Currency: "USD"}, domain.CurrencyUSD, true},
 		{"INR currency only", domain.Holding{Currency: "INR"}, domain.CurrencyINR, true},
 		{"EUR currency only", domain.Holding{Currency: "EUR"}, domain.CurrencyEUR, true},
-		// Exchange fallback when Currency is blank.
-		{"NSE no currency", domain.Holding{Exchange: "NSE"}, domain.CurrencyINR, true},
-		{"BSE lowercase no currency", domain.Holding{Exchange: "bse"}, domain.CurrencyINR, true},
-		{"LSE no currency", domain.Holding{Exchange: "LSE"}, domain.CurrencyEUR, true},
-		{"XETRA no currency", domain.Holding{Exchange: "XETRA"}, domain.CurrencyEUR, true},
-		// No USD fallback — UI does not allow USD-priced holdings, so NYSE
-		// + blank Currency is unmapped and excluded with a warn log.
-		{"NYSE no currency → unknown (UI cannot enter USD)", domain.Holding{Exchange: "NYSE"}, "unknown", false},
-		{"NASDAQ no currency → unknown", domain.Holding{Exchange: "NASDAQ"}, "unknown", false},
-		// Anything else.
-		{"unknown exchange + unsupported currency", domain.Holding{Exchange: "OTHER", Currency: "GBP"}, "unknown", false},
-		{"empty exchange + empty currency", domain.Holding{}, "unknown", false},
+		{"USD currency only", domain.Holding{Currency: "USD"}, domain.CurrencyUSD, true},
+		{"lowercase currency normalised", domain.Holding{Currency: "eur"}, domain.CurrencyEUR, true},
+		// Blank currency defaults to INR (Holding.Currency default),
+		// regardless of exchange.
+		{"blank currency on NYSE → INR", domain.Holding{Exchange: "NYSE"}, domain.CurrencyINR, true},
+		{"blank currency on XETRA → INR", domain.Holding{Exchange: "XETRA"}, domain.CurrencyINR, true},
+		{"empty exchange + empty currency → INR", domain.Holding{}, domain.CurrencyINR, true},
+		// Unsupported currency is excluded.
+		{"unsupported currency", domain.Holding{Exchange: "OTHER", Currency: "GBP"}, "unknown", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
