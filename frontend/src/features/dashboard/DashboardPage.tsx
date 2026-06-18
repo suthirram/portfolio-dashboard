@@ -269,6 +269,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             loading={loadingHoldings || loadingPrices}
             onEdit={h => setModal(h)}
             onDelete={handleDelete}
+            perCurrency={summary?.per_currency}
           />
         )}
         {tab === 'charts' && <Charts holdings={enriched} />}

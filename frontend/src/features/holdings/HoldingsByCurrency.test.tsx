@@ -102,6 +102,43 @@ describe('HoldingsByCurrency', () => {
     expect(within(section).getByText('(₹1,000)')).toBeInTheDocument()
   })
 
+  it('renders the per-currency daily change as a Today stat in the matching group card', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', currency: 'INR', script: 'TCS.NS' }),
+        h({ id: '2', currency: 'EUR', script: 'SAP.DE' }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      perCurrency={[
+        { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
+        { currency: 'EUR', current: 600, previous_close: 620, change_value: -20, change_pct: -3.23 },
+      ]}
+    />)
+
+    const sections = document.querySelectorAll('section')
+    const inr = sections[0] as HTMLElement
+    const eur = sections[1] as HTMLElement
+    // INR section: green up arrow + native ₹ amount + percent.
+    expect(within(inr).getByText('Today')).toBeInTheDocument()
+    expect(within(inr).getByText(/▲ ₹5,000/)).toBeInTheDocument()
+    expect(within(inr).getByText('(+16.67%)')).toBeInTheDocument()
+    // EUR section: red down arrow in native €.
+    expect(within(eur).getByText(/▼ €20/)).toBeInTheDocument()
+    expect(within(eur).getByText('(-3.23%)')).toBeInTheDocument()
+  })
+
+  it('omits the Today stat when no per-currency change is provided', () => {
+    render(<HoldingsByCurrency
+      holdings={[h({ id: '1', currency: 'INR' })]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+    expect(screen.queryByText('Today')).toBeNull()
+  })
+
   it('view tabs filter the rendered holdings by active/nil', () => {
     const user = vi.fn()
     const { rerender } = render(<HoldingsByCurrency

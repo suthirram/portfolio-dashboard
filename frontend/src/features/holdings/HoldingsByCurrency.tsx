@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { HoldingWithPrice } from '../../types'
+import type { CurrencyChange, HoldingWithPrice } from '../../types'
 import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import { groupByCurrency, type CurrencyCode } from './groupByCurrency'
@@ -10,6 +10,17 @@ interface Props {
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
+  // Native-amount daily change per currency (from /api/summary). Rendered as
+  // a "Today" stat inside the matching currency group card.
+  perCurrency?: CurrencyChange[]
+}
+
+// A group's CurrencyCode maps to a backend per-currency bucket: INR/EUR are
+// 1:1; the OTHER bucket is currently only USD holdings.
+const GROUP_TO_BUCKET: Record<CurrencyCode, string> = {
+  INR: 'INR',
+  EUR: 'EUR',
+  OTHER: 'USD',
 }
 
 const CURRENCY_LABEL: Record<CurrencyCode, string> = {
@@ -31,12 +42,14 @@ const fmt = (n: number, sym: string) => {
 }
 
 
-export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete }: Props) {
+export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, perCurrency }: Props) {
   const [view, setView] = useState<HoldingView>('active')
 
   const counts = viewCounts(holdings)
   const visible = filterByView(holdings, view)
   const groups = groupByCurrency(visible)
+
+  const changeByBucket = new Map((perCurrency ?? []).map(c => [c.currency, c]))
 
   const segBtn = (key: HoldingView, label: string, count: number) => {
     const active = view === key
@@ -96,6 +109,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         const value = nativeView(g.currency, totals.value, totals.valueEur)
         const unreal = nativeView(g.currency, totals.unreal, totals.unrealEur)
         const real = nativeView(g.currency, totals.real, totals.realEur)
+        const change = changeByBucket.get(GROUP_TO_BUCKET[g.currency])
 
         return (
           <section key={g.currency} style={{ marginBottom: 24 }}>
@@ -117,6 +131,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               <Stat label={`Current value (${native})`} primary={fmt(value.primary, nativeSym)} secondary={fmt(value.secondary, foreignSym)} />
               <Stat label="Unrealised" primary={fmt(unreal.primary, nativeSym)} secondary={fmt(unreal.secondary, foreignSym)} tone={unreal.primary >= 0 ? 'pos' : 'neg'} />
               <Stat label="Realised" primary={fmt(real.primary, nativeSym)} secondary={fmt(real.secondary, foreignSym)} tone={real.primary >= 0 ? 'pos' : 'neg'} />
+              {change && <ChangeStat change={change} symbol={nativeSym} />}
             </div>
 
             <HoldingsTable
@@ -131,6 +146,23 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         )
       })}
     </>
+  )
+}
+
+// ChangeStat shows the native-amount move vs the previous close (no FX), as a
+// "Today" entry inside the currency group card. pct is null when the previous
+// close was zero.
+function ChangeStat({ change, symbol }: { change: CurrencyChange; symbol: string }) {
+  const value = change.change_value ?? 0
+  const up = value >= 0
+  const pct = change.change_pct == null ? '—' : `${up ? '+' : '-'}${Math.abs(change.change_pct).toFixed(2)}%`
+  return (
+    <Stat
+      label="Today"
+      primary={`${up ? '▲' : '▼'} ${fmt(Math.abs(value), symbol)}`}
+      secondary={pct}
+      tone={up ? 'pos' : 'neg'}
+    />
   )
 }
 
