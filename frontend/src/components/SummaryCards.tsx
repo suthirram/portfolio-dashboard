@@ -1,12 +1,10 @@
-import type { CurrencyChange, Summary } from '../types'
+import type { Summary } from '../types'
 
 const fmt = (n: number, currency = '₹') =>
   `${currency}${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const fmtEur = (n: number) =>
   `€${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-const CCY_SYMBOL: Record<string, string> = { INR: '₹', EUR: '€', USD: '$' }
 
 // DailyChange is the increase/decrease vs the previous close, shown under
 // the Current Value card. value is in INR base; pct is null when the
@@ -70,27 +68,6 @@ function Card({ label, inr, eur, positive, negative, highlight, change }: CardPr
   )
 }
 
-// PerCurrencyStrip shows the native-amount change per currency (₹/€/$)
-// vs the previous close — no FX conversion, so each is its own price move.
-function PerCurrencyStrip({ items }: { items: CurrencyChange[] }) {
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 12, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-      {items.map(c => {
-        const sym = CCY_SYMBOL[c.currency ?? ''] ?? ''
-        const change = c.change_value ?? 0
-        const up = change >= 0
-        const pct = c.change_pct == null ? '' : ` (${up ? '+' : '-'}${Math.abs(c.change_pct).toFixed(2)}%)`
-        return (
-          <span key={c.currency}>
-            <span style={{ color: 'var(--text-secondary)' }}>{sym} </span>
-            <span className={up ? 'pos' : 'neg'}>{up ? '▲' : '▼'} {fmt(change, sym)}{pct}</span>
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
 interface SummaryCardsProps {
   summary: Summary | null
   loading: boolean
@@ -111,7 +88,6 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
     change_value,
     change_pct,
     previous_close_date,
-    per_currency,
   } = summary
 
   const totalPnL = total_unrealized + total_realized
@@ -146,7 +122,6 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
         <Card label="Total P&L" inr={totalPnL} eur={totalPnLEur}
           positive={totalPnL >= 0} negative={totalPnL < 0} />
       </div>
-      {per_currency && per_currency.length > 0 && <PerCurrencyStrip items={per_currency} />}
     </div>
   )
 }

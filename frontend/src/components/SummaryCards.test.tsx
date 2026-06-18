@@ -41,7 +41,7 @@ describe('SummaryCards daily change', () => {
     expect(screen.getByText(/▼ ₹1,200.00 \(-4\.00%\)/)).toBeInTheDocument()
   })
 
-  it('renders the per-currency strip with native symbols', () => {
+  it('does not render the per-currency strip (moved to the group cards)', () => {
     const summary: Summary = {
       ...base,
       change_value: 5000,
@@ -52,10 +52,10 @@ describe('SummaryCards daily change', () => {
       ],
     }
     render(<SummaryCards summary={summary} loading={false} />)
-    // ₹ delta appears on both the card line and the INR strip entry.
-    expect(screen.getAllByText(/▲ ₹5,000.00/).length).toBeGreaterThanOrEqual(2)
-    // EUR strip entry is unique.
-    expect(screen.getByText(/▼ €20.00 \(-3\.23%\)/)).toBeInTheDocument()
+    // The headline delta still shows once, on the Current Value card.
+    expect(screen.getAllByText(/▲ ₹5,000.00/).length).toBe(1)
+    // The EUR per-currency entry now lives in HoldingsByCurrency, not here.
+    expect(screen.queryByText(/€20.00 \(-3\.23%\)/)).toBeNull()
   })
 
   it('omits the change indicator when there is no prior snapshot', () => {
