@@ -15,51 +15,73 @@ const base: Summary = {
   eur_rate: 0.011,
 }
 
-describe('SummaryCards daily change', () => {
-  it('renders the increase vs previous close on the Current Value card', () => {
+describe('SummaryCards grouped change card', () => {
+  it('groups one native line per held currency (India/EUR/USD) in a single card', () => {
     const summary: Summary = {
       ...base,
-      previous_close_value: 30000,
-      change_value: 5000,
-      change_pct: 16.67,
       previous_close_date: '2026-06-16',
-    }
-    render(<SummaryCards summary={summary} loading={false} />)
-    // ▲ arrow, INR amount, percent, and the close date are all shown.
-    expect(screen.getByText(/▲ ₹5,000.00 \(\+16\.67%\)/)).toBeInTheDocument()
-    expect(screen.getByText(/vs 2026-06-16 close/)).toBeInTheDocument()
-  })
-
-  it('renders a decrease with the ▼ arrow', () => {
-    const summary: Summary = {
-      ...base,
-      change_value: -1200,
-      change_pct: -4,
-      previous_close_date: '2026-06-16',
-    }
-    render(<SummaryCards summary={summary} loading={false} />)
-    expect(screen.getByText(/▼ ₹1,200.00 \(-4\.00%\)/)).toBeInTheDocument()
-  })
-
-  it('does not render the per-currency strip (moved to the group cards)', () => {
-    const summary: Summary = {
-      ...base,
-      change_value: 5000,
-      change_pct: 16.67,
       per_currency: [
         { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
         { currency: 'EUR', current: 600, previous_close: 620, change_value: -20, change_pct: -3.23 },
+        { currency: 'USD', current: 1100, previous_close: 1000, change_value: 100, change_pct: 10 },
       ],
     }
     render(<SummaryCards summary={summary} loading={false} />)
-    // The headline delta still shows once, on the Current Value card.
-    expect(screen.getAllByText(/▲ ₹5,000.00/).length).toBe(1)
-    // The EUR per-currency entry now lives in HoldingsByCurrency, not here.
-    expect(screen.queryByText(/€20.00 \(-3\.23%\)/)).toBeNull()
+    // One card, three stacked lines with currency tags.
+    expect(screen.getByText('Change vs Prev Close')).toBeInTheDocument()
+    expect(screen.getByText('INR')).toBeInTheDocument()
+    expect(screen.getByText('EUR')).toBeInTheDocument()
+    expect(screen.getByText('USD')).toBeInTheDocument()
+    // Value and percent are separate aligned cells.
+    expect(screen.getByText('▲ ₹5,000.00')).toBeInTheDocument()
+    expect(screen.getByText('+16.67%')).toBeInTheDocument()
+    expect(screen.getByText('▼ €20.00')).toBeInTheDocument()
+    expect(screen.getByText('-3.23%')).toBeInTheDocument()
+    expect(screen.getByText('▲ $100.00')).toBeInTheDocument()
+    expect(screen.getByText('+10.00%')).toBeInTheDocument()
+    // Close date shown once for the group.
+    expect(screen.getAllByText(/vs 2026-06-16 close/).length).toBe(1)
+    // Old P&L cards gone.
+    expect(screen.queryByText('Unrealised P&L')).toBeNull()
+    expect(screen.queryByText('Realised P&L')).toBeNull()
   })
 
-  it('omits the change indicator when there is no prior snapshot', () => {
+  it('shows only the single held currency line (others hidden)', () => {
+    const summary: Summary = {
+      ...base,
+      previous_close_date: '2026-06-16',
+      per_currency: [
+        { currency: 'INR', current: 28800, previous_close: 30000, change_value: -1200, change_pct: -4 },
+      ],
+    }
+    render(<SummaryCards summary={summary} loading={false} />)
+    expect(screen.getByText('INR')).toBeInTheDocument()
+    expect(screen.getByText('▼ ₹1,200.00')).toBeInTheDocument()
+    expect(screen.getByText('-4.00%')).toBeInTheDocument()
+    expect(screen.queryByText('EUR')).toBeNull()
+    expect(screen.queryByText('USD')).toBeNull()
+  })
+
+  it('groups unrealised + realised into a single Profit & Loss card', () => {
+    const summary: Summary = {
+      ...base,
+      total_unrealized: 5000,
+      total_unrealized_eur: 55,
+      total_realized: -800,
+      total_realized_eur: -8.8,
+    }
+    render(<SummaryCards summary={summary} loading={false} />)
+    expect(screen.getByText('Profit & Loss')).toBeInTheDocument()
+    expect(screen.getByText('Unrealised')).toBeInTheDocument()
+    expect(screen.getByText('Realised')).toBeInTheDocument()
+    expect(screen.getByText('₹5,000.00')).toBeInTheDocument()
+    expect(screen.getByText('-₹800.00')).toBeInTheDocument()
+  })
+
+  it('shows a dash when there is no prior snapshot', () => {
     render(<SummaryCards summary={base} loading={false} />)
+    expect(screen.getByText('Change vs Prev Close')).toBeInTheDocument()
+    expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.queryByText(/vs .* close/)).toBeNull()
     expect(screen.queryByText(/▲|▼/)).toBeNull()
   })

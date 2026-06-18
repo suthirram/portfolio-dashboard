@@ -1,3 +1,4 @@
+import type React from 'react'
 import type { Summary } from '../types'
 
 const fmt = (n: number, currency = '₹') =>
@@ -6,27 +7,39 @@ const fmt = (n: number, currency = '₹') =>
 const fmtEur = (n: number) =>
   `€${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-// DailyChange is the increase/decrease vs the previous close, shown under
-// the Current Value card. value is in INR base; pct is null when the
-// previous close was zero.
-interface DailyChange {
+// ChangeRow is one native-currency line in the grouped daily-change card:
+// the move vs the previous close in that currency's own units. pct is null
+// when the previous close was zero.
+interface ChangeRow {
+  name: string
+  symbol: string
   value: number
   pct: number | null
-  date?: string
 }
 
-// ChangeLine renders a coloured ▲/▼ delta + percent + the close date.
-function ChangeLine({ change }: { change: DailyChange }) {
-  const up = change.value >= 0
+// ChangeLine renders one currency as a full-width tinted row: a currency
+// badge on the left, the ▲/▼ native delta and a percent chip on the right.
+// The tint (green/red) makes gainers/losers scannable at a glance.
+function ChangeLine({ row }: { row: ChangeRow }) {
+  const up = row.value >= 0
   const cls = up ? 'pos' : 'neg'
   const arrow = up ? '▲' : '▼'
-  const pct = change.pct == null ? '' : ` (${up ? '+' : '-'}${Math.abs(change.pct).toFixed(2)}%)`
+  const pct = row.pct == null ? '—' : `${up ? '+' : '-'}${Math.abs(row.pct).toFixed(2)}%`
   return (
-    <div style={{ fontSize: 12, marginTop: 6, fontVariantNumeric: 'tabular-nums' }} className={cls}>
-      {arrow} {fmt(change.value)}{pct}
-      {change.date && (
-        <span style={{ color: 'var(--text-muted)' }}> vs {change.date} close</span>
-      )}
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)',
+      background: up ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.10)',
+      fontVariantNumeric: 'tabular-nums', minWidth: 0,
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.symbol}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
+      </span>
+      <span className={cls} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25, minWidth: 0 }}>
+        <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{arrow} {fmt(row.value, row.symbol)}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85, whiteSpace: 'nowrap' }}>{pct}</span>
+      </span>
     </div>
   )
 }
@@ -38,34 +51,94 @@ interface CardProps {
   positive?: boolean
   negative?: boolean
   highlight?: boolean
-  change?: DailyChange
 }
 
-function Card({ label, inr, eur, positive, negative, highlight, change }: CardProps) {
+function Card({ label, inr, eur, positive, negative, highlight }: CardProps) {
   const sign = inr < 0 ? '-' : ''
   const cls = positive ? 'pos' : negative ? 'neg' : ''
 
   return (
-    <div style={{
-      background: highlight ? 'var(--card-highlight-bg)' : 'var(--bg-card)',
-      border: `1px solid ${highlight ? 'var(--card-highlight-border)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)',
-      padding: '16px 20px',
-      flex: '1 1 180px',
-      minWidth: 160,
-    }}>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-        {label}
-      </div>
+    <div style={cardStyle(highlight)}>
+      <div style={cardLabelStyle}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} className={cls}>
         {sign}{fmt(inr)}
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }} className={cls}>
         {sign}{fmtEur(eur)}
       </div>
-      {change && <ChangeLine change={change} />}
     </div>
   )
+}
+
+// ChangeCard is the grouped daily-change card (replacing the Unrealised /
+// Realised P&L cards). It stacks one native line per currency that has a
+// prior-snapshot value (India ₹ / EUR € / USD $) — only the currencies the
+// user actually holds — at a fixed card width regardless of line count.
+function ChangeCard({ rows, date }: { rows: ChangeRow[]; date?: string }) {
+  return (
+    <div style={cardStyle(false)}>
+      <div style={cardLabelStyle}>Change vs Prev Close</div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-muted)', marginTop: 4 }}>—</div>
+      ) : (
+        rows.map(r => <ChangeLine key={r.name} row={r} />)
+      )}
+      {date && rows.length > 0 && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>vs {date} close</div>
+      )}
+    </div>
+  )
+}
+
+// PnLRow is one tinted line in the combined P&L card: a label on the left,
+// the INR amount with its EUR equivalent on the right, coloured by sign.
+function PnLRow({ label, inr, eur }: { label: string; inr: number; eur: number }) {
+  const up = inr >= 0
+  const cls = up ? 'pos' : 'neg'
+  const sign = inr < 0 ? '-' : ''
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)',
+      background: up ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.10)',
+      fontVariantNumeric: 'tabular-nums', minWidth: 0,
+    }}>
+      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)', textTransform: 'uppercase', flexShrink: 0 }}>{label}</span>
+      <span className={cls} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25, minWidth: 0 }}>
+        <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{sign}{fmt(inr)}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85, whiteSpace: 'nowrap' }}>{sign}{fmtEur(eur)}</span>
+      </span>
+    </div>
+  )
+}
+
+// PnLCard groups realised and unrealised P&L into a single card, mirroring
+// the change card's row layout.
+function PnLCard({ unrealInr, unrealEur, realInr, realEur }: {
+  unrealInr: number; unrealEur: number; realInr: number; realEur: number
+}) {
+  return (
+    <div style={cardStyle(false)}>
+      <div style={cardLabelStyle}>Profit &amp; Loss</div>
+      <PnLRow label="Unrealised" inr={unrealInr} eur={unrealEur} />
+      <PnLRow label="Realised" inr={realInr} eur={realEur} />
+    </div>
+  )
+}
+
+const cardStyle = (highlight?: boolean): React.CSSProperties => ({
+  background: highlight ? 'var(--card-highlight-bg)' : 'var(--bg-card)',
+  border: `1px solid ${highlight ? 'var(--card-highlight-border)' : 'var(--border)'}`,
+  borderRadius: 'var(--radius)',
+  padding: '16px 20px',
+  flex: '1 1 200px',
+  minWidth: 180,
+  overflow: 'hidden',
+})
+
+const cardLabelStyle: React.CSSProperties = {
+  color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,
+  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
 }
 
 interface SummaryCardsProps {
@@ -85,18 +158,26 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
     total_unrealized_eur = 0,
     total_realized_eur = 0,
     eur_rate = 0,
-    change_value,
-    change_pct,
     previous_close_date,
+    per_currency,
   } = summary
 
   const totalPnL = total_unrealized + total_realized
   const totalPnLEur = total_unrealized_eur + total_realized_eur
 
-  // Daily change is present only when the user has a prior snapshot.
-  const dailyChange = change_value != null
-    ? { value: change_value, pct: change_pct ?? null, date: previous_close_date }
-    : undefined
+  // Daily change vs previous close, grouped into one card with one native
+  // line per currency the user holds — India ₹, EUR €, USD $. A line is
+  // built only when that currency has a per-currency entry (i.e. a prior
+  // snapshot with value in it), so single-currency users see just one line.
+  const CCY_META: { code: string; name: string; symbol: string }[] = [
+    { code: 'INR', name: 'INR', symbol: '₹' },
+    { code: 'EUR', name: 'EUR', symbol: '€' },
+    { code: 'USD', name: 'USD', symbol: '$' },
+  ]
+  const changeRows: ChangeRow[] = CCY_META.flatMap(({ code, name, symbol }) => {
+    const c = per_currency?.find(x => x.currency === code)
+    return c ? [{ name, symbol, value: c.change_value ?? 0, pct: c.change_pct ?? null }] : []
+  })
 
   return (
     <div>
@@ -113,12 +194,10 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight />
-        <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight
-          change={dailyChange} />
-        <Card label="Unrealised P&L" inr={total_unrealized} eur={total_unrealized_eur}
-          positive={total_unrealized >= 0} negative={total_unrealized < 0} />
-        <Card label="Realised P&L" inr={total_realized} eur={total_realized_eur}
-          positive={total_realized >= 0} negative={total_realized < 0} />
+        <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight />
+        <ChangeCard rows={changeRows} date={previous_close_date} />
+        <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
+          realInr={total_realized} realEur={total_realized_eur} />
         <Card label="Total P&L" inr={totalPnL} eur={totalPnLEur}
           positive={totalPnL >= 0} negative={totalPnL < 0} />
       </div>
