@@ -58,6 +58,17 @@ jobs:
             --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=info##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}" \
             --set-secrets "MONGODB_URI=MONGODB_URI:latest"
 
+      - name: Repoint snapshot job to the freshly deployed image
+        # The daily-snapshot cron (pd-snapshot) runs the same binary as the
+        # web service but is a separate Cloud Run Job that CI would otherwise
+        # never update — leaving it pinned to a stale image. Bump it to the
+        # exact image the service just deployed so both stay in lockstep.
+        run: |
+          IMAGE=$(gcloud run services describe "$SERVICE" --region "$REGION" \
+            --format 'value(spec.template.spec.containers[0].image)')
+          echo "Repointing pd-snapshot to $IMAGE"
+          gcloud run jobs update pd-snapshot --region "$REGION" --image "$IMAGE"
+
       - name: Show service URL
         run: |
           gcloud run services describe "$SERVICE" --region "$REGION" \
