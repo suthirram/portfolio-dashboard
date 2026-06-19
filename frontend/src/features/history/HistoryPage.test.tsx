@@ -10,6 +10,9 @@ import {
   AddRowModal,
   ConflictDialog,
   PasteModal,
+  niceDomain,
+  fmtAxisAmount,
+  perCurrencyChartData,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -355,5 +358,69 @@ describe('PasteModal', () => {
     // report summary renders after submit resolves
     expect(await screen.findByText(/Applied: 1/)).toBeInTheDocument()
     expect(screen.getByText(/2026-06-31: invalid date/)).toBeInTheDocument()
+  })
+})
+
+describe('niceDomain', () => {
+  it('returns undefined when no finite values', () => {
+    expect(niceDomain([])).toBeUndefined()
+    expect(niceDomain([NaN, null as unknown as number])).toBeUndefined()
+  })
+
+  it('zooms into a narrow band far above zero', () => {
+    // The reported bug: invested vs current both ≈450k rendered flat
+    // because the default domain started at 0. The padded domain must
+    // start well above zero so the fluctuation is visible.
+    const [min, max] = niceDomain([452000, 458000, 461000])!
+    expect(min).toBeGreaterThan(400000)
+    expect(max).toBeGreaterThanOrEqual(461000)
+    expect(min).toBeLessThan(452000)
+  })
+
+  it('handles negative ranges (P/L %)', () => {
+    const [min, max] = niceDomain([-3.2, 1.5, 4.8])!
+    expect(min).toBeLessThan(-3.2)
+    expect(max).toBeGreaterThan(4.8)
+  })
+
+  it('pads a flat series so it sits inside the chart', () => {
+    const [min, max] = niceDomain([100, 100])!
+    expect(min).toBeLessThan(100)
+    expect(max).toBeGreaterThan(100)
+  })
+})
+
+describe('perCurrencyChartData null-gap', () => {
+  // Regression: a region added mid-month leaves earlier dates with no
+  // snapshot. Emitting 0 for those dates dragged the dynamic Y-axis
+  // floor to ~0, re-flattening the chart (the original bug), and drew
+  // the line crashing to 0. Absent regions must emit null so niceDomain
+  // ignores them and the line gaps instead.
+  const rows: HistoryRow[] = [
+    row({ date: '2026-06-01', regions: { EUR: region(1000, 1100, 'manual') } }), // no INR
+    row({ date: '2026-06-02', regions: { INR: region(452000, 458000, 'cron') } }),
+    row({ date: '2026-06-03', regions: { INR: region(452000, 461000, 'cron') } }),
+  ]
+
+  it('emits null (not 0) for dates where the region is absent', () => {
+    const series = perCurrencyChartData(rows, 'INR')
+    expect(series[0]).toMatchObject({ invested: null, current: null, pnl_pct: null })
+    expect(series[1]).toMatchObject({ invested: 452000, current: 458000 })
+  })
+
+  it('keeps the dynamic domain zoomed despite the absent leading date', () => {
+    const series = perCurrencyChartData(rows, 'INR')
+    const [min] = niceDomain(series.flatMap(d => [d.invested, d.current]))!
+    // floor stays high — not dragged to ~0 by the missing 2026-06-01 row
+    expect(min).toBeGreaterThan(400000)
+  })
+})
+
+describe('fmtAxisAmount', () => {
+  it('compacts thousands and millions', () => {
+    expect(fmtAxisAmount(450000)).toBe('450k')
+    expect(fmtAxisAmount(1500000)).toBe('1.5M')
+    expect(fmtAxisAmount(2000000)).toBe('2M')
+    expect(fmtAxisAmount(500)).toBe('500')
   })
 })

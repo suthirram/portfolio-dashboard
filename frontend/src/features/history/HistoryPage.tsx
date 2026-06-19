@@ -384,8 +384,21 @@ export function fmtCurrency(amount: number, sym: string): string {
 // share with invested/current in the previous combined ComposedChart.
 function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
   const cur = CURRENCY_BY_REGION[region]
+  const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
   const pnlColour = PNL_LINE_COLOUR[theme]
+  // Recharts' default value-axis domain is [0, max], which flattens
+  // series that oscillate in a narrow band far above zero (invested vs
+  // current both ≈₹450k render as a near-flat line). Derive a padded
+  // domain from the actual data so the fluctuations fill the chart.
+  const amountDomain = useMemo(
+    () => niceDomain(data.flatMap(d => [d.invested, d.current])),
+    [data],
+  )
+  const pnlDomain = useMemo(
+    () => niceDomain(data.map(d => d.pnl_pct)),
+    [data],
+  )
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 8, padding: 16, marginBottom: 16 }}>
@@ -402,11 +415,12 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
+                <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
+                  tickFormatter={fmtAxisAmount} width={64} />
+                <Tooltip formatter={(v) => fmtCurrency(Number(v), sym)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} />
-                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} />
+                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
+                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -420,10 +434,10 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip />
+                <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
+                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} />
+                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -435,15 +449,64 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
 
 // perCurrencyChartData produces oldest-first chart series for one region.
 // pnl_pct on a per-region basis is (current - invested) / invested * 100.
+//
+// Dates where the region has no snapshot emit `null` (a gap) rather than
+// 0. Two reasons: a 0 point drags the dynamic Y-axis floor back toward
+// zero — re-flattening the very fluctuation the dynamic domain exists to
+// show — and it draws the line plunging to 0 on empty dates, which reads
+// as "portfolio went to zero" instead of "no data". `null` lets niceDomain
+// (which filters non-finite) ignore it and the Line connectNulls bridge
+// the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return oldestFirst.map(r => {
     const rs = r.regions[region]
-    const invested = rs?.invested ?? 0
-    const current  = rs?.current  ?? 0
-    const pnl_pct  = invested > 0 ? ((current - invested) / invested) * 100 : null
+    const invested = rs ? rs.invested : null
+    const current  = rs ? rs.current  : null
+    const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
     return { date: r.date.slice(5), invested, current, pnl_pct }
   })
+}
+
+// niceDomain returns a padded, nicely-rounded [min, max] for a value
+// axis so the plotted lines fill the chart instead of being crushed
+// against a zero floor. Pads ~8% beyond the data range and snaps the
+// bounds to a readable step. Returns undefined when there are no finite
+// values (caller falls back to Recharts' 'auto' domain).
+export function niceDomain(values: (number | null | undefined)[]): [number, number] | undefined {
+  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (finite.length === 0) return undefined
+  const lo = Math.min(...finite)
+  const hi = Math.max(...finite)
+  if (lo === hi) {
+    // Flat series: pad around the single value so it sits mid-chart.
+    const pad = Math.abs(lo) * 0.05 || 1
+    return [lo - pad, hi + pad]
+  }
+  const pad = (hi - lo) * 0.08
+  const step = niceStep((hi - lo + 2 * pad) / 5)
+  const min = Math.floor((lo - pad) / step) * step
+  const max = Math.ceil((hi + pad) / step) * step
+  return [min, max]
+}
+
+// niceStep rounds a raw step up to the nearest 1/2/5 × 10ⁿ — the
+// classic "nice number" sequence for axis ticks.
+function niceStep(raw: number): number {
+  if (!(raw > 0)) return 1
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
+  const norm = raw / mag
+  const nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10
+  return nice * mag
+}
+
+// fmtAxisAmount keeps the amount axis labels compact (1.2M, 450k) so the
+// wider dynamic range doesn't overflow the tick gutter.
+export function fmtAxisAmount(v: number): string {
+  const abs = Math.abs(v)
+  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`
+  if (abs >= 1_000) return `${(v / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`
+  return String(v)
 }
 
 // ---- Table ----
