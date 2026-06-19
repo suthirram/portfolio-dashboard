@@ -25,3 +25,7 @@ portfolio-dashboard
 
 # Claude Code — per-user, not shared
 .claude/settings.local.json
+.claude/launch.json
+
+# Stray local screenshots
+Screenshot *.png
