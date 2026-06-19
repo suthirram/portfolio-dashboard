@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -384,6 +385,7 @@ export function fmtCurrency(amount: number, sym: string): string {
 // share with invested/current in the previous combined ComposedChart.
 function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
   const cur = CURRENCY_BY_REGION[region]
+  const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
   const pnlColour = PNL_LINE_COLOUR[theme]
   // Recharts' default value-axis domain is [0, max], which flattens
