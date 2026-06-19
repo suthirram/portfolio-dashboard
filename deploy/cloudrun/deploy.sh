@@ -37,6 +37,22 @@ gcloud run deploy "${SERVICE}" \
   --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=debug##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${CORS}" \
   --set-secrets "MONGODB_URI=MONGODB_URI:latest"
 
+# pd-snapshot is a separate Cloud Run Job that runs the same binary as the
+# service. Pin it to the same image so the cron and the web app always run
+# identical code. Skipped if the job doesn't exist yet (bootstrap it first with
+# infra/gcp/snapshot-job.sh).
+SNAPSHOT_JOB="${SNAPSHOT_JOB:-pd-snapshot}"
+if gcloud run jobs describe "${SNAPSHOT_JOB}" --project "${PROJECT_ID}" \
+    --region "${REGION}" >/dev/null 2>&1; then
+  IMAGE=$(gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" \
+    --region "${REGION}" --format 'value(spec.template.spec.containers[0].image)')
+  echo ">> Repointing ${SNAPSHOT_JOB} to ${IMAGE}"
+  gcloud run jobs update "${SNAPSHOT_JOB}" --project "${PROJECT_ID}" \
+    --region "${REGION}" --image "${IMAGE}"
+else
+  echo ">> Skipping ${SNAPSHOT_JOB} update — job not found (run infra/gcp/snapshot-job.sh first)"
+fi
+
 echo ">> Service URL:"
 gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" \
   --region "${REGION}" --format 'value(status.url)'
