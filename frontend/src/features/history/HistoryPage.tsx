@@ -415,11 +415,11 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
-                  allowDataOverflow tickFormatter={fmtAxisAmount} width={64} />
+                  tickFormatter={fmtAxisAmount} width={64} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} />
-                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} />
+                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
+                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -433,11 +433,10 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']}
-                  allowDataOverflow />
+                <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} />
+                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -449,13 +448,21 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
 
 // perCurrencyChartData produces oldest-first chart series for one region.
 // pnl_pct on a per-region basis is (current - invested) / invested * 100.
+//
+// Dates where the region has no snapshot emit `null` (a gap) rather than
+// 0. Two reasons: a 0 point drags the dynamic Y-axis floor back toward
+// zero — re-flattening the very fluctuation the dynamic domain exists to
+// show — and it draws the line plunging to 0 on empty dates, which reads
+// as "portfolio went to zero" instead of "no data". `null` lets niceDomain
+// (which filters non-finite) ignore it and the Line connectNulls bridge
+// the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return oldestFirst.map(r => {
     const rs = r.regions[region]
-    const invested = rs?.invested ?? 0
-    const current  = rs?.current  ?? 0
-    const pnl_pct  = invested > 0 ? ((current - invested) / invested) * 100 : null
+    const invested = rs ? rs.invested : null
+    const current  = rs ? rs.current  : null
+    const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
     return { date: r.date.slice(5), invested, current, pnl_pct }
   })
 }
@@ -465,7 +472,7 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
 // against a zero floor. Pads ~8% beyond the data range and snaps the
 // bounds to a readable step. Returns undefined when there are no finite
 // values (caller falls back to Recharts' 'auto' domain).
-export function niceDomain(values: number[]): [number, number] | undefined {
+export function niceDomain(values: (number | null | undefined)[]): [number, number] | undefined {
   const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
   if (finite.length === 0) return undefined
   const lo = Math.min(...finite)
