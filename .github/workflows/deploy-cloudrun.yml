@@ -59,10 +59,9 @@ jobs:
             --set-secrets "MONGODB_URI=MONGODB_URI:latest"
 
       - name: Repoint snapshot job to the freshly deployed image
-        # The daily-snapshot cron (pd-snapshot) runs the same binary as the
-        # web service but is a separate Cloud Run Job that CI would otherwise
-        # never update — leaving it pinned to a stale image. Bump it to the
-        # exact image the service just deployed so both stay in lockstep.
+        # pd-snapshot is a separate Cloud Run Job that runs the same binary as
+        # the service. Pin it to the same image so the cron and the web app
+        # always run identical code.
         run: |
           IMAGE=$(gcloud run services describe "$SERVICE" --region "$REGION" \
             --format 'value(spec.template.spec.containers[0].image)')
