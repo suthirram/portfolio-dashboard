@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -418,7 +417,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                   tickFormatter={fmtAxisAmount} width={64} />
-                <Tooltip />
+                <Tooltip formatter={(v) => fmtCurrency(Number(v), sym)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
                 <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
@@ -436,7 +435,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
-                <Tooltip />
+                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
