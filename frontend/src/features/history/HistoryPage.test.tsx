@@ -10,6 +10,8 @@ import {
   AddRowModal,
   ConflictDialog,
   PasteModal,
+  niceDomain,
+  fmtAxisAmount,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -355,5 +357,43 @@ describe('PasteModal', () => {
     // report summary renders after submit resolves
     expect(await screen.findByText(/Applied: 1/)).toBeInTheDocument()
     expect(screen.getByText(/2026-06-31: invalid date/)).toBeInTheDocument()
+  })
+})
+
+describe('niceDomain', () => {
+  it('returns undefined when no finite values', () => {
+    expect(niceDomain([])).toBeUndefined()
+    expect(niceDomain([NaN, null as unknown as number])).toBeUndefined()
+  })
+
+  it('zooms into a narrow band far above zero', () => {
+    // The reported bug: invested vs current both ≈450k rendered flat
+    // because the default domain started at 0. The padded domain must
+    // start well above zero so the fluctuation is visible.
+    const [min, max] = niceDomain([452000, 458000, 461000])!
+    expect(min).toBeGreaterThan(400000)
+    expect(max).toBeGreaterThanOrEqual(461000)
+    expect(min).toBeLessThan(452000)
+  })
+
+  it('handles negative ranges (P/L %)', () => {
+    const [min, max] = niceDomain([-3.2, 1.5, 4.8])!
+    expect(min).toBeLessThan(-3.2)
+    expect(max).toBeGreaterThan(4.8)
+  })
+
+  it('pads a flat series so it sits inside the chart', () => {
+    const [min, max] = niceDomain([100, 100])!
+    expect(min).toBeLessThan(100)
+    expect(max).toBeGreaterThan(100)
+  })
+})
+
+describe('fmtAxisAmount', () => {
+  it('compacts thousands and millions', () => {
+    expect(fmtAxisAmount(450000)).toBe('450k')
+    expect(fmtAxisAmount(1500000)).toBe('1.5M')
+    expect(fmtAxisAmount(2000000)).toBe('2M')
+    expect(fmtAxisAmount(500)).toBe('500')
   })
 })
