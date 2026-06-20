@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"go.uber.org/zap"
@@ -125,10 +126,19 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		if snap.Currency != "" {
 			currency = snap.Currency
 		}
+		regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
+		for k, bucket := range snap.Buckets {
+			bucket.Invested = round(bucket.Invested)
+			bucket.Current = round(bucket.Current)
+			regions[k] = bucket
+		}
+		totals := snap.Totals()
+		totals.InvestedTotal = round(totals.InvestedTotal)
+		totals.CurrentTotal = round(totals.CurrentTotal)
 		rows = append(rows, HistoryRow{
 			Date:    snap.Date.UTC().Format("2006-01-02"),
-			Regions: snap.Buckets,
-			Totals:  snap.Totals(),
+			Regions: regions,
+			Totals:  totals,
 		})
 	}
 	return HistoryList{Currency: currency, Rows: rows}, nil
@@ -327,6 +337,12 @@ func (s *HistoryService) Paste(ctx context.Context, uid primitive.ObjectID, in P
 }
 
 // ---- helpers ----
+
+// round rounds a monetary value to two decimals for API output. Storage
+// keeps full precision; rounding only at the response boundary.
+func round(v float64) float64 {
+	return math.Round(v*100) / 100
+}
 
 func parseDateNotFuture(s string, now func() time.Time) (time.Time, error) {
 	d, err := time.Parse("2006-01-02", s)

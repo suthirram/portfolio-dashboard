@@ -95,6 +95,10 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 		costPriceEUR = costPrice * eurRate
 		realizedPnLEUR = hld.RealizedPnL * eurRate
 	}
+	// Round monetary table values to two decimals at the response boundary.
+	costPrice = round(costPrice)
+	costPriceEUR = round(costPriceEUR)
+	realizedPnLEUR = round(realizedPnLEUR)
 
 	hwp := api.HoldingWithPrice{
 		Id:             lo.ToPtr(hld.ID.Hex()),
@@ -117,28 +121,37 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 	if hld.Symbol != "" {
 		price, _, priceErr := ps.GetPrice(ctx, hld.Symbol)
 		if priceErr != nil {
+			// A failed/delisted price (Yahoo 404) is treated as a market
+			// price of 0: current value 0, full cost as unrealized loss.
+			// The error is still surfaced so the UI can flag the row, but
+			// the numbers match the cron snapshot and summary totals.
 			errMsg := priceErr.Error()
 			hwp.PriceError = &errMsg
-		} else {
-			var currentValue, currentValueEUR, unrealizedPnL, unrealizedPnLEUR float64
-			if isEUR {
-				currentValueEUR = hld.StocksOwned * price
-				currentValue = currentValueEUR / eurRate
-				unrealizedPnLEUR = currentValueEUR - costPriceEUR
-				unrealizedPnL = unrealizedPnLEUR / eurRate
-			} else {
-				currentValue = hld.StocksOwned * price
-				unrealizedPnL = currentValue - costPrice
-				currentValueEUR = currentValue * eurRate
-				unrealizedPnLEUR = unrealizedPnL * eurRate
-			}
-
-			hwp.CurrentPrice = &price
-			hwp.CurrentValue = &currentValue
-			hwp.UnrealizedPnl = &unrealizedPnL
-			hwp.CurrentValueEur = &currentValueEUR
-			hwp.UnrealizedPnlEur = &unrealizedPnLEUR
+			price = 0
 		}
+		var currentValue, currentValueEUR, unrealizedPnL, unrealizedPnLEUR float64
+		if isEUR {
+			currentValueEUR = hld.StocksOwned * price
+			currentValue = currentValueEUR / eurRate
+			unrealizedPnLEUR = currentValueEUR - costPriceEUR
+			unrealizedPnL = unrealizedPnLEUR / eurRate
+		} else {
+			currentValue = hld.StocksOwned * price
+			unrealizedPnL = currentValue - costPrice
+			currentValueEUR = currentValue * eurRate
+			unrealizedPnLEUR = unrealizedPnL * eurRate
+		}
+
+		currentValue = round(currentValue)
+		currentValueEUR = round(currentValueEUR)
+		unrealizedPnL = round(unrealizedPnL)
+		unrealizedPnLEUR = round(unrealizedPnLEUR)
+
+		hwp.CurrentPrice = &price
+		hwp.CurrentValue = &currentValue
+		hwp.UnrealizedPnl = &unrealizedPnL
+		hwp.CurrentValueEur = &currentValueEUR
+		hwp.UnrealizedPnlEur = &unrealizedPnLEUR
 	}
 
 	return hwp
