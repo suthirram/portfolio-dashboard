@@ -80,6 +80,10 @@ const PRICE_DIR_TINT: Record<'up' | 'down' | 'flat', string> = {
   flat: 'rgba(59,130,246,0.18)', // blue
 }
 
+// NEW_INVESTMENT_TINT marks the "Amount invested" cell on a day the user
+// added holdings (invested rose vs the prior day). Mild purple — kept
+// distinct from the green/red/blue price-direction tints above.
+const NEW_INVESTMENT_TINT = 'rgba(168,85,247,0.18)' // purple
 
 // Year selector lower bound. Lets users browse back through 2020 even
 // before any snapshot exists for that year — useful for manually pasting
@@ -591,11 +595,16 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
 }
 
 // regionCurrentDirection compares the region's current (market) value to
-// the prior day's, driving the "Actual value" cell tint: 'up' / 'down' /
-// 'flat'. Returns null when there is no prior data point for the region to
-// compare against (first row, or the region is absent on either day) — the
-// cell then keeps its plain per-currency group tint. Rows newest-first, so
+// the prior day's, driving the "P/L%" cell tint: 'up' / 'down' / 'flat'.
+// Returns null when there is no prior data point for the region to compare
+// against (first row, or the region is absent on either day) — the cell
+// then keeps its plain per-currency group tint. Rows newest-first, so
 // rows[i+1] is the prior day.
+//
+// Deliberately separate from regionDailyVolatility: that one treats an
+// absent region as 0 (so a vanished bucket reads as a -100% move), whereas
+// the tint must show "no comparison" (null) when either day lacks the
+// region. Keep the two in sync only where that difference does not matter.
 export function regionCurrentDirection(
   rows: HistoryRow[], i: number, region: RegionKey,
 ): 'up' | 'down' | 'flat' | null {
@@ -745,19 +754,20 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   // a day the user added holdings gets a mild purple "Amount invested" cell.
   const investedStyle: React.CSSProperties = {
     ...base,
-    background: wentUp ? 'rgba(168,85,247,0.18)' : tint,
+    background: wentUp ? NEW_INVESTMENT_TINT : tint,
     fontWeight: wentUp ? 600 : undefined,
   }
   // P/L% cell tints by the day-over-day price move: mild green up, mild red
   // down, mild blue unchanged; plain group tint when there is no prior day
-  // to compare against.
+  // to compare against. Text stays the default colour — the background is
+  // the single signal here (its own +/- sign still reads the P/L), so it
+  // does not clash with the price-direction tint.
   const pnlStyle: React.CSSProperties = {
     ...base,
     ...sep,
     background: dir ? PRICE_DIR_TINT[dir] : tint,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
-  const pnlColor = pnl === null ? undefined : pnl >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
       <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
@@ -765,7 +775,7 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
       <td style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={{ ...pnlStyle, color: pnlColor }}>
+      <td style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
