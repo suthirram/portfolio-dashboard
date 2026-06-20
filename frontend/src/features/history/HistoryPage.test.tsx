@@ -12,6 +12,7 @@ import {
   niceDomain,
   fmtAxisAmount,
   perCurrencyChartData,
+  regionCurrentDirection,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -404,6 +405,35 @@ describe('perCurrencyChartData daily_vol', () => {
     const series = perCurrencyChartData(gap, 'INR')
     expect(series[0].daily_vol).toBeNull() // INR absent
     expect(series[1].daily_vol).toBeNull() // no prior INR baseline
+  })
+})
+
+describe('regionCurrentDirection', () => {
+  // newest-first (server order): rows[i+1] is the prior day.
+  const rows: HistoryRow[] = [
+    row({ date: '2026-06-03', regions: { INR: region(100, 120, 'cron') } }), // vs 110 -> up
+    row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }), // vs 110 -> flat
+    row({ date: '2026-06-01', regions: { INR: region(100, 110, 'cron') } }), // no prior
+  ]
+
+  it('flags up / flat and null on the first row', () => {
+    expect(regionCurrentDirection(rows, 0, 'INR')).toBe('up')
+    expect(regionCurrentDirection(rows, 1, 'INR')).toBe('flat')
+    expect(regionCurrentDirection(rows, 2, 'INR')).toBeNull()
+  })
+
+  it('flags down and returns null when the region is absent on either day', () => {
+    const r2: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(100, 90, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 110, 'cron') } }),
+    ]
+    expect(regionCurrentDirection(r2, 0, 'INR')).toBe('down')
+
+    const gap: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }),
+      row({ date: '2026-06-01', regions: { EUR: region(50, 60, 'manual') } }), // no INR prior
+    ]
+    expect(regionCurrentDirection(gap, 0, 'INR')).toBeNull()
   })
 })
 

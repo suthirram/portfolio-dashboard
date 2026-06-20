@@ -71,6 +71,15 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
   },
 }
 
+// PRICE_DIR_TINT tints the "Actual value" cell by its day-over-day change:
+// mild green up, mild red down, mild blue unchanged. Semi-transparent so it
+// reads on both themes; overrides the per-currency group tint on that cell.
+const PRICE_DIR_TINT: Record<'up' | 'down' | 'flat', string> = {
+  up:   'rgba(34,197,94,0.18)',  // green
+  down: 'rgba(239,68,68,0.18)',  // red
+  flat: 'rgba(59,130,246,0.18)', // blue
+}
+
 
 // Year selector lower bound. Lets users browse back through 2020 even
 // before any snapshot exists for that year — useful for manually pasting
@@ -581,6 +590,24 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
   return todayInv > prevInv
 }
 
+// regionCurrentDirection compares the region's current (market) value to
+// the prior day's, driving the "Actual value" cell tint: 'up' / 'down' /
+// 'flat'. Returns null when there is no prior data point for the region to
+// compare against (first row, or the region is absent on either day) — the
+// cell then keeps its plain per-currency group tint. Rows newest-first, so
+// rows[i+1] is the prior day.
+export function regionCurrentDirection(
+  rows: HistoryRow[], i: number, region: RegionKey,
+): 'up' | 'down' | 'flat' | null {
+  const prev = rows[i + 1]
+  if (!prev) return null
+  const prevRs = prev.regions[region]
+  const curRs = rows[i].regions[region]
+  if (!prevRs || !curRs) return null
+  const delta = curRs.current - prevRs.current
+  return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
+}
+
 // HistoryTable lays out three side-by-side groups (one per currency:
 // India₹ / Europe€ / US$) each with [Amount invested | Actual value |
 // Daily volatlity | P/L%]. Values render in native currency with the
@@ -710,21 +737,29 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const vol      = regionDailyVolatility(rows, i, region)
   const pnl      = regionPnLPct(r, region)
   const wentUp   = regionInvestedWentUp(rows, i, region)
+  const dir      = regionCurrentDirection(rows, i, region)
   const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
   const base: React.CSSProperties = { ...td, background: tint }
-  // Invested-went-up override beats the group tint to keep the signal loud.
+  // New-investment override beats the group tint to keep the signal loud:
+  // a day the user added holdings gets a mild purple "Amount invested" cell.
   const investedStyle: React.CSSProperties = {
     ...base,
-    background: wentUp ? 'rgba(34,197,94,0.28)' : tint,
+    background: wentUp ? 'rgba(168,85,247,0.18)' : tint,
     fontWeight: wentUp ? 600 : undefined,
+  }
+  // "Actual value" cell tints by day-over-day price move: green up, red
+  // down, blue unchanged; plain group tint when there is no prior to compare.
+  const currentStyle: React.CSSProperties = {
+    ...base,
+    background: dir ? PRICE_DIR_TINT[dir] : tint,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   const pnlColor = pnl === null ? undefined : pnl >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
       <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td style={base}>{fmtCurrency(current, sym)}</td>
+      <td style={currentStyle}>{fmtCurrency(current, sym)}</td>
       <td style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
