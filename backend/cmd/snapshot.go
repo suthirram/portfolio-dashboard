@@ -29,11 +29,13 @@ var snapshotCmd = &cobra.Command{
 	Long: `Builds a daily portfolio snapshot for every non-disabled user on
 the configured date and persists it in the portfolio_snapshots collection.
 
-Defaults to yesterday (UTC) and every active user. Yesterday because the
-cron fires after midnight, when that day's market sessions have closed —
-so we record settled close values, not a mid-session snapshot. The job is
-idempotent: a re-run for the same (user, date) overwrites cron-sourced
-regions and preserves manual overrides (PRD-002 / DD-002).
+Defaults to the current IST trading day (08:00 IST cut-over) and every
+active user. The date is fixed for the 24h window from 08:00 IST until
+07:59 IST the next day, so any run inside that window — scheduled or
+manual — records the same date and never hops to overwrite an adjacent
+day's history. The job is idempotent: a re-run for the same (user, date)
+overwrites cron-sourced regions and preserves manual overrides
+(PRD-002 / DD-002).
 
 This subcommand is what the external cron / Cloud Scheduler invokes; the
 web 'serve' process does not own any schedule.`,
@@ -42,7 +44,7 @@ web 'serve' process does not own any schedule.`,
 
 func init() {
 	snapshotCmd.Flags().StringVar(&flagSnapshotDate, "date", "",
-		"UTC date in YYYY-MM-DD; defaults to yesterday")
+		"UTC date in YYYY-MM-DD; defaults to the current IST trading day (08:00 IST cut-over)")
 	snapshotCmd.Flags().StringVar(&flagSnapshotUser, "user", "",
 		"restrict the run to one user id (hex); defaults to all active users")
 	snapshotCmd.Flags().BoolVar(&flagSnapshotDryRun, "dry-run", false,
@@ -64,7 +66,7 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 	undo := zap.ReplaceGlobals(logger)
 	defer undo()
 
-	date := time.Now().UTC().AddDate(0, 0, -1)
+	date := tradingDate(time.Now())
 	if flagSnapshotDate != "" {
 		parsed, err := time.Parse("2006-01-02", flagSnapshotDate)
 		if err != nil {
@@ -116,6 +118,22 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("snapshot run had %d user-level failures", len(report.UserErrors))
 	}
 	return nil
+}
+
+// istZone is India Standard Time (UTC+5:30). A fixed zone is used so the
+// job never depends on tzdata being present in the container image.
+var istZone = time.FixedZone("IST", 5*60*60+30*60)
+
+// tradingDate maps a wall-clock instant to the snapshot date it belongs to,
+// using an 08:00 IST cut-over. Every run from 1st 08:00 IST up to 2nd
+// 07:59 IST records the 1st; at 2nd 08:00 IST the date rolls to the 2nd.
+// This stops intraday / manual re-runs from hopping the date and clobbering
+// the wrong day's history: within one IST trading window they all upsert the
+// same (user, date) row. The returned value is the UTC midnight of that
+// calendar day, matching how snapshot rows are keyed (domain.UTCDate).
+func tradingDate(now time.Time) time.Time {
+	ist := now.In(istZone).Add(-8 * time.Hour)
+	return time.Date(ist.Year(), ist.Month(), ist.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 // buildSnapshotConfig reuses serve's flags. The snapshot subcommand
