@@ -147,9 +147,9 @@ func TestBuildSnapshot_EmptyPortfolioReturnsAllZeros(t *testing.T) {
 	})
 }
 
-func TestBuildSnapshot_PriceErrorFallsBackToInvested(t *testing.T) {
+func TestBuildSnapshot_PriceErrorAssumesZeroCurrent(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	mt.Run("price error fallback", func(mt *mtest.T) {
+	mt.Run("price error -> current 0", func(mt *mtest.T) {
 		uid := primitive.NewObjectID()
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
 			holdingDoc(uid, "NSE", "TCS.NS", "INR", 10, 3000),
@@ -163,9 +163,11 @@ func TestBuildSnapshot_PriceErrorFallsBackToInvested(t *testing.T) {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
 		inr := snap.Buckets[domain.CurrencyINR]
-		// No synthetic gain: current == invested.
-		if inr.Invested != 30000 || inr.Current != 30000 {
-			t.Errorf("INR = (%v, %v), want (30000, 30000) on price error", inr.Invested, inr.Current)
+		// A delisted/404 price is assumed worthless: invested stays, current
+		// is 0 — matching PortfolioService.Summary so the dashboard and the
+		// snapshot never disagree on a failed symbol.
+		if inr.Invested != 30000 || inr.Current != 0 {
+			t.Errorf("INR = (%v, %v), want (30000, 0) on price error", inr.Invested, inr.Current)
 		}
 	})
 }

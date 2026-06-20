@@ -76,6 +76,43 @@ func TestPortfolioService_Summary_INRHolding(t *testing.T) {
 	})
 }
 
+func TestPortfolioService_Summary_PriceErrorAssumesZero(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("delisted symbol counts as current 0", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		docs := holdingsCursor(uid, bson.D{
+			{Key: "script", Value: "IDFC"},
+			{Key: "symbol", Value: "IDFC.NS"},
+			{Key: "currency", Value: "INR"},
+			{Key: "stocks_owned", Value: 100.0},
+			{Key: "avg_cost_price", Value: 114.82},
+		})
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, docs...))
+
+		svc := NewPortfolioService(persistence.New(mt.DB).Holdings, nil, &stubPriceFetcher{
+			priceErr: errors.New("yahoo status 404"), rate: 0.011,
+		}, nil)
+
+		got, err := svc.Summary(context.Background(), uid)
+		if err != nil {
+			t.Fatalf("summary: %v", err)
+		}
+		// Cost still books the full position; current is 0 and the whole
+		// cost shows as an unrealized loss — same rule the cron snapshot
+		// applies, so the dashboard and the snapshot agree on a 404 symbol.
+		if got.TotalCost == nil || *got.TotalCost != 11482 {
+			t.Errorf("TotalCost = %v, want 11482", got.TotalCost)
+		}
+		if got.TotalCurrentValue == nil || *got.TotalCurrentValue != 0 {
+			t.Errorf("TotalCurrentValue = %v, want 0", got.TotalCurrentValue)
+		}
+		if got.TotalUnrealized == nil || *got.TotalUnrealized != -11482 {
+			t.Errorf("TotalUnrealized = %v, want -11482", got.TotalUnrealized)
+		}
+	})
+}
+
 func TestPortfolioService_Summary_EURHoldingDividesByRate(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 

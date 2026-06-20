@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -96,6 +97,8 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 		return domain.PortfolioSnapshot{}, fmt.Errorf("list holdings: %w", err)
 	}
 
+	logger := s.log(ctx)
+
 	buckets := make(map[string]domain.RegionSnapshot, len(domain.AllCurrencies))
 	for _, c := range domain.AllCurrencies {
 		buckets[c] = domain.RegionSnapshot{Source: domain.SnapshotSourceCron}
@@ -104,7 +107,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	for _, hld := range holdings {
 		cur, ok := CurrencyOf(hld)
 		if !ok {
-			s.log(ctx).Warn("snapshot: holding has unknown currency; excluded",
+			logger.Warn("snapshot: holding has unknown currency; excluded",
 				zap.String("script", hld.Script),
 				zap.String("exchange", hld.Exchange),
 				zap.String("currency", hld.Currency),
@@ -112,20 +115,48 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 			continue
 		}
 		invested := hld.StocksOwned * hld.AvgCostPrice
-		current := invested
-		price, _, perr := s.prices.GetPrice(ctx, hld.Symbol)
+		// A failed/delisted price (Yahoo 404) is treated as a market price
+		// of 0 — the position is assumed worthless, not held-at-cost — so
+		// the snapshot matches the dashboard (PortfolioService.Summary).
+		current := 0.0
+		price, priceCur, perr := s.prices.GetPrice(ctx, hld.Symbol)
 		if perr == nil && price > 0 {
 			current = hld.StocksOwned * price
 		} else if perr != nil {
-			s.log(ctx).Warn("snapshot: price fetch failed; using invested as current",
+			logger.Warn("snapshot: price fetch failed; assuming current price 0",
+				zap.String("user_id", uid.Hex()),
+				zap.String("script", hld.Script),
 				zap.String("symbol", hld.Symbol),
 				zap.Error(perr),
 			)
 		}
+		logger.Info("snapshot: holding valued",
+			zap.String("user_id", uid.Hex()),
+			zap.String("script", hld.Script),
+			zap.String("symbol", hld.Symbol),
+			zap.String("exchange", hld.Exchange),
+			zap.String("holding_currency", hld.Currency),
+			zap.String("bucket", cur),
+			zap.String("price_currency", priceCur),
+			zap.Float64("quantity", hld.StocksOwned),
+			zap.Float64("avg_cost_price", hld.AvgCostPrice),
+			zap.Float64("current_price", price),
+			zap.Float64("invested_value", invested),
+			zap.Float64("current_value", current),
+		)
 		rs := buckets[cur]
-		rs.Invested += invested
-		rs.Current += current
+		rs.Invested += math.Round(invested*100) / 100
+		rs.Current += math.Round(current*100) / 100
 		buckets[cur] = rs
+	}
+
+	for cur, rs := range buckets {
+		logger.Info("snapshot: bucket total",
+			zap.String("user_id", uid.Hex()),
+			zap.String("bucket", cur),
+			zap.Float64("invested", rs.Invested),
+			zap.Float64("current", rs.Current),
+		)
 	}
 
 	return domain.PortfolioSnapshot{
@@ -167,7 +198,6 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 		opts.Date = s.Now()
 	}
 	date := domain.UTCDate(opts.Date)
-
 	users, err := s.activeUsers(ctx, opts.UserID)
 	if err != nil {
 		return RunReport{Date: date}, err

@@ -116,18 +116,23 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 		totalRealized += realized
 
 		if hld.Symbol != "" && hld.StocksOwned > 0 {
-			if price, _, pErr := s.priceService.GetPrice(ctx, hld.Symbol); pErr == nil {
-				native := hld.StocksOwned * price
-				nativeCurrent[currencyOf(hld.Currency)] += native
-				var cv float64
-				if isEUR {
-					cv = native / eurRate
-				} else {
-					cv = native
-				}
-				totalCurrentValue += cv
-				totalUnrealized += cv - cost
+			// A failed/delisted price (Yahoo 404) is treated as a market
+			// price of 0: native value 0, full cost shows as unrealized
+			// loss. Keeps the dashboard in lock-step with the cron snapshot
+			// (SnapshotService.BuildSnapshot).
+			var native float64
+			if price, _, pErr := s.priceService.GetPrice(ctx, hld.Symbol); pErr == nil && price > 0 {
+				native = hld.StocksOwned * price
 			}
+			nativeCurrent[currencyOf(hld.Currency)] += native
+			var cv float64
+			if isEUR {
+				cv = native / eurRate
+			} else {
+				cv = native
+			}
+			totalCurrentValue += cv
+			totalUnrealized += cv - cost
 		}
 	}
 

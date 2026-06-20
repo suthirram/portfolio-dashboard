@@ -57,7 +57,6 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 			return errors.New("snapshot upsert: invalid bucket source")
 		}
 	}
-
 	date := domain.UTCDate(snap.Date)
 	now := time.Now().UTC()
 

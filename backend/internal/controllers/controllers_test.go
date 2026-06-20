@@ -369,17 +369,19 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 	// cv_inr    = 600 / 0.011 ≈ 54 545.5 INR
 	// unreal_eur = 600 − 500 = 100 EUR
 	// unreal_inr = 100 / 0.011 ≈ 9 090.9 INR
+	// Monetary fields are rounded to two decimals at the mapper boundary.
+	round2 := func(v float64) float64 { return math.Round(v*100) / 100 }
 	cases := []struct {
 		name      string
 		got, want float64
 	}{
 		{"CostPriceEur", *got.CostPriceEur, 500.0},
-		{"CostPrice", *got.CostPrice, 500.0 / testEurRate},
+		{"CostPrice", *got.CostPrice, round2(500.0 / testEurRate)},
 		{"RealizedPnlEur", *got.RealizedPnlEur, 50.0},
 		{"CurrentValueEur", *got.CurrentValueEur, 600.0},
-		{"CurrentValue", *got.CurrentValue, 600.0 / testEurRate},
+		{"CurrentValue", *got.CurrentValue, round2(600.0 / testEurRate)},
 		{"UnrealizedPnlEur", *got.UnrealizedPnlEur, 100.0},
-		{"UnrealizedPnl", *got.UnrealizedPnl, 100.0 / testEurRate},
+		{"UnrealizedPnl", *got.UnrealizedPnl, round2(100.0 / testEurRate)},
 	}
 	for _, c := range cases {
 		if !approxEqual(c.got, c.want) {
@@ -434,19 +436,29 @@ func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 	}
 }
 
-func TestHoldingWithPriceToAPI_PriceErrorSetsErrorField(t *testing.T) {
+func TestHoldingWithPriceToAPI_PriceErrorAssumesZero(t *testing.T) {
 	ps := &mockPriceFetcher{prices: map[string]float64{}} // no price → error
 	hld := domain.Holding{
-		ID:       primitive.NewObjectID(),
-		Symbol:   "UNKNOWN.NS",
-		Currency: "INR",
+		ID:           primitive.NewObjectID(),
+		Symbol:       "UNKNOWN.NS",
+		Currency:     "INR",
+		StocksOwned:  100,
+		AvgCostPrice: 50,
 	}
 	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
 
+	// The error is still surfaced, but a failed/delisted price is assumed
+	// worthless: current price/value 0 and the whole cost as unrealized loss.
 	if got.PriceError == nil {
 		t.Error("PriceError should be set when GetPrice fails")
 	}
-	if got.CurrentPrice != nil {
-		t.Errorf("CurrentPrice should be nil on error, got %v", *got.CurrentPrice)
+	if got.CurrentPrice == nil || *got.CurrentPrice != 0 {
+		t.Errorf("CurrentPrice = %v, want 0 on error", got.CurrentPrice)
+	}
+	if got.CurrentValue == nil || *got.CurrentValue != 0 {
+		t.Errorf("CurrentValue = %v, want 0 on error", got.CurrentValue)
+	}
+	if got.UnrealizedPnl == nil || *got.UnrealizedPnl != -5000 {
+		t.Errorf("UnrealizedPnl = %v, want -5000 on error", got.UnrealizedPnl)
 	}
 }
