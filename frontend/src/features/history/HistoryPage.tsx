@@ -50,6 +50,11 @@ const PNL_LINE_COLOUR: Record<ThemeName, string> = {
   light: '#6d28d9', // purple-700, readable on white
 }
 
+const VOL_LINE_COLOUR: Record<ThemeName, string> = {
+  dark:  '#2dd4bf', // teal-400, distinct from the amber/blue/red/purple lines
+  light: '#0f766e', // teal-700, readable on white
+}
+
 // Per-theme background tints for each currency group in the table.
 // `header` lands behind the column-group header cells; `cell` is the
 // per-data-cell tint that propagates the group identity down the column.
@@ -377,16 +382,16 @@ export function fmtCurrency(amount: number, sym: string): string {
 
 // ---- Chart ----
 
-// CurrencyChartPanel renders two side-by-side mini-charts per currency:
-// left = invested vs current value, right = P/L %. The viewport is
-// split 50/50 so the two surfaces are read independently — P/L % has
-// its own y-axis range and is not crushed by the amount axis it used to
-// share with invested/current in the previous combined ComposedChart.
+// CurrencyChartPanel renders three side-by-side mini-charts per currency:
+// invested vs current value, P/L %, and daily volatility %. Each surface
+// has its own y-axis range so it is read independently — P/L % and daily
+// volatility are not crushed by the amount axis.
 function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
   const cur = CURRENCY_BY_REGION[region]
   const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
   const pnlColour = PNL_LINE_COLOUR[theme]
+  const volColour = VOL_LINE_COLOUR[theme]
   // Recharts' default value-axis domain is [0, max], which flattens
   // series that oscillate in a narrow band far above zero (invested vs
   // current both ≈₹450k render as a near-flat line). Derive a padded
@@ -399,13 +404,17 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
     () => niceDomain(data.map(d => d.pnl_pct)),
     [data],
   )
+  const volDomain = useMemo(
+    () => niceDomain(data.map(d => d.daily_vol)),
+    [data],
+  )
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>
         {REGION_LABELS[region]} ({cur})
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
             Invested vs Current
@@ -442,6 +451,23 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
             </ResponsiveContainer>
           </div>
         </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Daily volatility %
+          </div>
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
+                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -459,12 +485,20 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
 // the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  // daily_vol is the per-currency day-over-day % change of the current
+  // value vs the previous data point. null on the first point and whenever
+  // the prior current is absent or zero (divide-by-zero / no baseline).
+  let prevCurrent: number | null = null
   return oldestFirst.map(r => {
     const rs = r.regions[region]
     const invested = rs ? rs.invested : null
     const current  = rs ? rs.current  : null
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
-    return { date: r.date.slice(5), invested, current, pnl_pct }
+    const daily_vol = current != null && prevCurrent != null && prevCurrent !== 0
+      ? ((current - prevCurrent) / prevCurrent) * 100
+      : null
+    prevCurrent = current
+    return { date: r.date.slice(5), invested, current, pnl_pct, daily_vol }
   })
 }
 

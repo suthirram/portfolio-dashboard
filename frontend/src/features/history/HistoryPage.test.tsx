@@ -382,6 +382,31 @@ describe('perCurrencyChartData null-gap', () => {
   })
 })
 
+describe('perCurrencyChartData daily_vol', () => {
+  const rows: HistoryRow[] = [
+    row({ date: '2026-06-03', regions: { INR: region(100, 99,  'cron') } }),
+    row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }),
+    row({ date: '2026-06-01', regions: { INR: region(100, 100, 'cron') } }),
+  ]
+
+  it('is null on the first point and day-over-day % thereafter', () => {
+    const series = perCurrencyChartData(rows, 'INR') // sorts oldest-first
+    expect(series[0].daily_vol).toBeNull()           // 06-01, no baseline
+    expect(series[1].daily_vol).toBeCloseTo(10, 5)   // 100 -> 110
+    expect(series[2].daily_vol).toBeCloseTo(-10, 5)  // 110 -> 99
+  })
+
+  it('is null when the prior point has no data for the region', () => {
+    const gap: HistoryRow[] = [
+      row({ date: '2026-06-01', regions: { EUR: region(1000, 1100, 'manual') } }), // no INR
+      row({ date: '2026-06-02', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    const series = perCurrencyChartData(gap, 'INR')
+    expect(series[0].daily_vol).toBeNull() // INR absent
+    expect(series[1].daily_vol).toBeNull() // no prior INR baseline
+  })
+})
+
 describe('fmtAxisAmount', () => {
   it('compacts thousands and millions', () => {
     expect(fmtAxisAmount(450000)).toBe('450k')
