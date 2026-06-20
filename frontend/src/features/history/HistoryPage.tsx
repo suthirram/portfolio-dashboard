@@ -71,7 +71,7 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
   },
 }
 
-// PRICE_DIR_TINT tints the "Actual value" cell by its day-over-day change:
+// PRICE_DIR_TINT tints the "P/L%" cell by the day-over-day price move:
 // mild green up, mild red down, mild blue unchanged. Semi-transparent so it
 // reads on both themes; overrides the per-currency group tint on that cell.
 const PRICE_DIR_TINT: Record<'up' | 'down' | 'flat', string> = {
@@ -748,10 +748,12 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
     background: wentUp ? 'rgba(168,85,247,0.18)' : tint,
     fontWeight: wentUp ? 600 : undefined,
   }
-  // "Actual value" cell tints by day-over-day price move: green up, red
-  // down, blue unchanged; plain group tint when there is no prior to compare.
-  const currentStyle: React.CSSProperties = {
+  // P/L% cell tints by the day-over-day price move: mild green up, mild red
+  // down, mild blue unchanged; plain group tint when there is no prior day
+  // to compare against.
+  const pnlStyle: React.CSSProperties = {
     ...base,
+    ...sep,
     background: dir ? PRICE_DIR_TINT[dir] : tint,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
@@ -759,11 +761,11 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   return (
     <>
       <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td style={currentStyle}>{fmtCurrency(current, sym)}</td>
+      <td style={base}>{fmtCurrency(current, sym)}</td>
       <td style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={{ ...base, ...sep, color: pnlColor }}>
+      <td style={{ ...pnlStyle, color: pnlColor }}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
