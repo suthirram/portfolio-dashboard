@@ -50,6 +50,11 @@ const PNL_LINE_COLOUR: Record<ThemeName, string> = {
   light: '#6d28d9', // purple-700, readable on white
 }
 
+const VOL_LINE_COLOUR: Record<ThemeName, string> = {
+  dark:  '#2dd4bf', // teal-400, distinct from the amber/blue/red/purple lines
+  light: '#0f766e', // teal-700, readable on white
+}
+
 // Per-theme background tints for each currency group in the table.
 // `header` lands behind the column-group header cells; `cell` is the
 // per-data-cell tint that propagates the group identity down the column.
@@ -66,6 +71,19 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
   },
 }
 
+// PRICE_DIR_TINT tints the "P/L%" cell by the day-over-day price move:
+// mild green up, mild red down, mild blue unchanged. Semi-transparent so it
+// reads on both themes; overrides the per-currency group tint on that cell.
+const PRICE_DIR_TINT: Record<'up' | 'down' | 'flat', string> = {
+  up:   'rgba(34,197,94,0.18)',  // green
+  down: 'rgba(239,68,68,0.18)',  // red
+  flat: 'rgba(59,130,246,0.18)', // blue
+}
+
+// NEW_INVESTMENT_TINT marks the "Amount invested" cell on a day the user
+// added holdings (invested rose vs the prior day). Mild purple — kept
+// distinct from the green/red/blue price-direction tints above.
+const NEW_INVESTMENT_TINT = 'rgba(168,85,247,0.18)' // purple
 
 // Year selector lower bound. Lets users browse back through 2020 even
 // before any snapshot exists for that year — useful for manually pasting
@@ -377,16 +395,16 @@ export function fmtCurrency(amount: number, sym: string): string {
 
 // ---- Chart ----
 
-// CurrencyChartPanel renders two side-by-side mini-charts per currency:
-// left = invested vs current value, right = P/L %. The viewport is
-// split 50/50 so the two surfaces are read independently — P/L % has
-// its own y-axis range and is not crushed by the amount axis it used to
-// share with invested/current in the previous combined ComposedChart.
+// CurrencyChartPanel renders three side-by-side mini-charts per currency:
+// invested vs current value, P/L %, and daily volatility %. Each surface
+// has its own y-axis range so it is read independently — P/L % and daily
+// volatility are not crushed by the amount axis.
 function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
   const cur = CURRENCY_BY_REGION[region]
   const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
   const pnlColour = PNL_LINE_COLOUR[theme]
+  const volColour = VOL_LINE_COLOUR[theme]
   // Recharts' default value-axis domain is [0, max], which flattens
   // series that oscillate in a narrow band far above zero (invested vs
   // current both ≈₹450k render as a near-flat line). Derive a padded
@@ -399,13 +417,17 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
     () => niceDomain(data.map(d => d.pnl_pct)),
     [data],
   )
+  const volDomain = useMemo(
+    () => niceDomain(data.map(d => d.daily_vol)),
+    [data],
+  )
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 8, padding: 16, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>
         {REGION_LABELS[region]} ({cur})
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
             Invested vs Current
@@ -442,6 +464,23 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
             </ResponsiveContainer>
           </div>
         </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Daily volatility %
+          </div>
+          <div style={{ height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
+                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -459,12 +498,20 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
 // the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  // daily_vol is the per-currency day-over-day % change of the current
+  // value vs the previous data point. null on the first point and whenever
+  // the prior current is absent or zero (divide-by-zero / no baseline).
+  let prevCurrent: number | null = null
   return oldestFirst.map(r => {
     const rs = r.regions[region]
     const invested = rs ? rs.invested : null
     const current  = rs ? rs.current  : null
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
-    return { date: r.date.slice(5), invested, current, pnl_pct }
+    const daily_vol = current != null && prevCurrent != null && prevCurrent !== 0
+      ? ((current - prevCurrent) / prevCurrent) * 100
+      : null
+    prevCurrent = current
+    return { date: r.date.slice(5), invested, current, pnl_pct, daily_vol }
   })
 }
 
@@ -545,6 +592,29 @@ export function regionInvestedWentUp(rows: HistoryRow[], i: number, region: Regi
   const prevInv = prev.regions[region]?.invested ?? 0
   const todayInv = rows[i].regions[region]?.invested ?? 0
   return todayInv > prevInv
+}
+
+// regionCurrentDirection compares the region's current (market) value to
+// the prior day's, driving the "P/L%" cell tint: 'up' / 'down' / 'flat'.
+// Returns null when there is no prior data point for the region to compare
+// against (first row, or the region is absent on either day) — the cell
+// then keeps its plain per-currency group tint. Rows newest-first, so
+// rows[i+1] is the prior day.
+//
+// Deliberately separate from regionDailyVolatility: that one treats an
+// absent region as 0 (so a vanished bucket reads as a -100% move), whereas
+// the tint must show "no comparison" (null) when either day lacks the
+// region. Keep the two in sync only where that difference does not matter.
+export function regionCurrentDirection(
+  rows: HistoryRow[], i: number, region: RegionKey,
+): 'up' | 'down' | 'flat' | null {
+  const prev = rows[i + 1]
+  if (!prev) return null
+  const prevRs = prev.regions[region]
+  const curRs = rows[i].regions[region]
+  if (!prevRs || !curRs) return null
+  const delta = curRs.current - prevRs.current
+  return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
 }
 
 // HistoryTable lays out three side-by-side groups (one per currency:
@@ -676,17 +746,28 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const vol      = regionDailyVolatility(rows, i, region)
   const pnl      = regionPnLPct(r, region)
   const wentUp   = regionInvestedWentUp(rows, i, region)
+  const dir      = regionCurrentDirection(rows, i, region)
   const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
   const base: React.CSSProperties = { ...td, background: tint }
-  // Invested-went-up override beats the group tint to keep the signal loud.
+  // New-investment override beats the group tint to keep the signal loud:
+  // a day the user added holdings gets a mild purple "Amount invested" cell.
   const investedStyle: React.CSSProperties = {
     ...base,
-    background: wentUp ? 'rgba(34,197,94,0.28)' : tint,
+    background: wentUp ? NEW_INVESTMENT_TINT : tint,
     fontWeight: wentUp ? 600 : undefined,
   }
+  // P/L% cell tints by the day-over-day price move: mild green up, mild red
+  // down, mild blue unchanged; plain group tint when there is no prior day
+  // to compare against. Text stays the default colour — the background is
+  // the single signal here (its own +/- sign still reads the P/L), so it
+  // does not clash with the price-direction tint.
+  const pnlStyle: React.CSSProperties = {
+    ...base,
+    ...sep,
+    background: dir ? PRICE_DIR_TINT[dir] : tint,
+  }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
-  const pnlColor = pnl === null ? undefined : pnl >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
       <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
@@ -694,7 +775,7 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
       <td style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={{ ...base, ...sep, color: pnlColor }}>
+      <td style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>

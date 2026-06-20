@@ -12,6 +12,7 @@ import {
   niceDomain,
   fmtAxisAmount,
   perCurrencyChartData,
+  regionCurrentDirection,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -236,6 +237,78 @@ describe('HistoryTable', () => {
   })
 })
 
+// ---- HistoryTable cell tints ----
+
+describe('HistoryTable cell tints', () => {
+  const norm = (s: string) => s.replace(/\s/g, '')
+  // INR group cells for a given date row: td[1]=invested, td[2]=current,
+  // td[3]=daily vol, td[4]=P/L%. td[0] is the date.
+  const cellsForDate = (date: string) => {
+    const tr = Array.from(document.querySelectorAll('tbody tr'))
+      .find(t => t.querySelector('td')?.textContent === date)!
+    return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
+  }
+  const pnlCell = (date: string) => cellsForDate(date)[4]
+  const investedCell = (date: string) => cellsForDate(date)[1]
+
+  // Group tint for INR on the default ('dark') theme — the no-signal
+  // background. The source uses 0.10; the DOM normalises it to 0.1.
+  const GROUP_INR = 'rgba(251,146,60,0.1)'
+
+  it('P/L% cell is mild green when the price rose vs the prior day', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 220, 'cron') } }), // 220 > 200
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(pnlCell('2026-06-17').style.background)).toBe('rgba(34,197,94,0.18)')
+  })
+
+  it('P/L% cell is mild red when the price fell vs the prior day', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 180, 'cron') } }), // 180 < 200
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(pnlCell('2026-06-17').style.background)).toBe('rgba(239,68,68,0.18)')
+  })
+
+  it('P/L% cell is mild blue when the price is unchanged', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') } }), // 200 == 200
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(pnlCell('2026-06-17').style.background)).toBe('rgba(59,130,246,0.18)')
+  })
+
+  it('P/L% cell keeps the plain group tint when there is no prior day', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(pnlCell('2026-06-16').style.background)).toBe(norm(GROUP_INR))
+  })
+
+  it('Amount-invested cell is mild purple when new investment was made that day', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(200, 260, 'cron') } }), // invested 200 > 100
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(investedCell('2026-06-17').style.background)).toBe('rgba(168,85,247,0.18)')
+  })
+
+  it('Amount-invested cell keeps the group tint when invested did not increase', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 260, 'cron') } }), // invested unchanged
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(norm(investedCell('2026-06-17').style.background)).toBe(norm(GROUP_INR))
+  })
+})
+
 // ---- AddRowModal (TDD §7.5) ----
 
 describe('AddRowModal', () => {
@@ -379,6 +452,60 @@ describe('perCurrencyChartData null-gap', () => {
     const [min] = niceDomain(series.flatMap(d => [d.invested, d.current]))!
     // floor stays high — not dragged to ~0 by the missing 2026-06-01 row
     expect(min).toBeGreaterThan(400000)
+  })
+})
+
+describe('perCurrencyChartData daily_vol', () => {
+  const rows: HistoryRow[] = [
+    row({ date: '2026-06-03', regions: { INR: region(100, 99,  'cron') } }),
+    row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }),
+    row({ date: '2026-06-01', regions: { INR: region(100, 100, 'cron') } }),
+  ]
+
+  it('is null on the first point and day-over-day % thereafter', () => {
+    const series = perCurrencyChartData(rows, 'INR') // sorts oldest-first
+    expect(series[0].daily_vol).toBeNull()           // 06-01, no baseline
+    expect(series[1].daily_vol).toBeCloseTo(10, 5)   // 100 -> 110
+    expect(series[2].daily_vol).toBeCloseTo(-10, 5)  // 110 -> 99
+  })
+
+  it('is null when the prior point has no data for the region', () => {
+    const gap: HistoryRow[] = [
+      row({ date: '2026-06-01', regions: { EUR: region(1000, 1100, 'manual') } }), // no INR
+      row({ date: '2026-06-02', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    const series = perCurrencyChartData(gap, 'INR')
+    expect(series[0].daily_vol).toBeNull() // INR absent
+    expect(series[1].daily_vol).toBeNull() // no prior INR baseline
+  })
+})
+
+describe('regionCurrentDirection', () => {
+  // newest-first (server order): rows[i+1] is the prior day.
+  const rows: HistoryRow[] = [
+    row({ date: '2026-06-03', regions: { INR: region(100, 120, 'cron') } }), // vs 110 -> up
+    row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }), // vs 110 -> flat
+    row({ date: '2026-06-01', regions: { INR: region(100, 110, 'cron') } }), // no prior
+  ]
+
+  it('flags up / flat and null on the first row', () => {
+    expect(regionCurrentDirection(rows, 0, 'INR')).toBe('up')
+    expect(regionCurrentDirection(rows, 1, 'INR')).toBe('flat')
+    expect(regionCurrentDirection(rows, 2, 'INR')).toBeNull()
+  })
+
+  it('flags down and returns null when the region is absent on either day', () => {
+    const r2: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(100, 90, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 110, 'cron') } }),
+    ]
+    expect(regionCurrentDirection(r2, 0, 'INR')).toBe('down')
+
+    const gap: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(100, 110, 'cron') } }),
+      row({ date: '2026-06-01', regions: { EUR: region(50, 60, 'manual') } }), // no INR prior
+    ]
+    expect(regionCurrentDirection(gap, 0, 'INR')).toBeNull()
   })
 })
 
