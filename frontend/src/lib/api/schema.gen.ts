@@ -83,6 +83,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/holdings/{id}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Owning holding's ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** List a holding's transactions */
+        get: operations["listTransactions"];
+        put?: never;
+        /**
+         * Add a transaction to a holding
+         * @description Appends a ledger event and recomputes the holding's derived position
+         *     (stocks_owned, avg_cost_price, realized_pnl, total_dividends) under its
+         *     cost_basis. Rejected with 400 when a sell exceeds shares held.
+         */
+        post: operations["createTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transaction ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a transaction */
+        put: operations["updateTransaction"];
+        post?: never;
+        /**
+         * Delete a transaction
+         * @description Removes a ledger event and recomputes the holding. Rejected with 400 when
+         *     the deletion would leave a later sell oversold (e.g. removing a buy the
+         *     sell depended on).
+         */
+        delete: operations["deleteTransaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/history": {
         parameters: {
             query?: never;
@@ -678,9 +730,14 @@ export interface components {
             avg_cost_price?: number;
             /**
              * Format: double
-             * @description Profit/loss from shares already sold, in the holding's currency
+             * @description Profit/loss from shares already sold, in the holding's currency (derived, average cost)
              */
             realized_pnl?: number;
+            /**
+             * Format: double
+             * @description Cumulative cash dividend income, in the holding's currency (derived)
+             */
+            total_dividends?: number;
             /**
              * @description Currency in which avg_cost_price and realized_pnl are denominated
              * @default INR
@@ -712,6 +769,7 @@ export interface components {
             avg_cost_price: number;
             /**
              * Format: double
+             * @description Opening realized P&L seed (legacy carry); new sells derive this from the ledger
              * @default 0
              */
             realized_pnl: number;
@@ -822,6 +880,67 @@ export interface components {
             change_pct?: number | null;
             /** @description Per-currency change vs previous close, in native amounts (no FX conversion), so currency moves don't muddy the price move. */
             per_currency?: components["schemas"]["CurrencyChange"][];
+        };
+        Transaction: {
+            /** @description MongoDB ObjectID */
+            id?: string;
+            /** @description Owning holding's ObjectID */
+            holding_id?: string;
+            /** @enum {string} */
+            type?: "opening" | "buy" | "sell" | "dividend" | "split" | "bonus" | "merger";
+            /**
+             * Format: date-time
+             * @description Trade / ex date; orders the ledger
+             */
+            date?: string;
+            /**
+             * Format: double
+             * @description Shares (buy/sell/opening); unused for dividend
+             */
+            quantity?: number;
+            /**
+             * Format: double
+             * @description Total cash — debited (buy) or credited (sell, dividend); fees folded in
+             */
+            amount?: number;
+            /**
+             * Format: double
+             * @description Split/bonus ratio, e.g. 2.0 = 2-for-1
+             */
+            ratio?: number;
+            /**
+             * Format: double
+             * @description Opening only — carries a legacy realized P&L with no underlying sell
+             */
+            realized_seed?: number;
+            /** @enum {string} */
+            currency?: "INR" | "EUR";
+            notes?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        TransactionInput: {
+            /** @enum {string} */
+            type: "opening" | "buy" | "sell" | "dividend" | "split" | "bonus" | "merger";
+            /** Format: date-time */
+            date: string;
+            /**
+             * Format: double
+             * @default 0
+             */
+            quantity: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            amount: number;
+            /** Format: double */
+            ratio?: number;
+            /** Format: double */
+            realized_seed?: number;
+            notes?: string;
         };
         HistoryRegionSnapshot: {
             /** Format: double */
@@ -1234,6 +1353,116 @@ export interface operations {
                     "application/json": components["schemas"]["Summary"];
                 };
             };
+        };
+    };
+    listTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Owning holding's ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions ordered by trade date */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Owning holding's ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Created transaction */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transaction ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Updated transaction */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Transaction ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example deleted */
+                        message?: string;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     listHistory: {

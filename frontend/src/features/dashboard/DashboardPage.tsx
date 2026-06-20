@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
 import AddEditModal from '../holdings/AddEditModal'
+import TransactionsModal from '../holdings/TransactionsModal'
 import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
@@ -41,6 +42,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   } = useHoldings(actAsUserId)
 
   const [modal, setModal] = useState<ModalState>(null)
+  const [txnModal, setTxnModal] = useState<HoldingWithPrice | null>(null)
   const [tab, setTab] = useState<Tab>('table')
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -269,6 +271,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             loading={loadingHoldings || loadingPrices}
             onEdit={h => setModal(h)}
             onDelete={handleDelete}
+            // Transaction endpoints target the caller's own portfolio (no
+            // admin act-as variant yet), so hide the ledger in act-as mode.
+            onTransactions={actAsUserId ? undefined : (h => setTxnModal(h))}
             perCurrency={summary?.per_currency}
           />
         )}
@@ -281,6 +286,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           onClose={() => setModal(null)}
           onSaved={handleSaved}
           userId={actAsUserId}
+        />
+      )}
+
+      {txnModal && (
+        <TransactionsModal
+          holding={txnModal}
+          onClose={() => setTxnModal(null)}
+          onChanged={() => { void refresh() }}
         />
       )}
 

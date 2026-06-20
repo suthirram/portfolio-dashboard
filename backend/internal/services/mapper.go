@@ -60,18 +60,19 @@ func HoldingToAPI(h domain.Holding) api.Holding {
 		currency = api.HoldingCurrencyINR
 	}
 	return api.Holding{
-		Id:           &id,
-		Script:       &h.Script,
-		Symbol:       &h.Symbol,
-		Exchange:     &exchange,
-		Type:         &holdingType,
-		StocksOwned:  &h.StocksOwned,
-		AvgCostPrice: &h.AvgCostPrice,
-		RealizedPnl:  &h.RealizedPnL,
-		Currency:     &currency,
-		Notes:        &h.Notes,
-		CreatedAt:    &h.CreatedAt,
-		UpdatedAt:    &h.UpdatedAt,
+		Id:             &id,
+		Script:         &h.Script,
+		Symbol:         &h.Symbol,
+		Exchange:       &exchange,
+		Type:           &holdingType,
+		StocksOwned:    &h.StocksOwned,
+		AvgCostPrice:   &h.AvgCostPrice,
+		RealizedPnl:    &h.RealizedPnL,
+		TotalDividends: &h.TotalDividends,
+		Currency:       &currency,
+		Notes:          &h.Notes,
+		CreatedAt:      &h.CreatedAt,
+		UpdatedAt:      &h.UpdatedAt,
 	}
 }
 
@@ -109,6 +110,7 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 		StocksOwned:    &hld.StocksOwned,
 		AvgCostPrice:   &hld.AvgCostPrice,
 		RealizedPnl:    &hld.RealizedPnL,
+		TotalDividends: &hld.TotalDividends,
 		Currency:       &currency,
 		Notes:          &hld.Notes,
 		CreatedAt:      &hld.CreatedAt,
@@ -155,6 +157,54 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 	}
 
 	return hwp
+}
+
+// TransactionFromInput maps a DTO (TransactionInput) to a DBO. UserID,
+// HoldingID, Currency, ID and timestamps are set by the service.
+func TransactionFromInput(input api.TransactionInput) domain.Transaction {
+	t := domain.Transaction{
+		Type: domain.TxnType(input.Type),
+		Date: input.Date,
+	}
+	if input.Quantity != nil {
+		t.Quantity = *input.Quantity
+	}
+	if input.Amount != nil {
+		t.Amount = *input.Amount
+	}
+	if input.Ratio != nil {
+		t.Ratio = *input.Ratio
+	}
+	if input.RealizedSeed != nil {
+		t.RealizedSeed = *input.RealizedSeed
+	}
+	if input.Notes != nil {
+		t.Notes = *input.Notes
+	}
+	return t
+}
+
+// TransactionToAPI maps a DBO (domain.Transaction) to a DTO (api.Transaction).
+func TransactionToAPI(t domain.Transaction) api.Transaction {
+	id := t.ID.Hex()
+	holdingID := t.HoldingID.Hex()
+	typ := api.TransactionType(t.Type)
+	currency := api.TransactionCurrency(t.Currency)
+	date := t.Date
+	return api.Transaction{
+		Id:           &id,
+		HoldingId:    &holdingID,
+		Type:         &typ,
+		Date:         &date,
+		Quantity:     &t.Quantity,
+		Amount:       &t.Amount,
+		Ratio:        &t.Ratio,
+		RealizedSeed: &t.RealizedSeed,
+		Currency:     &currency,
+		Notes:        &t.Notes,
+		CreatedAt:    &t.CreatedAt,
+		UpdatedAt:    &t.UpdatedAt,
+	}
 }
 
 // UserToAPI maps a user DBO to the public DTO. Question ids are included

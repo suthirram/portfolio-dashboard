@@ -27,6 +27,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		userID := primitive.NewObjectID()
 		id := primitive.NewObjectID()
 		ns := mt.DB.Name() + ".holdings"
+		txnsNS := mt.DB.Name() + ".transactions"
 		sessionsNS := mt.DB.Name() + ".sessions"
 		usersNS := mt.DB.Name() + ".users"
 
@@ -57,6 +58,33 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 			mtest.CreateCursorResponse(0, usersNS, mtest.FirstBatch, userDoc),
 			// InsertOne(holdings).
 			mtest.CreateSuccessResponse(),
+			// Create seeds an opening transaction (stocks_owned + avg_cost_price
+			// in the body), then recomputes the holding's position:
+			//   InsertOne(transactions).
+			mtest.CreateSuccessResponse(),
+			//   ListByHolding(transactions) — the opening event.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "user_id", Value: userID},
+				{Key: "holding_id", Value: id},
+				{Key: "type", Value: "opening"},
+				{Key: "quantity", Value: 10.0},
+				{Key: "amount", Value: 30000.0},
+				{Key: "currency", Value: "INR"},
+			}),
+			//   FindOneAndUpdate(holdings) — write back the derived position.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+				{Key: "_id", Value: id},
+				{Key: "user_id", Value: userID},
+				{Key: "script", Value: "TCS"},
+				{Key: "symbol", Value: "TCS.NS"},
+				{Key: "exchange", Value: "NSE"},
+				{Key: "type", Value: "stock"},
+				{Key: "stocks_owned", Value: 10.0},
+				{Key: "avg_cost_price", Value: 3000.0},
+				{Key: "realized_pnl", Value: 0.0},
+				{Key: "currency", Value: "INR"},
+			}}),
 			// AuthGate for GET /api/holdings.
 			mtest.CreateCursorResponse(0, sessionsNS, mtest.FirstBatch, sessionDoc),
 			mtest.CreateCursorResponse(0, usersNS, mtest.FirstBatch, userDoc),

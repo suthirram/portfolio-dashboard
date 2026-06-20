@@ -14,9 +14,11 @@ import (
 	"portfolio-dashboard/internal/persistence"
 )
 
-// TestHoldingsService_Update_AppliesAllInputFields exercises every optional
-// branch in Update's BSON-builder. Each row toggles one field; the table
-// guards against a future edit silently dropping a column.
+// TestHoldingsService_Update_AppliesAllInputFields exercises the identity
+// branches in Update's BSON-builder. Each row toggles one field; the table
+// guards against a future edit silently dropping a column. Position fields
+// (stocks_owned/avg_cost_price/realized_pnl) are no longer written here — they
+// route through the opening ledger event (see ledger_test.go).
 func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -42,9 +44,6 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 	}{
 		{"baseline only required", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock"}},
 		{"with symbol", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Symbol: lo.ToPtr("TCS.NS")}},
-		{"with stocks_owned", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", StocksOwned: lo.ToPtr(10.0)}},
-		{"with avg_cost_price", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", AvgCostPrice: lo.ToPtr(3500.0)}},
-		{"with realized_pnl", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", RealizedPnl: lo.ToPtr(120.0)}},
 		{"with valid currency EUR", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Currency: lo.ToPtr(api.HoldingInputCurrency("EUR"))}},
 		{"with notes", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Notes: lo.ToPtr("long-term hold")}},
 	}
@@ -52,7 +51,7 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 	for _, tc := range tests {
 		mt.Run(tc.name, func(mt *mtest.T) {
 			successful(mt)
-			svc := NewHoldingsService(persistence.New(mt.DB).Holdings, nil)
+			svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil)
 			_, found, err := svc.Update(context.Background(), uid, hid.Hex(), tc.input)
 			if err != nil {
 				t.Fatalf("update: %v", err)
@@ -68,7 +67,7 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 // where the path-param can't be parsed as ObjectID — must read as 404, not
 // 500, so ids stay non-enumerable.
 func TestHoldingsService_Update_InvalidIDIsNotFound(t *testing.T) {
-	svc := NewHoldingsService(nil, nil)
+	svc := NewHoldingsService(nil, nil, nil)
 	_, found, err := svc.Update(context.Background(), primitive.NewObjectID(), "not-an-oid", api.HoldingInput{})
 	if err != nil {
 		t.Fatalf("update: %v", err)
@@ -86,7 +85,7 @@ func TestHoldingsService_Update_StoreNotFoundIsNotFound(t *testing.T) {
 	mt.Run("scoped update misses", func(mt *mtest.T) {
 		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}))
 
-		svc := NewHoldingsService(persistence.New(mt.DB).Holdings, nil)
+		svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil)
 		_, found, err := svc.Update(context.Background(), primitive.NewObjectID(), primitive.NewObjectID().Hex(), api.HoldingInput{
 			Script: "X", Exchange: "NSE", Type: "stock",
 		})

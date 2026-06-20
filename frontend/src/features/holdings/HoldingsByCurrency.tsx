@@ -10,6 +10,7 @@ interface Props {
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
+  onTransactions?: (holding: HoldingWithPrice) => void
   // Native-amount daily change per currency (from /api/summary). Rendered as
   // a "Today" stat inside the matching currency group card.
   perCurrency?: CurrencyChange[]
@@ -42,7 +43,7 @@ const fmt = (n: number, sym: string) => {
 }
 
 
-export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, perCurrency }: Props) {
+export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, perCurrency }: Props) {
   const [view, setView] = useState<HoldingView>('active')
 
   const counts = viewCounts(holdings)
@@ -139,6 +140,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               loading={loading}
               onEdit={onEdit}
               onDelete={onDelete}
+              onTransactions={onTransactions}
               view="all"
               nativeCurrency={g.currency === 'EUR' ? 'EUR' : 'INR'}
             />

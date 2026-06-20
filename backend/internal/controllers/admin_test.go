@@ -256,6 +256,7 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 5}), // holdings
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 8}), // transactions
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 2}), // sessions
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}), // user
 		)
@@ -277,8 +278,8 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 				deletes++
 			}
 		}
-		if deletes != 3 {
-			t.Errorf("delete commands = %d, want 3 (holdings, sessions, user)", deletes)
+		if deletes != 4 {
+			t.Errorf("delete commands = %d, want 4 (holdings, transactions, sessions, user)", deletes)
 		}
 	})
 }

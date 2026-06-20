@@ -35,6 +35,24 @@ func holdingDocument(id primitive.ObjectID, script, symbol, exchange string, qty
 	}
 }
 
+// addOpeningRecompute appends the mock responses for the opening-balance path:
+// after a holding insert/update with position fields, the service inserts an
+// opening transaction and recomputes (ListByHolding + FindOneAndUpdate). The
+// final FindOneAndUpdate returns holding as the derived position.
+func addOpeningRecompute(mt *mtest.T, qty, avg float64, holding bson.D) {
+	txnsNS := mt.DB.Name() + ".transactions"
+	mt.AddMockResponses(
+		mtest.CreateSuccessResponse(), // InsertOne(transactions)
+		mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, bson.D{
+			{Key: "_id", Value: primitive.NewObjectID()},
+			{Key: "type", Value: "opening"},
+			{Key: "quantity", Value: qty},
+			{Key: "amount", Value: qty * avg},
+		}),
+		mtest.CreateSuccessResponse(bson.E{Key: "value", Value: holding}),
+	)
+}
+
 // ── GetHolding ─────────────────────────────────────────────────────────────
 
 func TestIntegration_GetHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
@@ -101,7 +119,8 @@ func TestIntegration_CreateHolding_INR(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("INR holding returned with currency INR", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateSuccessResponse())
+		mt.AddMockResponses(mtest.CreateSuccessResponse()) // InsertOne(holdings)
+		addOpeningRecompute(mt, 10, 3000, holdingDocument(primitive.NewObjectID(), "TCS", "TCS.NS", "NSE", 10, 3000, 0))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
@@ -138,7 +157,18 @@ func TestIntegration_CreateHolding_EUR(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("EUR holding returned with currency EUR", func(mt *mtest.T) {
-		mt.AddMockResponses(mtest.CreateSuccessResponse())
+		mt.AddMockResponses(mtest.CreateSuccessResponse()) // InsertOne(holdings)
+		addOpeningRecompute(mt, 5, 100, bson.D{
+			{Key: "_id", Value: primitive.NewObjectID()},
+			{Key: "script", Value: "VWCE"},
+			{Key: "symbol", Value: "VWCE.DE"},
+			{Key: "exchange", Value: "OTHER"},
+			{Key: "type", Value: "etf"},
+			{Key: "stocks_owned", Value: 5.0},
+			{Key: "avg_cost_price", Value: 100.0},
+			{Key: "realized_pnl", Value: 0.0},
+			{Key: "currency", Value: "EUR"},
+		})
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
@@ -278,22 +308,39 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 
 	mt.Run("update sets optional fields", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
+		txnsNS := mt.DB.Name() + ".transactions"
 
-		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{
-			Key: "value",
-			Value: bson.D{
-				{Key: "_id", Value: id},
-				{Key: "script", Value: "TCS"},
-				{Key: "symbol", Value: "TCS.NS"},
-				{Key: "exchange", Value: "NSE"},
-				{Key: "type", Value: "stock"},
-				{Key: "stocks_owned", Value: 12.0},
-				{Key: "avg_cost_price", Value: 3100.0},
-				{Key: "realized_pnl", Value: 75.0},
-				{Key: "currency", Value: "INR"},
-				{Key: "notes", Value: "core position"},
-			},
-		}))
+		final := bson.D{
+			{Key: "_id", Value: id},
+			{Key: "script", Value: "TCS"},
+			{Key: "symbol", Value: "TCS.NS"},
+			{Key: "exchange", Value: "NSE"},
+			{Key: "type", Value: "stock"},
+			{Key: "stocks_owned", Value: 12.0},
+			{Key: "avg_cost_price", Value: 3100.0},
+			{Key: "realized_pnl", Value: 75.0},
+			{Key: "currency", Value: "INR"},
+			{Key: "notes", Value: "core position"},
+		}
+
+		mt.AddMockResponses(
+			// 1. identity FindOneAndUpdate(holdings) (service discards this doc).
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: final}),
+			// 2. upsertOpening ListByHolding — no existing opening event.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch),
+			// 3. upsertOpening InsertOne(transactions).
+			mtest.CreateSuccessResponse(),
+			// 4. recompute ListByHolding — the opening event.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: primitive.NewObjectID()},
+				{Key: "type", Value: "opening"},
+				{Key: "quantity", Value: 12.0},
+				{Key: "amount", Value: 37200.0},
+				{Key: "realized_seed", Value: 75.0},
+			}),
+			// 5. recompute FindOneAndUpdate(holdings) — the returned position.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: final}),
+		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
@@ -398,7 +445,10 @@ func TestIntegration_DeleteHolding_ReturnsDeletedMessage(t *testing.T) {
 
 	mt.Run("deleted", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
-		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}))
+		mt.AddMockResponses(
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}), // DeleteOne(holdings)
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}), // cascade DeleteMany(transactions)
+		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 

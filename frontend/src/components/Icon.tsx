@@ -32,6 +32,17 @@ export const ChartLineIcon = (p: IconProps) => (
   </Svg>
 )
 
+export const ListIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" />
+    <line x1="3" y1="12" x2="3.01" y2="12" />
+    <line x1="3" y1="18" x2="3.01" y2="18" />
+  </Svg>
+)
+
 export const ShieldIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />

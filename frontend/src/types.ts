@@ -11,10 +11,13 @@ export type HoldingWithPrice = Schemas['HoldingWithPrice']
 export type PricesResponse = Schemas['PricesResponse']
 export type Summary = Schemas['Summary']
 export type CurrencyChange = Schemas['CurrencyChange']
+export type Transaction = Schemas['Transaction']
+export type TransactionInput = Schemas['TransactionInput']
 
 export type Exchange = NonNullable<Holding['exchange']>
 export type HoldingType = NonNullable<Holding['type']>
 export type Currency = NonNullable<Holding['currency']>
+export type TransactionType = NonNullable<Transaction['type']>
 
 // MarketPrice / ForexRate are declared inline in the spec; extract from
 // the generated operations type rather than redefining by hand.

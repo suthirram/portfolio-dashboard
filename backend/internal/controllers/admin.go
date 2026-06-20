@@ -247,10 +247,14 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 		return nil, echo.NewHTTPError(http.StatusForbidden, "cannot delete own account")
 	}
 
-	// Holdings first: if anything fails midway the account still exists and
-	// the delete can be retried.
+	// Holdings and their transactions first: if anything fails midway the
+	// account still exists and the delete can be retried.
 	if err := h.store.Holdings.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).Error("delete user holdings failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	if err := h.store.Transactions.DeleteByUser(ctx, target.ID); err != nil {
+		h.reqLog(ctx).Error("delete user transactions failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if err := h.store.Sessions.DeleteByUser(ctx, target.ID); err != nil {
