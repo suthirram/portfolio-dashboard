@@ -3,7 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import {
   parsePasteText,
   monthRange,
-  dailyVolatility,
   parseAmount,
   normaliseDate,
   HistoryTable,
@@ -127,39 +126,6 @@ describe('normaliseDate', () => {
   it('returns empty for nonsense', () => {
     expect(normaliseDate('not a date')).toBe('')
     expect(normaliseDate('')).toBe('')
-  })
-})
-
-// ---- dailyVolatility ----
-
-describe('dailyVolatility', () => {
-  const rows: HistoryRow[] = [
-    // newest first (server order)
-    row({ date: '2026-06-17', totals: { invested_total: 200, current_total: 220, pnl_pct: 10 } }),
-    row({ date: '2026-06-16', totals: { invested_total: 200, current_total: 200, pnl_pct: 0 } }),
-    row({ date: '2026-06-15', totals: { invested_total: 200, current_total: 0,   pnl_pct: null } }),
-  ]
-
-  it('returns +10 for an upward day (220 vs prior 200)', () => {
-    expect(dailyVolatility(rows, 0)).toBeCloseTo(10, 5)
-  })
-
-  it('returns null when there is no prior row', () => {
-    // rows[2] is the oldest; rows[3] does not exist.
-    expect(dailyVolatility(rows, 2)).toBeNull()
-  })
-
-  it('returns null when the prior current value is 0 (divide-by-zero)', () => {
-    // rows[1] looks back to rows[2] which has current_total=0.
-    expect(dailyVolatility(rows, 1)).toBeNull()
-  })
-
-  it('returns a negative value when the portfolio dropped', () => {
-    const down: HistoryRow[] = [
-      row({ date: '2026-06-17', totals: { invested_total: 100, current_total: 75,  pnl_pct: -25 } }),
-      row({ date: '2026-06-16', totals: { invested_total: 100, current_total: 100, pnl_pct: 0 } }),
-    ]
-    expect(dailyVolatility(down, 0)).toBeCloseTo(-25, 5)
   })
 })
 

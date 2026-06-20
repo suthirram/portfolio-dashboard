@@ -92,6 +92,13 @@ type SnapshotTotals struct {
 
 // Totals derives the headline aggregate from the per-bucket map. It
 // rounds PnLPct to two decimals; callers should not round again.
+//
+// NOTE: this is a SAME-CURRENCY-ONLY aggregate. Buckets are summed in
+// their native units with no FX conversion, so for a mixed-currency
+// portfolio (e.g. INR + EUR) the result is not a meaningful base-currency
+// figure. The history UI never renders it — it shows per-currency buckets.
+// Do not wire this into a converted/base-currency headline without first
+// storing a per-snapshot FX rate (see plan F2 / DD-002 follow-up).
 func (p PortfolioSnapshot) Totals() SnapshotTotals {
 	var invested, current float64
 	for _, r := range p.Buckets {

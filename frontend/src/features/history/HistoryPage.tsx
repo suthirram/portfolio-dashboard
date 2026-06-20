@@ -515,22 +515,10 @@ function fmt(n: number) {
   return n === 0 ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
-// dailyVolatility computes day-over-day return % using the prior day's
-// current_total. `rows` is expected newest-first (the server's order), so
-// rows[i+1] is the day before rows[i]. Returns null when there is no
-// prior row in the window or the prior current value is zero (divide-by-
-// zero); callers render it as "—".
-export function dailyVolatility(rows: HistoryRow[], i: number): number | null {
-  const prev = rows[i + 1]
-  if (!prev) return null
-  const prevCur = prev.totals.current_total
-  if (prevCur === 0) return null
-  const today = rows[i].totals.current_total
-  return ((today - prevCur) / prevCur) * 100
-}
-
-// regionDailyVolatility is the per-region counterpart used by the
-// per-currency table column. Rows newest-first.
+// regionDailyVolatility is the per-currency day-over-day % used by the
+// table column. Rows newest-first. Per-currency by design: the history UI
+// never combines currencies (PortfolioSnapshot.Totals is a same-currency-
+// only aggregate, not FX-converted), so volatility is computed per bucket.
 export function regionDailyVolatility(rows: HistoryRow[], i: number, region: RegionKey): number | null {
   const prev = rows[i + 1]
   if (!prev) return null
