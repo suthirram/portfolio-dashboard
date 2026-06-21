@@ -4,6 +4,9 @@ import {
   parsePasteText,
   monthRange,
   parseAmount,
+  parseFormAmount,
+  groupIndian,
+  sanitizeAmount,
   normaliseDate,
   HistoryTable,
   AddRowModal,
@@ -30,6 +33,49 @@ const row = (overrides: Partial<HistoryRow> & { date: string }): HistoryRow => (
   regions: {},
   totals: { invested_total: 0, current_total: 0, pnl_pct: null },
   ...overrides,
+})
+
+// ---- parseFormAmount (locale-tolerant decimal entry) ----
+
+describe('parseFormAmount', () => {
+  it('parses either decimal separator and strips thousands grouping', () => {
+    expect(parseFormAmount('23456.45')).toBe(23456.45)   // plain dot decimal
+    expect(parseFormAmount('23456,45')).toBe(23456.45)   // lone comma decimal
+    expect(parseFormAmount('23,456.45')).toBe(23456.45)  // en grouping
+    expect(parseFormAmount('23.456,45')).toBe(23456.45)  // european grouping
+    expect(parseFormAmount('1,234,567')).toBe(1234567)   // comma thousands only
+    expect(parseFormAmount('1.234.567')).toBe(1234567)   // dot thousands only
+    expect(parseFormAmount('  1 234,5 ')).toBe(1234.5)   // space grouping
+    expect(parseFormAmount('')).toBe(0)
+  })
+})
+
+// ---- sanitizeAmount (block non-numeric keystrokes) ----
+
+describe('sanitizeAmount', () => {
+  it('strips letters and symbols but keeps digits and separators', () => {
+    expect(sanitizeAmount('12a3b4')).toBe('1234')
+    expect(sanitizeAmount('₹1,234.50')).toBe('1,234.50')
+    expect(sanitizeAmount('-99')).toBe('99')   // amounts are non-negative
+    expect(sanitizeAmount('1 23,4.5')).toBe('1 23,4.5')
+  })
+})
+
+// ---- groupIndian (lakh/crore digit grouping) ----
+
+describe('groupIndian', () => {
+  it('groups integer part as 2,2,3 from the right and keeps the decimal', () => {
+    expect(groupIndian('23456.45')).toBe('23,456.45')
+    expect(groupIndian('1234567')).toBe('12,34,567')
+    expect(groupIndian('123456789.5')).toBe('12,34,56,789.5')
+    expect(groupIndian('999')).toBe('999')
+    expect(groupIndian('-1234567')).toBe('-12,34,567')
+    expect(groupIndian('')).toBe('')
+  })
+
+  it('round-trips with parseFormAmount', () => {
+    expect(parseFormAmount(groupIndian('98765432.1'))).toBe(98765432.1)
+  })
 })
 
 // ---- monthRange (TDD §7.1 range derivation) ----

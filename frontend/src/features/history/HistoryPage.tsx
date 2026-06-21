@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Dispatch, FocusEvent, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -120,18 +121,94 @@ function emptyForm(): RegionFormState {
 }
 
 // parseFormAmount tolerates both decimal conventions so a value typed into the
-// add/edit form parses the same regardless of the user's locale habits:
-// "23456.45", "23456,45", and "23,456.45" all become 23456.45. Empty → 0.
-// (Distinct from the paste parser, where a comma is always a thousands group.)
-function parseFormAmount(s: string): number {
-  let v = s.trim().replace(/\s/g, '')
+// add/edit form parses the same regardless of the user's locale habits. The
+// decimal separator is whichever of '.' or ',' appears LAST; the other is
+// thousands grouping and is stripped. A single lone comma is treated as a
+// decimal point; repeated separators with none trailing as a decimal are pure
+// grouping. Empty → 0. (Distinct from the paste parser, where a comma is always
+// a thousands group.)
+//   "23456.45" → 23456.45   "23456,45"  → 23456.45
+//   "23,456.45" → 23456.45  "23.456,45" → 23456.45
+//   "1,234,567" → 1234567   "1.234.567" → 1234567
+export function parseFormAmount(s: string): number {
+  const v = s.trim().replace(/[\s_]/g, '')
   if (!v) return 0
-  if (v.includes(',') && v.includes('.')) {
-    v = v.replace(/,/g, '') // comma = thousands grouping, dot = decimal
-  } else if (v.includes(',')) {
-    v = v.replace(',', '.') // lone comma = decimal separator
+  const lastComma = v.lastIndexOf(',')
+  const lastDot = v.lastIndexOf('.')
+
+  let decimal = ''
+  if (lastComma !== -1 && lastDot !== -1) {
+    decimal = lastComma > lastDot ? ',' : '.'
+  } else if (lastComma !== -1) {
+    // a single comma is a decimal point; several are thousands grouping
+    decimal = v.indexOf(',') === lastComma ? ',' : ''
+  } else if (lastDot !== -1) {
+    decimal = v.indexOf('.') === lastDot ? '.' : ''
   }
-  return Number(v)
+
+  let normalized: string
+  if (decimal === ',') {
+    normalized = v.replace(/\./g, '').replace(',', '.')
+  } else if (decimal === '.') {
+    normalized = v.replace(/,/g, '')
+  } else {
+    normalized = v.replace(/[,.]/g, '') // pure grouping, no decimal part
+  }
+  return Number(normalized)
+}
+
+// groupIndian renders a numeric string with Indian digit grouping (2,2,3 from
+// the right, e.g. 12,34,56,789.45) and a dot decimal, preserving the exact
+// digits given. Empty → "". Used to display amounts in the add/edit inputs.
+export function groupIndian(s: string): string {
+  const t = s.trim()
+  if (!t) return ''
+  const neg = t.startsWith('-')
+  const [intPart, decPart] = (neg ? t.slice(1) : t).split('.')
+  const last3 = intPart.slice(-3)
+  const rest = intPart.slice(0, -3)
+  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3
+  return (neg ? '-' : '') + grouped + (decPart != null ? '.' + decPart : '')
+}
+
+// groupedInitial formats a stored numeric value for an input's initial display.
+function groupedInitial(v: number | undefined): string {
+  return v == null ? '' : groupIndian(String(v))
+}
+
+// sanitizeAmount drops anything that can't be part of a numeric amount, so the
+// text inputs never accept letters or stray symbols (keeping the decimal-point
+// display fix without losing the strictness type="number" gave). Allows digits,
+// '.' and ',' (decimal or grouping) and spaces (grouping).
+export function sanitizeAmount(s: string): string {
+  return s.replace(/[^\d.,\s]/g, '')
+}
+
+// formError validates the amount fields before submit. A field that is
+// non-empty but does not parse to a finite number is rejected (rather than
+// silently skipped) so a typo can never drop a region on save.
+function formError(form: RegionFormState): string | null {
+  for (const r of REGIONS) {
+    for (const key of ['invested', 'current'] as const) {
+      const raw = form[r][key].trim()
+      if (raw !== '' && !Number.isFinite(parseFormAmount(raw))) {
+        return `Enter a valid ${key} amount for ${REGION_LABELS[r]}.`
+      }
+    }
+  }
+  return null
+}
+
+// regroupHandler returns an onBlur handler that normalises a typed amount and
+// re-applies Indian grouping, so freshly entered values match the prefilled
+// ones (e.g. "2345678" → "23,45,678"). Empty stays empty.
+function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>>) {
+  return (r: RegionKey, key: keyof RegionFormValue) =>
+    (e: FocusEvent<HTMLInputElement>) => {
+      const raw = e.target.value.trim()
+      const grouped = raw === '' ? '' : groupIndian(String(parseFormAmount(raw)))
+      setForm(f => ({ ...f, [r]: { ...f[r], [key]: grouped } }))
+    }
 }
 
 function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
@@ -398,12 +475,13 @@ export const CURRENCY_SYMBOL: Record<'INR' | 'EUR' | 'USD', string> = {
   USD: '$',
 }
 
-// fmtCurrency formats amount with the currency symbol and 2dp, e.g.
-// "₹1,019,620.00". An amount of 0 renders as "₹0.00" rather than the em
-// dash used elsewhere, because in the per-currency layout an absent
-// value collapses the whole row group instead.
+// fmtCurrency formats amount with the currency symbol and 2dp using Indian
+// digit grouping (lakh/crore), e.g. "₹10,19,620.00", regardless of the
+// browser locale. An amount of 0 renders as "₹0.00" rather than the em dash
+// used elsewhere, because in the per-currency layout an absent value collapses
+// the whole row group instead.
 export function fmtCurrency(amount: number, sym: string): string {
-  return sym + amount.toLocaleString(undefined, {
+  return sym + amount.toLocaleString('en-IN', {
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   })
 }
@@ -574,7 +652,7 @@ export function fmtAxisAmount(v: number): string {
 // ---- Table ----
 
 function fmt(n: number) {
-  return n === 0 ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return n === 0 ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
 // regionDailyVolatility is the per-currency day-over-day % used by the
@@ -840,8 +918,13 @@ export function AddRowModal({ onSubmit, onCancel }: {
   const [date, setDate] = useState(today)
   const [form, setForm] = useState<RegionFormState>(emptyForm())
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const regroup = regroupHandler(setForm)
 
   const submit = async () => {
+    const err = formError(form)
+    if (err) { setError(err); return }
+    setError('')
     setBusy(true)
     try {
       await onSubmit({ date, regions: formToBody(form) })
@@ -866,18 +949,21 @@ export function AddRowModal({ onSubmit, onCancel }: {
               <label style={{ flex: 1 }}>
                 Invested
                 <input type="text" inputMode="decimal" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: sanitizeAmount(e.target.value) } }))}
+                  onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
                 <input type="text" inputMode="decimal" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: sanitizeAmount(e.target.value) } }))}
+                  onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
           </fieldset>
         ))}
+        {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
           <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
@@ -967,14 +1053,19 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   onCancel: () => void
 }) {
   const initial: RegionFormState = {
-    INR: { invested: String(row.regions.INR?.invested ?? ''), current: String(row.regions.INR?.current ?? '') },
-    EUR: { invested: String(row.regions.EUR?.invested ?? ''), current: String(row.regions.EUR?.current ?? '') },
-    USD: { invested: String(row.regions.USD?.invested ?? ''), current: String(row.regions.USD?.current ?? '') },
+    INR: { invested: groupedInitial(row.regions.INR?.invested), current: groupedInitial(row.regions.INR?.current) },
+    EUR: { invested: groupedInitial(row.regions.EUR?.invested), current: groupedInitial(row.regions.EUR?.current) },
+    USD: { invested: groupedInitial(row.regions.USD?.invested), current: groupedInitial(row.regions.USD?.current) },
   }
   const [form, setForm] = useState<RegionFormState>(initial)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const regroup = regroupHandler(setForm)
 
   const submit = async () => {
+    const err = formError(form)
+    if (err) { setError(err); return }
+    setError('')
     setBusy(true)
     try {
       await onSubmit(row.date, formToBody(form))
@@ -1002,18 +1093,21 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
               <label style={{ flex: 1 }}>
                 Invested
                 <input type="text" inputMode="decimal" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: sanitizeAmount(e.target.value) } }))}
+                  onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
                 <input type="text" inputMode="decimal" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
+                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: sanitizeAmount(e.target.value) } }))}
+                  onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
           </fieldset>
         ))}
+        {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
           <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
