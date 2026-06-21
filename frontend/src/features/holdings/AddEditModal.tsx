@@ -103,6 +103,10 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
         symbol: form.symbol.trim(),
         exchange: form.exchange,
         type: form.type,
+        // On create these seed the opening balance. On update the backend
+        // ignores them (position is derived from the ledger), so the derived
+        // values pre-filled in the form are inert here — the opening balance is
+        // edited in the Transactions modal instead.
         stocks_owned: parseFloat(String(form.stocks_owned)) || 0,
         avg_cost_price: parseFloat(String(form.avg_cost_price)) || 0,
         realized_pnl: parseFloat(String(form.realized_pnl)) || 0,
@@ -190,31 +194,41 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Opening balance
+            {isEdit ? (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2, fontSize: 11, color: 'var(--text-muted)' }}>
+                Shares, average cost and realised P&L are derived from this holding's
+                ledger. Edit the opening balance or record buys/sells in the
+                <strong> Transactions</strong> view.
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                Your starting position. Record later buys, sells and dividends in the
-                holding's <strong>Transactions</strong> ledger — the position recomputes automatically.
-              </div>
-            </div>
+            ) : (
+              <>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Opening balance
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                    Your starting position. Record later buys, sells and dividends in the
+                    holding's <strong>Transactions</strong> ledger — the position recomputes automatically.
+                  </div>
+                </div>
 
-            <div style={ROW2}>
-              <div>
-                <label style={LABEL}>Shares Owned</label>
-                <input style={INPUT} type="number" min="0" step="any" value={form.stocks_owned} onChange={set('stocks_owned')} placeholder="0" />
-              </div>
-              <div>
-                <label style={LABEL}>Avg Cost Price ({form.currency === 'EUR' ? '€' : '₹'})</label>
-                <input style={INPUT} type="number" min="0" step="any" value={form.avg_cost_price} onChange={set('avg_cost_price')} placeholder="0.00" />
-              </div>
-            </div>
+                <div style={ROW2}>
+                  <div>
+                    <label style={LABEL}>Shares Owned</label>
+                    <input style={INPUT} type="number" min="0" step="any" value={form.stocks_owned} onChange={set('stocks_owned')} placeholder="0" />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Avg Cost Price ({form.currency === 'EUR' ? '€' : '₹'})</label>
+                    <input style={INPUT} type="number" min="0" step="any" value={form.avg_cost_price} onChange={set('avg_cost_price')} placeholder="0.00" />
+                  </div>
+                </div>
 
-            <div>
-              <label style={LABEL}>Realised P&L ({form.currency === 'EUR' ? '€' : '₹'})</label>
-              <input style={INPUT} type="number" step="any" value={form.realized_pnl} onChange={set('realized_pnl')} placeholder="Profit/loss from shares already sold" />
-            </div>
+                <div>
+                  <label style={LABEL}>Realised P&L ({form.currency === 'EUR' ? '€' : '₹'})</label>
+                  <input style={INPUT} type="number" step="any" value={form.realized_pnl} onChange={set('realized_pnl')} placeholder="Profit/loss from shares already sold" />
+                </div>
+              </>
+            )}
 
             <div>
               <label style={LABEL}>Notes</label>

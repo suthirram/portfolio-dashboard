@@ -26,12 +26,13 @@ interface FormState {
   quantity: string
   amount: string
   ratio: string
+  realized: string // opening only: realised P&L seed
   notes: string
 }
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 
-const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', amount: '', ratio: '', notes: '' })
+const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
   holding: HoldingWithPrice
@@ -76,6 +77,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
       quantity: t.quantity != null ? String(t.quantity) : '',
       amount: t.amount != null ? String(t.amount) : '',
       ratio: t.ratio != null && t.ratio !== 0 ? String(t.ratio) : '',
+      realized: t.realized_seed != null && t.realized_seed !== 0 ? String(t.realized_seed) : '',
       notes: t.notes || '',
     })
   }
@@ -95,6 +97,9 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     }
     if (form.type === 'split' || form.type === 'bonus') {
       payload.ratio = parseFloat(form.ratio) || 0
+    }
+    if (form.type === 'opening') {
+      payload.realized_seed = parseFloat(form.realized) || 0
     }
 
     setSaving(true)
@@ -133,6 +138,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
   // Quantity/amount are irrelevant for split/bonus/merger; show ratio instead.
   const isCorporate = form.type === 'split' || form.type === 'bonus'
   const isMerger = form.type === 'merger'
+  const isOpening = form.type === 'opening'
 
   return (
     <div style={{
@@ -161,10 +167,15 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label style={LABEL}>Type</label>
-              <select style={{ ...INPUT, cursor: 'pointer' }} value={form.type}
-                onChange={e => setForm(f => ({ ...f, type: e.target.value as TransactionType }))}>
-                {NEW_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
-              </select>
+              {isOpening ? (
+                // Opening type is fixed; only its values can be edited.
+                <input style={{ ...INPUT, opacity: 0.7 }} value="Opening (balance)" disabled />
+              ) : (
+                <select style={{ ...INPUT, cursor: 'pointer' }} value={form.type}
+                  onChange={e => setForm(f => ({ ...f, type: e.target.value as TransactionType }))}>
+                  {NEW_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label style={LABEL}>Date</label>
@@ -186,11 +197,21 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                 <label style={LABEL}>
                   {form.type === 'dividend' ? `Dividend credited (${sym})`
                     : form.type === 'sell' ? `Total credited (${sym})`
+                    : form.type === 'opening' ? `Total cost (${sym})`
                     : `Total debited (${sym})`}
                 </label>
                 <input style={INPUT} type="number" min="0" step="any" value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
               </div>
+            </div>
+          )}
+
+          {isOpening && (
+            <div style={{ marginTop: 12 }}>
+              <label style={LABEL}>Realised P&L seed ({sym})</label>
+              <input style={INPUT} type="number" step="any" value={form.realized}
+                onChange={e => setForm(f => ({ ...f, realized: e.target.value }))}
+                placeholder="Carried realised P&L (optional)" />
             </div>
           )}
 
@@ -253,40 +274,37 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                   No transactions yet. Add a buy, sell or dividend above.
                 </td></tr>
               )}
-              {!loading && txns.map(t => {
-                const isOpening = t.type === 'opening'
-                return (
-                  <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <Td style={{ textAlign: 'left' }}>{t.date ? t.date.slice(0, 10) : '—'}</Td>
-                    <Td style={{ textAlign: 'left' }}>
-                      <span style={{ fontWeight: 600 }}>{TYPE_LABEL[t.type || ''] || t.type}</span>
-                      {t.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.notes}</div>}
-                    </Td>
-                    <Td className="mono">{num(t.quantity)}</Td>
-                    <Td className="mono">{money(t.amount)}</Td>
-                    <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>
-                    <Td style={{ textAlign: 'center' }}>
-                      {confirm === t.id ? (
-                        <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={() => t.id && remove(t.id)} style={{ background: 'var(--red)', color: '#fff', padding: '3px 8px', fontSize: 11 }}>Yes</button>
-                          <button onClick={() => setConfirm(null)} style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '3px 8px', fontSize: 11, border: '1px solid var(--border)' }}>No</button>
-                        </span>
-                      ) : (
-                        <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={() => startEdit(t)} disabled={isOpening} title={isOpening ? 'Edit the opening balance on the holding' : 'Edit'}
-                            style={{ background: 'var(--blue-dim)', color: 'var(--blue)', padding: '4px 7px', border: '1px solid rgba(79,142,247,0.2)', display: 'inline-flex', opacity: isOpening ? 0.4 : 1 }}>
-                            <EditIcon size={12} />
-                          </button>
-                          <button onClick={() => t.id && setConfirm(t.id)} disabled={isOpening} title={isOpening ? 'Opening balance is managed on the holding' : 'Delete'}
-                            style={{ background: 'var(--red-dim)', color: 'var(--red)', padding: '4px 7px', border: '1px solid rgba(255,77,109,0.2)', display: 'inline-flex', opacity: isOpening ? 0.4 : 1 }}>
-                            <TrashIcon size={12} />
-                          </button>
-                        </span>
-                      )}
-                    </Td>
-                  </tr>
-                )
-              })}
+              {!loading && txns.map(t => (
+                <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <Td style={{ textAlign: 'left' }}>{t.date ? t.date.slice(0, 10) : '—'}</Td>
+                  <Td style={{ textAlign: 'left' }}>
+                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[t.type || ''] || t.type}</span>
+                    {t.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.notes}</div>}
+                  </Td>
+                  <Td className="mono">{num(t.quantity)}</Td>
+                  <Td className="mono">{money(t.amount)}</Td>
+                  <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>
+                  <Td style={{ textAlign: 'center' }}>
+                    {confirm === t.id ? (
+                      <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <button onClick={() => t.id && remove(t.id)} style={{ background: 'var(--red)', color: '#fff', padding: '3px 8px', fontSize: 11 }}>Yes</button>
+                        <button onClick={() => setConfirm(null)} style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '3px 8px', fontSize: 11, border: '1px solid var(--border)' }}>No</button>
+                      </span>
+                    ) : (
+                      <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <button onClick={() => startEdit(t)} title="Edit"
+                          style={{ background: 'var(--blue-dim)', color: 'var(--blue)', padding: '4px 7px', border: '1px solid rgba(79,142,247,0.2)', display: 'inline-flex' }}>
+                          <EditIcon size={12} />
+                        </button>
+                        <button onClick={() => t.id && setConfirm(t.id)} title="Delete"
+                          style={{ background: 'var(--red-dim)', color: 'var(--red)', padding: '4px 7px', border: '1px solid rgba(255,77,109,0.2)', display: 'inline-flex' }}>
+                          <TrashIcon size={12} />
+                        </button>
+                      </span>
+                    )}
+                  </Td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -159,9 +159,12 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		return api.Holding{}, false, nil
 	}
 
-	// Identity fields update the holding directly. The position fields
-	// (stocks_owned/avg_cost_price/realized_pnl) are derived — they instead
-	// edit the holding's opening ledger event below.
+	// Update edits identity fields only. The position fields
+	// (stocks_owned/avg_cost_price/realized_pnl) are derived from the ledger
+	// and are deliberately NOT written here: the edit form pre-fills them with
+	// the current derived position, so honouring them would rewrite the opening
+	// event on top of existing buys/sells and double-count. The opening balance
+	// is seeded at create and edited via the transactions ledger instead.
 	update := bson.D{
 		{Key: "script", Value: input.Script},
 		{Key: "exchange", Value: string(input.Exchange)},
@@ -188,75 +191,8 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		return api.Holding{}, false, err
 	}
 
-	if input.StocksOwned != nil || input.AvgCostPrice != nil || input.RealizedPnl != nil {
-		if err := s.upsertOpening(ctx, uid, updated, input); err != nil {
-			s.log(ctx).Error("opening-balance override failed",
-				zap.String("id", idHex), zap.String("error", err.Error()))
-			return api.Holding{}, false, err
-		}
-		if recomputed, err := recomputeAndPersist(ctx, s.store, s.txns, uid, id); err != nil {
-			s.log(ctx).Error("recompute after update failed", zap.String("error", err.Error()))
-		} else {
-			updated = recomputed
-		}
-	}
-
 	s.log(ctx).Info("holding updated", zap.String("id", idHex))
 	return HoldingToAPI(updated), true, nil
-}
-
-// upsertOpening edits the holding's `opening` ledger event from the form's
-// position fields (manual override), inserting one if none exists. Only the
-// provided fields are changed; amount is qty × avg cost price.
-func (s *HoldingsService) upsertOpening(ctx context.Context, uid primitive.ObjectID, holding domain.Holding, input api.HoldingInput) error {
-	list, err := s.txns.ListByHolding(ctx, uid, holding.ID)
-	if err != nil {
-		return err
-	}
-	var opening *domain.Transaction
-	for i := range list {
-		if list[i].Type == domain.TxnOpening {
-			opening = &list[i]
-			break
-		}
-	}
-	now := time.Now()
-
-	if opening == nil {
-		qty, amount, seed, _ := openingFromInput(input)
-		return s.txns.Insert(ctx, domain.Transaction{
-			ID:           primitive.NewObjectID(),
-			UserID:       uid,
-			HoldingID:    holding.ID,
-			Type:         domain.TxnOpening,
-			Date:         holding.CreatedAt,
-			Quantity:     qty,
-			Amount:       amount,
-			RealizedSeed: seed,
-			Currency:     holding.Currency,
-			CreatedAt:    now,
-			UpdatedAt:    now,
-		})
-	}
-
-	// Patch only the provided fields; recompute amount from the resulting qty
-	// and avg cost so the running cost basis is qty × avg.
-	qty := opening.Quantity
-	if input.StocksOwned != nil {
-		qty = *input.StocksOwned
-	}
-	set := bson.D{{Key: "quantity", Value: qty}, {Key: "updated_at", Value: now}}
-	if input.AvgCostPrice != nil {
-		set = append(set, bson.E{Key: "amount", Value: qty * *input.AvgCostPrice})
-	} else if input.StocksOwned != nil && opening.Quantity != 0 {
-		// keep the same per-share cost when only the quantity changed
-		set = append(set, bson.E{Key: "amount", Value: qty * (opening.Amount / opening.Quantity)})
-	}
-	if input.RealizedPnl != nil {
-		set = append(set, bson.E{Key: "realized_seed", Value: *input.RealizedPnl})
-	}
-	_, err = s.txns.UpdateScopedAndReturn(ctx, uid, opening.ID, set)
-	return err
 }
 
 // Delete removes the holding owned by uid. ok=false when the id is invalid,

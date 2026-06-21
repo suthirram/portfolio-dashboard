@@ -56,6 +56,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     }).catch(() => setRegionLabel(user.region))
   }, [user?.region])
 
+  // Keep the open transactions modal's position footer in sync with the
+  // recomputed holding after a ledger write (matched by id).
+  useEffect(() => {
+    if (!txnModal) return
+    const fresh = enriched.find(h => h.id === txnModal.id)
+    if (fresh && fresh !== txnModal) setTxnModal(fresh)
+  }, [enriched, txnModal])
+
   const handleSaved = async () => {
     setModal(null)
     await refresh()

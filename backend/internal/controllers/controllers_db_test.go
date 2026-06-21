@@ -308,39 +308,24 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 
 	mt.Run("update sets optional fields", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
-		txnsNS := mt.DB.Name() + ".transactions"
 
-		final := bson.D{
-			{Key: "_id", Value: id},
-			{Key: "script", Value: "TCS"},
-			{Key: "symbol", Value: "TCS.NS"},
-			{Key: "exchange", Value: "NSE"},
-			{Key: "type", Value: "stock"},
-			{Key: "stocks_owned", Value: 12.0},
-			{Key: "avg_cost_price", Value: 3100.0},
-			{Key: "realized_pnl", Value: 75.0},
-			{Key: "currency", Value: "INR"},
-			{Key: "notes", Value: "core position"},
-		}
-
-		mt.AddMockResponses(
-			// 1. identity FindOneAndUpdate(holdings) (service discards this doc).
-			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: final}),
-			// 2. upsertOpening ListByHolding — no existing opening event.
-			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch),
-			// 3. upsertOpening InsertOne(transactions).
-			mtest.CreateSuccessResponse(),
-			// 4. recompute ListByHolding — the opening event.
-			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, bson.D{
-				{Key: "_id", Value: primitive.NewObjectID()},
-				{Key: "type", Value: "opening"},
-				{Key: "quantity", Value: 12.0},
-				{Key: "amount", Value: 37200.0},
-				{Key: "realized_seed", Value: 75.0},
-			}),
-			// 5. recompute FindOneAndUpdate(holdings) — the returned position.
-			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: final}),
-		)
+		// Update edits identity only; the position fields shown in the form are
+		// derived and are not written back (single FindOneAndUpdate).
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{
+			Key: "value",
+			Value: bson.D{
+				{Key: "_id", Value: id},
+				{Key: "script", Value: "TCS"},
+				{Key: "symbol", Value: "TCS.NS"},
+				{Key: "exchange", Value: "NSE"},
+				{Key: "type", Value: "stock"},
+				{Key: "stocks_owned", Value: 12.0},
+				{Key: "avg_cost_price", Value: 3100.0},
+				{Key: "realized_pnl", Value: 75.0},
+				{Key: "currency", Value: "INR"},
+				{Key: "notes", Value: "core position"},
+			},
+		}))
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
