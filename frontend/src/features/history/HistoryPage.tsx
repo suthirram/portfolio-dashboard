@@ -119,11 +119,26 @@ function emptyForm(): RegionFormState {
   }
 }
 
+// parseFormAmount tolerates both decimal conventions so a value typed into the
+// add/edit form parses the same regardless of the user's locale habits:
+// "23456.45", "23456,45", and "23,456.45" all become 23456.45. Empty → 0.
+// (Distinct from the paste parser, where a comma is always a thousands group.)
+function parseFormAmount(s: string): number {
+  let v = s.trim().replace(/\s/g, '')
+  if (!v) return 0
+  if (v.includes(',') && v.includes('.')) {
+    v = v.replace(/,/g, '') // comma = thousands grouping, dot = decimal
+  } else if (v.includes(',')) {
+    v = v.replace(',', '.') // lone comma = decimal separator
+  }
+  return Number(v)
+}
+
 function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
   const out: Record<string, { invested: number; current: number }> = {}
   for (const r of REGIONS) {
-    const inv = Number(form[r].invested)
-    const cur = Number(form[r].current)
+    const inv = parseFormAmount(form[r].invested)
+    const cur = parseFormAmount(form[r].current)
     if (Number.isFinite(inv) && Number.isFinite(cur) && (inv > 0 || cur > 0)) {
       out[r] = { invested: inv, current: cur }
     }
@@ -850,13 +865,13 @@ export function AddRowModal({ onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="number" min="0" value={form[r].invested}
+                <input type="text" inputMode="decimal" value={form[r].invested}
                   onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="number" min="0" value={form[r].current}
+                <input type="text" inputMode="decimal" value={form[r].current}
                   onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
@@ -986,13 +1001,13 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="number" min="0" value={form[r].invested}
+                <input type="text" inputMode="decimal" value={form[r].invested}
                   onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="number" min="0" value={form[r].current}
+                <input type="text" inputMode="decimal" value={form[r].current}
                   onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
