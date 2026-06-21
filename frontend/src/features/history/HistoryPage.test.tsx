@@ -13,6 +13,8 @@ import {
   ConflictDialog,
   PasteModal,
   niceDomain,
+  symmetricDomain,
+  regionHasData,
   fmtAxisAmount,
   perCurrencyChartData,
   regionCurrentDirection,
@@ -43,10 +45,17 @@ describe('parseFormAmount', () => {
     expect(parseFormAmount('23456,45')).toBe(23456.45)   // lone comma decimal
     expect(parseFormAmount('23,456.45')).toBe(23456.45)  // en grouping
     expect(parseFormAmount('23.456,45')).toBe(23456.45)  // european grouping
+    expect(parseFormAmount('1,234')).toBe(1234)           // single grouping comma
+    expect(parseFormAmount('12,34,567')).toBe(1234567)    // Indian grouping
     expect(parseFormAmount('1,234,567')).toBe(1234567)   // comma thousands only
     expect(parseFormAmount('1.234.567')).toBe(1234567)   // dot thousands only
     expect(parseFormAmount('  1 234,5 ')).toBe(1234.5)   // space grouping
     expect(parseFormAmount('')).toBe(0)
+  })
+
+  it('rejects malformed numeric text', () => {
+    expect(parseFormAmount('1,,2')).toBeNaN()
+    expect(parseFormAmount('12.34.56')).toBeNaN()
   })
 })
 
@@ -75,6 +84,34 @@ describe('groupIndian', () => {
 
   it('round-trips with parseFormAmount', () => {
     expect(parseFormAmount(groupIndian('98765432.1'))).toBe(98765432.1)
+  })
+})
+
+// ---- symmetricDomain (zero-centred volatility axis) ----
+
+describe('symmetricDomain', () => {
+  it('centres the range on zero around the largest swing', () => {
+    const d = symmetricDomain([-3, 1, -5, 2])
+    expect(d).toBeDefined()
+    expect(d![0]).toBe(-d![1])           // symmetric about 0
+    expect(d![1]).toBeGreaterThanOrEqual(5)
+  })
+  it('returns undefined when no finite values', () => {
+    expect(symmetricDomain([null, undefined, NaN])).toBeUndefined()
+  })
+  it('handles an all-zero series', () => {
+    expect(symmetricDomain([0, 0])).toEqual([-1, 1])
+  })
+})
+
+// ---- regionHasData (hide empty currency charts) ----
+
+describe('regionHasData', () => {
+  it('is false when every point is zero or null', () => {
+    expect(regionHasData([{ invested: 0, current: 0 }, { invested: null, current: null }])).toBe(false)
+  })
+  it('is true when any invested or current is non-zero', () => {
+    expect(regionHasData([{ invested: 0, current: 0 }, { invested: null, current: 12 }])).toBe(true)
   })
 })
 

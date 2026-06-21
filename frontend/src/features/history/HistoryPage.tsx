@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, FocusEvent, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import {
   api,
@@ -12,7 +12,9 @@ import {
   type RegionSnapshot,
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
+import { DecimalInput } from '../../components/DecimalInput'
 import { EditIcon, TrashIcon } from '../../components/Icon'
+import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import { useAuthOptional } from '../auth/AuthContext'
 
@@ -120,68 +122,28 @@ function emptyForm(): RegionFormState {
   }
 }
 
-// parseFormAmount tolerates both decimal conventions so a value typed into the
-// add/edit form parses the same regardless of the user's locale habits. The
-// decimal separator is whichever of '.' or ',' appears LAST; the other is
-// thousands grouping and is stripped. A single lone comma is treated as a
-// decimal point; repeated separators with none trailing as a decimal are pure
-// grouping. Empty → 0. (Distinct from the paste parser, where a comma is always
-// a thousands group.)
-//   "23456.45" → 23456.45   "23456,45"  → 23456.45
-//   "23,456.45" → 23456.45  "23.456,45" → 23456.45
-//   "1,234,567" → 1234567   "1.234.567" → 1234567
+// parseFormAmount tolerates both decimal conventions so a value typed into an
+// amount form parses the same regardless of the user's locale habits. The last
+// separator is the decimal when both '.' and ',' are present; otherwise a single
+// separator is treated as decimal unless it looks like a thousands group.
+// Empty -> 0. Distinct from the paste parser, where comma is always grouping.
+//   "23456.45" -> 23456.45   "23456,45"  -> 23456.45
+//   "23,456.45" -> 23456.45  "23.456,45" -> 23456.45
+//   "1,234" -> 1234          "1,234,567" -> 1234567
 export function parseFormAmount(s: string): number {
-  const v = s.trim().replace(/[\s_]/g, '')
-  if (!v) return 0
-  const lastComma = v.lastIndexOf(',')
-  const lastDot = v.lastIndexOf('.')
-
-  let decimal = ''
-  if (lastComma !== -1 && lastDot !== -1) {
-    decimal = lastComma > lastDot ? ',' : '.'
-  } else if (lastComma !== -1) {
-    // a single comma is a decimal point; several are thousands grouping
-    decimal = v.indexOf(',') === lastComma ? ',' : ''
-  } else if (lastDot !== -1) {
-    decimal = v.indexOf('.') === lastDot ? '.' : ''
-  }
-
-  let normalized: string
-  if (decimal === ',') {
-    normalized = v.replace(/\./g, '').replace(',', '.')
-  } else if (decimal === '.') {
-    normalized = v.replace(/,/g, '')
-  } else {
-    normalized = v.replace(/[,.]/g, '') // pure grouping, no decimal part
-  }
-  return Number(normalized)
+  return parseDecimalInput(s)
 }
-
-// groupIndian renders a numeric string with Indian digit grouping (2,2,3 from
-// the right, e.g. 12,34,56,789.45) and a dot decimal, preserving the exact
-// digits given. Empty → "". Used to display amounts in the add/edit inputs.
-export function groupIndian(s: string): string {
-  const t = s.trim()
-  if (!t) return ''
-  const neg = t.startsWith('-')
-  const [intPart, decPart] = (neg ? t.slice(1) : t).split('.')
-  const last3 = intPart.slice(-3)
-  const rest = intPart.slice(0, -3)
-  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3
-  return (neg ? '-' : '') + grouped + (decPart != null ? '.' + decPart : '')
-}
+export { groupIndian }
 
 // groupedInitial formats a stored numeric value for an input's initial display.
 function groupedInitial(v: number | undefined): string {
   return v == null ? '' : groupIndian(String(v))
 }
 
-// sanitizeAmount drops anything that can't be part of a numeric amount, so the
-// text inputs never accept letters or stray symbols (keeping the decimal-point
-// display fix without losing the strictness type="number" gave). Allows digits,
-// '.' and ',' (decimal or grouping) and spaces (grouping).
+// sanitizeAmount drops anything that can't be part of a numeric amount. The
+// DecimalInput component also blocks those keystrokes before they reach state.
 export function sanitizeAmount(s: string): string {
-  return s.replace(/[^\d.,\s]/g, '')
+  return sanitizeDecimalInput(s)
 }
 
 // formError validates the amount fields before submit. A field that is
@@ -206,7 +168,8 @@ function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>>) {
   return (r: RegionKey, key: keyof RegionFormValue) =>
     (e: FocusEvent<HTMLInputElement>) => {
       const raw = e.target.value.trim()
-      const grouped = raw === '' ? '' : groupIndian(String(parseFormAmount(raw)))
+      const parsed = parseFormAmount(raw)
+      const grouped = raw === '' || !Number.isFinite(parsed) ? raw : groupIndian(String(parsed))
       setForm(f => ({ ...f, [r]: { ...f[r], [key]: grouped } }))
     }
 }
@@ -429,7 +392,7 @@ export default function HistoryPage() {
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
-            {REGIONS.map(r => (
+            {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
             ))}
           </>
@@ -510,8 +473,9 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
     () => niceDomain(data.map(d => d.pnl_pct)),
     [data],
   )
+  // Daily volatility swings both ways around 0, so centre the axis on zero.
   const volDomain = useMemo(
-    () => niceDomain(data.map(d => d.daily_vol)),
+    () => symmetricDomain(data.map(d => d.daily_vol)),
     [data],
   )
   return (
@@ -569,6 +533,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
                 <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
+                <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
                 <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
@@ -628,6 +593,28 @@ export function niceDomain(values: (number | null | undefined)[]): [number, numb
   const min = Math.floor((lo - pad) / step) * step
   const max = Math.ceil((hi + pad) / step) * step
   return [min, max]
+}
+
+// symmetricDomain returns a [-m, +m] range centred on zero so a signed series
+// (daily volatility %) renders with the zero line in the middle of the chart.
+// m is the padded, nicely-rounded magnitude of the largest swing either way.
+// Returns undefined when there are no finite values.
+export function symmetricDomain(values: (number | null | undefined)[]): [number, number] | undefined {
+  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (finite.length === 0) return undefined
+  const maxAbs = Math.max(...finite.map(Math.abs))
+  if (maxAbs === 0) return [-1, 1]
+  const pad = maxAbs * 0.08
+  const step = niceStep((maxAbs + pad) / 3)
+  const m = Math.ceil((maxAbs + pad) / step) * step
+  return [-m, m]
+}
+
+// regionHasData reports whether a region's chart series has any non-zero
+// invested or current value. Used to hide a currency's charts entirely when
+// the profile never held that currency (e.g. USD for the super admin).
+export function regionHasData(data: { invested: number | null; current: number | null }[]): boolean {
+  return data.some(d => (d.invested ?? 0) !== 0 || (d.current ?? 0) !== 0)
 }
 
 // niceStep rounds a raw step up to the nearest 1/2/5 × 10ⁿ — the
@@ -765,7 +752,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
             {REGIONS.map((r, idx) => (
               <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
-            <th style={th}></th>
+            <th style={actionTh}></th>
           </tr>
         </thead>
         <tbody>
@@ -786,20 +773,22 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                     theme={theme}
                   />
                 ))}
-                <td style={{ ...td, display: 'flex', gap: 8 }}>
-                  {onEdit && (
-                    <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
-                      aria-label={`Edit row for ${r.date}`} title="Edit">
-                      <EditIcon size={16} />
-                    </button>
-                  )}
-                  {(isAllManual(r.regions) || canForceDelete) && (
-                    <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
-                      aria-label={`Delete row for ${r.date}`}
-                      title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
-                      <TrashIcon size={16} />
-                    </button>
-                  )}
+                <td style={actionTd}>
+                  <div style={actionCell}>
+                    {onEdit && (
+                      <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
+                        aria-label={`Edit row for ${r.date}`} title="Edit">
+                        <EditIcon size={16} />
+                      </button>
+                    )}
+                    {(isAllManual(r.regions) || canForceDelete) && (
+                      <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
+                        aria-label={`Delete row for ${r.date}`}
+                        title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
+                        <TrashIcon size={16} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
@@ -882,6 +871,9 @@ const sortHeaderBtn: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', gap: 4,
 }
 const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid var(--border)' }
+const actionTh: React.CSSProperties = { ...th, width: 72, minWidth: 72, textAlign: 'center' }
+const actionTd: React.CSSProperties = { ...td, width: 72, minWidth: 72, textAlign: 'center', verticalAlign: 'middle' }
+const actionCell: React.CSSProperties = { display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'center' }
 
 // ---- Modals ----
 
@@ -948,15 +940,15 @@ export function AddRowModal({ onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="text" inputMode="decimal" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: sanitizeAmount(e.target.value) } }))}
+                <DecimalInput value={form[r].invested}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
                   onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="text" inputMode="decimal" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: sanitizeAmount(e.target.value) } }))}
+                <DecimalInput value={form[r].current}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
                   onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
@@ -1092,15 +1084,15 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="text" inputMode="decimal" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: sanitizeAmount(e.target.value) } }))}
+                <DecimalInput value={form[r].invested}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
                   onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="text" inputMode="decimal" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: sanitizeAmount(e.target.value) } }))}
+                <DecimalInput value={form[r].current}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
                   onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
