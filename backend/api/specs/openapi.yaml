@@ -31,6 +31,8 @@ tags:
     description: Region-scoped user oversight (admin) and admin management (super admin)
   - name: History
     description: Daily portfolio snapshots — read range, add/edit/delete manual rows, paste-from-sheet
+  - name: Transactions
+    description: Per-holding trade ledger; holdings' positions are derived from it
 
 paths:
   /holdings:
@@ -41,6 +43,11 @@ paths:
     $ref: "./holdings/holdings.yaml#/prices"
   /summary:
     $ref: "./holdings/holdings.yaml#/summary"
+
+  /holdings/{id}/transactions:
+    $ref: "./transactions/transactions.yaml#/holdings_id_transactions"
+  /transactions/{id}:
+    $ref: "./transactions/transactions.yaml#/transactions_id"
 
   /history:
     $ref: "./history/history.yaml#/history"

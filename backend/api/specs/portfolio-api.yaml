@@ -247,7 +247,11 @@ components:
         realized_pnl:
           type: number
           format: double
-          description: Profit/loss from shares already sold, in the holding's currency
+          description: Profit/loss from shares already sold, in the holding's currency (derived, average cost)
+        total_dividends:
+          type: number
+          format: double
+          description: Cumulative cash dividend income, in the holding's currency (derived)
         currency:
           type: string
           enum: [INR, EUR]
@@ -288,6 +292,7 @@ components:
           type: number
           format: double
           default: 0
+          description: Opening realized P&L seed (legacy carry); new sells derive this from the ledger
         currency:
           type: string
           enum: [INR, EUR]
@@ -330,6 +335,77 @@ components:
               format: double
             price_error:
               type: string
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+        holding_id:
+          type: string
+          description: Owning holding's ObjectID
+        type:
+          type: string
+          enum: [opening, buy, sell, dividend, split, bonus, merger]
+        date:
+          type: string
+          format: date-time
+          description: Trade / ex date; orders the ledger
+        quantity:
+          type: number
+          format: double
+          description: Shares (buy/sell/opening); unused for dividend
+        amount:
+          type: number
+          format: double
+          description: Total cash — debited (buy) or credited (sell, dividend); fees folded in
+        ratio:
+          type: number
+          format: double
+          description: Split/bonus ratio, e.g. 2.0 = 2-for-1
+        realized_seed:
+          type: number
+          format: double
+          description: Opening only — carries a legacy realized P&L with no underlying sell
+        currency:
+          type: string
+          enum: [INR, EUR]
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TransactionInput:
+      type: object
+      required: [type, date]
+      properties:
+        type:
+          type: string
+          enum: [opening, buy, sell, dividend, split, bonus, merger]
+        date:
+          type: string
+          format: date-time
+        quantity:
+          type: number
+          format: double
+          default: 0
+        amount:
+          type: number
+          format: double
+          default: 0
+        ratio:
+          type: number
+          format: double
+        realized_seed:
+          type: number
+          format: double
+        notes:
+          type: string
 
     PricesResponse:
       type: object

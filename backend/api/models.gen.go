@@ -155,16 +155,16 @@ func (e HoldingInputType) Valid() bool {
 
 // Defines values for HoldingWithPriceCurrency.
 const (
-	EUR HoldingWithPriceCurrency = "EUR"
-	INR HoldingWithPriceCurrency = "INR"
+	HoldingWithPriceCurrencyEUR HoldingWithPriceCurrency = "EUR"
+	HoldingWithPriceCurrencyINR HoldingWithPriceCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceCurrency enum.
 func (e HoldingWithPriceCurrency) Valid() bool {
 	switch e {
-	case EUR:
+	case HoldingWithPriceCurrencyEUR:
 		return true
-	case INR:
+	case HoldingWithPriceCurrencyINR:
 		return true
 	default:
 		return false
@@ -210,6 +210,90 @@ func (e HoldingWithPriceType) Valid() bool {
 	case Etf:
 		return true
 	case Stock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionCurrency.
+const (
+	TransactionCurrencyEUR TransactionCurrency = "EUR"
+	TransactionCurrencyINR TransactionCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the TransactionCurrency enum.
+func (e TransactionCurrency) Valid() bool {
+	switch e {
+	case TransactionCurrencyEUR:
+		return true
+	case TransactionCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionType.
+const (
+	TransactionTypeBonus    TransactionType = "bonus"
+	TransactionTypeBuy      TransactionType = "buy"
+	TransactionTypeDividend TransactionType = "dividend"
+	TransactionTypeMerger   TransactionType = "merger"
+	TransactionTypeOpening  TransactionType = "opening"
+	TransactionTypeSell     TransactionType = "sell"
+	TransactionTypeSplit    TransactionType = "split"
+)
+
+// Valid indicates whether the value is a known member of the TransactionType enum.
+func (e TransactionType) Valid() bool {
+	switch e {
+	case TransactionTypeBonus:
+		return true
+	case TransactionTypeBuy:
+		return true
+	case TransactionTypeDividend:
+		return true
+	case TransactionTypeMerger:
+		return true
+	case TransactionTypeOpening:
+		return true
+	case TransactionTypeSell:
+		return true
+	case TransactionTypeSplit:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionInputType.
+const (
+	TransactionInputTypeBonus    TransactionInputType = "bonus"
+	TransactionInputTypeBuy      TransactionInputType = "buy"
+	TransactionInputTypeDividend TransactionInputType = "dividend"
+	TransactionInputTypeMerger   TransactionInputType = "merger"
+	TransactionInputTypeOpening  TransactionInputType = "opening"
+	TransactionInputTypeSell     TransactionInputType = "sell"
+	TransactionInputTypeSplit    TransactionInputType = "split"
+)
+
+// Valid indicates whether the value is a known member of the TransactionInputType enum.
+func (e TransactionInputType) Valid() bool {
+	switch e {
+	case TransactionInputTypeBonus:
+		return true
+	case TransactionInputTypeBuy:
+		return true
+	case TransactionInputTypeDividend:
+		return true
+	case TransactionInputTypeMerger:
+		return true
+	case TransactionInputTypeOpening:
+		return true
+	case TransactionInputTypeSell:
+		return true
+	case TransactionInputTypeSplit:
 		return true
 	default:
 		return false
@@ -345,7 +429,7 @@ type Holding struct {
 	Id    *string `json:"id,omitempty"`
 	Notes *string `json:"notes,omitempty"`
 
-	// RealizedPnl Profit/loss from shares already sold, in the holding's currency
+	// RealizedPnl Profit/loss from shares already sold, in the holding's currency (derived, average cost)
 	RealizedPnl *float64 `json:"realized_pnl,omitempty"`
 
 	// Script Display name (e.g. "TCS", "GOLD BEES")
@@ -355,9 +439,12 @@ type Holding struct {
 	StocksOwned *float64 `json:"stocks_owned,omitempty"`
 
 	// Symbol Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS", "AAPL")
-	Symbol    *string      `json:"symbol,omitempty"`
-	Type      *HoldingType `json:"type,omitempty"`
-	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
+	Symbol *string `json:"symbol,omitempty"`
+
+	// TotalDividends Cumulative cash dividend income, in the holding's currency (derived)
+	TotalDividends *float64     `json:"total_dividends,omitempty"`
+	Type           *HoldingType `json:"type,omitempty"`
+	UpdatedAt      *time.Time   `json:"updated_at,omitempty"`
 }
 
 // HoldingCurrency Currency in which avg_cost_price and realized_pnl are denominated
@@ -374,14 +461,16 @@ type HoldingInput struct {
 	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
 
 	// Currency Currency in which avg_cost_price and realized_pnl are denominated
-	Currency    *HoldingInputCurrency `json:"currency,omitempty"`
-	Exchange    HoldingInputExchange  `json:"exchange"`
-	Notes       *string               `json:"notes,omitempty"`
-	RealizedPnl *float64              `json:"realized_pnl,omitempty"`
-	Script      string                `json:"script"`
-	StocksOwned *float64              `json:"stocks_owned,omitempty"`
-	Symbol      *string               `json:"symbol,omitempty"`
-	Type        HoldingInputType      `json:"type"`
+	Currency *HoldingInputCurrency `json:"currency,omitempty"`
+	Exchange HoldingInputExchange  `json:"exchange"`
+	Notes    *string               `json:"notes,omitempty"`
+
+	// RealizedPnl Opening realized P&L seed (legacy carry); new sells derive this from the ledger
+	RealizedPnl *float64         `json:"realized_pnl,omitempty"`
+	Script      string           `json:"script"`
+	StocksOwned *float64         `json:"stocks_owned,omitempty"`
+	Symbol      *string          `json:"symbol,omitempty"`
+	Type        HoldingInputType `json:"type"`
 }
 
 // HoldingInputCurrency Currency in which avg_cost_price and realized_pnl are denominated
@@ -417,7 +506,7 @@ type HoldingWithPrice struct {
 	Notes      *string `json:"notes,omitempty"`
 	PriceError *string `json:"price_error,omitempty"`
 
-	// RealizedPnl Profit/loss from shares already sold, in the holding's currency
+	// RealizedPnl Profit/loss from shares already sold, in the holding's currency (derived, average cost)
 	RealizedPnl    *float64 `json:"realized_pnl,omitempty"`
 	RealizedPnlEur *float64 `json:"realized_pnl_eur,omitempty"`
 
@@ -428,8 +517,11 @@ type HoldingWithPrice struct {
 	StocksOwned *float64 `json:"stocks_owned,omitempty"`
 
 	// Symbol Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS", "AAPL")
-	Symbol *string               `json:"symbol,omitempty"`
-	Type   *HoldingWithPriceType `json:"type,omitempty"`
+	Symbol *string `json:"symbol,omitempty"`
+
+	// TotalDividends Cumulative cash dividend income, in the holding's currency (derived)
+	TotalDividends *float64              `json:"total_dividends,omitempty"`
+	Type           *HoldingWithPriceType `json:"type,omitempty"`
 
 	// UnrealizedPnl current_value − cost_price
 	UnrealizedPnl    *float64   `json:"unrealized_pnl,omitempty"`
@@ -575,6 +667,55 @@ type Summary struct {
 	TotalUnrealized       *float64 `json:"total_unrealized,omitempty"`
 	TotalUnrealizedEur    *float64 `json:"total_unrealized_eur,omitempty"`
 }
+
+// Transaction defines model for Transaction.
+type Transaction struct {
+	// Amount Total cash — debited (buy) or credited (sell, dividend); fees folded in
+	Amount    *float64             `json:"amount,omitempty"`
+	CreatedAt *time.Time           `json:"created_at,omitempty"`
+	Currency  *TransactionCurrency `json:"currency,omitempty"`
+
+	// Date Trade / ex date; orders the ledger
+	Date *time.Time `json:"date,omitempty"`
+
+	// HoldingId Owning holding's ObjectID
+	HoldingId *string `json:"holding_id,omitempty"`
+
+	// Id MongoDB ObjectID
+	Id    *string `json:"id,omitempty"`
+	Notes *string `json:"notes,omitempty"`
+
+	// Quantity Shares (buy/sell/opening); unused for dividend
+	Quantity *float64 `json:"quantity,omitempty"`
+
+	// Ratio Split/bonus ratio, e.g. 2.0 = 2-for-1
+	Ratio *float64 `json:"ratio,omitempty"`
+
+	// RealizedSeed Opening only — carries a legacy realized P&L with no underlying sell
+	RealizedSeed *float64         `json:"realized_seed,omitempty"`
+	Type         *TransactionType `json:"type,omitempty"`
+	UpdatedAt    *time.Time       `json:"updated_at,omitempty"`
+}
+
+// TransactionCurrency defines model for Transaction.Currency.
+type TransactionCurrency string
+
+// TransactionType defines model for Transaction.Type.
+type TransactionType string
+
+// TransactionInput defines model for TransactionInput.
+type TransactionInput struct {
+	Amount       *float64             `json:"amount,omitempty"`
+	Date         time.Time            `json:"date"`
+	Notes        *string              `json:"notes,omitempty"`
+	Quantity     *float64             `json:"quantity,omitempty"`
+	Ratio        *float64             `json:"ratio,omitempty"`
+	RealizedSeed *float64             `json:"realized_seed,omitempty"`
+	Type         TransactionInputType `json:"type"`
+}
+
+// TransactionInputType defines model for TransactionInput.Type.
+type TransactionInputType string
 
 // UpdateProfileRequest defines model for UpdateProfileRequest.
 type UpdateProfileRequest struct {

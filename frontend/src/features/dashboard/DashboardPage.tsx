@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
 import AddEditModal from '../holdings/AddEditModal'
+import TransactionsModal from '../holdings/TransactionsModal'
 import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
@@ -41,6 +42,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   } = useHoldings(actAsUserId)
 
   const [modal, setModal] = useState<ModalState>(null)
+  const [txnModal, setTxnModal] = useState<HoldingWithPrice | null>(null)
   const [tab, setTab] = useState<Tab>('table')
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -53,6 +55,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       setRegionLabel(rs.find(r => r.id === user.region)?.label ?? user.region)
     }).catch(() => setRegionLabel(user.region))
   }, [user?.region])
+
+  // Keep the open transactions modal's position footer in sync with the
+  // recomputed holding after a ledger write (matched by id).
+  useEffect(() => {
+    if (!txnModal) return
+    const fresh = enriched.find(h => h.id === txnModal.id)
+    if (fresh && fresh !== txnModal) setTxnModal(fresh)
+  }, [enriched, txnModal])
 
   const handleSaved = async () => {
     setModal(null)
@@ -269,6 +279,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             loading={loadingHoldings || loadingPrices}
             onEdit={h => setModal(h)}
             onDelete={handleDelete}
+            // Transaction endpoints target the caller's own portfolio (no
+            // admin act-as variant yet), so hide the ledger in act-as mode.
+            onTransactions={actAsUserId ? undefined : (h => setTxnModal(h))}
             perCurrency={summary?.per_currency}
           />
         )}
@@ -281,6 +294,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           onClose={() => setModal(null)}
           onSaved={handleSaved}
           userId={actAsUserId}
+        />
+      )}
+
+      {txnModal && (
+        <TransactionsModal
+          holding={txnModal}
+          onClose={() => setTxnModal(null)}
+          onChanged={() => { void refresh() }}
         />
       )}
 

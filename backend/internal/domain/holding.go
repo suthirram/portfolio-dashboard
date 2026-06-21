@@ -8,19 +8,20 @@ import (
 
 // Holding represents a stock/ETF position in the portfolio
 type Holding struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	UserID       primitive.ObjectID `bson:"user_id,omitempty" json:"-"`           // owner; every query must scope on it (DD-001 §6.1)
-	Script       string             `bson:"script" json:"script"`                 // display name (e.g. "TCS", "GOLD BEES")
-	Symbol       string             `bson:"symbol" json:"symbol"`                 // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
-	Exchange     string             `bson:"exchange" json:"exchange"`             // NSE, BSE, NYSE, NASDAQ
-	Type         string             `bson:"type" json:"type"`                     // stock | etf
-	StocksOwned  float64            `bson:"stocks_owned" json:"stocks_owned"`     // current quantity held
-	AvgCostPrice float64            `bson:"avg_cost_price" json:"avg_cost_price"` // average buy price per share, in Currency
-	RealizedPnL  float64            `bson:"realized_pnl" json:"realized_pnl"`     // profit/loss from sold shares, in Currency
-	Currency     string             `bson:"currency" json:"currency"`             // "INR" or "EUR"; defaults to "INR"
-	Notes        string             `bson:"notes,omitempty" json:"notes,omitempty"`
-	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
+	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID         primitive.ObjectID `bson:"user_id,omitempty" json:"-"`             // owner; every query must scope on it (DD-001 §6.1)
+	Script         string             `bson:"script" json:"script"`                   // display name (e.g. "TCS", "GOLD BEES")
+	Symbol         string             `bson:"symbol" json:"symbol"`                   // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
+	Exchange       string             `bson:"exchange" json:"exchange"`               // NSE, BSE, NYSE, NASDAQ
+	Type           string             `bson:"type" json:"type"`                       // stock | etf
+	StocksOwned    float64            `bson:"stocks_owned" json:"stocks_owned"`       // DERIVED from ledger: current quantity held
+	AvgCostPrice   float64            `bson:"avg_cost_price" json:"avg_cost_price"`   // DERIVED (average cost): running basis / qty, in Currency
+	RealizedPnL    float64            `bson:"realized_pnl" json:"realized_pnl"`       // DERIVED: profit/loss from sold shares, in Currency
+	TotalDividends float64            `bson:"total_dividends" json:"total_dividends"` // DERIVED: cumulative cash dividend income, in Currency
+	Currency       string             `bson:"currency" json:"currency"`               // "INR" or "EUR"; defaults to "INR"
+	Notes          string             `bson:"notes,omitempty" json:"notes,omitempty"`
+	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 // HoldingWithPrice adds live market data to a Holding

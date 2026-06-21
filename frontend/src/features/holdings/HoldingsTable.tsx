@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { HoldingWithPrice } from '../../types'
-import { EditIcon, TrashIcon, AlertTriangleIcon } from '../../components/Icon'
+import { EditIcon, TrashIcon, AlertTriangleIcon, ListIcon } from '../../components/Icon'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 
 const INR = (n?: number | null) => {
@@ -48,6 +48,8 @@ interface HoldingsTableProps {
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
+  /** Opens the per-holding transaction ledger. */
+  onTransactions?: (holding: HoldingWithPrice) => void
   /** When set, the view tab strip is hidden and the table renders only the
    * holdings matching this view. Used when a parent (e.g. the currency-grouped
    * wrapper) owns a single shared view selector across multiple tables. */
@@ -58,7 +60,7 @@ interface HoldingsTableProps {
   nativeCurrency?: 'INR' | 'EUR'
 }
 
-export default function HoldingsTable({ holdings, loading, onEdit, onDelete, view: viewProp, nativeCurrency }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onTransactions, view: viewProp, nativeCurrency }: HoldingsTableProps) {
   const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
   const [sortDir, setSortDir] = useState(1)
   const [confirm, setConfirm] = useState<string | null>(null)
@@ -260,6 +262,17 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, vie
                     </span>
                   ) : (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      {onTransactions && (
+                        <button onClick={() => onTransactions(h)} disabled={!h.id}
+                          title="Transactions (ledger)"
+                          style={{
+                            background: 'var(--bg-input)', color: 'var(--text-secondary)',
+                            padding: '4px 8px', border: '1px solid var(--border)',
+                            display: 'inline-flex', alignItems: 'center',
+                          }}>
+                          <ListIcon size={13} />
+                        </button>
+                      )}
                       <button onClick={() => onEdit(h)} disabled={!h.id}
                         title="Edit holding"
                         style={{

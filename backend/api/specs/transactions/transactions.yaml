@@ -1,0 +1,105 @@
+holdings_id_transactions:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Owning holding's ObjectID
+
+  get:
+    tags: [Transactions]
+    summary: List a holding's transactions
+    operationId: listTransactions
+    responses:
+      "200":
+        description: Transactions ordered by trade date
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/Transaction"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+  post:
+    tags: [Transactions]
+    summary: Add a transaction to a holding
+    description: |
+      Appends a ledger event and recomputes the holding's derived position
+      (stocks_owned, avg_cost_price, realized_pnl, total_dividends) under its
+      cost_basis. Rejected with 400 when a sell exceeds shares held.
+    operationId: createTransaction
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/TransactionInput"
+    responses:
+      "201":
+        description: Created transaction
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Transaction"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+transactions_id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Transaction ObjectID
+
+  put:
+    tags: [Transactions]
+    summary: Update a transaction
+    operationId: updateTransaction
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/TransactionInput"
+    responses:
+      "200":
+        description: Updated transaction
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Transaction"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+  delete:
+    tags: [Transactions]
+    summary: Delete a transaction
+    description: |
+      Removes a ledger event and recomputes the holding. Rejected with 400 when
+      the deletion would leave a later sell oversold (e.g. removing a buy the
+      sell depended on).
+    operationId: deleteTransaction
+    responses:
+      "200":
+        description: Deleted
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: deleted
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"

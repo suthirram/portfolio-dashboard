@@ -23,6 +23,7 @@ type Controller struct {
 	store        *persistence.Store
 	priceService services.PriceFetcher
 	holdings     *services.HoldingsService
+	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
 	history      *services.HistoryService
 	logger       *zap.Logger
@@ -44,7 +45,8 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 	return &Controller{
 		store:        store,
 		priceService: priceService,
-		holdings:     services.NewHoldingsService(store.Holdings, logger),
+		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, logger),
+		transactions: services.NewTransactionsService(store.Transactions, store.Holdings, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
 		logger:       logger,

@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 
 	"portfolio-dashboard/internal/auth"
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/db"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 )
@@ -29,6 +32,16 @@ var migrateUsersCmd = &cobra.Command{
 	Use:   "users",
 	Short: "Stamp legacy holdings with a user_id (PRD-001 rollout step 2)",
 	RunE:  runMigrateUsers,
+}
+
+var migrateTransactionsCmd = &cobra.Command{
+	Use:   "transactions",
+	Short: "Seed an opening transaction for each existing holding (ledger rollout)",
+	Long: `Creates one 'opening' transaction per existing holding from its current
+stocks_owned / avg_cost_price / realized_pnl, so the holding's position becomes
+a projection of the new transactions ledger. Idempotent: holdings that already
+have any transaction are skipped, so it is safe to re-run.`,
+	RunE: runMigrateTransactions,
 }
 
 // cliConnect dials Mongo for a one-shot command and returns the store, the
@@ -83,6 +96,86 @@ func runMigrateUsers(_ *cobra.Command, _ []string) error {
 
 	// Rebuild indexes so the new {user_id, script} index exists.
 	return db.EnsureIndexes(ctx, database, logger)
+}
+
+func runMigrateTransactions(_ *cobra.Command, _ []string) error {
+	cfg := config.Default()
+	cfg.ApplyEnv()
+	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
+	defer cancel()
+	st, database, disconnect, err := cliConnect(ctx, logger, cfg)
+	if err != nil {
+		return err
+	}
+	defer disconnect()
+
+	// Index first so the idempotency lookup (HasAny) and the new ledger writes
+	// are backed by the {user_id, holding_id, date} index.
+	if err := db.EnsureIndexes(ctx, database, logger); err != nil {
+		return fmt.Errorf("ensuring indexes: %w", err)
+	}
+
+	users, err := st.Users.List(ctx, bson.M{}, bson.D{})
+	if err != nil {
+		return fmt.Errorf("listing users: %w", err)
+	}
+
+	var seeded, skipped int
+	now := time.Now()
+	for _, u := range users {
+		holdings, err := st.Holdings.ListByUser(ctx, u.ID)
+		if err != nil {
+			return fmt.Errorf("listing holdings for %s: %w", u.Username, err)
+		}
+		for _, h := range holdings {
+			// Nothing to seed for an empty placeholder holding.
+			if h.StocksOwned == 0 && h.AvgCostPrice == 0 && h.RealizedPnL == 0 {
+				continue
+			}
+			has, err := st.Transactions.HasAny(ctx, u.ID, h.ID)
+			if err != nil {
+				return fmt.Errorf("checking ledger for holding %s: %w", h.ID.Hex(), err)
+			}
+			if has {
+				skipped++
+				continue
+			}
+			date := h.CreatedAt
+			if date.IsZero() {
+				date = now
+			}
+			opening := domain.Transaction{
+				ID:           primitive.NewObjectID(),
+				UserID:       u.ID,
+				HoldingID:    h.ID,
+				Type:         domain.TxnOpening,
+				Date:         date,
+				Quantity:     h.StocksOwned,
+				Amount:       h.StocksOwned * h.AvgCostPrice, // total cost basis
+				RealizedSeed: h.RealizedPnL,
+				Currency:     h.Currency,
+				Notes:        "migrated opening balance",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			}
+			if err := st.Transactions.Insert(ctx, opening); err != nil {
+				return fmt.Errorf("seeding opening for holding %s: %w", h.ID.Hex(), err)
+			}
+			seeded++
+		}
+	}
+
+	logger.Info("opening transactions seeded",
+		zap.Int("seeded", seeded),
+		zap.Int("skipped_existing", skipped),
+		zap.Int("users_scanned", len(users)),
+	)
+	return nil
 }
 
 // adminCmd hosts the break-glass CLI for the super admin (DD-001 §8).
@@ -210,6 +303,7 @@ func runSetPassword(_ *cobra.Command, _ []string) error {
 func init() {
 	migrateUsersCmd.Flags().StringVar(&migrateOwner, "owner", "", "username (case-insensitive) to assume ownership of legacy holdings")
 	migrateCmd.AddCommand(migrateUsersCmd)
+	migrateCmd.AddCommand(migrateTransactionsCmd)
 	rootCmd.AddCommand(migrateCmd)
 
 	resetLockoutCmd.Flags().StringVar(&resetLockoutUser, "username", "", "username to unlock")

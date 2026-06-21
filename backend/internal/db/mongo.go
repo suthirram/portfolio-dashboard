@@ -48,6 +48,12 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Lo
 			{Keys: bson.D{{Key: "expires_at", Value: 1}},
 				Options: options.Index().SetExpireAfterSeconds(0)},
 		},
+		"transactions": {
+			// per-holding ledger replay, ordered by trade date (FIFO).
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "holding_id", Value: 1}, {Key: "date", Value: 1}}},
+			// cascade delete when a holding is removed.
+			{Keys: bson.D{{Key: "holding_id", Value: 1}}},
+		},
 		"portfolio_snapshots": {
 			// at most one row per (user, UTC midnight). Also powers the
 			// month query `user_id = X AND date BETWEEN start AND end`

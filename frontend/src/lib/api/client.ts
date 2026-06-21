@@ -7,6 +7,8 @@ import type {
   MarketPrice,
   PricesResponse,
   Summary,
+  Transaction,
+  TransactionInput,
 } from '../../types'
 import {
   holdingPath,
@@ -110,6 +112,17 @@ export const api = {
     request<PricesResponse>('GET', pricesPath(userId)),
   getSummary:     (userId?: string) =>
     request<Summary>('GET', summaryPath(userId)),
+
+  // Transactions — per-holding ledger. The holding's position is recomputed
+  // server-side after every write, so callers should refresh holdings/prices.
+  listTransactions:   (holdingId: string) =>
+    request<Transaction[]>('GET', `/holdings/${holdingId}/transactions`),
+  createTransaction:  (holdingId: string, body: TransactionInput) =>
+    request<Transaction>('POST', `/holdings/${holdingId}/transactions`, body),
+  updateTransaction:  (id: string, body: TransactionInput) =>
+    request<Transaction>('PUT', `/transactions/${id}`, body),
+  deleteTransaction:  (id: string) =>
+    request<DeleteResponse>('DELETE', `/transactions/${id}`),
 
   // Market.
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),

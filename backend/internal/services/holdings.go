@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 )
@@ -20,12 +21,16 @@ import (
 // invariant so mis-routed reads return ErrNotFound, never another user's row.
 type HoldingsService struct {
 	store  *persistence.HoldingStore
+	txns   *persistence.TransactionStore
 	logger *zap.Logger
 }
 
-// NewHoldingsService wires a HoldingsService.
-func NewHoldingsService(store *persistence.HoldingStore, logger *zap.Logger) *HoldingsService {
-	return &HoldingsService{store: store, logger: logger}
+// NewHoldingsService wires a HoldingsService. The transaction store lets the
+// opening-balance fields (stocks_owned/avg_cost_price/realized_pnl) be recorded
+// as an `opening` ledger event so the holding's derived position stays a
+// projection of its ledger.
+func NewHoldingsService(store *persistence.HoldingStore, txns *persistence.TransactionStore, logger *zap.Logger) *HoldingsService {
+	return &HoldingsService{store: store, txns: txns, logger: logger}
 }
 
 func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
@@ -72,7 +77,9 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 	return HoldingToAPI(holding), true, nil
 }
 
-// Create inserts a new holding owned by uid.
+// Create inserts a new holding owned by uid. The position fields become
+// derived: any opening stocks_owned/avg_cost_price/realized_pnl are recorded as
+// an `opening` ledger event and the holding is recomputed from it.
 func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, input api.HoldingInput) (api.Holding, error) {
 	holding := HoldingFromInput(input)
 	holding.ID = primitive.NewObjectID()
@@ -80,12 +87,44 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	now := time.Now()
 	holding.CreatedAt = now
 	holding.UpdatedAt = now
+	// Position fields are derived from the ledger; start flat and let the
+	// opening event (if any) populate them.
+	holding.StocksOwned = 0
+	holding.AvgCostPrice = 0
+	holding.RealizedPnL = 0
+	holding.TotalDividends = 0
 
 	if err := s.store.Insert(ctx, holding); err != nil {
 		s.log(ctx).Error("create holding failed",
 			zap.String("script", holding.Script), zap.String("error", err.Error()))
 		return api.Holding{}, err
 	}
+
+	if qty, amount, seed, ok := openingFromInput(input); ok {
+		opening := domain.Transaction{
+			ID:           primitive.NewObjectID(),
+			UserID:       uid,
+			HoldingID:    holding.ID,
+			Type:         domain.TxnOpening,
+			Date:         now,
+			Quantity:     qty,
+			Amount:       amount,
+			RealizedSeed: seed,
+			Currency:     holding.Currency,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+		if err := s.txns.Insert(ctx, opening); err != nil {
+			s.log(ctx).Error("create opening transaction failed", zap.String("error", err.Error()))
+			return api.Holding{}, err
+		}
+		if updated, err := recomputeAndPersist(ctx, s.store, s.txns, uid, holding.ID); err != nil {
+			s.log(ctx).Error("recompute after create failed", zap.String("error", err.Error()))
+		} else {
+			holding = updated
+		}
+	}
+
 	s.log(ctx).Info("holding created",
 		zap.String("id", holding.ID.Hex()),
 		zap.String("owner", uid.Hex()),
@@ -93,6 +132,23 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 		zap.String("currency", holding.Currency),
 	)
 	return HoldingToAPI(holding), nil
+}
+
+// openingFromInput derives the opening ledger event from the holding form's
+// position fields. amount is the total cost (qty × avg cost price). ok is false
+// when there is nothing to seed.
+func openingFromInput(input api.HoldingInput) (qty, amount, seed float64, ok bool) {
+	if input.StocksOwned != nil {
+		qty = *input.StocksOwned
+	}
+	if input.AvgCostPrice != nil {
+		amount = qty * *input.AvgCostPrice
+	}
+	if input.RealizedPnl != nil {
+		seed = *input.RealizedPnl
+	}
+	ok = qty != 0 || amount != 0 || seed != 0
+	return qty, amount, seed, ok
 }
 
 // Update applies input to the holding owned by uid. found=false when the id is
@@ -103,6 +159,12 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		return api.Holding{}, false, nil
 	}
 
+	// Update edits identity fields only. The position fields
+	// (stocks_owned/avg_cost_price/realized_pnl) are derived from the ledger
+	// and are deliberately NOT written here: the edit form pre-fills them with
+	// the current derived position, so honouring them would rewrite the opening
+	// event on top of existing buys/sells and double-count. The opening balance
+	// is seeded at create and edited via the transactions ledger instead.
 	update := bson.D{
 		{Key: "script", Value: input.Script},
 		{Key: "exchange", Value: string(input.Exchange)},
@@ -111,15 +173,6 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 	}
 	if input.Symbol != nil {
 		update = append(update, bson.E{Key: "symbol", Value: *input.Symbol})
-	}
-	if input.StocksOwned != nil {
-		update = append(update, bson.E{Key: "stocks_owned", Value: *input.StocksOwned})
-	}
-	if input.AvgCostPrice != nil {
-		update = append(update, bson.E{Key: "avg_cost_price", Value: *input.AvgCostPrice})
-	}
-	if input.RealizedPnl != nil {
-		update = append(update, bson.E{Key: "realized_pnl", Value: *input.RealizedPnl})
 	}
 	if input.Currency != nil && ValidCurrency(*input.Currency) {
 		update = append(update, bson.E{Key: "currency", Value: string(*input.Currency)})
@@ -137,6 +190,7 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
+
 	s.log(ctx).Info("holding updated", zap.String("id", idHex))
 	return HoldingToAPI(updated), true, nil
 }
@@ -156,6 +210,12 @@ func (s *HoldingsService) Delete(ctx context.Context, uid primitive.ObjectID, id
 	}
 	if !deleted {
 		return false, nil
+	}
+	// Cascade: remove the holding's ledger so no orphan transactions linger.
+	if err := s.txns.DeleteByHolding(ctx, uid, id); err != nil {
+		s.log(ctx).Error("delete holding transactions failed",
+			zap.String("id", idHex), zap.String("error", err.Error()))
+		return false, err
 	}
 	s.log(ctx).Info("holding deleted", zap.String("id", idHex))
 	return true, nil

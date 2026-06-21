@@ -93,6 +93,12 @@ type CreateHoldingJSONRequestBody = HoldingInput
 // UpdateHoldingJSONRequestBody defines body for UpdateHolding for application/json ContentType.
 type UpdateHoldingJSONRequestBody = HoldingInput
 
+// CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
+type CreateTransactionJSONRequestBody = TransactionInput
+
+// UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
+type UpdateTransactionJSONRequestBody = TransactionInput
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// List admins and the super admin (super admin only)
@@ -206,6 +212,12 @@ type ServerInterface interface {
 	// Update a holding
 	// (PUT /holdings/{id})
 	UpdateHolding(ctx echo.Context, id string) error
+	// List a holding's transactions
+	// (GET /holdings/{id}/transactions)
+	ListTransactions(ctx echo.Context, id string) error
+	// Add a transaction to a holding
+	// (POST /holdings/{id}/transactions)
+	CreateTransaction(ctx echo.Context, id string) error
 	// Get forex exchange rate
 	// (GET /market/forex)
 	GetForexRate(ctx echo.Context, params GetForexRateParams) error
@@ -221,6 +233,12 @@ type ServerInterface interface {
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx echo.Context) error
+	// Delete a transaction
+	// (DELETE /transactions/{id})
+	DeleteTransaction(ctx echo.Context, id string) error
+	// Update a transaction
+	// (PUT /transactions/{id})
+	UpdateTransaction(ctx echo.Context, id string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -799,6 +817,42 @@ func (w *ServerInterfaceWrapper) UpdateHolding(ctx echo.Context) error {
 	return err
 }
 
+// ListTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListTransactions(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListTransactions(ctx, id)
+	return err
+}
+
+// CreateTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateTransaction(ctx, id)
+	return err
+}
+
 // GetForexRate converts echo context to params.
 func (w *ServerInterfaceWrapper) GetForexRate(ctx echo.Context) error {
 	var err error
@@ -874,6 +928,42 @@ func (w *ServerInterfaceWrapper) GetSummary(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetSummary(ctx)
+	return err
+}
+
+// DeleteTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteTransaction(ctx, id)
+	return err
+}
+
+// UpdateTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateTransaction(ctx, id)
 	return err
 }
 
@@ -961,11 +1051,15 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/holdings/:id", wrapper.DeleteHolding, options.OperationMiddlewares["deleteHolding"]...)
 	router.GET(options.BaseURL+"/holdings/:id", wrapper.GetHolding, options.OperationMiddlewares["getHolding"]...)
 	router.PUT(options.BaseURL+"/holdings/:id", wrapper.UpdateHolding, options.OperationMiddlewares["updateHolding"]...)
+	router.GET(options.BaseURL+"/holdings/:id/transactions", wrapper.ListTransactions, options.OperationMiddlewares["listTransactions"]...)
+	router.POST(options.BaseURL+"/holdings/:id/transactions", wrapper.CreateTransaction, options.OperationMiddlewares["createTransaction"]...)
 	router.GET(options.BaseURL+"/market/forex", wrapper.GetForexRate, options.OperationMiddlewares["getForexRate"]...)
 	router.GET(options.BaseURL+"/market/price", wrapper.GetMarketPrice, options.OperationMiddlewares["getMarketPrice"]...)
 	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
 	router.GET(options.BaseURL+"/regions", wrapper.GetRegions, options.OperationMiddlewares["getRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
+	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction, options.OperationMiddlewares["deleteTransaction"]...)
+	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction, options.OperationMiddlewares["updateTransaction"]...)
 
 }
 
@@ -2575,6 +2669,93 @@ func (response UpdateHolding404JSONResponse) VisitUpdateHoldingResponse(w http.R
 	return err
 }
 
+type ListTransactionsRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ListTransactionsResponseObject interface {
+	VisitListTransactionsResponse(w http.ResponseWriter) error
+}
+
+type ListTransactions200JSONResponse []Transaction
+
+func (response ListTransactions200JSONResponse) VisitListTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTransactions404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ListTransactions404JSONResponse) VisitListTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTransactionRequestObject struct {
+	Id   string `json:"id"`
+	Body *CreateTransactionJSONRequestBody
+}
+
+type CreateTransactionResponseObject interface {
+	VisitCreateTransactionResponse(w http.ResponseWriter) error
+}
+
+type CreateTransaction201JSONResponse Transaction
+
+func (response CreateTransaction201JSONResponse) VisitCreateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateTransaction400JSONResponse) VisitCreateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response CreateTransaction404JSONResponse) VisitCreateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetForexRateRequestObject struct {
 	Params GetForexRateParams
 }
@@ -2720,6 +2901,109 @@ func (response GetSummary200JSONResponse) VisitGetSummaryResponse(w http.Respons
 	return err
 }
 
+type DeleteTransactionRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteTransactionResponseObject interface {
+	VisitDeleteTransactionResponse(w http.ResponseWriter) error
+}
+
+type DeleteTransaction200JSONResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
+func (response DeleteTransaction200JSONResponse) VisitDeleteTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteTransaction400JSONResponse) VisitDeleteTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteTransaction404JSONResponse) VisitDeleteTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTransactionRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateTransactionJSONRequestBody
+}
+
+type UpdateTransactionResponseObject interface {
+	VisitUpdateTransactionResponse(w http.ResponseWriter) error
+}
+
+type UpdateTransaction200JSONResponse Transaction
+
+func (response UpdateTransaction200JSONResponse) VisitUpdateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateTransaction400JSONResponse) VisitUpdateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateTransaction404JSONResponse) VisitUpdateTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List admins and the super admin (super admin only)
@@ -2833,6 +3117,12 @@ type StrictServerInterface interface {
 	// Update a holding
 	// (PUT /holdings/{id})
 	UpdateHolding(ctx context.Context, request UpdateHoldingRequestObject) (UpdateHoldingResponseObject, error)
+	// List a holding's transactions
+	// (GET /holdings/{id}/transactions)
+	ListTransactions(ctx context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error)
+	// Add a transaction to a holding
+	// (POST /holdings/{id}/transactions)
+	CreateTransaction(ctx context.Context, request CreateTransactionRequestObject) (CreateTransactionResponseObject, error)
 	// Get forex exchange rate
 	// (GET /market/forex)
 	GetForexRate(ctx context.Context, request GetForexRateRequestObject) (GetForexRateResponseObject, error)
@@ -2848,6 +3138,12 @@ type StrictServerInterface interface {
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx context.Context, request GetSummaryRequestObject) (GetSummaryResponseObject, error)
+	// Delete a transaction
+	// (DELETE /transactions/{id})
+	DeleteTransaction(ctx context.Context, request DeleteTransactionRequestObject) (DeleteTransactionResponseObject, error)
+	// Update a transaction
+	// (PUT /transactions/{id})
+	UpdateTransaction(ctx context.Context, request UpdateTransactionRequestObject) (UpdateTransactionResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx echo.Context, request any) (any, error)
@@ -3853,6 +4149,62 @@ func (sh *strictHandler) UpdateHolding(ctx echo.Context, id string) error {
 	return nil
 }
 
+// ListTransactions operation middleware
+func (sh *strictHandler) ListTransactions(ctx echo.Context, id string) error {
+	var request ListTransactionsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTransactions(ctx.Request().Context(), request.(ListTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListTransactionsResponseObject); ok {
+		return validResponse.VisitListTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateTransaction operation middleware
+func (sh *strictHandler) CreateTransaction(ctx echo.Context, id string) error {
+	var request CreateTransactionRequestObject
+
+	request.Id = id
+
+	var body CreateTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTransaction(ctx.Request().Context(), request.(CreateTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateTransactionResponseObject); ok {
+		return validResponse.VisitCreateTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // GetForexRate operation middleware
 func (sh *strictHandler) GetForexRate(ctx echo.Context, params GetForexRateParams) error {
 	var request GetForexRateRequestObject
@@ -3966,6 +4318,62 @@ func (sh *strictHandler) GetSummary(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(GetSummaryResponseObject); ok {
 		return validResponse.VisitGetSummaryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteTransaction operation middleware
+func (sh *strictHandler) DeleteTransaction(ctx echo.Context, id string) error {
+	var request DeleteTransactionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTransaction(ctx.Request().Context(), request.(DeleteTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteTransactionResponseObject); ok {
+		return validResponse.VisitDeleteTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateTransaction operation middleware
+func (sh *strictHandler) UpdateTransaction(ctx echo.Context, id string) error {
+	var request UpdateTransactionRequestObject
+
+	request.Id = id
+
+	var body UpdateTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTransaction(ctx.Request().Context(), request.(UpdateTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateTransactionResponseObject); ok {
+		return validResponse.VisitUpdateTransactionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
