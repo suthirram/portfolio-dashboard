@@ -15,6 +15,8 @@ import {
   niceDomain,
   symmetricDomain,
   regionHasData,
+  formToBody,
+  changedRegions,
   fmtAxisAmount,
   perCurrencyChartData,
   regionCurrentDirection,
@@ -84,6 +86,46 @@ describe('groupIndian', () => {
 
   it('round-trips with parseFormAmount', () => {
     expect(parseFormAmount(groupIndian('98765432.1'))).toBe(98765432.1)
+  })
+})
+
+// ---- formToBody / changedRegions (override + reset semantics) ----
+
+const blank = (): Parameters<typeof formToBody>[0] => ({
+  INR: { invested: '', current: '' },
+  EUR: { invested: '', current: '' },
+  USD: { invested: '', current: '' },
+})
+
+describe('formToBody', () => {
+  it('includes a region with an explicit 0 so a value can be reset', () => {
+    const f = blank()
+    f.USD = { invested: '0', current: '0' } // reset USD to zero
+    expect(formToBody(f)).toEqual({ USD: { invested: 0, current: 0 } })
+  })
+  it('treats a blank field as 0 when the other is filled', () => {
+    const f = blank()
+    f.INR = { invested: '100', current: '' }
+    expect(formToBody(f)).toEqual({ INR: { invested: 100, current: 0 } })
+  })
+  it('skips a region whose both fields are blank (untouched)', () => {
+    expect(formToBody(blank())).toEqual({})
+  })
+})
+
+describe('changedRegions', () => {
+  it('keeps only regions that differ from the original row', () => {
+    const original = {
+      INR: region(100, 110, 'manual'),
+      USD: region(0, 1, 'manual'),
+    }
+    const body = { INR: { invested: 100, current: 110 }, USD: { invested: 0, current: 0 } }
+    // INR unchanged → dropped; USD current 1→0 → kept.
+    expect(changedRegions(body, original)).toEqual({ USD: { invested: 0, current: 0 } })
+  })
+  it('returns empty when nothing changed (no request)', () => {
+    const original = { INR: region(5, 6, 'manual') }
+    expect(changedRegions({ INR: { invested: 5, current: 6 } }, original)).toEqual({})
   })
 })
 

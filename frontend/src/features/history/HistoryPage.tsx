@@ -174,14 +174,32 @@ function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>>) {
     }
 }
 
-function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
+// formToBody collects the regions the user actually touched. A region is
+// included when either field is non-blank (a blank field counts as 0), so an
+// explicit 0 — e.g. resetting a value from 1 to 0 — overrides rather than being
+// dropped. A region with BOTH fields blank is untouched and left unchanged.
+export function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
   const out: Record<string, { invested: number; current: number }> = {}
   for (const r of REGIONS) {
-    const inv = parseFormAmount(form[r].invested)
-    const cur = parseFormAmount(form[r].current)
-    if (Number.isFinite(inv) && Number.isFinite(cur) && (inv > 0 || cur > 0)) {
-      out[r] = { invested: inv, current: cur }
-    }
+    const investedRaw = form[r].invested.trim()
+    const currentRaw = form[r].current.trim()
+    if (investedRaw === '' && currentRaw === '') continue // untouched region
+    out[r] = { invested: parseFormAmount(investedRaw), current: parseFormAmount(currentRaw) }
+  }
+  return out
+}
+
+// changedRegions keeps only the regions whose values differ from the original
+// row. Saving an edit that touched one currency then doesn't re-assert (and
+// flip to manual) the untouched ones, and a no-op save sends nothing.
+export function changedRegions(
+  body: Record<string, { invested: number; current: number }>,
+  original: Record<string, RegionSnapshot>,
+): Record<string, { invested: number; current: number }> {
+  const out: Record<string, { invested: number; current: number }> = {}
+  for (const [r, v] of Object.entries(body)) {
+    const o = original[r]
+    if (!o || o.invested !== v.invested || o.current !== v.current) out[r] = v
   }
   return out
 }
@@ -1058,9 +1076,13 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
     const err = formError(form)
     if (err) { setError(err); return }
     setError('')
+    // Only send the regions that actually changed; a no-op edit closes without
+    // hitting the backend.
+    const body = changedRegions(formToBody(form), row.regions)
+    if (Object.keys(body).length === 0) { onCancel(); return }
     setBusy(true)
     try {
-      await onSubmit(row.date, formToBody(form))
+      await onSubmit(row.date, body)
     } finally {
       setBusy(false)
     }
@@ -1071,10 +1093,10 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
       <div style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-          Saving overrides any cron-written value with the manual value below. A
-          region whose <em>both</em> fields are blank or zero is skipped — its
-          existing value stays unchanged. Type at least one positive number per
-          region to override it.
+          Saving overrides any cron-written value with the manual value below.
+          Only the regions you change are saved; enter <em>0</em> to reset a
+          value. A region left exactly as it was (both fields untouched) is not
+          re-saved.
         </p>
         {REGIONS.map(r => (
           <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
