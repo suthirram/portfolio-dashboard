@@ -145,8 +145,8 @@ func (r *SnapshotRecomputer) linesAsOf(
 		if hadPrior && prior.ClosePrice > 0 {
 			close, priceDate = prior.ClosePrice, prior.PriceDate
 		}
-		invested := round2(pos.StocksOwned * pos.AvgCostPrice)
-		current := round2(pos.StocksOwned * close)
+		invested := round(pos.StocksOwned * pos.AvgCostPrice)
+		current := round(pos.StocksOwned * close)
 		lines = append(lines, domain.HoldingSnapshot{
 			Symbol:     h.Symbol,
 			Script:     h.Script,
@@ -173,13 +173,4 @@ func asOfLedger(txns []domain.Transaction, cutoff time.Time) []domain.Transactio
 		}
 	}
 	return out
-}
-
-// round2 mirrors the snapshot-build rounding (two decimals) without pulling in
-// math just for one call site.
-func round2(v float64) float64 {
-	if v < 0 {
-		return float64(int64(v*100-0.5)) / 100
-	}
-	return float64(int64(v*100+0.5)) / 100
 }

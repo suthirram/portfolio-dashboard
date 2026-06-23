@@ -84,6 +84,11 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 		// manual bucket total is preserved in `merged`, but its underlying
 		// lines still track the live ledger × close — storing them does not
 		// disturb the frozen manual total, which lives in `regions`.
+		//
+		// NB: for a manually-overridden currency this means sum(lines) may
+		// NOT equal the frozen bucket total — by design. `regions` is the
+		// user-facing total; `holdings` is the cron/audit truth. A reader
+		// must not "reconcile" the two for a manual bucket.
 		update := bson.M{
 			"$set": bson.M{
 				"regions":    merged,

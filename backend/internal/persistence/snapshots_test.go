@@ -132,6 +132,10 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 				domain.CurrencyINR: {Invested: 1, Current: 1, Source: domain.SnapshotSourceCron},
 				domain.CurrencyEUR: {Invested: 20, Current: 25, Source: domain.SnapshotSourceCron},
 			},
+			Lines: []domain.HoldingSnapshot{
+				{Symbol: "TCS.NS", Currency: domain.CurrencyINR, Quantity: 1, ClosePrice: 1, Invested: 1, Current: 1},
+				{Symbol: "VWCE.DE", Currency: domain.CurrencyEUR, Quantity: 1, ClosePrice: 25, Invested: 20, Current: 25},
+			},
 		})
 		if err != nil {
 			t.Fatalf("Upsert: %v", err)
@@ -169,6 +173,17 @@ func TestSnapshotUpsert_PreservesManualRegionsOnReRun(t *testing.T) {
 		}
 		if !regionHasInvested(europe, 20) {
 			t.Errorf("merged Europe should be cron incoming=20, got %+v", europe)
+		}
+		// Lines are refreshed on the re-run even though the INR bucket total
+		// stays the frozen manual 999 — `holdings` is the cron/audit truth,
+		// `regions` is the user-facing total; the two intentionally diverge
+		// for a manually-overridden currency.
+		holdings, ok := set["holdings"]
+		if !ok || holdings == nil {
+			t.Errorf("expected refreshed `holdings` lines in the update $set, got %#v", set["holdings"])
+		}
+		if arr, isArr := holdings.(bson.A); isArr && len(arr) != 2 {
+			t.Errorf("expected 2 refreshed lines, got %d", len(arr))
 		}
 	})
 }

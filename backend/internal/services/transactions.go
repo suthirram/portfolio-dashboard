@@ -30,6 +30,9 @@ type TransactionsService struct {
 	holdings   *persistence.HoldingStore
 	recomputer snapshotRecomputer
 	logger     *zap.Logger
+	// now lets tests pin "today" for the backdated-heal skip; defaults to
+	// wall-clock UTC, matching SnapshotRecomputer.Now.
+	now func() time.Time
 }
 
 // snapshotRecomputer heals stored snapshots after a backdated ledger change.
@@ -41,7 +44,13 @@ type snapshotRecomputer interface {
 
 // NewTransactionsService wires a TransactionsService. recomputer may be nil.
 func NewTransactionsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, recomputer snapshotRecomputer, logger *zap.Logger) *TransactionsService {
-	return &TransactionsService{txns: txns, holdings: holdings, recomputer: recomputer, logger: logger}
+	return &TransactionsService{
+		txns:       txns,
+		holdings:   holdings,
+		recomputer: recomputer,
+		logger:     logger,
+		now:        func() time.Time { return time.Now().UTC() },
+	}
 }
 
 // healSnapshots recomputes stored snapshots from the earliest affected date
@@ -62,8 +71,11 @@ func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.O
 	if earliest.IsZero() {
 		return
 	}
-	today := domain.UTCDate(time.Now().UTC())
-	if !domain.UTCDate(earliest).Before(today) {
+	now := time.Now().UTC()
+	if s.now != nil {
+		now = s.now()
+	}
+	if !domain.UTCDate(earliest).Before(domain.UTCDate(now)) {
 		return // today or future: nothing earlier to heal
 	}
 	if err := s.recomputer.RecomputeFrom(ctx, uid, earliest); err != nil {
