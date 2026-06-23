@@ -76,7 +76,9 @@ Concretely:
 
 * **Forward-only.** Existing total-only rows (written before this change) are
   left untouched; lines populate from the next cron run forward. No migration,
-  no historical-candle backfill.
+  no historical-candle backfill. Recompute enforces this by **skipping any row
+  with no stored per-stock lines** — without a stored close it would otherwise
+  carry holdings at average cost and overwrite the legacy cron buckets.
 
 ## Consequences
 

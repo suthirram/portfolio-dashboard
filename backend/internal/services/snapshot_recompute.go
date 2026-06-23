@@ -92,6 +92,18 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 	}
 
 	for _, snap := range snaps {
+		// Forward-only: only line-backed rows are recomputable. A pre-change
+		// total-only row (or a purely manual row) has no stored per-stock
+		// close to replay against; recomputing it would carry every holding
+		// at average cost and overwrite its cron buckets — corrupting legacy
+		// history. Leave those untouched.
+		if len(snap.Lines) == 0 {
+			r.log().Debug("snapshot skipped: no stored lines (forward-only)",
+				zap.String("user_id", uid.Hex()),
+				zap.String("date", snap.Date.UTC().Format("2006-01-02")),
+			)
+			continue
+		}
 		lines := r.linesAsOf(holdings, byHolding, snap)
 		rebuilt := domain.PortfolioSnapshot{
 			UserID:   uid,

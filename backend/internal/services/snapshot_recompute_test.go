@@ -1,13 +1,81 @@
 package services
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
+
+	"portfolio-dashboard/internal/persistence"
 
 	"portfolio-dashboard/internal/domain"
 )
+
+// TestRecomputeFrom_SkipsLineLessLegacyRows asserts forward-only behaviour: a
+// pre-change total-only row (Lines absent) is left untouched after a backdated
+// transaction — no Upsert is issued for it, so its cron buckets cannot be
+// corrupted by an avg-cost carry-forward.
+func TestRecomputeFrom_SkipsLineLessLegacyRows(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("legacy row skipped", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		hid := primitive.NewObjectID()
+		date := utcDay(time.June, 15)
+
+		// One legacy snapshot: regions present, NO `holdings` field.
+		legacy := bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "date", Value: date},
+			{Key: "currency", Value: "INR"},
+			{Key: "regions", Value: bson.D{
+				{Key: "INR", Value: bson.D{
+					{Key: "invested", Value: 1000.0},
+					{Key: "current", Value: 1500.0},
+					{Key: "source", Value: "cron"},
+				}},
+			}},
+		}
+
+		// RecomputeFrom call order: snapshots.List, holdings.ListByUser,
+		// txns.ListByUser. A holding + a backdated buy exist, so if the row
+		// were (wrongly) recomputed it would rewrite the INR bucket.
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, legacy))
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "_id", Value: hid},
+			{Key: "symbol", Value: "TCS.NS"},
+			{Key: "script", Value: "TCS"},
+			{Key: "currency", Value: "INR"},
+		}))
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch, bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "holding_id", Value: hid},
+			{Key: "type", Value: "buy"},
+			{Key: "date", Value: utcDay(time.June, 10)},
+			{Key: "quantity", Value: 10.0},
+			{Key: "amount", Value: 1000.0},
+		}))
+
+		st := persistence.New(mt.DB)
+		rc := NewSnapshotRecomputer(st.Holdings, st.Transactions, st.Snapshots, nil)
+		rc.Now = func() time.Time { return utcDay(time.June, 20) }
+
+		if err := rc.RecomputeFrom(context.Background(), uid, utcDay(time.June, 1)); err != nil {
+			t.Fatalf("RecomputeFrom: %v", err)
+		}
+
+		// The skip means no upsert path ran: no FindOne (find) or update was
+		// issued against portfolio_snapshots beyond the initial List.
+		for _, e := range mt.GetAllStartedEvents() {
+			if e.CommandName == "update" {
+				t.Errorf("legacy line-less row was rewritten (update issued); want skip")
+			}
+		}
+	})
+}
 
 func utcDay(m time.Month, d int) time.Time {
 	return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC)

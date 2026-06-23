@@ -533,7 +533,11 @@ closes, recompute rewrites past rows from stored closes.
 `RecomputeFrom(uid, from)`:
 
 1. List existing snapshots in `[from, today]` (forward-only — missing dates are
-   not fabricated).
+   not fabricated). Rows with **no stored per-stock lines** — pre-ADR-0003
+   total-only rows and purely manual rows — are **skipped**: there is no stored
+   close to replay against, so recomputing them would carry every holding at
+   average cost and overwrite their cron buckets, corrupting legacy history.
+   Only line-backed rows are recomputable.
 2. For each row, replay every holding's ledger truncated to that date
    (`asOfLedger`: keep the opening baseline + events dated on/before the row),
    via the existing pure `RecomputePosition`.
