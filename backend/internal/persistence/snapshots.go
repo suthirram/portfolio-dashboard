@@ -79,9 +79,20 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 			merged[k] = v
 		}
 
+		// Refresh the per-stock lines on every cron re-run: they are the
+		// cron truth behind the buckets and feed backdated recompute. A
+		// manual bucket total is preserved in `merged`, but its underlying
+		// lines still track the live ledger × close — storing them does not
+		// disturb the frozen manual total, which lives in `regions`.
+		//
+		// NB: for a manually-overridden currency this means sum(lines) may
+		// NOT equal the frozen bucket total — by design. `regions` is the
+		// user-facing total; `holdings` is the cron/audit truth. A reader
+		// must not "reconcile" the two for a manual bucket.
 		update := bson.M{
 			"$set": bson.M{
 				"regions":    merged,
+				"holdings":   snap.Lines,
 				"currency":   snap.Currency,
 				"updated_at": now,
 			},
@@ -95,6 +106,7 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 			Date:      date,
 			Currency:  snap.Currency,
 			Buckets:   snap.Buckets,
+			Lines:     snap.Lines,
 			CreatedAt: now,
 			UpdatedAt: now,
 		}

@@ -465,3 +465,116 @@ No DB-availability / DB-error tests (per project policy).
 * **Currency on manual rows** — frozen vs converted on display-currency
   change. Defer until display currency itself becomes a per-user
   setting.
+
+## 11. Addendum — per-stock close prices and backdated-txn heal
+
+Decided in [ADR-0003](../adrs/ADR-0003-per-stock-snapshot-prices.md). Two
+problems in the §2 model: snapshots stored only bucket totals (not the
+per-stock inputs), and valued holdings from `regularMarketPrice`. The first
+made rows non-reproducible after a backdated transaction; the second produced
+phantom day-over-day diffs on closed-market days (a flicker, not a session
+close).
+
+### 11.1 Data model change
+
+`PortfolioSnapshot` gains a per-stock breakdown. The `regions` bucket map is
+unchanged (still derived, still the manual-override surface); `Lines` are the
+cron truth behind the cron-sourced buckets.
+
+```go
+// internal/domain/snapshot.go
+
+type HoldingSnapshot struct {
+    Symbol     string  `bson:"symbol"`
+    Script     string  `bson:"script"`
+    Currency   string  `bson:"currency"`    // bucket key: INR|EUR|USD
+    Quantity   float64 `bson:"quantity"`    // ledger position AS OF the row's date
+    AvgCost    float64 `bson:"avg_cost"`
+    ClosePrice float64 `bson:"close_price"` // the actual session close used
+    PriceDate  string  `bson:"price_date"`  // trading date the close belongs to
+    Invested   float64 `bson:"invested"`    // Quantity * AvgCost
+    Current    float64 `bson:"current"`     // Quantity * ClosePrice
+}
+
+// PortfolioSnapshot gains:
+//   Lines []HoldingSnapshot `bson:"holdings,omitempty"`
+```
+
+`domain.BucketsFromLines(lines)` aggregates lines into the per-currency
+`regions` map (every bucket `source=cron`, zero rows for empty currencies).
+`Lines` is `nil` on pre-ADR-0003 rows and on purely manual rows — a manual
+override replaces a bucket total but carries no per-stock detail. On a closed
+day `PriceDate` is the prior session, not the row's date, which is exactly how
+the weekend phantom is avoided.
+
+### 11.2 Valuation source: `GetClose`, not `GetPrice`
+
+`PriceFetcher` gains:
+
+```go
+GetClose(ctx, symbol) (price float64, currency string, priceDate string, err error)
+```
+
+`PriceService.GetClose` reads the last non-null daily candle close from the
+Yahoo chart endpoint (`range=5d&interval=1d`) and the trading date it belongs
+to, cached under a `close:`-prefixed key so it never collides with the
+`regularMarketPrice` entry. `SnapshotService.BuildSnapshot` now valued each
+holding via `GetClose` and emits a `HoldingSnapshot` line per holding; a fetch
+failure degrades that line to `close=0` (worthless, matching the dashboard),
+the same rule §2 used for `GetPrice`. The live dashboard (`/prices`,
+`/summary`) still uses `GetPrice` — only the historical path changed.
+
+### 11.3 Backdated-transaction heal
+
+`SnapshotRecomputer` (`internal/services/snapshot_recompute.go`) is the
+read/write counterpart to `BuildSnapshot`: build writes today's row from live
+closes, recompute rewrites past rows from stored closes.
+
+`RecomputeFrom(uid, from)`:
+
+1. List existing snapshots in `[from, today]` (forward-only — missing dates are
+   not fabricated). Rows whose `holdings` field is **absent (nil)** —
+   pre-ADR-0003 total-only rows and purely manual rows — are **skipped**: there
+   is no stored close to replay against, so recomputing them would carry every
+   holding at average cost and overwrite their cron buckets, corrupting legacy
+   history. The guard is on `Lines == nil`, **not** `len == 0`: an
+   empty-portfolio cron row stores an explicit empty array (the `holdings` bson
+   tag has no `omitempty`) and stays recomputable, so a backdated first buy can
+   populate it.
+2. For each row, replay every holding's ledger truncated to that date
+   (`asOfLedger`: events dated strictly before the row's next-midnight cutoff —
+   filtering is by date for *all* types, so a future-dated opening is excluded
+   from a past row), via the existing pure `RecomputePosition`.
+3. Value each as-of position at the **close already stored** on that date's
+   line for the symbol — including a stored close of 0 (a worthless/delisted
+   holding stays worthless, not resurrected to cost). A holding with **no**
+   stored line on that date (a backdated txn introduced it on an unpriced date)
+   carries forward at avg cost, `current == invested`.
+4. Rebuild `Lines` + buckets and `Upsert`. Manual buckets are preserved by the
+   store merge (§4.4); cron buckets and lines are refreshed.
+
+`TransactionsService` calls `healSnapshots` after every successful
+create/update/delete, from the earliest affected date (for an update, the min
+of the old and new dates). Today/future is skipped — that is the cron's row.
+The call is **best-effort**: a failure is logged, never rolled back, because the
+ledger write has already committed. Wiring: `controllers.go` constructs the
+recomputer and injects it; the dependency is an interface, so txn tests that
+don't exercise history pass `nil`.
+
+### 11.4 Decisions (per ADR-0003)
+
+* Missing close (no stored line on the date) → **carry-forward at avg cost**.
+  A stored close of 0 is **kept** (worthless stays worthless).
+* Recompute is **inline / synchronous**, best-effort.
+* **Forward-only** — no migration of pre-existing total-only rows; nil-`Lines`
+  rows are skipped, empty-portfolio cron rows (explicit `[]`) are not.
+
+### 11.5 Tests
+
+* `GetClose` picks the last real close, skipping a trailing weekend `nil`
+  candle, and returns its trading date.
+* `asOfLedger` filters strictly by date — a future-dated opening is dropped.
+* `linesAsOf` reuses the stored close (incl. 0 = worthless) and carries forward
+  at avg cost only when no line exists; legacy nil-`Lines` rows are skipped.
+* `linesAsOf` reuses the stored close with the as-of position; carries forward
+  at avg cost when no stored close exists.

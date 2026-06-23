@@ -50,6 +50,21 @@ func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64
 	return m.forexRate, nil
 }
 
+func (m *mockPriceFetcher) GetClose(_ context.Context, symbol string) (float64, string, string, error) {
+	if err, ok := m.priceErrs[symbol]; ok {
+		return 0, "", "", err
+	}
+	p, ok := m.prices[symbol]
+	if !ok {
+		return 0, "", "", errors.New("symbol not found: " + symbol)
+	}
+	cur := "INR"
+	if c, ok := m.currencies[symbol]; ok {
+		cur = c
+	}
+	return p, cur, "2026-01-01", nil
+}
+
 func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
