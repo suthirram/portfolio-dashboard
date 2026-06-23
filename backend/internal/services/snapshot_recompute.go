@@ -93,11 +93,14 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 
 	for _, snap := range snaps {
 		// Forward-only: only line-backed rows are recomputable. A pre-change
-		// total-only row (or a purely manual row) has no stored per-stock
-		// close to replay against; recomputing it would carry every holding
-		// at average cost and overwrite its cron buckets — corrupting legacy
-		// history. Leave those untouched.
-		if len(snap.Lines) == 0 {
+		// total-only row (or a purely manual row) has a nil/absent `holdings`
+		// field — no stored per-stock close to replay against; recomputing it
+		// would carry every holding at average cost and overwrite its cron
+		// buckets, corrupting legacy history. Leave those untouched. Guard on
+		// nil (absent), NOT len==0: an empty-portfolio cron row stores an
+		// explicit empty array and IS recomputable (a backdated first buy must
+		// be able to populate it).
+		if snap.Lines == nil {
 			r.log().Debug("snapshot skipped: no stored lines (forward-only)",
 				zap.String("user_id", uid.Hex()),
 				zap.String("date", snap.Date.UTC().Format("2006-01-02")),
@@ -146,15 +149,31 @@ func (r *SnapshotRecomputer) linesAsOf(
 			continue
 		}
 		ledger := asOfLedger(byHolding[h.ID], cutoff)
-		pos, _ := RecomputePosition(ledger)
+		pos, oversell := RecomputePosition(ledger)
+		if oversell != nil {
+			// A backdated edit made the as-of ledger oversold (e.g. a sell
+			// now precedes its covering buy); the position is clamped at 0.
+			// The live txn path rejects this, but the recompute write already
+			// happened — surface it rather than writing a silently-clamped
+			// line with no trace.
+			r.log().Warn("recompute: as-of ledger oversold; position clamped to 0",
+				zap.String("symbol", h.Symbol),
+				zap.String("date", existing.Date.UTC().Format("2006-01-02")),
+			)
+		}
 		prior, hadPrior := priorClose[h.Symbol]
 		if pos.StocksOwned == 0 && !hadPrior {
 			continue
 		}
 
-		close := pos.AvgCostPrice // carry-forward default
+		// Reuse the close recorded on this date's stored line — even a 0. A
+		// holding the snapshot recorded as worthless (delisted / failed fetch,
+		// close=0) must stay worthless on recompute, not be resurrected to
+		// cost. Only a holding with NO stored line on this date (a backdated
+		// txn introduced it on an unpriced day) carries forward at avg cost.
+		close := pos.AvgCostPrice
 		priceDate := ""
-		if hadPrior && prior.ClosePrice > 0 {
+		if hadPrior {
 			close, priceDate = prior.ClosePrice, prior.PriceDate
 		}
 		invested := round(pos.StocksOwned * pos.AvgCostPrice)
@@ -174,13 +193,17 @@ func (r *SnapshotRecomputer) linesAsOf(
 	return lines
 }
 
-// asOfLedger keeps the opening baseline plus every event dated before cutoff.
-// Opening is always retained regardless of its date — it is the position
-// baseline, not a dated trade (mirrors RecomputePosition's ordering).
+// asOfLedger keeps every event dated before cutoff. Filtering is purely by
+// date — including for an opening: an opening dated AFTER the snapshot date is
+// a baseline that did not yet exist on that date and must not inflate a past
+// row. RecomputePosition still sorts a retained opening first as the baseline;
+// ordering and as-of membership are separate concerns. A normal opening dated
+// at/before the snapshot (the common case, incl. zero-dated migration
+// openings) is < cutoff and stays.
 func asOfLedger(txns []domain.Transaction, cutoff time.Time) []domain.Transaction {
 	out := make([]domain.Transaction, 0, len(txns))
 	for _, t := range txns {
-		if t.Type == domain.TxnOpening || t.Date.Before(cutoff) {
+		if t.Date.Before(cutoff) {
 			out = append(out, t)
 		}
 	}

@@ -533,17 +533,23 @@ closes, recompute rewrites past rows from stored closes.
 `RecomputeFrom(uid, from)`:
 
 1. List existing snapshots in `[from, today]` (forward-only — missing dates are
-   not fabricated). Rows with **no stored per-stock lines** — pre-ADR-0003
-   total-only rows and purely manual rows — are **skipped**: there is no stored
-   close to replay against, so recomputing them would carry every holding at
-   average cost and overwrite their cron buckets, corrupting legacy history.
-   Only line-backed rows are recomputable.
+   not fabricated). Rows whose `holdings` field is **absent (nil)** —
+   pre-ADR-0003 total-only rows and purely manual rows — are **skipped**: there
+   is no stored close to replay against, so recomputing them would carry every
+   holding at average cost and overwrite their cron buckets, corrupting legacy
+   history. The guard is on `Lines == nil`, **not** `len == 0`: an
+   empty-portfolio cron row stores an explicit empty array (the `holdings` bson
+   tag has no `omitempty`) and stays recomputable, so a backdated first buy can
+   populate it.
 2. For each row, replay every holding's ledger truncated to that date
-   (`asOfLedger`: keep the opening baseline + events dated on/before the row),
-   via the existing pure `RecomputePosition`.
+   (`asOfLedger`: events dated strictly before the row's next-midnight cutoff —
+   filtering is by date for *all* types, so a future-dated opening is excluded
+   from a past row), via the existing pure `RecomputePosition`.
 3. Value each as-of position at the **close already stored** on that date's
-   line for the symbol. No stored close (a backdated txn introduced the symbol
-   on an unpriced date) → carry-forward at avg cost, `current == invested`.
+   line for the symbol — including a stored close of 0 (a worthless/delisted
+   holding stays worthless, not resurrected to cost). A holding with **no**
+   stored line on that date (a backdated txn introduced it on an unpriced date)
+   carries forward at avg cost, `current == invested`.
 4. Rebuild `Lines` + buckets and `Upsert`. Manual buckets are preserved by the
    store merge (§4.4); cron buckets and lines are refreshed.
 
@@ -557,15 +563,18 @@ don't exercise history pass `nil`.
 
 ### 11.4 Decisions (per ADR-0003)
 
-* Missing close → **carry-forward at avg cost** (no historical-candle fetch in
-  the write path).
+* Missing close (no stored line on the date) → **carry-forward at avg cost**.
+  A stored close of 0 is **kept** (worthless stays worthless).
 * Recompute is **inline / synchronous**, best-effort.
-* **Forward-only** — no migration of pre-existing total-only rows.
+* **Forward-only** — no migration of pre-existing total-only rows; nil-`Lines`
+  rows are skipped, empty-portfolio cron rows (explicit `[]`) are not.
 
 ### 11.5 Tests
 
 * `GetClose` picks the last real close, skipping a trailing weekend `nil`
   candle, and returns its trading date.
-* `asOfLedger` keeps the opening baseline and drops events after the cutoff.
+* `asOfLedger` filters strictly by date — a future-dated opening is dropped.
+* `linesAsOf` reuses the stored close (incl. 0 = worthless) and carries forward
+  at avg cost only when no line exists; legacy nil-`Lines` rows are skipped.
 * `linesAsOf` reuses the stored close with the as-of position; carries forward
   at avg cost when no stored close exists.

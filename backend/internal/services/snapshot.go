@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -120,15 +119,26 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 		priceDate := ""
 		current := 0.0
 		price, priceCur, pdate, perr := s.prices.GetClose(ctx, hld.Symbol)
-		if perr == nil && price > 0 {
+		switch {
+		case perr == nil && price > 0:
 			close, priceDate = price, pdate
 			current = hld.StocksOwned * price
-		} else if perr != nil {
+		case perr != nil:
 			logger.Warn("snapshot: close fetch failed; assuming current price 0",
 				zap.String("user_id", uid.Hex()),
 				zap.String("script", hld.Script),
 				zap.String("symbol", hld.Symbol),
 				zap.Error(perr),
+			)
+		default:
+			// price <= 0 with no error: Yahoo returned a zero/absent close
+			// (thin trading or a data glitch). Treated as worthless like a
+			// fetch failure, but log it — otherwise a silent current=0 looks
+			// like a real crash to zero and is undiagnosable.
+			logger.Warn("snapshot: zero close with no error; assuming current price 0",
+				zap.String("user_id", uid.Hex()),
+				zap.String("script", hld.Script),
+				zap.String("symbol", hld.Symbol),
 			)
 		}
 		logger.Info("snapshot: holding valued",
@@ -154,8 +164,8 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 			AvgCost:    hld.AvgCostPrice,
 			ClosePrice: close,
 			PriceDate:  priceDate,
-			Invested:   math.Round(invested*100) / 100,
-			Current:    math.Round(current*100) / 100,
+			Invested:   round(invested),
+			Current:    round(current),
 		})
 	}
 

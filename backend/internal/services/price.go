@@ -133,6 +133,10 @@ func (s *PriceService) GetClose(ctx context.Context, symbol string) (float64, st
 		return c.price, c.currency, c.closeDate, nil
 	}
 
+	// range=5d covers weekends (max 2-day gap). TODO(holidays): widen to
+	// range=1mo when holiday gaps are in scope — a >5 calendar-day gap with
+	// no session inside the window yields all-null candles, degrading the
+	// holding to close=0 (silent zero-valuation).
 	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&range=5d",
 		s.baseURL, url.PathEscape(symbol))
 	yr, err := s.fetchChart(ctx, endpoint, symbol)

@@ -105,7 +105,12 @@ type PortfolioSnapshot struct {
 	// nil on PR4-era rows and on purely manual rows; a manual override replaces
 	// a bucket total but does not carry per-stock detail. Lines only ever cover
 	// currencies whose bucket is cron-sourced — see BucketsFromLines.
-	Lines     []HoldingSnapshot `bson:"holdings,omitempty" json:"holdings,omitempty"`
+	//
+	// No omitempty: a cron run on an empty portfolio writes an explicit empty
+	// array, which round-trips back as a non-nil empty slice and stays
+	// recomputable. omitempty would drop it to absent → indistinguishable from
+	// a legacy/manual row, so a backdated txn could never heal that day.
+	Lines     []HoldingSnapshot `bson:"holdings" json:"holdings,omitempty"`
 	CreatedAt time.Time         `bson:"created_at" json:"-"`
 	UpdatedAt time.Time         `bson:"updated_at" json:"-"`
 }
@@ -122,9 +127,17 @@ func BucketsFromLines(lines []HoldingSnapshot) map[string]RegionSnapshot {
 	for _, ln := range lines {
 		rs := buckets[ln.Currency]
 		rs.Source = SnapshotSourceCron
-		rs.Invested += round2(ln.Invested)
-		rs.Current += round2(ln.Current)
+		rs.Invested += ln.Invested
+		rs.Current += ln.Current
 		buckets[ln.Currency] = rs
+	}
+	// Round once, after summing — the per-line values are already 2dp, so
+	// rounding each before accumulating is a no-op that only risks float drift
+	// across the sum.
+	for c, rs := range buckets {
+		rs.Invested = round2(rs.Invested)
+		rs.Current = round2(rs.Current)
+		buckets[c] = rs
 	}
 	return buckets
 }

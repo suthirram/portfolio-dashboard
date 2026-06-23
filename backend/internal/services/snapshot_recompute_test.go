@@ -81,20 +81,21 @@ func utcDay(m time.Month, d int) time.Time {
 	return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func TestAsOfLedger_FiltersByDateKeepsOpening(t *testing.T) {
+func TestAsOfLedger_FiltersStrictlyByDate(t *testing.T) {
 	cutoff := utcDay(6, 19).Add(24 * time.Hour) // include events on/before 06-19
 	txns := []domain.Transaction{
-		{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 5, Amount: 500}, // future-dated opening still kept
-		{Type: domain.TxnBuy, Date: utcDay(6, 18), Quantity: 10, Amount: 1000},
-		{Type: domain.TxnBuy, Date: utcDay(6, 25), Quantity: 7, Amount: 700}, // after cutoff: dropped
+		{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 5, Amount: 500},  // past opening: kept (baseline)
+		{Type: domain.TxnBuy, Date: utcDay(6, 18), Quantity: 10, Amount: 1000},   // kept
+		{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300}, // FUTURE opening: dropped, did not exist as-of
+		{Type: domain.TxnBuy, Date: utcDay(6, 25), Quantity: 7, Amount: 700},     // future buy: dropped
 	}
 	got := asOfLedger(txns, cutoff)
 	if len(got) != 2 {
-		t.Fatalf("kept %d events, want 2 (opening + the 06-18 buy)", len(got))
+		t.Fatalf("kept %d events, want 2 (past opening + 06-18 buy)", len(got))
 	}
 	for _, tx := range got {
-		if tx.Type == domain.TxnBuy && !tx.Date.Before(cutoff) {
-			t.Errorf("kept a buy dated %s at/after cutoff", tx.Date.Format("2006-01-02"))
+		if !tx.Date.Before(cutoff) {
+			t.Errorf("kept event dated %s at/after cutoff (incl. a future opening)", tx.Date.Format("2006-01-02"))
 		}
 	}
 }
@@ -160,5 +161,35 @@ func TestLinesAsOf_CarryForwardWhenNoStoredClose(t *testing.T) {
 	}
 	if ln.Current != ln.Invested || ln.Current != 400 {
 		t.Errorf("current=%v invested=%v, want both 400 (no synthetic gain)", ln.Current, ln.Invested)
+	}
+}
+
+func TestLinesAsOf_WorthlessStoredCloseStaysWorthless(t *testing.T) {
+	hid := primitive.NewObjectID()
+	holdings := []domain.Holding{{ID: hid, Symbol: "DEAD.NS", Script: "DEAD", Currency: "INR"}}
+	byHolding := map[primitive.ObjectID][]domain.Transaction{
+		hid: {{HoldingID: hid, Type: domain.TxnBuy, Date: utcDay(6, 10), Quantity: 5, Amount: 500}},
+	}
+	// Existing snapshot recorded DEAD.NS as worthless (delisted / failed fetch:
+	// ClosePrice 0, Current 0). Recompute must NOT resurrect it to avg cost.
+	existing := domain.PortfolioSnapshot{
+		Date:  utcDay(6, 15),
+		Lines: []domain.HoldingSnapshot{{Symbol: "DEAD.NS", ClosePrice: 0, Current: 0}},
+	}
+
+	r := &SnapshotRecomputer{}
+	lines := r.linesAsOf(holdings, byHolding, existing)
+	if len(lines) != 1 {
+		t.Fatalf("got %d lines, want 1", len(lines))
+	}
+	ln := lines[0]
+	if ln.ClosePrice != 0 {
+		t.Errorf("close = %v, want 0 (worthless stays worthless, not resurrected to cost)", ln.ClosePrice)
+	}
+	if ln.Current != 0 {
+		t.Errorf("current = %v, want 0", ln.Current)
+	}
+	if ln.Invested != 500 { // 5 * 100 avg cost — invested basis unchanged
+		t.Errorf("invested = %v, want 500", ln.Invested)
 	}
 }

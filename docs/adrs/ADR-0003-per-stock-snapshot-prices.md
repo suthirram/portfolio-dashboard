@@ -63,10 +63,13 @@ Concretely:
 
 * **Missing close → carry-forward at average cost.** When a backdated
   transaction introduces a symbol on a date no cron ever priced, there is no
-  stored close. Rather than fetch historical candles (network in the write
+  stored line. Rather than fetch historical candles (network in the write
   path, and still lossy for delisted names), that day values at avg cost
-  (`current == invested`, no synthetic gain). Accepted as a small, honest
-  inaccuracy on exactly the days the user themselves under-recorded.
+  (`current == invested`, no synthetic gain). A stored close of **0** is a
+  different case — a holding the snapshot recorded as worthless (delisted /
+  failed fetch) — and is **kept at 0**, never resurrected to cost. Accepted as
+  a small, honest inaccuracy on exactly the days the user themselves
+  under-recorded.
 
 * **Recompute is inline and synchronous** on transaction create/update/delete.
   Single-user portfolios, bounded day ranges; no job queue needed. It is
@@ -77,8 +80,11 @@ Concretely:
 * **Forward-only.** Existing total-only rows (written before this change) are
   left untouched; lines populate from the next cron run forward. No migration,
   no historical-candle backfill. Recompute enforces this by **skipping any row
-  with no stored per-stock lines** — without a stored close it would otherwise
-  carry holdings at average cost and overwrite the legacy cron buckets.
+  whose `holdings` field is absent (`Lines == nil`)** — legacy and manual rows
+  — without which it would carry holdings at average cost and overwrite the
+  legacy cron buckets. The guard is nil, not `len == 0`: an empty-portfolio
+  cron row persists an explicit empty array (no `omitempty`) and stays
+  recomputable.
 
 ## Consequences
 
