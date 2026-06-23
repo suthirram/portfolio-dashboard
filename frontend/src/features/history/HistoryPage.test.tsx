@@ -4,12 +4,19 @@ import {
   parsePasteText,
   monthRange,
   parseAmount,
+  parseFormAmount,
+  groupIndian,
+  sanitizeAmount,
   normaliseDate,
   HistoryTable,
   AddRowModal,
   ConflictDialog,
   PasteModal,
   niceDomain,
+  symmetricDomain,
+  regionHasData,
+  formToBody,
+  changedRegions,
   fmtAxisAmount,
   perCurrencyChartData,
   regionCurrentDirection,
@@ -30,6 +37,124 @@ const row = (overrides: Partial<HistoryRow> & { date: string }): HistoryRow => (
   regions: {},
   totals: { invested_total: 0, current_total: 0, pnl_pct: null },
   ...overrides,
+})
+
+// ---- parseFormAmount (locale-tolerant decimal entry) ----
+
+describe('parseFormAmount', () => {
+  it('parses either decimal separator and strips thousands grouping', () => {
+    expect(parseFormAmount('23456.45')).toBe(23456.45)   // plain dot decimal
+    expect(parseFormAmount('23456,45')).toBe(23456.45)   // lone comma decimal
+    expect(parseFormAmount('23,456.45')).toBe(23456.45)  // en grouping
+    expect(parseFormAmount('23.456,45')).toBe(23456.45)  // european grouping
+    expect(parseFormAmount('1,234')).toBe(1234)           // single grouping comma
+    expect(parseFormAmount('12,34,567')).toBe(1234567)    // Indian grouping
+    expect(parseFormAmount('1,234,567')).toBe(1234567)   // comma thousands only
+    expect(parseFormAmount('1.234.567')).toBe(1234567)   // dot thousands only
+    expect(parseFormAmount('  1 234,5 ')).toBe(1234.5)   // space grouping
+    expect(parseFormAmount('')).toBe(0)
+  })
+
+  it('rejects malformed numeric text', () => {
+    expect(parseFormAmount('1,,2')).toBeNaN()
+    expect(parseFormAmount('12.34.56')).toBeNaN()
+  })
+})
+
+// ---- sanitizeAmount (block non-numeric keystrokes) ----
+
+describe('sanitizeAmount', () => {
+  it('strips letters and symbols but keeps digits and separators', () => {
+    expect(sanitizeAmount('12a3b4')).toBe('1234')
+    expect(sanitizeAmount('₹1,234.50')).toBe('1,234.50')
+    expect(sanitizeAmount('-99')).toBe('99')   // amounts are non-negative
+    expect(sanitizeAmount('1 23,4.5')).toBe('1 23,4.5')
+  })
+})
+
+// ---- groupIndian (lakh/crore digit grouping) ----
+
+describe('groupIndian', () => {
+  it('groups integer part as 2,2,3 from the right and keeps the decimal', () => {
+    expect(groupIndian('23456.45')).toBe('23,456.45')
+    expect(groupIndian('1234567')).toBe('12,34,567')
+    expect(groupIndian('123456789.5')).toBe('12,34,56,789.5')
+    expect(groupIndian('999')).toBe('999')
+    expect(groupIndian('-1234567')).toBe('-12,34,567')
+    expect(groupIndian('')).toBe('')
+  })
+
+  it('round-trips with parseFormAmount', () => {
+    expect(parseFormAmount(groupIndian('98765432.1'))).toBe(98765432.1)
+  })
+})
+
+// ---- formToBody / changedRegions (override + reset semantics) ----
+
+const blank = (): Parameters<typeof formToBody>[0] => ({
+  INR: { invested: '', current: '' },
+  EUR: { invested: '', current: '' },
+  USD: { invested: '', current: '' },
+})
+
+describe('formToBody', () => {
+  it('includes a region with an explicit 0 so a value can be reset', () => {
+    const f = blank()
+    f.USD = { invested: '0', current: '0' } // reset USD to zero
+    expect(formToBody(f)).toEqual({ USD: { invested: 0, current: 0 } })
+  })
+  it('treats a blank field as 0 when the other is filled', () => {
+    const f = blank()
+    f.INR = { invested: '100', current: '' }
+    expect(formToBody(f)).toEqual({ INR: { invested: 100, current: 0 } })
+  })
+  it('skips a region whose both fields are blank (untouched)', () => {
+    expect(formToBody(blank())).toEqual({})
+  })
+})
+
+describe('changedRegions', () => {
+  it('keeps only regions that differ from the original row', () => {
+    const original = {
+      INR: region(100, 110, 'manual'),
+      USD: region(0, 1, 'manual'),
+    }
+    const body = { INR: { invested: 100, current: 110 }, USD: { invested: 0, current: 0 } }
+    // INR unchanged → dropped; USD current 1→0 → kept.
+    expect(changedRegions(body, original)).toEqual({ USD: { invested: 0, current: 0 } })
+  })
+  it('returns empty when nothing changed (no request)', () => {
+    const original = { INR: region(5, 6, 'manual') }
+    expect(changedRegions({ INR: { invested: 5, current: 6 } }, original)).toEqual({})
+  })
+})
+
+// ---- symmetricDomain (zero-centred volatility axis) ----
+
+describe('symmetricDomain', () => {
+  it('centres the range on zero around the largest swing', () => {
+    const d = symmetricDomain([-3, 1, -5, 2])
+    expect(d).toBeDefined()
+    expect(d![0]).toBe(-d![1])           // symmetric about 0
+    expect(d![1]).toBeGreaterThanOrEqual(5)
+  })
+  it('returns undefined when no finite values', () => {
+    expect(symmetricDomain([null, undefined, NaN])).toBeUndefined()
+  })
+  it('handles an all-zero series', () => {
+    expect(symmetricDomain([0, 0])).toEqual([-1, 1])
+  })
+})
+
+// ---- regionHasData (hide empty currency charts) ----
+
+describe('regionHasData', () => {
+  it('is false when every point is zero or null', () => {
+    expect(regionHasData([{ invested: 0, current: 0 }, { invested: null, current: null }])).toBe(false)
+  })
+  it('is true when any invested or current is non-zero', () => {
+    expect(regionHasData([{ invested: 0, current: 0 }, { invested: null, current: 12 }])).toBe(true)
+  })
 })
 
 // ---- monthRange (TDD §7.1 range derivation) ----

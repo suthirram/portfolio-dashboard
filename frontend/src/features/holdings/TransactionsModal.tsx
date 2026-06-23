@@ -3,6 +3,8 @@ import type { CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { HoldingWithPrice, Transaction, TransactionInput, TransactionType } from '../../types'
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
+import { DecimalInput } from '../../components/DecimalInput'
+import { parseDecimalInput } from '../../lib/formNumbers'
 
 // Ordered for the type picker; opening is managed via the holding's opening
 // balance, but is shown read-only in the list when present.
@@ -87,19 +89,28 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     if (!holding.id) return
     setErr('')
 
+    const quantity = parseDecimalInput(form.quantity)
+    if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return }
+    const amount = parseDecimalInput(form.amount)
+    if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return }
+    const ratio = parseDecimalInput(form.ratio)
+    if (!Number.isFinite(ratio) || ratio < 0) { setErr('Enter a valid ratio'); return }
+    const realizedSeed = parseDecimalInput(form.realized, { allowNegative: true })
+    if (!Number.isFinite(realizedSeed)) { setErr('Enter a valid realised P&L seed'); return }
+
     const payload: TransactionInput = {
       type: form.type,
       // Send a full RFC3339 timestamp; the backend parses date-time.
       date: new Date(form.date + 'T00:00:00Z').toISOString(),
-      quantity: parseFloat(form.quantity) || 0,
-      amount: parseFloat(form.amount) || 0,
+      quantity,
+      amount,
       notes: form.notes.trim() || undefined,
     }
     if (form.type === 'split' || form.type === 'bonus') {
-      payload.ratio = parseFloat(form.ratio) || 0
+      payload.ratio = ratio
     }
     if (form.type === 'opening') {
-      payload.realized_seed = parseFloat(form.realized) || 0
+      payload.realized_seed = realizedSeed
     }
 
     setSaving(true)
@@ -189,8 +200,8 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
               {form.type !== 'dividend' && (
                 <div>
                   <label style={LABEL}>Shares</label>
-                  <input style={INPUT} type="number" min="0" step="any" value={form.quantity}
-                    onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} placeholder="0" />
+                  <DecimalInput style={INPUT} value={form.quantity}
+                    onValueChange={value => setForm(f => ({ ...f, quantity: value }))} placeholder="0" />
                 </div>
               )}
               <div>
@@ -200,8 +211,8 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                     : form.type === 'opening' ? `Total cost (${sym})`
                     : `Total debited (${sym})`}
                 </label>
-                <input style={INPUT} type="number" min="0" step="any" value={form.amount}
-                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0.00" />
+                <DecimalInput style={INPUT} value={form.amount}
+                  onValueChange={value => setForm(f => ({ ...f, amount: value }))} placeholder="0.00" />
               </div>
             </div>
           )}
@@ -209,8 +220,8 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
           {isOpening && (
             <div style={{ marginTop: 12 }}>
               <label style={LABEL}>Realised P&L seed ({sym})</label>
-              <input style={INPUT} type="number" step="any" value={form.realized}
-                onChange={e => setForm(f => ({ ...f, realized: e.target.value }))}
+              <DecimalInput style={INPUT} value={form.realized} allowNegative
+                onValueChange={value => setForm(f => ({ ...f, realized: value }))}
                 placeholder="Carried realised P&L (optional)" />
             </div>
           )}
@@ -218,8 +229,8 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
           {isCorporate && (
             <div style={{ marginTop: 12 }}>
               <label style={LABEL}>Ratio (new shares per old, e.g. 2 = 2-for-1)</label>
-              <input style={INPUT} type="number" min="0" step="any" value={form.ratio}
-                onChange={e => setForm(f => ({ ...f, ratio: e.target.value }))} placeholder="2" />
+              <DecimalInput style={INPUT} value={form.ratio}
+                onValueChange={value => setForm(f => ({ ...f, ratio: value }))} placeholder="2" />
             </div>
           )}
 

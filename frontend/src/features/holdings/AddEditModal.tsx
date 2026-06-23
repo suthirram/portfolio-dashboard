@@ -3,6 +3,8 @@ import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 import { CheckIcon } from '../../components/Icon'
+import { DecimalInput } from '../../components/DecimalInput'
+import { parseDecimalInput } from '../../lib/formNumbers'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES: HoldingType[] = ['stock', 'etf']
@@ -96,6 +98,13 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
     setErr('')
     if (!form.script.trim()) { setErr('Script name is required'); return }
 
+    const stocksOwned = parseDecimalInput(String(form.stocks_owned))
+    if (!Number.isFinite(stocksOwned) || stocksOwned < 0) { setErr('Enter a valid shares owned value'); return }
+    const avgCostPrice = parseDecimalInput(String(form.avg_cost_price))
+    if (!Number.isFinite(avgCostPrice) || avgCostPrice < 0) { setErr('Enter a valid average cost price'); return }
+    const realizedPnL = parseDecimalInput(String(form.realized_pnl), { allowNegative: true })
+    if (!Number.isFinite(realizedPnL)) { setErr('Enter a valid realised P&L'); return }
+
     setLoading(true)
     try {
       const payload: HoldingInput = {
@@ -107,9 +116,9 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
         // ignores them (position is derived from the ledger), so the derived
         // values pre-filled in the form are inert here — the opening balance is
         // edited in the Transactions modal instead.
-        stocks_owned: parseFloat(String(form.stocks_owned)) || 0,
-        avg_cost_price: parseFloat(String(form.avg_cost_price)) || 0,
-        realized_pnl: parseFloat(String(form.realized_pnl)) || 0,
+        stocks_owned: stocksOwned,
+        avg_cost_price: avgCostPrice,
+        realized_pnl: realizedPnL,
         currency: form.currency,
         notes: form.notes.trim(),
       }
@@ -215,17 +224,17 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
                 <div style={ROW2}>
                   <div>
                     <label style={LABEL}>Shares Owned</label>
-                    <input style={INPUT} type="number" min="0" step="any" value={form.stocks_owned} onChange={set('stocks_owned')} placeholder="0" />
+                    <DecimalInput style={INPUT} value={form.stocks_owned} onValueChange={value => setForm(f => ({ ...f, stocks_owned: value }))} placeholder="0" />
                   </div>
                   <div>
                     <label style={LABEL}>Avg Cost Price ({form.currency === 'EUR' ? '€' : '₹'})</label>
-                    <input style={INPUT} type="number" min="0" step="any" value={form.avg_cost_price} onChange={set('avg_cost_price')} placeholder="0.00" />
+                    <DecimalInput style={INPUT} value={form.avg_cost_price} onValueChange={value => setForm(f => ({ ...f, avg_cost_price: value }))} placeholder="0.00" />
                   </div>
                 </div>
 
                 <div>
                   <label style={LABEL}>Realised P&L ({form.currency === 'EUR' ? '€' : '₹'})</label>
-                  <input style={INPUT} type="number" step="any" value={form.realized_pnl} onChange={set('realized_pnl')} placeholder="Profit/loss from shares already sold" />
+                  <DecimalInput style={INPUT} value={form.realized_pnl} allowNegative onValueChange={value => setForm(f => ({ ...f, realized_pnl: value }))} placeholder="Profit/loss from shares already sold" />
                 </div>
               </>
             )}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Dispatch, FocusEvent, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 import {
   api,
@@ -11,7 +12,9 @@ import {
   type RegionSnapshot,
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
+import { DecimalInput } from '../../components/DecimalInput'
 import { EditIcon, TrashIcon } from '../../components/Icon'
+import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import { useAuthOptional } from '../auth/AuthContext'
 
@@ -119,14 +122,84 @@ function emptyForm(): RegionFormState {
   }
 }
 
-function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
+// parseFormAmount tolerates both decimal conventions so a value typed into an
+// amount form parses the same regardless of the user's locale habits. The last
+// separator is the decimal when both '.' and ',' are present; otherwise a single
+// separator is treated as decimal unless it looks like a thousands group.
+// Empty -> 0. Distinct from the paste parser, where comma is always grouping.
+//   "23456.45" -> 23456.45   "23456,45"  -> 23456.45
+//   "23,456.45" -> 23456.45  "23.456,45" -> 23456.45
+//   "1,234" -> 1234          "1,234,567" -> 1234567
+export function parseFormAmount(s: string): number {
+  return parseDecimalInput(s)
+}
+export { groupIndian }
+
+// groupedInitial formats a stored numeric value for an input's initial display.
+function groupedInitial(v: number | undefined): string {
+  return v == null ? '' : groupIndian(String(v))
+}
+
+// sanitizeAmount drops anything that can't be part of a numeric amount. The
+// DecimalInput component also blocks those keystrokes before they reach state.
+export function sanitizeAmount(s: string): string {
+  return sanitizeDecimalInput(s)
+}
+
+// formError validates the amount fields before submit. A field that is
+// non-empty but does not parse to a finite number is rejected (rather than
+// silently skipped) so a typo can never drop a region on save.
+function formError(form: RegionFormState): string | null {
+  for (const r of REGIONS) {
+    for (const key of ['invested', 'current'] as const) {
+      const raw = form[r][key].trim()
+      if (raw !== '' && !Number.isFinite(parseFormAmount(raw))) {
+        return `Enter a valid ${key} amount for ${REGION_LABELS[r]}.`
+      }
+    }
+  }
+  return null
+}
+
+// regroupHandler returns an onBlur handler that normalises a typed amount and
+// re-applies Indian grouping, so freshly entered values match the prefilled
+// ones (e.g. "2345678" → "23,45,678"). Empty stays empty.
+function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>>) {
+  return (r: RegionKey, key: keyof RegionFormValue) =>
+    (e: FocusEvent<HTMLInputElement>) => {
+      const raw = e.target.value.trim()
+      const parsed = parseFormAmount(raw)
+      const grouped = raw === '' || !Number.isFinite(parsed) ? raw : groupIndian(String(parsed))
+      setForm(f => ({ ...f, [r]: { ...f[r], [key]: grouped } }))
+    }
+}
+
+// formToBody collects the regions the user actually touched. A region is
+// included when either field is non-blank (a blank field counts as 0), so an
+// explicit 0 — e.g. resetting a value from 1 to 0 — overrides rather than being
+// dropped. A region with BOTH fields blank is untouched and left unchanged.
+export function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
   const out: Record<string, { invested: number; current: number }> = {}
   for (const r of REGIONS) {
-    const inv = Number(form[r].invested)
-    const cur = Number(form[r].current)
-    if (Number.isFinite(inv) && Number.isFinite(cur) && (inv > 0 || cur > 0)) {
-      out[r] = { invested: inv, current: cur }
-    }
+    const investedRaw = form[r].invested.trim()
+    const currentRaw = form[r].current.trim()
+    if (investedRaw === '' && currentRaw === '') continue // untouched region
+    out[r] = { invested: parseFormAmount(investedRaw), current: parseFormAmount(currentRaw) }
+  }
+  return out
+}
+
+// changedRegions keeps only the regions whose values differ from the original
+// row. Saving an edit that touched one currency then doesn't re-assert (and
+// flip to manual) the untouched ones, and a no-op save sends nothing.
+export function changedRegions(
+  body: Record<string, { invested: number; current: number }>,
+  original: Record<string, RegionSnapshot>,
+): Record<string, { invested: number; current: number }> {
+  const out: Record<string, { invested: number; current: number }> = {}
+  for (const [r, v] of Object.entries(body)) {
+    const o = original[r]
+    if (!o || o.invested !== v.invested || o.current !== v.current) out[r] = v
   }
   return out
 }
@@ -337,7 +410,7 @@ export default function HistoryPage() {
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
-            {REGIONS.map(r => (
+            {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
             ))}
           </>
@@ -383,12 +456,13 @@ export const CURRENCY_SYMBOL: Record<'INR' | 'EUR' | 'USD', string> = {
   USD: '$',
 }
 
-// fmtCurrency formats amount with the currency symbol and 2dp, e.g.
-// "₹1,019,620.00". An amount of 0 renders as "₹0.00" rather than the em
-// dash used elsewhere, because in the per-currency layout an absent
-// value collapses the whole row group instead.
+// fmtCurrency formats amount with the currency symbol and 2dp using Indian
+// digit grouping (lakh/crore), e.g. "₹10,19,620.00", regardless of the
+// browser locale. An amount of 0 renders as "₹0.00" rather than the em dash
+// used elsewhere, because in the per-currency layout an absent value collapses
+// the whole row group instead.
 export function fmtCurrency(amount: number, sym: string): string {
-  return sym + amount.toLocaleString(undefined, {
+  return sym + amount.toLocaleString('en-IN', {
     minimumFractionDigits: 2, maximumFractionDigits: 2,
   })
 }
@@ -417,8 +491,9 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
     () => niceDomain(data.map(d => d.pnl_pct)),
     [data],
   )
+  // Daily volatility swings both ways around 0, so centre the axis on zero.
   const volDomain = useMemo(
-    () => niceDomain(data.map(d => d.daily_vol)),
+    () => symmetricDomain(data.map(d => d.daily_vol)),
     [data],
   )
   return (
@@ -476,6 +551,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
                 <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
+                <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
                 <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
@@ -537,6 +613,28 @@ export function niceDomain(values: (number | null | undefined)[]): [number, numb
   return [min, max]
 }
 
+// symmetricDomain returns a [-m, +m] range centred on zero so a signed series
+// (daily volatility %) renders with the zero line in the middle of the chart.
+// m is the padded, nicely-rounded magnitude of the largest swing either way.
+// Returns undefined when there are no finite values.
+export function symmetricDomain(values: (number | null | undefined)[]): [number, number] | undefined {
+  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (finite.length === 0) return undefined
+  const maxAbs = Math.max(...finite.map(Math.abs))
+  if (maxAbs === 0) return [-1, 1]
+  const pad = maxAbs * 0.08
+  const step = niceStep((maxAbs + pad) / 3)
+  const m = Math.ceil((maxAbs + pad) / step) * step
+  return [-m, m]
+}
+
+// regionHasData reports whether a region's chart series has any non-zero
+// invested or current value. Used to hide a currency's charts entirely when
+// the profile never held that currency (e.g. USD for the super admin).
+export function regionHasData(data: { invested: number | null; current: number | null }[]): boolean {
+  return data.some(d => (d.invested ?? 0) !== 0 || (d.current ?? 0) !== 0)
+}
+
 // niceStep rounds a raw step up to the nearest 1/2/5 × 10ⁿ — the
 // classic "nice number" sequence for axis ticks.
 function niceStep(raw: number): number {
@@ -559,7 +657,7 @@ export function fmtAxisAmount(v: number): string {
 // ---- Table ----
 
 function fmt(n: number) {
-  return n === 0 ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return n === 0 ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
 // regionDailyVolatility is the per-currency day-over-day % used by the
@@ -672,7 +770,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
             {REGIONS.map((r, idx) => (
               <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
-            <th style={th}></th>
+            <th style={actionTh}></th>
           </tr>
         </thead>
         <tbody>
@@ -693,20 +791,22 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                     theme={theme}
                   />
                 ))}
-                <td style={{ ...td, display: 'flex', gap: 8 }}>
-                  {onEdit && (
-                    <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
-                      aria-label={`Edit row for ${r.date}`} title="Edit">
-                      <EditIcon size={16} />
-                    </button>
-                  )}
-                  {(isAllManual(r.regions) || canForceDelete) && (
-                    <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
-                      aria-label={`Delete row for ${r.date}`}
-                      title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
-                      <TrashIcon size={16} />
-                    </button>
-                  )}
+                <td style={actionTd}>
+                  <div style={actionCell}>
+                    {onEdit && (
+                      <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
+                        aria-label={`Edit row for ${r.date}`} title="Edit">
+                        <EditIcon size={16} />
+                      </button>
+                    )}
+                    {(isAllManual(r.regions) || canForceDelete) && (
+                      <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
+                        aria-label={`Delete row for ${r.date}`}
+                        title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
+                        <TrashIcon size={16} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             )
@@ -789,6 +889,9 @@ const sortHeaderBtn: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', gap: 4,
 }
 const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid var(--border)' }
+const actionTh: React.CSSProperties = { ...th, width: 72, minWidth: 72, textAlign: 'center' }
+const actionTd: React.CSSProperties = { ...td, width: 72, minWidth: 72, textAlign: 'center', verticalAlign: 'middle' }
+const actionCell: React.CSSProperties = { display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'center' }
 
 // ---- Modals ----
 
@@ -825,8 +928,13 @@ export function AddRowModal({ onSubmit, onCancel }: {
   const [date, setDate] = useState(today)
   const [form, setForm] = useState<RegionFormState>(emptyForm())
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const regroup = regroupHandler(setForm)
 
   const submit = async () => {
+    const err = formError(form)
+    if (err) { setError(err); return }
+    setError('')
     setBusy(true)
     try {
       await onSubmit({ date, regions: formToBody(form) })
@@ -850,19 +958,22 @@ export function AddRowModal({ onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="number" min="0" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
+                <DecimalInput value={form[r].invested}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
+                  onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="number" min="0" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
+                <DecimalInput value={form[r].current}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
+                  onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
           </fieldset>
         ))}
+        {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
           <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
@@ -952,17 +1063,26 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   onCancel: () => void
 }) {
   const initial: RegionFormState = {
-    INR: { invested: String(row.regions.INR?.invested ?? ''), current: String(row.regions.INR?.current ?? '') },
-    EUR: { invested: String(row.regions.EUR?.invested ?? ''), current: String(row.regions.EUR?.current ?? '') },
-    USD: { invested: String(row.regions.USD?.invested ?? ''), current: String(row.regions.USD?.current ?? '') },
+    INR: { invested: groupedInitial(row.regions.INR?.invested), current: groupedInitial(row.regions.INR?.current) },
+    EUR: { invested: groupedInitial(row.regions.EUR?.invested), current: groupedInitial(row.regions.EUR?.current) },
+    USD: { invested: groupedInitial(row.regions.USD?.invested), current: groupedInitial(row.regions.USD?.current) },
   }
   const [form, setForm] = useState<RegionFormState>(initial)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const regroup = regroupHandler(setForm)
 
   const submit = async () => {
+    const err = formError(form)
+    if (err) { setError(err); return }
+    setError('')
+    // Only send the regions that actually changed; a no-op edit closes without
+    // hitting the backend.
+    const body = changedRegions(formToBody(form), row.regions)
+    if (Object.keys(body).length === 0) { onCancel(); return }
     setBusy(true)
     try {
-      await onSubmit(row.date, formToBody(form))
+      await onSubmit(row.date, body)
     } finally {
       setBusy(false)
     }
@@ -973,10 +1093,10 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
       <div style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-          Saving overrides any cron-written value with the manual value below. A
-          region whose <em>both</em> fields are blank or zero is skipped — its
-          existing value stays unchanged. Type at least one positive number per
-          region to override it.
+          Saving overrides any cron-written value with the manual value below.
+          Only the regions you change are saved; enter <em>0</em> to reset a
+          value. A region left exactly as it was (both fields untouched) is not
+          re-saved.
         </p>
         {REGIONS.map(r => (
           <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
@@ -986,19 +1106,22 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <input type="number" min="0" value={form[r].invested}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], invested: e.target.value } }))}
+                <DecimalInput value={form[r].invested}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
+                  onBlur={regroup(r, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <input type="number" min="0" value={form[r].current}
-                  onChange={e => setForm(f => ({ ...f, [r]: { ...f[r], current: e.target.value } }))}
+                <DecimalInput value={form[r].current}
+                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
+                  onBlur={regroup(r, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
           </fieldset>
         ))}
+        {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
           <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
