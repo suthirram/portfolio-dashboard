@@ -122,6 +122,69 @@ func TestGetPrice_CacheExpiry_RefetchesAfterTTL(t *testing.T) {
 	}
 }
 
+// makeYahooCandles builds a chart response with daily candles. A nil close
+// models a non-trading slot (weekend/holiday) the way Yahoo returns it.
+func makeYahooCandles(currency string, ts []int64, closes []*float64) []byte {
+	type quote struct {
+		Close []*float64 `json:"close"`
+	}
+	type indicators struct {
+		Quote []quote `json:"quote"`
+	}
+	type meta struct {
+		Currency           string  `json:"currency"`
+		RegularMarketPrice float64 `json:"regularMarketPrice"`
+	}
+	type result struct {
+		Meta       meta       `json:"meta"`
+		Timestamp  []int64    `json:"timestamp"`
+		Indicators indicators `json:"indicators"`
+	}
+	type chart struct {
+		Result []result `json:"result"`
+		Error  any      `json:"error"`
+	}
+	b, _ := json.Marshal(struct {
+		Chart chart `json:"chart"`
+	}{Chart: chart{Result: []result{{
+		Meta:       meta{Currency: currency, RegularMarketPrice: 999},
+		Timestamp:  ts,
+		Indicators: indicators{Quote: []quote{{Close: closes}}},
+	}}}})
+	return b
+}
+
+func fptr(v float64) *float64 { return &v }
+
+func TestGetClose_PicksLastRealSessionClose(t *testing.T) {
+	// Fri 2026-06-19 close 4419.90, then a trailing nil slot (weekend) that
+	// GetClose must skip — returning Friday's close and date, not a flicker.
+	fri := time.Date(2026, 6, 19, 0, 0, 0, 0, time.UTC).Unix()
+	sat := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC).Unix()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(makeYahooCandles("INR",
+			[]int64{fri, sat},
+			[]*float64{fptr(4419.90), nil}))
+	}))
+	defer srv.Close()
+
+	ps := newTestPriceService(srv.URL)
+	price, ccy, date, err := ps.GetClose(context.Background(), "TITAN.NS")
+	if err != nil {
+		t.Fatalf("GetClose: %v", err)
+	}
+	if price != 4419.90 {
+		t.Errorf("price = %v, want 4419.90 (last real close, not weekend nil)", price)
+	}
+	if ccy != "INR" {
+		t.Errorf("currency = %v, want INR", ccy)
+	}
+	if date != "2026-06-19" {
+		t.Errorf("priceDate = %q, want 2026-06-19 (the trading day, not the weekend)", date)
+	}
+}
+
 func TestGetForexRate_InvertsQuotedPrice(t *testing.T) {
 	// Yahoo quotes EURINR=X ≈ 90 (1 EUR = 90 INR).
 	// GetForexRate(ctx, "INR","EUR") must return 1/90 (how many EUR per 1 INR).

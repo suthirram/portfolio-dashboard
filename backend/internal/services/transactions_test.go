@@ -43,7 +43,7 @@ func TestTransactionsService_Create_OversellRollsBack(t *testing.T) {
 		)
 
 		st := persistence.New(mt.DB)
-		svc := NewTransactionsService(st.Transactions, st.Holdings, nil)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
 
 		qty, amt := 10.0, 1000.0
 		_, found, err := svc.Create(context.Background(), uid, hid.Hex(), api.TransactionInput{
@@ -96,7 +96,7 @@ func TestTransactionsService_Delete_OversellReinserts(t *testing.T) {
 		)
 
 		st := persistence.New(mt.DB)
-		svc := NewTransactionsService(st.Transactions, st.Holdings, nil)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
 
 		deleted, err := svc.Delete(context.Background(), uid, buyID.Hex())
 		if !errors.Is(err, ErrOversell) {

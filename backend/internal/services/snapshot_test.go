@@ -214,6 +214,13 @@ func (m *multiStub) GetForexRate(_ context.Context, _, _ string) (float64, error
 	return 0.011, nil
 }
 
+func (m *multiStub) GetClose(_ context.Context, symbol string) (float64, string, string, error) {
+	if p, ok := m.prices[symbol]; ok {
+		return p, "INR", "2026-01-01", nil
+	}
+	return 0, "", "", errors.New("no price")
+}
+
 // -- Run/Report --
 
 func TestRun_DryRunDoesNotPersist(t *testing.T) {

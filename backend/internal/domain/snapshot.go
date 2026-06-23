@@ -62,6 +62,30 @@ type RegionSnapshot struct {
 	WriteCurrency string `bson:"write_currency,omitempty" json:"write_currency,omitempty"`
 }
 
+// HoldingSnapshot is one holding's contribution to a snapshot, carrying the
+// per-stock close used to value it (PD-0xx). Storing the close at write time
+// makes a row reproducible: a later backdated transaction can be replayed and
+// the position revalued against the price that actually held on that date,
+// instead of refetching (which a closed market can no longer provide).
+//
+// Currency is the bucket key (INR|EUR|USD). PriceDate is the trading date the
+// ClosePrice belongs to ("YYYY-MM-DD") — on a weekend/holiday it is the prior
+// session, not the snapshot date, which is how the weekend-phantom drift is
+// avoided. Invested = Quantity×AvgCost, Current = Quantity×ClosePrice; both are
+// stored so a read never has to recompute, and a carry-forward day (no live
+// close available) sets ClosePrice = AvgCost so Current == Invested.
+type HoldingSnapshot struct {
+	Symbol     string  `bson:"symbol" json:"symbol"`
+	Script     string  `bson:"script" json:"script"`
+	Currency   string  `bson:"currency" json:"currency"`
+	Quantity   float64 `bson:"quantity" json:"quantity"`
+	AvgCost    float64 `bson:"avg_cost" json:"avg_cost"`
+	ClosePrice float64 `bson:"close_price" json:"close_price"`
+	PriceDate  string  `bson:"price_date,omitempty" json:"price_date,omitempty"`
+	Invested   float64 `bson:"invested" json:"invested"`
+	Current    float64 `bson:"current" json:"current"`
+}
+
 // PortfolioSnapshot is the cumulative state of one user's portfolio at one
 // UTC midnight. Totals are derived at read time so a manual override of one
 // region cannot drift the stored totals (DD-002 §2.1).
@@ -76,10 +100,36 @@ type PortfolioSnapshot struct {
 	// switched the dimension from region to currency, and PD-042 §3.6/§6
 	// flagged the field-name rename as a v2 follow-up. Do not rename the
 	// tags without writing a Mongo migration.
-	Buckets   map[string]RegionSnapshot `bson:"regions" json:"regions"`
-	CreatedAt time.Time                 `bson:"created_at" json:"-"`
-	UpdatedAt time.Time                 `bson:"updated_at" json:"-"`
+	Buckets map[string]RegionSnapshot `bson:"regions" json:"regions"`
+	// Lines is the per-stock breakdown behind the cron-sourced buckets. It is
+	// nil on PR4-era rows and on purely manual rows; a manual override replaces
+	// a bucket total but does not carry per-stock detail. Lines only ever cover
+	// currencies whose bucket is cron-sourced — see BucketsFromLines.
+	Lines     []HoldingSnapshot `bson:"holdings,omitempty" json:"holdings,omitempty"`
+	CreatedAt time.Time         `bson:"created_at" json:"-"`
+	UpdatedAt time.Time         `bson:"updated_at" json:"-"`
 }
+
+// BucketsFromLines aggregates per-stock lines into the per-currency bucket map,
+// every bucket marked cron-sourced. Currencies with no line still get a zero
+// row so the chart starts the day the user signed up (PRD-002 §6). Monetary
+// fields are rounded to two decimals to match the snapshot-build convention.
+func BucketsFromLines(lines []HoldingSnapshot) map[string]RegionSnapshot {
+	buckets := make(map[string]RegionSnapshot, len(AllCurrencies))
+	for _, c := range AllCurrencies {
+		buckets[c] = RegionSnapshot{Source: SnapshotSourceCron}
+	}
+	for _, ln := range lines {
+		rs := buckets[ln.Currency]
+		rs.Source = SnapshotSourceCron
+		rs.Invested += round2(ln.Invested)
+		rs.Current += round2(ln.Current)
+		buckets[ln.Currency] = rs
+	}
+	return buckets
+}
+
+func round2(v float64) float64 { return float64(int64(v*100+sign(v)*0.5)) / 100 }
 
 // SnapshotTotals is the derived aggregate over a PortfolioSnapshot. PnLPct
 // is a pointer so an undefined value (invested_total == 0) serialises to

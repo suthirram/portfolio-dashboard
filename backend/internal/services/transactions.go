@@ -26,14 +26,49 @@ var ErrValidation = errors.New("transaction: invalid input")
 // it, so holdings stay a materialized projection of the ledger. All reads and
 // writes are owner-scoped (DD-001 §6.1).
 type TransactionsService struct {
-	txns     *persistence.TransactionStore
-	holdings *persistence.HoldingStore
-	logger   *zap.Logger
+	txns       *persistence.TransactionStore
+	holdings   *persistence.HoldingStore
+	recomputer snapshotRecomputer
+	logger     *zap.Logger
 }
 
-// NewTransactionsService wires a TransactionsService.
-func NewTransactionsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, logger *zap.Logger) *TransactionsService {
-	return &TransactionsService{txns: txns, holdings: holdings, logger: logger}
+// snapshotRecomputer heals stored snapshots after a backdated ledger change.
+// Optional: nil disables the heal (the ledger/holding still update normally),
+// so tests that don't exercise history can omit it.
+type snapshotRecomputer interface {
+	RecomputeFrom(ctx context.Context, uid primitive.ObjectID, from time.Time) error
+}
+
+// NewTransactionsService wires a TransactionsService. recomputer may be nil.
+func NewTransactionsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, recomputer snapshotRecomputer, logger *zap.Logger) *TransactionsService {
+	return &TransactionsService{txns: txns, holdings: holdings, recomputer: recomputer, logger: logger}
+}
+
+// healSnapshots recomputes stored snapshots from the earliest affected date
+// when a ledger event touches a past date. A no-op when the recomputer is
+// unset or the date is today/future (today's row is the cron's job). Best
+// effort: a recompute failure is logged, not surfaced — the ledger write has
+// already succeeded and must not be rolled back for a history-heal miss.
+func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.ObjectID, dates ...time.Time) {
+	if s.recomputer == nil {
+		return
+	}
+	var earliest time.Time
+	for _, d := range dates {
+		if earliest.IsZero() || d.Before(earliest) {
+			earliest = d
+		}
+	}
+	if earliest.IsZero() {
+		return
+	}
+	today := domain.UTCDate(time.Now().UTC())
+	if !domain.UTCDate(earliest).Before(today) {
+		return // today or future: nothing earlier to heal
+	}
+	if err := s.recomputer.RecomputeFrom(ctx, uid, earliest); err != nil {
+		s.log(ctx).Warn("snapshot heal failed", zap.String("user_id", uid.Hex()), zap.Error(err))
+	}
 }
 
 func (s *TransactionsService) log(ctx context.Context) *zap.Logger {
@@ -112,6 +147,7 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 	}
 	s.log(ctx).Info("transaction created",
 		zap.String("id", t.ID.Hex()), zap.String("holding", hid.Hex()), zap.String("type", string(t.Type)))
+	s.healSnapshots(ctx, uid, t.Date)
 	return TransactionToAPI(t), true, nil
 }
 
@@ -158,6 +194,9 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 		return api.Transaction{}, true, err
 	}
 	s.log(ctx).Info("transaction updated", zap.String("id", idHex))
+	// Heal from the earliest of the old and new dates — moving a txn earlier
+	// or later both invalidate the range between them.
+	s.healSnapshots(ctx, uid, prev.Date, updated.Date)
 	return TransactionToAPI(updated), true, nil
 }
 
@@ -190,6 +229,7 @@ func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID
 		return false, err
 	}
 	s.log(ctx).Info("transaction deleted", zap.String("id", idHex))
+	s.healSnapshots(ctx, uid, prev.Date)
 	return true, nil
 }
 
