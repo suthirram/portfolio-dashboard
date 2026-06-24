@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,12 +16,9 @@ import (
 )
 
 // cachedPrice holds a price with a timestamp for TTL-based invalidation.
-// closeDate is set only for entries written by GetClose (the trading date the
-// price belongs to); GetPrice leaves it empty.
 type cachedPrice struct {
 	price     float64
 	currency  string
-	closeDate string
 	fetchedAt time.Time
 }
 
@@ -64,12 +60,6 @@ type yahooChartResp struct {
 				Currency           string  `json:"currency"`
 				RegularMarketPrice float64 `json:"regularMarketPrice"`
 			} `json:"meta"`
-			Timestamp  []int64 `json:"timestamp"`
-			Indicators struct {
-				Quote []struct {
-					Close []*float64 `json:"close"`
-				} `json:"quote"`
-			} `json:"indicators"`
 		} `json:"result"`
 		Error any `json:"error"`
 	} `json:"chart"`
@@ -120,51 +110,6 @@ func (s *PriceService) GetForexRate(ctx context.Context, from, to string) (float
 	return 1 / price, nil
 }
 
-// GetClose returns the most recent actual session close for a symbol, the
-// currency, and the trading date that close belongs to ("YYYY-MM-DD"). Unlike
-// GetPrice (which reads regularMarketPrice and on a closed market returns a
-// non-session flicker), GetClose reads the last non-null daily candle, so a
-// snapshot taken on a weekend records the prior real close and its date — the
-// fix for the weekend-phantom drift. Cached under a distinct key so it never
-// collides with GetPrice's regularMarketPrice entry.
-func (s *PriceService) GetClose(ctx context.Context, symbol string) (float64, string, string, error) {
-	key := "close:" + symbol
-	if c, ok := s.cacheGet(key); ok {
-		return c.price, c.currency, c.closeDate, nil
-	}
-
-	// range=5d covers weekends (max 2-day gap). TODO(holidays): widen to
-	// range=1mo when holiday gaps are in scope — a >5 calendar-day gap with
-	// no session inside the window yields all-null candles, degrading the
-	// holding to close=0 (silent zero-valuation).
-	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&range=5d",
-		s.baseURL, url.PathEscape(symbol))
-	yr, err := s.fetchChart(ctx, endpoint, symbol)
-	if err != nil {
-		s.log().Warn("close fetch failed", zap.String("symbol", symbol), zap.String("error", err.Error()))
-		return 0, "", "", err
-	}
-	res := yr.Chart.Result[0]
-	var closes []*float64
-	if len(res.Indicators.Quote) > 0 {
-		closes = res.Indicators.Quote[0].Close
-	}
-	// Walk back from the newest candle to the last one with a non-null close.
-	for i, c := range slices.Backward(closes) {
-		if c == nil || *c <= 0 {
-			continue
-		}
-		date := ""
-		if i < len(res.Timestamp) {
-			date = time.Unix(res.Timestamp[i], 0).UTC().Format("2006-01-02")
-		}
-		price := *c
-		s.cacheSetClose(key, price, res.Meta.Currency, date)
-		return price, res.Meta.Currency, date, nil
-	}
-	return 0, "", "", fmt.Errorf("no session close for %s", symbol)
-}
-
 func (s *PriceService) cacheGet(symbol string) (cachedPrice, bool) {
 	s.cacheMu.RLock()
 	defer s.cacheMu.RUnlock()
@@ -179,12 +124,6 @@ func (s *PriceService) cacheSet(symbol string, price float64, currency string) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
 	s.cache[symbol] = cachedPrice{price: price, currency: currency, fetchedAt: time.Now()}
-}
-
-func (s *PriceService) cacheSetClose(key string, price float64, currency, closeDate string) {
-	s.cacheMu.Lock()
-	defer s.cacheMu.Unlock()
-	s.cache[key] = cachedPrice{price: price, currency: currency, closeDate: closeDate, fetchedAt: time.Now()}
 }
 
 func (s *PriceService) fetch(ctx context.Context, symbol string) (float64, string, error) {

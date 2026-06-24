@@ -14,11 +14,6 @@ import (
 type PriceFetcher interface {
 	GetPrice(ctx context.Context, symbol string) (float64, string, error)
 	GetForexRate(ctx context.Context, from, to string) (float64, error)
-	// GetClose returns the last actual session close, its currency, and the
-	// trading date ("YYYY-MM-DD") it belongs to. Snapshot valuation uses it
-	// instead of GetPrice so a closed-market run records a real close, not a
-	// weekend flicker.
-	GetClose(ctx context.Context, symbol string) (float64, string, string, error)
 }
 
 // ValidCurrency reports whether s is one of the supported currency codes.

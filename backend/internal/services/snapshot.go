@@ -85,11 +85,18 @@ func CurrencyOf(h domain.Holding) (string, bool) {
 	return "unknown", false
 }
 
-// BuildSnapshot computes the (user, date) snapshot for uid using live
-// prices. A per-symbol price error degrades that symbol to current ==
-// invested for the day (no synthetic gain/loss) and is logged. An empty
-// portfolio still produces a row with all canonical regions at zero, so
-// the chart starts the day the user signed up (PRD-002 §6).
+// BuildSnapshot computes the (user, date) snapshot for uid.
+//
+// On a trading day the position is marked to the live current price
+// (PriceService.GetPrice — same source as the dashboard). On a weekend the
+// market is closed, so instead of fetching a non-session price we re-value the
+// CURRENT positions at the prior snapshot's stored per-stock price (carried
+// forward with its original PriceDate). A symbol with no prior line — e.g.
+// bought over the weekend — falls back to the live price. A per-symbol price
+// error or zero degrades that symbol to current == 0 (worthless, matching the
+// dashboard) and is logged. An empty portfolio still produces a row with all
+// canonical regions at zero, so the chart starts the day the user signed up
+// (PRD-002 §6).
 func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
 	holdings, err := s.holdings.ListByUser(ctx, uid)
 	if err != nil {
@@ -97,6 +104,30 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	}
 
 	logger := s.log(ctx)
+
+	// On a weekend, load the most recent prior snapshot once and re-use its
+	// per-stock prices rather than fetching a closed-market quote.
+	weekend := isWeekend(date)
+	priorBySymbol := map[string]domain.HoldingSnapshot{}
+	if weekend {
+		prev, perr := s.snapshots.LatestBefore(ctx, uid, date)
+		switch {
+		case perr == nil:
+			for _, ln := range prev.Lines {
+				priorBySymbol[ln.Symbol] = ln
+			}
+			logger.Info("snapshot: weekend; re-valuing current positions at prior close",
+				zap.String("user_id", uid.Hex()),
+				zap.String("date", date.UTC().Format("2006-01-02")),
+				zap.String("prior_date", prev.Date.UTC().Format("2006-01-02")),
+			)
+		case errors.Is(perr, persistence.ErrNotFound):
+			// No prior row to carry from (first-ever snapshot lands on a
+			// weekend): fall through to live pricing for every holding.
+		default:
+			return domain.PortfolioSnapshot{}, fmt.Errorf("weekend prior snapshot: %w", perr)
+		}
+	}
 
 	lines := make([]domain.HoldingSnapshot, 0, len(holdings))
 	for _, hld := range holdings {
@@ -110,36 +141,10 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 			continue
 		}
 		invested := hld.StocksOwned * hld.AvgCostPrice
-		// A failed/delisted price (Yahoo 404) is treated as a market price
-		// of 0 — the position is assumed worthless, not held-at-cost — so
-		// the snapshot matches the dashboard (PortfolioService.Summary).
-		// GetClose reads the last real session close (not regularMarketPrice),
-		// so a weekend/holiday run records the prior close, not a flicker.
-		close := 0.0
-		priceDate := ""
+		price, priceCur, priceDate := s.priceFor(ctx, logger, uid, hld, date, priorBySymbol)
 		current := 0.0
-		price, priceCur, pdate, perr := s.prices.GetClose(ctx, hld.Symbol)
-		switch {
-		case perr == nil && price > 0:
-			close, priceDate = price, pdate
+		if price > 0 {
 			current = hld.StocksOwned * price
-		case perr != nil:
-			logger.Warn("snapshot: close fetch failed; assuming current price 0",
-				zap.String("user_id", uid.Hex()),
-				zap.String("script", hld.Script),
-				zap.String("symbol", hld.Symbol),
-				zap.Error(perr),
-			)
-		default:
-			// price <= 0 with no error: Yahoo returned a zero/absent close
-			// (thin trading or a data glitch). Treated as worthless like a
-			// fetch failure, but log it — otherwise a silent current=0 looks
-			// like a real crash to zero and is undiagnosable.
-			logger.Warn("snapshot: zero close with no error; assuming current price 0",
-				zap.String("user_id", uid.Hex()),
-				zap.String("script", hld.Script),
-				zap.String("symbol", hld.Symbol),
-			)
 		}
 		logger.Info("snapshot: holding valued",
 			zap.String("user_id", uid.Hex()),
@@ -150,9 +155,10 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 			zap.String("bucket", cur),
 			zap.String("price_currency", priceCur),
 			zap.String("price_date", priceDate),
+			zap.Bool("weekend", weekend),
 			zap.Float64("quantity", hld.StocksOwned),
 			zap.Float64("avg_cost_price", hld.AvgCostPrice),
-			zap.Float64("close_price", close),
+			zap.Float64("price", price),
 			zap.Float64("invested_value", invested),
 			zap.Float64("current_value", current),
 		)
@@ -162,7 +168,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 			Currency:   cur,
 			Quantity:   hld.StocksOwned,
 			AvgCost:    hld.AvgCostPrice,
-			ClosePrice: close,
+			ClosePrice: price,
 			PriceDate:  priceDate,
 			Invested:   round(invested),
 			Current:    round(current),
@@ -189,6 +195,59 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 		Buckets:  buckets,
 		Lines:    lines,
 	}, nil
+}
+
+// priceFor returns the price to value one holding at, its currency, and the
+// trading date the price belongs to. On a weekend it re-uses the prior
+// snapshot's stored price for the symbol (carried forward with its original
+// PriceDate, including a 0 — a worthless holding stays worthless). Otherwise —
+// a trading day, or a weekend symbol with no prior line — it reads the live
+// current price. A fetch error or non-positive quote returns price 0 (the
+// holding is valued as worthless, matching the dashboard) and is logged.
+func (s *SnapshotService) priceFor(
+	ctx context.Context,
+	logger *zap.Logger,
+	uid primitive.ObjectID,
+	hld domain.Holding,
+	date time.Time,
+	prior map[string]domain.HoldingSnapshot,
+) (price float64, currency, priceDate string) {
+	if pl, ok := prior[hld.Symbol]; ok {
+		// Weekend carry-forward: current position re-valued at the prior
+		// stored price. PriceDate keeps the trading day that price belonged to.
+		return pl.ClosePrice, hld.Currency, pl.PriceDate
+	}
+
+	dateStr := date.UTC().Format("2006-01-02")
+	p, cur, perr := s.prices.GetPrice(ctx, hld.Symbol)
+	switch {
+	case perr != nil:
+		logger.Warn("snapshot: price fetch failed; assuming current price 0",
+			zap.String("user_id", uid.Hex()),
+			zap.String("script", hld.Script),
+			zap.String("symbol", hld.Symbol),
+			zap.Error(perr),
+		)
+		return 0, cur, dateStr
+	case p <= 0:
+		// Zero quote with no error (thin trading / data glitch): treated as
+		// worthless, but logged so a silent current=0 is diagnosable.
+		logger.Warn("snapshot: zero price with no error; assuming current price 0",
+			zap.String("user_id", uid.Hex()),
+			zap.String("script", hld.Script),
+			zap.String("symbol", hld.Symbol),
+		)
+		return 0, cur, dateStr
+	default:
+		return p, cur, dateStr
+	}
+}
+
+// isWeekend reports whether the snapshot date falls on a Saturday or Sunday
+// (UTC). This iteration accounts for weekends only, not exchange holidays.
+func isWeekend(t time.Time) bool {
+	wd := t.UTC().Weekday()
+	return wd == time.Saturday || wd == time.Sunday
 }
 
 // RunOptions configures a snapshot run. Zero-value RunOptions = now (UTC),

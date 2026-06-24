@@ -158,7 +158,8 @@ func TestBuildSnapshot_PriceErrorAssumesZeroCurrent(t *testing.T) {
 		svc := NewSnapshotService(persistence.New(mt.DB).Holdings, nil, nil, &stubPriceFetcher{
 			priceErr: errors.New("yahoo down"),
 		}, nil)
-		snap, err := svc.BuildSnapshot(context.Background(), uid, time.Now())
+		// Weekday date: the weekday path prices live (no prior-snapshot read).
+		snap, err := svc.BuildSnapshot(context.Background(), uid, time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC))
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
@@ -168,6 +169,53 @@ func TestBuildSnapshot_PriceErrorAssumesZeroCurrent(t *testing.T) {
 		// snapshot never disagree on a failed symbol.
 		if inr.Invested != 30000 || inr.Current != 0 {
 			t.Errorf("INR = (%v, %v), want (30000, 0) on price error", inr.Invested, inr.Current)
+		}
+	})
+}
+
+func TestBuildSnapshot_WeekendReusesPriorClose(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("weekend re-values current position at prior close", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		// holdings.ListByUser → one holding (current position).
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
+			holdingDoc(uid, "NSE", "TCS.NS", "INR", 10, 3000),
+		))
+		// snapshots.LatestBefore → Friday's row with a stored close of 3500.
+		prior := bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "date", Value: time.Date(2026, 6, 19, 0, 0, 0, 0, time.UTC)},
+			{Key: "currency", Value: "INR"},
+			{Key: "regions", Value: bson.D{{Key: "INR", Value: bson.D{
+				{Key: "invested", Value: 30000.0}, {Key: "current", Value: 35000.0}, {Key: "source", Value: "cron"},
+			}}}},
+			{Key: "holdings", Value: bson.A{bson.D{
+				{Key: "symbol", Value: "TCS.NS"}, {Key: "currency", Value: "INR"},
+				{Key: "quantity", Value: 10.0}, {Key: "avg_cost", Value: 3000.0},
+				{Key: "close_price", Value: 3500.0}, {Key: "price_date", Value: "2026-06-19"},
+				{Key: "invested", Value: 30000.0}, {Key: "current", Value: 35000.0},
+			}}},
+		}
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, prior))
+
+		store := persistence.New(mt.DB)
+		// Live price is 9999 — it must NOT be used on a weekend.
+		svc := NewSnapshotService(store.Holdings, store.Snapshots, nil, &stubPriceFetcher{price: 9999}, nil)
+
+		sat := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) // Saturday
+		snap, err := svc.BuildSnapshot(context.Background(), uid, sat)
+		if err != nil {
+			t.Fatalf("BuildSnapshot: %v", err)
+		}
+		inr := snap.Buckets[domain.CurrencyINR]
+		if inr.Current != 35000 { // 10 * 3500 prior close, NOT 10 * 9999
+			t.Errorf("INR current = %v, want 35000 (prior close, not live 9999)", inr.Current)
+		}
+		if len(snap.Lines) != 1 || snap.Lines[0].ClosePrice != 3500 {
+			t.Fatalf("line close = %+v, want 3500", snap.Lines)
+		}
+		if snap.Lines[0].PriceDate != "2026-06-19" {
+			t.Errorf("priceDate = %q, want 2026-06-19 (carried from prior)", snap.Lines[0].PriceDate)
 		}
 	})
 }
@@ -182,7 +230,7 @@ func TestBuildSnapshot_UnknownCurrencyExcludedFromTotals(t *testing.T) {
 		))
 
 		svc := NewSnapshotService(persistence.New(mt.DB).Holdings, nil, nil, &stubPriceFetcher{price: 200}, nil)
-		snap, err := svc.BuildSnapshot(context.Background(), uid, time.Now())
+		snap, err := svc.BuildSnapshot(context.Background(), uid, time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC))
 		if err != nil {
 			t.Fatalf("BuildSnapshot: %v", err)
 		}
@@ -212,13 +260,6 @@ func (m *multiStub) GetPrice(_ context.Context, symbol string) (float64, string,
 
 func (m *multiStub) GetForexRate(_ context.Context, _, _ string) (float64, error) {
 	return 0.011, nil
-}
-
-func (m *multiStub) GetClose(_ context.Context, symbol string) (float64, string, string, error) {
-	if p, ok := m.prices[symbol]; ok {
-		return p, "INR", "2026-01-01", nil
-	}
-	return 0, "", "", errors.New("no price")
 }
 
 // -- Run/Report --

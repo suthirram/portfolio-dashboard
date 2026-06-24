@@ -30,10 +30,6 @@ func (s *stubPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64
 	return s.rate, s.rateErr
 }
 
-func (s *stubPriceFetcher) GetClose(_ context.Context, _ string) (float64, string, string, error) {
-	return s.price, s.priceCur, "2026-01-01", s.priceErr
-}
-
 // holdingsCursor returns a single-batch mock cursor for ListByUser.
 func holdingsCursor(uid primitive.ObjectID, docs ...bson.D) []bson.D {
 	out := make([]bson.D, 0, len(docs))

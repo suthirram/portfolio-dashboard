@@ -1,11 +1,25 @@
 # ADR-0003: Store per-stock close prices in snapshots
 
-* **Status**: Accepted
+* **Status**: Accepted (valuation source revised 2026-06-24 — see Revision)
 * **Date**: 2026-06-23
 * **Deciders**: project owner
 * **Related**: [DD-002 historical snapshots](../designs/DD-002-historical-snapshots.md)
   (§11 documents the data model and recompute flow this ADR decides),
   [PRD-002](../prds/PRD-002-historical-snapshots.md)
+
+> **Revision (2026-06-24).** The original decision valued snapshots from the
+> last daily *candle close* via a new `PriceService.GetClose`. In practice that
+> read the wrong number on a trading day (a stale candle, not the live price).
+> The valuation source is now: **trading day → live `GetPrice`
+> (`regularMarketPrice`, same as the dashboard); weekend → re-value the current
+> positions at the prior snapshot's stored per-stock price** (carry-forward,
+> keeping its `PriceDate`). `GetClose` is removed. Everything else this ADR
+> decides — per-stock `Lines`, the backdated recompute, forward-only,
+> carry-forward-at-avg-cost — is unchanged; recompute still revalues against the
+> price stored on each line. The weekend-phantom problem (Context §1) is still
+> solved: a closed-market day no longer fetches a flicker, it copies the last
+> real session's stored price. The strikethrough below marks the superseded
+> mechanism.
 
 ## Context
 
@@ -35,19 +49,21 @@ is not reproducible.
 
 ## Decision
 
-**Store the per-stock close price (and the quantity and avg cost behind it) on
-each snapshot, and value snapshots from the last real session close rather than
-`regularMarketPrice`.**
+**Store the per-stock price (and the quantity and avg cost behind it) on each
+snapshot, and value a closed-market day from the prior session's stored price
+rather than refetching.**
 
 Concretely:
 
-* **`PriceService.GetClose(symbol) → (price, currency, priceDate)`** reads the
-  last non-null daily candle close from the Yahoo chart endpoint and the
-  trading date it belongs to. Snapshot valuation uses `GetClose` instead of
-  `GetPrice`. On a weekend the snapshot records Friday's actual close with
-  `priceDate = Friday` — no flicker, and the date makes the provenance
-  explicit. `GetPrice` (regularMarketPrice) stays as the live-dashboard path;
-  only the *historical* path switches.
+* **Valuation source (revised 2026-06-24).** A **trading day** marks each
+  holding to the **live current price** (`PriceService.GetPrice` /
+  `regularMarketPrice`, same source as the dashboard), stamped with that day's
+  date. A **weekend** does not fetch a closed-market quote — it re-values the
+  current positions at the prior snapshot's stored per-stock price, carried
+  forward with its original `PriceDate`. A weekend symbol with no prior line
+  (bought over the weekend) falls back to the live price.
+  ~~`PriceService.GetClose` read the last non-null daily candle close instead
+  of `GetPrice`.~~ (removed — it returned a stale candle on trading days).
 
 * **`PortfolioSnapshot.Lines []HoldingSnapshot`** — per-stock breakdown
   (symbol, script, currency, quantity, avg cost, close price, price date,
