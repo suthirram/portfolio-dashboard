@@ -507,28 +507,36 @@ override replaces a bucket total but carries no per-stock detail. On a closed
 day `PriceDate` is the prior session, not the row's date, which is exactly how
 the weekend phantom is avoided.
 
-### 11.2 Valuation source: `GetClose`, not `GetPrice`
+### 11.2 Valuation source: live price on trading days, prior close on weekends
 
-`PriceFetcher` gains:
+(Revised 2026-06-24 — the first cut routed valuation through a new
+`PriceService.GetClose` that read the last daily candle; on a trading day that
+returned a stale candle, so it was removed. `PriceFetcher` is back to just
+`GetPrice` + `GetForexRate`.)
 
-```go
-GetClose(ctx, symbol) (price float64, currency string, priceDate string, err error)
-```
+`SnapshotService.BuildSnapshot` values each holding via `priceFor`:
 
-`PriceService.GetClose` reads the last non-null daily candle close from the
-Yahoo chart endpoint (`range=5d&interval=1d`) and the trading date it belongs
-to, cached under a `close:`-prefixed key so it never collides with the
-`regularMarketPrice` entry. `SnapshotService.BuildSnapshot` now valued each
-holding via `GetClose` and emits a `HoldingSnapshot` line per holding; a fetch
-failure degrades that line to `close=0` (worthless, matching the dashboard),
-the same rule §2 used for `GetPrice`. The live dashboard (`/prices`,
-`/summary`) still uses `GetPrice` — only the historical path changed.
+* **Trading day** (`isWeekend(date)` false) → live current price
+  `PriceService.GetPrice` (`regularMarketPrice`, same source as the dashboard),
+  `PriceDate` = the snapshot date. A fetch error or non-positive quote degrades
+  the line to `price=0` (worthless, matching the dashboard) and is logged.
+* **Weekend** (Saturday/Sunday, UTC) → no closed-market fetch. `BuildSnapshot`
+  loads the most recent prior snapshot once (`SnapshotStore.LatestBefore`) and
+  re-values the **current** positions at each symbol's stored price, carried
+  forward with its original `PriceDate` (a stored 0 stays 0). A symbol with no
+  prior line — bought over the weekend — falls back to the live price. This
+  iteration handles weekends only, not exchange holidays.
+
+`HoldingSnapshot.ClosePrice` therefore holds "the price used to value this
+line" — a live price on trading rows, a carried prior price on weekend rows.
+The live dashboard (`/prices`, `/summary`) is unchanged.
 
 ### 11.3 Backdated-transaction heal
 
 `SnapshotRecomputer` (`internal/services/snapshot_recompute.go`) is the
-read/write counterpart to `BuildSnapshot`: build writes today's row from live
-closes, recompute rewrites past rows from stored closes.
+read/write counterpart to `BuildSnapshot`: build writes a row from the live (or
+weekend-carried) price, recompute rewrites past rows from the price stored on
+each line.
 
 `RecomputeFrom(uid, from)`:
 
@@ -571,8 +579,8 @@ don't exercise history pass `nil`.
 
 ### 11.5 Tests
 
-* `GetClose` picks the last real close, skipping a trailing weekend `nil`
-  candle, and returns its trading date.
+* `BuildSnapshot` on a weekend re-values current positions at the prior
+  snapshot's stored price (carried `PriceDate`), ignoring the live quote.
 * `asOfLedger` filters strictly by date — a future-dated opening is dropped.
 * `linesAsOf` reuses the stored close (incl. 0 = worthless) and carries forward
   at avg cost only when no line exists; legacy nil-`Lines` rows are skipped.
