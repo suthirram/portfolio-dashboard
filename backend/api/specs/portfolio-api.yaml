@@ -259,6 +259,14 @@ components:
           description: Currency in which avg_cost_price and realized_pnl are denominated
         notes:
           type: string
+        has_opening:
+          type: boolean
+          description: Whether an opening-balance event seeds this holding (drives the opening-date prompt)
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+          description: User-set effective date of the opening balance; null when not yet set
         created_at:
           type: string
           format: date-time
@@ -300,6 +308,11 @@ components:
           description: Currency in which avg_cost_price and realized_pnl are denominated
         notes:
           type: string
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+          description: Effective date of the opening balance; sets the holding's opening event date when provided
 
     HoldingWithPrice:
       allOf:

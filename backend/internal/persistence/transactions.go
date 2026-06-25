@@ -57,6 +57,30 @@ func (s *TransactionStore) ListByUser(ctx context.Context, uid primitive.ObjectI
 	return txns, nil
 }
 
+// OpeningsByUser returns uid's opening events keyed by holding id (one per
+// holding — the opening is seeded once). Used to enrich the holdings list with
+// each holding's opening-date status in a single query.
+func (s *TransactionStore) OpeningsByUser(ctx context.Context, uid primitive.ObjectID) (map[primitive.ObjectID]domain.Transaction, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	cur, err := s.col.Find(ctx, scopedFilter(uid, bson.M{"type": string(domain.TxnOpening)}))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cur.Close(ctx) }()
+
+	var txns []domain.Transaction
+	if err := cur.All(ctx, &txns); err != nil {
+		return nil, err
+	}
+	out := make(map[primitive.ObjectID]domain.Transaction, len(txns))
+	for _, t := range txns {
+		out[t.HoldingID] = t
+	}
+	return out, nil
+}
+
 // GetScoped returns the transaction owned by uid with the given id, or
 // ErrNotFound (also covering a transaction owned by someone else).
 func (s *TransactionStore) GetScoped(ctx context.Context, uid, id primitive.ObjectID) (domain.Transaction, error) {

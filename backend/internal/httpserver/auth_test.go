@@ -114,7 +114,12 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 		uid := primitive.NewObjectID()
 		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", nil), "sess-1", uid)
 		holdingsNS := mt.DB.Name() + ".holdings"
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch))
+		txnsNS := mt.DB.Name() + ".transactions"
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch),
+			// List enriches holdings with opening-date status (Find transactions).
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch),
+		)
 
 		srv := newTestServer(mt)
 		rec := doRequest(t, srv, http.MethodGet, "/api/holdings", sessionCookie("sess-1"))

@@ -54,6 +54,12 @@ type Transaction struct {
 	Ratio        float64 `bson:"ratio,omitempty" json:"ratio,omitempty"`                 // split/bonus, e.g. 2.0 = 2-for-1
 	RealizedSeed float64 `bson:"realized_seed,omitempty" json:"realized_seed,omitempty"` // opening only: carry legacy realized_pnl
 
+	// OpeningDate is the user-set effective date of an opening event; nil means
+	// the user has not set it yet (the dashboard prompts until they do). When
+	// set, the opening's ordering Date is synced to it. Only meaningful for
+	// TxnOpening.
+	OpeningDate *time.Time `bson:"opening_date,omitempty" json:"opening_date,omitempty"`
+
 	Currency  string    `bson:"currency" json:"currency"` // denormalised from the holding
 	Notes     string    `bson:"notes,omitempty" json:"notes,omitempty"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`

@@ -3,11 +3,25 @@ package services
 import (
 	"context"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/samber/lo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
+
+// openingStatus reports a holding's opening-date status for the API: whether an
+// opening event seeds it, and the user-set opening date (nil until the user sets
+// it). Drives the dashboard's opening-date prompt.
+func openingStatus(openings map[primitive.ObjectID]domain.Transaction, holdingID primitive.ObjectID) (hasOpening *bool, openingDate *openapi_types.Date) {
+	opening, ok := openings[holdingID]
+	hasOpening = &ok
+	if ok && opening.OpeningDate != nil {
+		openingDate = &openapi_types.Date{Time: *opening.OpeningDate}
+	}
+	return hasOpening, openingDate
+}
 
 // PriceFetcher abstracts PriceService. Services and mappers depend on it
 // rather than the concrete type so tests can substitute a stub.

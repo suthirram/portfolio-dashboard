@@ -4,6 +4,7 @@ import SummaryCards from '../../components/SummaryCards'
 import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
 import AddEditModal from '../holdings/AddEditModal'
 import TransactionsModal from '../holdings/TransactionsModal'
+import OpeningDateModal from '../holdings/OpeningDateModal'
 import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
@@ -47,6 +48,13 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [regionLabel, setRegionLabel] = useState<string>('')
+  const [openingPromptSkipped, setOpeningPromptSkipped] = useState(false)
+
+  // Holdings with an opening balance but no opening date set yet. Only prompt on
+  // the caller's own dashboard (the admin act-as holdings endpoint isn't
+  // enriched with opening status).
+  const needsOpeningDate = actAsUserId ? [] : holdings.filter(h => h.has_opening && !h.opening_date)
+  const showOpeningPrompt = needsOpeningDate.length > 0 && !openingPromptSkipped && !loadingHoldings
 
   // Look up the friendly region label for the badge.
   useEffect(() => {
@@ -302,6 +310,15 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           holding={txnModal}
           onClose={() => setTxnModal(null)}
           onChanged={() => { void refresh() }}
+        />
+      )}
+
+      {showOpeningPrompt && (
+        <OpeningDateModal
+          holdings={needsOpeningDate}
+          userId={actAsUserId}
+          onSkip={() => setOpeningPromptSkipped(true)}
+          onSaved={() => { void refresh() }}
         />
       )}
 

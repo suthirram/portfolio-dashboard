@@ -100,7 +100,12 @@ func TestListHoldings_ScopesToCurrentUser(t *testing.T) {
 
 	mt.Run("find pins user_id", func(mt *mtest.T) {
 		ns := mt.DB.Name() + ".holdings"
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, ns, mtest.FirstBatch))
+		txnsNS := mt.DB.Name() + ".transactions"
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, ns, mtest.FirstBatch),
+			// List enriches holdings with opening-date status (Find transactions).
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch),
+		)
 
 		u := scopedUser()
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
