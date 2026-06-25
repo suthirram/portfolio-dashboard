@@ -98,9 +98,9 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
     setErr('')
     if (!form.script.trim()) { setErr('Script name is required'); return }
 
-    const stocksOwned = parseDecimalInput(String(form.stocks_owned))
+    const stocksOwned = parseDecimalInput(String(form.stocks_owned), { singleSeparator: 'decimal' })
     if (!Number.isFinite(stocksOwned) || stocksOwned < 0) { setErr('Enter a valid shares owned value'); return }
-    const avgCostPrice = parseDecimalInput(String(form.avg_cost_price))
+    const avgCostPrice = parseDecimalInput(String(form.avg_cost_price), { singleSeparator: 'decimal' })
     if (!Number.isFinite(avgCostPrice) || avgCostPrice < 0) { setErr('Enter a valid average cost price'); return }
     const realizedPnL = parseDecimalInput(String(form.realized_pnl), { allowNegative: true })
     if (!Number.isFinite(realizedPnL)) { setErr('Enter a valid realised P&L'); return }
