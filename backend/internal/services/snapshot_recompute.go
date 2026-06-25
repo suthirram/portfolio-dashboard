@@ -148,16 +148,21 @@ func (r *SnapshotRecomputer) linesAsOf(
 		if !ok {
 			continue
 		}
-		// A holding the cron already recorded on this date (hadPrior) existed
-		// then, so its opening anchors the position even if the opening's stored
-		// date is later than this row (e.g. a legacy holding migrated with a
-		// "now" stamp) — keep it. A holding with NO line on this date did not
-		// exist yet; filter its opening by date too, so a future-stamped opening
-		// is dropped and the holding is not fabricated into a row that predates
-		// it. (A backdated *trade* before the cutoff still introduces a holding —
-		// that is an explicit as-of acquisition, not a baseline artefact.)
+		// Keep the opening as the baseline only for a holding that existed on
+		// this row's date — so its opening anchors the position even when the
+		// opening's stored date is later than the row (a legacy holding migrated
+		// with a "now" stamp). Existence is gated on the holding's own CreatedAt,
+		// NOT on a prior line for its symbol: two holdings can share a symbol, and
+		// an older one's line must not vouch for a newer one (which would keep the
+		// newer holding's future-stamped opening and fabricate it into earlier
+		// rows). A zero CreatedAt (pre-timestamp legacy holding) counts as
+		// always-existed. A holding that did not yet exist has its opening
+		// filtered by date like any event, so a future-stamped opening is dropped
+		// and nothing is fabricated. (A backdated *trade* before the cutoff still
+		// introduces a holding — an explicit as-of acquisition, not an artefact.)
+		existed := h.CreatedAt.Before(cutoff)
 		prior, hadPrior := priorClose[h.Symbol]
-		ledger := asOfLedger(byHolding[h.ID], cutoff, hadPrior)
+		ledger := asOfLedger(byHolding[h.ID], cutoff, existed)
 		pos, oversell := RecomputePosition(ledger)
 		if oversell != nil {
 			// A backdated edit made the as-of ledger oversold (e.g. a sell
@@ -170,7 +175,12 @@ func (r *SnapshotRecomputer) linesAsOf(
 				zap.String("date", existing.Date.UTC().Format("2006-01-02")),
 			)
 		}
-		if pos.StocksOwned == 0 && !hadPrior {
+		// Skip a zero position unless the holding genuinely existed AND was
+		// recorded here — i.e. a real holding that went flat (sold out / delisted)
+		// keeps its worthless line, but a holding that did not exist on this row
+		// (incl. a newer holding sharing a symbol with an older recorded one) is
+		// not added, even as a zero line.
+		if pos.StocksOwned == 0 && (!hadPrior || !existed) {
 			continue
 		}
 

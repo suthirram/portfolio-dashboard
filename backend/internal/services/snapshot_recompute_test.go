@@ -117,9 +117,9 @@ func TestAsOfLedger_FiltersTradesAndGatesOpeningOnKeep(t *testing.T) {
 // holding the cron correctly recorded.
 func TestLinesAsOf_KeepsPositionWhenOpeningStampedAfterSnapshot(t *testing.T) {
 	hid := primitive.NewObjectID()
-	holdings := []domain.Holding{{ID: hid, Symbol: "TCS.NS", Script: "TCS", Currency: "INR"}}
-	// Opening stamped 06-24 (e.g. migration `now` fallback), but the row being
-	// healed is 06-20 — before the opening's stamp.
+	// Holding created 06-10 (it existed on the 06-20 row), but its opening was
+	// stamped 06-24 — e.g. a legacy holding migrated with a "now" stamp.
+	holdings := []domain.Holding{{ID: hid, Symbol: "TCS.NS", Script: "TCS", Currency: "INR", CreatedAt: utcDay(6, 10)}}
 	byHolding := map[primitive.ObjectID][]domain.Transaction{
 		hid: {{HoldingID: hid, Type: domain.TxnOpening, Date: utcDay(6, 24), Quantity: 100, Amount: 5000}},
 	}
@@ -150,7 +150,8 @@ func TestLinesAsOf_KeepsPositionWhenOpeningStampedAfterSnapshot(t *testing.T) {
 // event is an opening stamped after that row must not be fabricated into it.
 func TestLinesAsOf_DoesNotFabricateHoldingFromFutureOpening(t *testing.T) {
 	hid := primitive.NewObjectID()
-	holdings := []domain.Holding{{ID: hid, Symbol: "NEW.NS", Script: "NEW", Currency: "INR"}}
+	// Holding created 06-24 — it did NOT exist on the 06-20 row.
+	holdings := []domain.Holding{{ID: hid, Symbol: "NEW.NS", Script: "NEW", Currency: "INR", CreatedAt: utcDay(6, 24)}}
 	byHolding := map[primitive.ObjectID][]domain.Transaction{
 		hid: {{HoldingID: hid, Type: domain.TxnOpening, Date: utcDay(6, 24), Quantity: 100, Amount: 5000}},
 	}
@@ -164,6 +165,39 @@ func TestLinesAsOf_DoesNotFabricateHoldingFromFutureOpening(t *testing.T) {
 	lines := r.linesAsOf(holdings, byHolding, existing)
 	if len(lines) != 0 {
 		t.Fatalf("got %d lines, want 0 (future-stamped opening must not fabricate a holding)", len(lines))
+	}
+}
+
+// TestLinesAsOf_DuplicateSymbolDoesNotVouchForNewerHolding guards P2b: an older
+// holding's stored line for a symbol must not make a NEWER holding with the same
+// symbol keep its future-stamped opening (which would fabricate the newer one
+// into rows that predate it). Existence is per-holding (CreatedAt), not symbol.
+func TestLinesAsOf_DuplicateSymbolDoesNotVouchForNewerHolding(t *testing.T) {
+	oldH := primitive.NewObjectID()
+	newH := primitive.NewObjectID()
+	holdings := []domain.Holding{
+		{ID: oldH, Symbol: "DUP.NS", Script: "Old", Currency: "INR", CreatedAt: utcDay(6, 1)},  // existed on 06-20
+		{ID: newH, Symbol: "DUP.NS", Script: "New", Currency: "INR", CreatedAt: utcDay(6, 24)}, // created after 06-20
+	}
+	byHolding := map[primitive.ObjectID][]domain.Transaction{
+		oldH: {{HoldingID: oldH, Type: domain.TxnOpening, Date: utcDay(6, 1), Quantity: 10, Amount: 1000}},
+		newH: {{HoldingID: newH, Type: domain.TxnOpening, Date: utcDay(6, 24), Quantity: 100, Amount: 5000}},
+	}
+	// 06-20 row recorded the OLD holding's DUP.NS line (close 50).
+	existing := domain.PortfolioSnapshot{
+		Date:  utcDay(6, 20),
+		Lines: []domain.HoldingSnapshot{{Symbol: "DUP.NS", ClosePrice: 50, PriceDate: "2026-06-20"}},
+	}
+
+	r := &SnapshotRecomputer{}
+	lines := r.linesAsOf(holdings, byHolding, existing)
+	// Only the old holding survives (10 sh); the newer same-symbol holding's
+	// future opening is filtered out, so it is not fabricated into the row.
+	if len(lines) != 1 {
+		t.Fatalf("got %d lines, want 1 (newer same-symbol holding must not be fabricated)", len(lines))
+	}
+	if lines[0].Quantity != 10 {
+		t.Errorf("qty = %v, want 10 (only the pre-existing holding)", lines[0].Quantity)
 	}
 }
 

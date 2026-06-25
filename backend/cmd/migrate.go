@@ -19,9 +19,13 @@ import (
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
+	"portfolio-dashboard/internal/services"
 )
 
-var migrateOwner string
+var (
+	migrateOwner         string
+	migrateSnapshotsFrom string
+)
 
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
@@ -175,6 +179,77 @@ func runMigrateTransactions(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
+var migrateSnapshotsCmd = &cobra.Command{
+	Use:   "snapshots",
+	Short: "Re-heal stored snapshots with the corrected as-of logic",
+	Long: `Replays every existing line-backed snapshot through the snapshot
+recomputer for each user, valuing each holding's as-of position at the close
+already stored on that row (no price refetch). Repairs rows a prior heal zeroed
+by dropping a future-stamped opening baseline. Idempotent: a row already correct
+is rewritten to the same values.`,
+	RunE: runMigrateSnapshots,
+}
+
+// runMigrateSnapshots re-runs RecomputeFrom for every user from --from (default
+// DefaultOpeningDate) so previously-zeroed rows are restored with the corrected
+// opening-baseline handling.
+func runMigrateSnapshots(_ *cobra.Command, _ []string) error {
+	cfg := config.Default()
+	cfg.ApplyEnv()
+	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+
+	from := domain.DefaultOpeningDate
+	if migrateSnapshotsFrom != "" {
+		parsed, perr := time.Parse("2006-01-02", migrateSnapshotsFrom)
+		if perr != nil {
+			return fmt.Errorf("parse --from %q: %w", migrateSnapshotsFrom, perr)
+		}
+		from = parsed.UTC()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout+10*time.Minute)
+	defer cancel()
+	st, _, disconnect, err := cliConnect(ctx, logger, cfg)
+	if err != nil {
+		return err
+	}
+	defer disconnect()
+
+	recomputer := services.NewSnapshotRecomputer(st.Holdings, st.Transactions, st.Snapshots, logger)
+
+	users, err := st.Users.List(ctx, bson.M{}, bson.D{})
+	if err != nil {
+		return fmt.Errorf("listing users: %w", err)
+	}
+
+	var healed, failed int
+	for _, u := range users {
+		if err := recomputer.RecomputeFrom(ctx, u.ID, from); err != nil {
+			failed++
+			logger.Error("re-heal failed",
+				zap.String("user_id", u.ID.Hex()),
+				zap.String("username", u.Username),
+				zap.Error(err),
+			)
+			continue
+		}
+		healed++
+	}
+
+	logger.Info("snapshots re-healed",
+		zap.String("from", from.Format("2006-01-02")),
+		zap.Int("users_healed", healed),
+		zap.Int("users_failed", failed),
+	)
+	if failed > 0 {
+		return fmt.Errorf("re-heal had %d user-level failures", failed)
+	}
+	return nil
+}
+
 // adminCmd hosts the break-glass CLI for the super admin (DD-001 §8).
 var adminCmd = &cobra.Command{
 	Use:   "admin",
@@ -299,8 +374,10 @@ func runSetPassword(_ *cobra.Command, _ []string) error {
 
 func init() {
 	migrateUsersCmd.Flags().StringVar(&migrateOwner, "owner", "", "username (case-insensitive) to assume ownership of legacy holdings")
+	migrateSnapshotsCmd.Flags().StringVar(&migrateSnapshotsFrom, "from", "", "UTC date YYYY-MM-DD to re-heal from; defaults to the opening baseline")
 	migrateCmd.AddCommand(migrateUsersCmd)
 	migrateCmd.AddCommand(migrateTransactionsCmd)
+	migrateCmd.AddCommand(migrateSnapshotsCmd)
 	rootCmd.AddCommand(migrateCmd)
 
 	resetLockoutCmd.Flags().StringVar(&resetLockoutUser, "username", "", "username to unlock")
