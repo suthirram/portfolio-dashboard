@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git workflow
+
+Never commit directly to `main`. Every change goes on its own branch, then to `main` via a PR — even one-line fixes. A `no-commit-to-branch` pre-commit hook blocks direct commits to `main`. Standard flow: branch from `main` → commit → push → `gh pr create` → merge (squash). After "commit"/"push"/"open a PR" requests, follow this flow without asking.
+
 ## Project Overview
 
 A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs. Tracks holdings with live prices from Yahoo Finance (5-min cache), unrealised P&L, realised P&L, and INR/EUR conversion via live forex.

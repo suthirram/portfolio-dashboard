@@ -1,5 +1,11 @@
 ---
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Block committing straight to main; work on a branch and open a PR.
+      - id: no-commit-to-branch
+        args: [--branch, main]
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1
     hooks:
