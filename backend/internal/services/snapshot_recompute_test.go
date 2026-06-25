@@ -81,22 +81,30 @@ func utcDay(m time.Month, d int) time.Time {
 	return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func TestAsOfLedger_FiltersTradesButAlwaysKeepsOpening(t *testing.T) {
+func TestAsOfLedger_FiltersTradesAndGatesOpeningOnKeep(t *testing.T) {
 	cutoff := utcDay(6, 19).Add(24 * time.Hour) // include trades on/before 06-19
 	txns := []domain.Transaction{
-		{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 5, Amount: 500},  // past opening: kept (baseline)
+		{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 5, Amount: 500},  // past opening
 		{Type: domain.TxnBuy, Date: utcDay(6, 18), Quantity: 10, Amount: 1000},   // kept
-		{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300}, // FUTURE-stamped opening: still kept (timeless baseline)
-		{Type: domain.TxnBuy, Date: utcDay(6, 25), Quantity: 7, Amount: 700},     // future buy: dropped
+		{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300}, // future-stamped opening
+		{Type: domain.TxnBuy, Date: utcDay(6, 25), Quantity: 7, Amount: 700},     // future buy: always dropped
 	}
-	got := asOfLedger(txns, cutoff)
-	if len(got) != 3 {
-		t.Fatalf("kept %d events, want 3 (both openings + 06-18 buy)", len(got))
+
+	// keepOpening=true: both openings retained as the baseline (holding existed).
+	kept := asOfLedger(txns, cutoff, true)
+	if len(kept) != 3 {
+		t.Fatalf("keepOpening=true kept %d events, want 3 (both openings + 06-18 buy)", len(kept))
 	}
-	for _, tx := range got {
-		// Non-opening events must respect the cutoff; openings bypass it.
-		if tx.Type != domain.TxnOpening && !tx.Date.Before(cutoff) {
-			t.Errorf("kept non-opening event dated %s at/after cutoff", tx.Date.Format("2006-01-02"))
+
+	// keepOpening=false: openings filtered by date too (holding did not exist on
+	// this date), so the future-stamped opening is dropped — no fabrication.
+	dropped := asOfLedger(txns, cutoff, false)
+	if len(dropped) != 2 {
+		t.Fatalf("keepOpening=false kept %d events, want 2 (past opening + 06-18 buy)", len(dropped))
+	}
+	for _, tx := range dropped {
+		if !tx.Date.Before(cutoff) {
+			t.Errorf("keepOpening=false kept event dated %s at/after cutoff", tx.Date.Format("2006-01-02"))
 		}
 	}
 }
@@ -104,8 +112,9 @@ func TestAsOfLedger_FiltersTradesButAlwaysKeepsOpening(t *testing.T) {
 // TestLinesAsOf_KeepsPositionWhenOpeningStampedAfterSnapshot reproduces the
 // production bug: a legacy holding's opening is stamped at migration time (a
 // date later than an older snapshot), and a backdated edit triggers a heal of
-// that older row. The opening must still anchor the position — the recompute
-// must not zero a holding the cron correctly recorded.
+// that older row. The holding WAS recorded on that row by the cron (hadPrior),
+// so the opening must still anchor the position — the recompute must not zero a
+// holding the cron correctly recorded.
 func TestLinesAsOf_KeepsPositionWhenOpeningStampedAfterSnapshot(t *testing.T) {
 	hid := primitive.NewObjectID()
 	holdings := []domain.Holding{{ID: hid, Symbol: "TCS.NS", Script: "TCS", Currency: "INR"}}
@@ -133,6 +142,28 @@ func TestLinesAsOf_KeepsPositionWhenOpeningStampedAfterSnapshot(t *testing.T) {
 	}
 	if ln.Invested != 5000 { // 100 * 50 avg
 		t.Errorf("invested = %v, want 5000", ln.Invested)
+	}
+}
+
+// TestLinesAsOf_DoesNotFabricateHoldingFromFutureOpening guards the other
+// direction: a holding NOT recorded on a row (no prior line) whose only ledger
+// event is an opening stamped after that row must not be fabricated into it.
+func TestLinesAsOf_DoesNotFabricateHoldingFromFutureOpening(t *testing.T) {
+	hid := primitive.NewObjectID()
+	holdings := []domain.Holding{{ID: hid, Symbol: "NEW.NS", Script: "NEW", Currency: "INR"}}
+	byHolding := map[primitive.ObjectID][]domain.Transaction{
+		hid: {{HoldingID: hid, Type: domain.TxnOpening, Date: utcDay(6, 24), Quantity: 100, Amount: 5000}},
+	}
+	// 06-20 row predates the holding; it has no line for NEW.NS.
+	existing := domain.PortfolioSnapshot{
+		Date:  utcDay(6, 20),
+		Lines: []domain.HoldingSnapshot{},
+	}
+
+	r := &SnapshotRecomputer{}
+	lines := r.linesAsOf(holdings, byHolding, existing)
+	if len(lines) != 0 {
+		t.Fatalf("got %d lines, want 0 (future-stamped opening must not fabricate a holding)", len(lines))
 	}
 }
 

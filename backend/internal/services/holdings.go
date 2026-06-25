@@ -102,11 +102,14 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 
 	if qty, amount, seed, ok := openingFromInput(input); ok {
 		opening := domain.Transaction{
-			ID:           primitive.NewObjectID(),
-			UserID:       uid,
-			HoldingID:    holding.ID,
-			Type:         domain.TxnOpening,
-			Date:         now,
+			ID:        primitive.NewObjectID(),
+			UserID:    uid,
+			HoldingID: holding.ID,
+			Type:      domain.TxnOpening,
+			// The form carries no opening date; anchor it to the inception
+			// baseline rather than "now" so a backdated-edit heal never drops
+			// it as a future-stamped event.
+			Date:         domain.DefaultOpeningDate,
 			Quantity:     qty,
 			Amount:       amount,
 			RealizedSeed: seed,

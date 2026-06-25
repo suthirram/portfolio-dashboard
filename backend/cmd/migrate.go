@@ -145,10 +145,7 @@ func runMigrateTransactions(_ *cobra.Command, _ []string) error {
 				skipped++
 				continue
 			}
-			date := h.CreatedAt
-			if date.IsZero() {
-				date = now
-			}
+			date := domain.OpeningDate(h.CreatedAt)
 			opening := domain.Transaction{
 				ID:           primitive.NewObjectID(),
 				UserID:       u.ID,
