@@ -193,17 +193,20 @@ func (r *SnapshotRecomputer) linesAsOf(
 	return lines
 }
 
-// asOfLedger keeps every event dated before cutoff. Filtering is purely by
-// date — including for an opening: an opening dated AFTER the snapshot date is
-// a baseline that did not yet exist on that date and must not inflate a past
-// row. RecomputePosition still sorts a retained opening first as the baseline;
-// ordering and as-of membership are separate concerns. A normal opening dated
-// at/before the snapshot (the common case, incl. zero-dated migration
-// openings) is < cutoff and stays.
+// asOfLedger keeps the dated trade events that had occurred by cutoff, plus the
+// opening — always. The opening is the timeless baseline (RecomputePosition
+// sorts it first regardless of its calendar date), not a dated trade: it is
+// stamped at holding creation (`now`, or the migration's `now` fallback for a
+// legacy holding with no created_at), which is an artefact, not an effective
+// date. Subjecting it to the as-of cutoff dropped the baseline for any snapshot
+// predating that stamp, so a heal recomputed a holding the cron had correctly
+// recorded down to zero shares — silently wiping a live position. Filtering the
+// opening by date here also contradicted the live path, which never does. Only
+// non-opening events are filtered as-of; an opening always stays.
 func asOfLedger(txns []domain.Transaction, cutoff time.Time) []domain.Transaction {
 	out := make([]domain.Transaction, 0, len(txns))
 	for _, t := range txns {
-		if t.Date.Before(cutoff) {
+		if t.Type == domain.TxnOpening || t.Date.Before(cutoff) {
 			out = append(out, t)
 		}
 	}
