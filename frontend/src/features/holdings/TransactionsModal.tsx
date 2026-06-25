@@ -89,11 +89,11 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     if (!holding.id) return
     setErr('')
 
-    const quantity = parseDecimalInput(form.quantity)
+    const quantity = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
     if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return }
     const amount = parseDecimalInput(form.amount)
     if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return }
-    const ratio = parseDecimalInput(form.ratio)
+    const ratio = parseDecimalInput(form.ratio, { singleSeparator: 'decimal' })
     if (!Number.isFinite(ratio) || ratio < 0) { setErr('Enter a valid ratio'); return }
     const realizedSeed = parseDecimalInput(form.realized, { allowNegative: true })
     if (!Number.isFinite(realizedSeed)) { setErr('Enter a valid realised P&L seed'); return }
