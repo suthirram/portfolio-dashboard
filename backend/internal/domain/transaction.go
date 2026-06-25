@@ -38,24 +38,6 @@ const (
 	TxnMerger TxnType = "merger"
 )
 
-// DefaultOpeningDate is the effective date stamped on an opening event when no
-// real date is available (a holding created through the form, which carries no
-// opening date, or a legacy holding migrated with a zero created_at). It anchors
-// the opening to a fixed portfolio-inception baseline instead of "now", so the
-// as-of snapshot heal never sees an opening stamped in a row's future and drops
-// the baseline. Position math already treats the opening as timeless (it sorts
-// first regardless of date); this only fixes the date the ledger and heal read.
-var DefaultOpeningDate = time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
-
-// OpeningDate returns the effective opening date: the supplied date when set,
-// else DefaultOpeningDate.
-func OpeningDate(date time.Time) time.Time {
-	if date.IsZero() {
-		return DefaultOpeningDate
-	}
-	return date
-}
-
 // Transaction is one ledger event against a holding. Money is recorded as the
 // total cash Amount (debited on buy, credited on sell/dividend) — fees are
 // folded in, matching how a bank/broker statement reads. Every query is scoped
