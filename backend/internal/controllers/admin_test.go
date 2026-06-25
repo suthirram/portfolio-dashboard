@@ -532,6 +532,8 @@ func TestAdminListUserHoldings_ScopedToTarget(t *testing.T) {
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
 			mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch),
+			// List enriches holdings with opening-date status (Find transactions).
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
 		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})

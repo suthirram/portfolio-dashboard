@@ -425,9 +425,15 @@ type Holding struct {
 	Currency *HoldingCurrency `json:"currency,omitempty"`
 	Exchange *HoldingExchange `json:"exchange,omitempty"`
 
+	// HasOpening Whether an opening-balance event seeds this holding (drives the opening-date prompt)
+	HasOpening *bool `json:"has_opening,omitempty"`
+
 	// Id MongoDB ObjectID
 	Id    *string `json:"id,omitempty"`
 	Notes *string `json:"notes,omitempty"`
+
+	// OpeningDate User-set effective date of the opening balance; null when not yet set
+	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
 
 	// RealizedPnl Profit/loss from shares already sold, in the holding's currency (derived, average cost)
 	RealizedPnl *float64 `json:"realized_pnl,omitempty"`
@@ -465,6 +471,9 @@ type HoldingInput struct {
 	Exchange HoldingInputExchange  `json:"exchange"`
 	Notes    *string               `json:"notes,omitempty"`
 
+	// OpeningDate Effective date of the opening balance; sets the holding's opening event date when provided
+	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
+
 	// RealizedPnl Opening realized P&L seed (legacy carry); new sells derive this from the ledger
 	RealizedPnl *float64         `json:"realized_pnl,omitempty"`
 	Script      string           `json:"script"`
@@ -501,10 +510,16 @@ type HoldingWithPrice struct {
 	CurrentValueEur *float64                  `json:"current_value_eur,omitempty"`
 	Exchange        *HoldingWithPriceExchange `json:"exchange,omitempty"`
 
+	// HasOpening Whether an opening-balance event seeds this holding (drives the opening-date prompt)
+	HasOpening *bool `json:"has_opening,omitempty"`
+
 	// Id MongoDB ObjectID
-	Id         *string `json:"id,omitempty"`
-	Notes      *string `json:"notes,omitempty"`
-	PriceError *string `json:"price_error,omitempty"`
+	Id    *string `json:"id,omitempty"`
+	Notes *string `json:"notes,omitempty"`
+
+	// OpeningDate User-set effective date of the opening balance; null when not yet set
+	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
+	PriceError  *string             `json:"price_error,omitempty"`
 
 	// RealizedPnl Profit/loss from shares already sold, in the holding's currency (derived, average cost)
 	RealizedPnl    *float64 `json:"realized_pnl,omitempty"`

@@ -745,6 +745,13 @@ export interface components {
              */
             currency: "INR" | "EUR";
             notes?: string;
+            /** @description Whether an opening-balance event seeds this holding (drives the opening-date prompt) */
+            has_opening?: boolean;
+            /**
+             * Format: date
+             * @description User-set effective date of the opening balance; null when not yet set
+             */
+            opening_date?: string | null;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -780,6 +787,11 @@ export interface components {
              */
             currency: "INR" | "EUR";
             notes?: string;
+            /**
+             * Format: date
+             * @description Effective date of the opening balance; sets the holding's opening event date when provided
+             */
+            opening_date?: string | null;
         };
         Error: {
             error?: string;

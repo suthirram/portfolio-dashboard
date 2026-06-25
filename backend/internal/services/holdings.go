@@ -50,9 +50,16 @@ func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]a
 		s.log(ctx).Error("list holdings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
+	openings, err := s.txns.OpeningsByUser(ctx, uid)
+	if err != nil {
+		s.log(ctx).Error("list openings query failed", zap.String("error", err.Error()))
+		return nil, err
+	}
 	out := make([]api.Holding, 0, len(holdings))
 	for _, hld := range holdings {
-		out = append(out, HoldingToAPI(hld))
+		h := HoldingToAPI(hld)
+		h.HasOpening, h.OpeningDate = openingStatus(openings, hld.ID)
+		out = append(out, h)
 	}
 	return out, nil
 }
@@ -74,7 +81,13 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
-	return HoldingToAPI(holding), true, nil
+	openings, err := s.txns.OpeningsByUser(ctx, uid)
+	if err != nil {
+		return api.Holding{}, false, err
+	}
+	h := HoldingToAPI(holding)
+	h.HasOpening, h.OpeningDate = openingStatus(openings, holding.ID)
+	return h, true, nil
 }
 
 // Create inserts a new holding owned by uid. The position fields become
@@ -191,8 +204,43 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		return api.Holding{}, false, err
 	}
 
+	// Setting the opening date stamps the holding's opening event with the
+	// user-chosen effective date (and syncs the ordering Date to it), then
+	// re-derives the position. No-op when the holding has no opening event.
+	if input.OpeningDate != nil {
+		if err := s.setOpeningDate(ctx, uid, id, input.OpeningDate.Time); err != nil {
+			s.log(ctx).Error("set opening date failed",
+				zap.String("id", idHex), zap.String("error", err.Error()))
+			return api.Holding{}, false, err
+		}
+	}
+
 	s.log(ctx).Info("holding updated", zap.String("id", idHex))
 	return HoldingToAPI(updated), true, nil
+}
+
+// setOpeningDate stamps the holding's opening event with date as its effective
+// (user-set) opening date, syncs the event's ordering Date to it, and
+// re-derives the position. A no-op when the holding has no opening event.
+func (s *HoldingsService) setOpeningDate(ctx context.Context, uid, holdingID primitive.ObjectID, date time.Time) error {
+	openings, err := s.txns.OpeningsByUser(ctx, uid)
+	if err != nil {
+		return err
+	}
+	opening, ok := openings[holdingID]
+	if !ok {
+		return nil
+	}
+	set := bson.D{
+		{Key: "opening_date", Value: date},
+		{Key: "date", Value: date},
+		{Key: "updated_at", Value: time.Now()},
+	}
+	if _, err := s.txns.UpdateScopedAndReturn(ctx, uid, opening.ID, set); err != nil {
+		return err
+	}
+	_, err = recomputeAndPersist(ctx, s.store, s.txns, uid, holdingID)
+	return err
 }
 
 // Delete removes the holding owned by uid. ok=false when the id is invalid,

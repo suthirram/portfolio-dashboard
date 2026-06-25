@@ -102,6 +102,9 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 				{Key: "currency", Value: "INR"},
 			}),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
+			// List enriches holdings with opening-date status:
+			//   Find(transactions) — the user's opening events.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch),
 		)
 
 		logger := zap.NewNop()

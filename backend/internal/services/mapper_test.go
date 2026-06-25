@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/internal/domain"
 )
@@ -54,5 +57,44 @@ func TestHoldingWithPriceToAPI_RoundsToTwoDecimals(t *testing.T) {
 	// 1.949558 × 125.9 = 245.44935… → 245.45
 	if got.CurrentValue == nil || *got.CurrentValue != 245.45 {
 		t.Errorf("CurrentValue = %v, want 245.45", got.CurrentValue)
+	}
+}
+
+func TestOpeningStatus(t *testing.T) {
+	withOpening := primitive.NewObjectID()
+	withDate := primitive.NewObjectID()
+	noOpening := primitive.NewObjectID()
+	d := time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC)
+
+	openings := map[primitive.ObjectID]domain.Transaction{
+		withOpening: {Type: domain.TxnOpening},                  // seeded, date unset
+		withDate:    {Type: domain.TxnOpening, OpeningDate: &d}, // seeded, date set
+	}
+
+	// Seeded but unset → has_opening true, opening_date nil (prompt fires).
+	has, od := openingStatus(openings, withOpening)
+	if has == nil || !*has {
+		t.Fatalf("withOpening: has_opening = %v, want true", has)
+	}
+	if od != nil {
+		t.Errorf("withOpening: opening_date = %v, want nil (unset)", od)
+	}
+
+	// Seeded and set → has_opening true, opening_date carries the date.
+	has, od = openingStatus(openings, withDate)
+	if has == nil || !*has {
+		t.Fatalf("withDate: has_opening = %v, want true", has)
+	}
+	if od == nil || !od.Equal(d) {
+		t.Errorf("withDate: opening_date = %v, want %v", od, d)
+	}
+
+	// No opening event → has_opening false, no prompt.
+	has, od = openingStatus(openings, noOpening)
+	if has == nil || *has {
+		t.Fatalf("noOpening: has_opening = %v, want false", has)
+	}
+	if od != nil {
+		t.Errorf("noOpening: opening_date = %v, want nil", od)
 	}
 }

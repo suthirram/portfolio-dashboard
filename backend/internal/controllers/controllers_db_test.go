@@ -73,9 +73,13 @@ func TestIntegration_GetHolding_ReturnsHolding(t *testing.T) {
 	mt.Run("holding found", func(mt *mtest.T) {
 		id := primitive.NewObjectID()
 		ns := mt.DB.Name() + ".holdings"
-		mt.AddMockResponses(mtest.CreateCursorResponse(0, ns, mtest.FirstBatch,
-			holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 50),
-		))
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, ns, mtest.FirstBatch,
+				holdingDocument(id, "TCS", "TCS.NS", "NSE", 10, 3000, 50),
+			),
+			// Get enriches with opening-date status (Find transactions).
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 
@@ -233,6 +237,8 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 				},
 			),
 			mtest.CreateCursorResponse(0, ns, mtest.NextBatch),
+			// List enriches holdings with opening-date status (Find transactions).
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
 		)
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
