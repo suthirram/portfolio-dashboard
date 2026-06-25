@@ -102,10 +102,16 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 
 	if qty, amount, seed, ok := openingFromInput(input); ok {
 		opening := domain.Transaction{
-			ID:           primitive.NewObjectID(),
-			UserID:       uid,
-			HoldingID:    holding.ID,
-			Type:         domain.TxnOpening,
+			ID:        primitive.NewObjectID(),
+			UserID:    uid,
+			HoldingID: holding.ID,
+			Type:      domain.TxnOpening,
+			// The opening's effective date is the holding's creation: the heal
+			// keeps it as the baseline only for snapshot rows on/after the
+			// holding existed (gated on CreatedAt), so a real creation date must
+			// not be backdated — that would fabricate the holding into earlier
+			// rows. DefaultOpeningDate is reserved for holdings with no real date
+			// at all (legacy migration with a zero created_at).
 			Date:         now,
 			Quantity:     qty,
 			Amount:       amount,

@@ -148,7 +148,21 @@ func (r *SnapshotRecomputer) linesAsOf(
 		if !ok {
 			continue
 		}
-		ledger := asOfLedger(byHolding[h.ID], cutoff)
+		// Keep the opening as the baseline only for a holding that existed on
+		// this row's date — so its opening anchors the position even when the
+		// opening's stored date is later than the row (a legacy holding migrated
+		// with a "now" stamp). Existence is gated on the holding's own CreatedAt,
+		// NOT on a prior line for its symbol: two holdings can share a symbol, and
+		// an older one's line must not vouch for a newer one (which would keep the
+		// newer holding's future-stamped opening and fabricate it into earlier
+		// rows). A zero CreatedAt (pre-timestamp legacy holding) counts as
+		// always-existed. A holding that did not yet exist has its opening
+		// filtered by date like any event, so a future-stamped opening is dropped
+		// and nothing is fabricated. (A backdated *trade* before the cutoff still
+		// introduces a holding — an explicit as-of acquisition, not an artefact.)
+		existed := h.CreatedAt.Before(cutoff)
+		prior, hadPrior := priorClose[h.Symbol]
+		ledger := asOfLedger(byHolding[h.ID], cutoff, existed)
 		pos, oversell := RecomputePosition(ledger)
 		if oversell != nil {
 			// A backdated edit made the as-of ledger oversold (e.g. a sell
@@ -161,8 +175,12 @@ func (r *SnapshotRecomputer) linesAsOf(
 				zap.String("date", existing.Date.UTC().Format("2006-01-02")),
 			)
 		}
-		prior, hadPrior := priorClose[h.Symbol]
-		if pos.StocksOwned == 0 && !hadPrior {
+		// Skip a zero position unless the holding genuinely existed AND was
+		// recorded here — i.e. a real holding that went flat (sold out / delisted)
+		// keeps its worthless line, but a holding that did not exist on this row
+		// (incl. a newer holding sharing a symbol with an older recorded one) is
+		// not added, even as a zero line.
+		if pos.StocksOwned == 0 && (!hadPrior || !existed) {
 			continue
 		}
 
@@ -193,17 +211,23 @@ func (r *SnapshotRecomputer) linesAsOf(
 	return lines
 }
 
-// asOfLedger keeps every event dated before cutoff. Filtering is purely by
-// date — including for an opening: an opening dated AFTER the snapshot date is
-// a baseline that did not yet exist on that date and must not inflate a past
-// row. RecomputePosition still sorts a retained opening first as the baseline;
-// ordering and as-of membership are separate concerns. A normal opening dated
-// at/before the snapshot (the common case, incl. zero-dated migration
-// openings) is < cutoff and stays.
-func asOfLedger(txns []domain.Transaction, cutoff time.Time) []domain.Transaction {
+// asOfLedger keeps the dated trade events that had occurred by cutoff. The
+// opening is the timeless baseline (RecomputePosition sorts it first regardless
+// of its calendar date), but its stored date can be an artefact — a holding
+// created through the form, or a legacy holding migrated with a "now" stamp,
+// carries an opening dated later than older snapshots. keepOpening lets the
+// caller retain that baseline when the holding genuinely existed on the snapshot
+// date (it was already recorded there), while still dropping a future-stamped
+// opening for a holding that did not exist yet — so the heal never zeroes a
+// recorded position, nor fabricates a holding into a row that predates it.
+func asOfLedger(txns []domain.Transaction, cutoff time.Time, keepOpening bool) []domain.Transaction {
 	out := make([]domain.Transaction, 0, len(txns))
 	for _, t := range txns {
-		if t.Date.Before(cutoff) {
+		// Non-opening trades: strictly as-of. Opening: retained unconditionally
+		// when keepOpening (the holding existed on this row), otherwise treated
+		// like any dated event so a future-stamped opening can't fabricate a
+		// holding into a row that predates it.
+		if (t.Type == domain.TxnOpening && keepOpening) || t.Date.Before(cutoff) {
 			out = append(out, t)
 		}
 	}
