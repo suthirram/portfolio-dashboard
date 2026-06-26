@@ -784,3 +784,25 @@ describe('HoldingsModal — duplicate symbol', () => {
     expect(screen.getByText('₹200.00')).toBeInTheDocument() // Plan B yesterday
   })
 })
+
+describe('HoldingsModal — change colour coding', () => {
+  const today: HistoryRow = row({ date: '2026-06-25', holdings: [
+    { symbol: 'UP.NS', script: 'Up', currency: 'INR', quantity: 1, close_price: 110 },
+    { symbol: 'DN.NS', script: 'Down', currency: 'INR', quantity: 1, close_price: 90 },
+    { symbol: 'FLAT.NS', script: 'Flat', currency: 'INR', quantity: 1, close_price: 100 },
+  ] })
+  const prev: HistoryRow = row({ date: '2026-06-24', holdings: [
+    { symbol: 'UP.NS', script: 'Up', currency: 'INR', quantity: 1, close_price: 100 },
+    { symbol: 'DN.NS', script: 'Down', currency: 'INR', quantity: 1, close_price: 100 },
+    { symbol: 'FLAT.NS', script: 'Flat', currency: 'INR', quantity: 1, close_price: 100 },
+  ] })
+
+  it('paints change green for up, red for down, blue for unchanged', () => {
+    render(<HoldingsModal row={today} prev={prev} region="INR" onClose={() => {}} />)
+    const colorOf = (label: string) =>
+      (screen.getByText(label).closest('tr')!.querySelectorAll('td')[3] as HTMLTableCellElement).style.color
+    expect(colorOf('Up')).toContain('--green')
+    expect(colorOf('Down')).toContain('--red')
+    expect(colorOf('Flat')).toContain('--blue')
+  })
+})

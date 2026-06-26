@@ -1382,8 +1382,13 @@ export function HoldingsModal({ row, prev, region, onClose }: {
                   const yesterday = y ?? null
                   const change = yesterday === null ? null : cur - yesterday
                   const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100
-                  // Green up, red down, neutral when unchanged or no prior price.
-                  const color = change === null || change === 0 ? undefined : change > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+                  // Green up, red down, blue unchanged; neutral only when there
+                  // is no prior price to compare against.
+                  const color = change === null
+                    ? undefined
+                    : change > 0 ? 'var(--green, #16a34a)'
+                    : change < 0 ? 'var(--red, #dc2626)'
+                    : 'var(--blue, #2563eb)'
                   const num: React.CSSProperties = { ...td, textAlign: 'right' }
                   return (
                     <tr key={keyFor(h)}>
