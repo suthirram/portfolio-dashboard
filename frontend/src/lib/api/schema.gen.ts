@@ -982,6 +982,27 @@ export interface components {
              */
             pnl_pct?: number | null;
         };
+        /** @description One stock's line within a history snapshot (cron rows only). */
+        HistoryHolding: {
+            symbol: string;
+            script: string;
+            /** @description Bucket currency code (INR|EUR|USD) */
+            currency?: string;
+            /** Format: double */
+            quantity?: number;
+            /**
+             * Format: double
+             * @description Close price on price_date (the row's current price)
+             */
+            close_price: number;
+            /** @description Trading date the close_price belongs to (YYYY-MM-DD) */
+            price_date?: string;
+            /**
+             * Format: double
+             * @description quantity × close_price
+             */
+            current?: number;
+        };
         HistoryRow: {
             /** Format: date */
             date: string;
@@ -989,6 +1010,8 @@ export interface components {
                 [key: string]: components["schemas"]["HistoryRegionSnapshot"];
             };
             totals: components["schemas"]["HistoryTotals"];
+            /** @description Per-stock breakdown for cron-sourced rows; absent on manual-only rows. */
+            holdings?: components["schemas"]["HistoryHolding"][];
         };
         HistoryList: {
             currency: string;

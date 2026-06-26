@@ -7,6 +7,7 @@ import {
 import {
   api,
   type DateConflict,
+  type HistoryHolding,
   type HistoryRow,
   type PasteHistoryReport,
   type RegionSnapshot,
@@ -218,6 +219,9 @@ export default function HistoryPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [editRow, setEditRow] = useState<HistoryRow | null>(null)
+  // Row whose per-stock holdings are shown in the Holdings modal, with the
+  // prior trading day's row (for yesterday's price). null = modal closed.
+  const [holdingsView, setHoldingsView] = useState<{ row: HistoryRow; prev: HistoryRow | null } | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
 
@@ -408,6 +412,7 @@ export default function HistoryPage() {
           <>
             <HistoryTable rows={rows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
+              onSelectRow={(row, prev) => setHoldingsView({ row, prev })}
               canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
             {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
@@ -430,6 +435,11 @@ export default function HistoryPage() {
         conflict={headConflict}
         onResolve={handleConflictResolve}
         onSkip={handleConflictSkip}
+      />}
+      {holdingsView && <HoldingsModal
+        row={holdingsView.row}
+        prev={holdingsView.prev}
+        onClose={() => setHoldingsView(null)}
       />}
     </div>
   )
@@ -725,11 +735,14 @@ export function regionCurrentDirection(
 // Header spelling "volatlity" matches the user's reference screenshot
 // verbatim. If we ever correct the typo, update the test expectation
 // in HistoryPage.test.tsx too.
-export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, theme = 'dark', canForceDelete = false }: {
+export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSelectRow, theme = 'dark', canForceDelete = false }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
   onEdit?: (row: HistoryRow) => void
+  // Opens the per-stock Holdings modal. prev is the prior trading day's row
+  // (for yesterday's price), or null when this is the oldest row loaded.
+  onSelectRow?: (row: HistoryRow, prev: HistoryRow | null) => void
   theme?: ThemeName
   canForceDelete?: boolean
 }) {
@@ -778,8 +791,12 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
             const i = indexOfDate.get(r.date)!
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
+            const clickable = !!onSelectRow && !!r.holdings?.length
             return (
-              <tr key={r.date} title={`Source: ${sourceLabel}`}>
+              <tr key={r.date}
+                title={clickable ? 'View holdings' : `Source: ${sourceLabel}`}
+                onClick={clickable ? () => onSelectRow!(r, byDateDesc[i + 1] ?? null) : undefined}
+                style={clickable ? { cursor: 'pointer' } : undefined}>
                 <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{r.date}</td>
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
@@ -794,13 +811,13 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                 <td style={actionTd}>
                   <div style={actionCell}>
                     {onEdit && (
-                      <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
+                      <button onClick={e => { e.stopPropagation(); onEdit(r) }} style={iconBtnBlueStyle}
                         aria-label={`Edit row for ${r.date}`} title="Edit">
                         <EditIcon size={16} />
                       </button>
                     )}
                     {(isAllManual(r.regions) || canForceDelete) && (
-                      <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
+                      <button onClick={e => { e.stopPropagation(); onDelete(r.date) }} style={iconBtnRedStyle}
                         aria-label={`Delete row for ${r.date}`}
                         title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
                         <TrashIcon size={16} />
@@ -1264,6 +1281,74 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onSkip} style={btnSecondaryStyle}>Skip</button>
           <button onClick={submit} style={btnPrimaryStyle}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// HoldingsModal shows the per-stock breakdown behind a clicked history row:
+// each stock's yesterday vs current close, the price change, and the daily
+// % move. Yesterday's price comes from the prior trading day's row matched by
+// symbol (null when that stock has no prior line). Reuses the shared modal
+// chrome (backdrop + scrollable card) and currency formatting.
+export function HoldingsModal({ row, prev, onClose }: {
+  row: HistoryRow
+  prev: HistoryRow | null
+  onClose: () => void
+}) {
+  const prevBySymbol = new Map((prev?.holdings ?? []).map(h => [h.symbol, h]))
+  const holdings = row.holdings ?? []
+
+  const priceFmt = (n: number, code?: string) =>
+    fmtCurrency(n, CURRENCY_SYMBOL[(code as 'INR' | 'EUR' | 'USD') ?? 'INR'] ?? '₹')
+
+  return (
+    <div style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.date}</span>
+        </div>
+        {holdings.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No per-stock breakdown for this row.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={th}>Script name</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Current price</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Change value</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Daily change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {holdings.map((h: HistoryHolding) => {
+                  const cur = h.close_price
+                  const y = prevBySymbol.get(h.symbol)?.close_price
+                  const yesterday = y ?? null
+                  const change = yesterday === null ? null : cur - yesterday
+                  const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100
+                  const color = change === null ? undefined : change >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+                  const num: React.CSSProperties = { ...td, textAlign: 'right' }
+                  return (
+                    <tr key={h.symbol}>
+                      <td style={td}>{h.script || h.symbol}</td>
+                      <td style={num}>{yesterday === null ? '—' : priceFmt(yesterday, h.currency)}</td>
+                      <td style={num}>{priceFmt(cur, h.currency)}</td>
+                      <td style={{ ...num, color }}>{change === null ? '—' : priceFmt(change, h.currency)}</td>
+                      <td style={{ ...num, color }}>{pct === null ? '—' : `${pct.toFixed(2)}%`}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onClose} style={btnSecondaryStyle}>Close</button>
         </div>
       </div>
     </div>

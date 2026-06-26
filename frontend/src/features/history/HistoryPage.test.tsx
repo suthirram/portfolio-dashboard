@@ -9,6 +9,7 @@ import {
   sanitizeAmount,
   normaliseDate,
   HistoryTable,
+  HoldingsModal,
   AddRowModal,
   ConflictDialog,
   PasteModal,
@@ -640,5 +641,80 @@ describe('fmtAxisAmount', () => {
     expect(fmtAxisAmount(1500000)).toBe('1.5M')
     expect(fmtAxisAmount(2000000)).toBe('2M')
     expect(fmtAxisAmount(500)).toBe('500')
+  })
+})
+
+// ---- Holdings modal (per-stock breakdown behind a history row) ----
+
+describe('HoldingsModal', () => {
+  const today: HistoryRow = row({
+    date: '2026-06-25',
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 110, quantity: 2, current: 220 },
+      { symbol: 'NEW.NS', script: 'New Co', currency: 'INR', close_price: 50, quantity: 1, current: 50 },
+    ],
+  })
+  const prev: HistoryRow = row({
+    date: '2026-06-24',
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 100, quantity: 2, current: 200 },
+    ],
+  })
+
+  it('renders the title, columns and per-stock yesterday/current/change/daily values', () => {
+    render(<HoldingsModal row={today} prev={prev} onClose={() => {}} />)
+    expect(screen.getByRole('heading', { name: 'Holdings' })).toBeInTheDocument()
+    for (const col of ['Script name', 'Yesterday price', 'Current price', 'Change value', 'Daily change']) {
+      expect(screen.getByText(col)).toBeInTheDocument()
+    }
+    // TCS: yesterday 100 → current 110 → +10 → +10.00%.
+    expect(screen.getByText('₹100.00')).toBeInTheDocument()
+    expect(screen.getByText('₹110.00')).toBeInTheDocument()
+    expect(screen.getByText('₹10.00')).toBeInTheDocument()
+    expect(screen.getByText('10.00%')).toBeInTheDocument()
+  })
+
+  it('shows an em dash for a stock with no prior-day price', () => {
+    render(<HoldingsModal row={today} prev={prev} onClose={() => {}} />)
+    // NEW.NS has no prior line → yesterday/change/daily all dash.
+    expect(screen.getByText('New Co')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('calls onClose when Close is clicked', () => {
+    const onClose = vi.fn()
+    render(<HoldingsModal row={today} prev={prev} onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('HistoryTable row click → onSelectRow', () => {
+  const newer = row({
+    date: '2026-06-25',
+    regions: { INR: { invested: 100, current: 110, source: 'cron' } },
+    holdings: [{ symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 110 }],
+  })
+  const older = row({
+    date: '2026-06-24',
+    regions: { INR: { invested: 100, current: 100, source: 'cron' } },
+    holdings: [{ symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 100 }],
+  })
+
+  it('opens with the clicked row and the prior trading day as previous', () => {
+    const onSelectRow = vi.fn()
+    render(<HistoryTable rows={[newer, older]} currency="INR" onDelete={() => {}} onSelectRow={onSelectRow} />)
+    fireEvent.click(screen.getByText('2026-06-25'))
+    expect(onSelectRow).toHaveBeenCalledTimes(1)
+    expect(onSelectRow.mock.calls[0][0].date).toBe('2026-06-25')
+    expect(onSelectRow.mock.calls[0][1].date).toBe('2026-06-24')
+  })
+
+  it('does not fire for a row without a per-stock breakdown', () => {
+    const onSelectRow = vi.fn()
+    const manual = row({ date: '2026-06-20', regions: { INR: { invested: 1, current: 1, source: 'manual' } } })
+    render(<HistoryTable rows={[manual]} currency="INR" onDelete={() => {}} onSelectRow={onSelectRow} />)
+    fireEvent.click(screen.getByText('2026-06-20'))
+    expect(onSelectRow).not.toHaveBeenCalled()
   })
 })

@@ -569,6 +569,33 @@ components:
           nullable: true
           description: Null when invested_total is zero (divide-by-zero).
 
+    HistoryHolding:
+      type: object
+      required: [symbol, script, close_price]
+      description: One stock's line within a history snapshot (cron rows only).
+      properties:
+        symbol:
+          type: string
+        script:
+          type: string
+        currency:
+          type: string
+          description: Bucket currency code (INR|EUR|USD)
+        quantity:
+          type: number
+          format: double
+        close_price:
+          type: number
+          format: double
+          description: Close price on price_date (the row's current price)
+        price_date:
+          type: string
+          description: Trading date the close_price belongs to (YYYY-MM-DD)
+        current:
+          type: number
+          format: double
+          description: quantity × close_price
+
     HistoryRow:
       type: object
       required: [date, regions, totals]
@@ -582,6 +609,11 @@ components:
             $ref: "#/components/schemas/HistoryRegionSnapshot"
         totals:
           $ref: "#/components/schemas/HistoryTotals"
+        holdings:
+          type: array
+          description: Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
+          items:
+            $ref: "#/components/schemas/HistoryHolding"
 
     HistoryList:
       type: object
