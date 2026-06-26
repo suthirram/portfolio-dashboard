@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dispatch, FocusEvent, SetStateAction } from 'react'
+import type { Dispatch, FocusEvent, KeyboardEvent, MouseEvent, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
@@ -69,9 +69,11 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
     USD: { header: '#FEE2E2', cell: '#FEF2F2' }, // red-100    / red-50
   },
   dark: {
-    INR: { header: 'rgba(251,146,60,0.22)', cell: 'rgba(251,146,60,0.10)' },
-    EUR: { header: 'rgba(96,165,250,0.22)', cell: 'rgba(96,165,250,0.10)' },
-    USD: { header: 'rgba(248,113,113,0.22)', cell: 'rgba(248,113,113,0.10)' },
+    // Sticky headers overlap body rows while scrolling, so the header tints
+    // must be opaque; translucent backgrounds let row values bleed through.
+    INR: { header: '#4c3733', cell: 'rgba(251,146,60,0.10)' },
+    EUR: { header: '#293b5c', cell: 'rgba(96,165,250,0.10)' },
+    USD: { header: '#4b303e', cell: 'rgba(248,113,113,0.10)' },
   },
 }
 
@@ -221,7 +223,7 @@ export default function HistoryPage() {
   const [editRow, setEditRow] = useState<HistoryRow | null>(null)
   // Row whose per-stock holdings are shown in the Holdings modal, with the
   // prior trading day's row (for yesterday's price). null = modal closed.
-  const [holdingsView, setHoldingsView] = useState<{ row: HistoryRow; prev: HistoryRow | null } | null>(null)
+  const [holdingsView, setHoldingsView] = useState<{ row: HistoryRow; prev: HistoryRow | null; region: RegionKey | null } | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
 
@@ -412,7 +414,7 @@ export default function HistoryPage() {
           <>
             <HistoryTable rows={rows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
-              onSelectRow={(row, prev) => setHoldingsView({ row, prev })}
+              onSelectRow={(row, prev, region = null) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
             {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
@@ -439,6 +441,7 @@ export default function HistoryPage() {
       {holdingsView && <HoldingsModal
         row={holdingsView.row}
         prev={holdingsView.prev}
+        region={holdingsView.region}
         onClose={() => setHoldingsView(null)}
       />}
     </div>
@@ -741,8 +744,9 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
   onDelete: (date: string) => void
   onEdit?: (row: HistoryRow) => void
   // Opens the per-stock Holdings modal. prev is the prior trading day's row
-  // (for yesterday's price), or null when this is the oldest row loaded.
-  onSelectRow?: (row: HistoryRow, prev: HistoryRow | null) => void
+  // (for yesterday's price), or null when this is the oldest row loaded. region
+  // narrows the modal to the clicked currency group; null shows every holding.
+  onSelectRow?: (row: HistoryRow, prev: HistoryRow | null, region?: RegionKey | null) => void
   theme?: ThemeName
   canForceDelete?: boolean
 }) {
@@ -773,7 +777,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>
+            <th style={{ ...headerTh, borderRight: '2px solid var(--border)' }}>
               <button onClick={() => setSortAsc(s => !s)} style={sortHeaderBtn}
                 aria-label="Sort by date"
                 title={sortAsc ? 'Oldest first — click for newest' : 'Newest first — click for oldest'}>
@@ -792,10 +796,11 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
             const clickable = !!onSelectRow && !!r.holdings?.length
+            const prev = byDateDesc[i + 1] ?? null
             return (
               <tr key={r.date}
                 title={clickable ? 'View holdings' : `Source: ${sourceLabel}`}
-                onClick={clickable ? () => onSelectRow!(r, byDateDesc[i + 1] ?? null) : undefined}
+                onClick={clickable ? () => onSelectRow!(r, prev, null) : undefined}
                 style={clickable ? { cursor: 'pointer' } : undefined}>
                 <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{r.date}</td>
                 {REGIONS.map((region, idx) => (
@@ -806,6 +811,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                     region={region}
                     last={idx === REGIONS.length - 1}
                     theme={theme}
+                    onSelectRegion={clickable ? selected => onSelectRow!(r, prev, selected) : undefined}
                   />
                 ))}
                 <td style={actionTd}>
@@ -837,7 +843,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
 function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last: boolean; theme: ThemeName }) {
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
   const tint = REGION_TINTS[theme][region].header
-  const hdr: React.CSSProperties = { ...th, background: tint }
+  const hdr: React.CSSProperties = { ...headerTh, background: tint }
   return (
     <>
       <th style={hdr}>Amount invested</th>
@@ -848,12 +854,13 @@ function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last:
   )
 }
 
-function CurrencyRowCells({ rows, i, region, last, theme }: {
+function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   rows: HistoryRow[]
   i: number
   region: RegionKey
   last: boolean
   theme: ThemeName
+  onSelectRegion?: (region: RegionKey) => void
 }) {
   const r = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
@@ -866,7 +873,27 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const dir      = regionCurrentDirection(rows, i, region)
   const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
-  const base: React.CSSProperties = { ...td, background: tint }
+  const selectable = !!onSelectRegion
+  const base: React.CSSProperties = { ...td, background: tint, cursor: selectable ? 'pointer' : undefined }
+  const handleClick = (e: MouseEvent<HTMLTableCellElement>) => {
+    if (!onSelectRegion) return
+    e.stopPropagation()
+    onSelectRegion(region)
+  }
+  const handleKeyDown = (e: KeyboardEvent<HTMLTableCellElement>) => {
+    if (!onSelectRegion || (e.key !== 'Enter' && e.key !== ' ')) return
+    e.preventDefault()
+    e.stopPropagation()
+    onSelectRegion(region)
+  }
+  const clickProps = selectable
+    ? {
+        onClick: handleClick,
+        onKeyDown: handleKeyDown,
+        tabIndex: 0,
+        title: `View ${region} holdings`,
+      }
+    : {}
   // New-investment override beats the group tint to keep the signal loud:
   // a day the user added holdings gets a mild purple "Amount invested" cell.
   const investedStyle: React.CSSProperties = {
@@ -887,12 +914,12 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
-      <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td style={base}>{fmtCurrency(current, sym)}</td>
-      <td style={{ ...base, color: volColor }}>
+      <td {...clickProps} style={investedStyle}>{fmtCurrency(invested, sym)}</td>
+      <td {...clickProps} style={base}>{fmtCurrency(current, sym)}</td>
+      <td {...clickProps} style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={pnlStyle}>
+      <td {...clickProps} style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
@@ -900,13 +927,25 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
 }
 
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)' }
+// Sticky on the header CELLS, not the <thead>: Safari/WebKit don't support
+// position:sticky on thead/tr, so a sticky thead detaches and covers the first
+// data row. Per-cell sticky is widely supported and keeps the header in flow
+// (so the top row stays visible) while pinning it on scroll. The opaque
+// background lets data scroll underneath cleanly.
+const headerTh: React.CSSProperties = {
+  ...th,
+  background: 'var(--bg-card)',
+  position: 'sticky',
+  top: 'var(--nav-height, 56px)',
+  zIndex: 20,
+}
 const sortHeaderBtn: React.CSSProperties = {
   background: 'transparent', border: 'none', padding: 0, margin: 0,
   font: 'inherit', color: 'inherit', fontWeight: 600, cursor: 'pointer',
   display: 'inline-flex', alignItems: 'center', gap: 4,
 }
 const td: React.CSSProperties = { padding: '8px 10px', borderBottom: '1px solid var(--border)' }
-const actionTh: React.CSSProperties = { ...th, width: 72, minWidth: 72, textAlign: 'center' }
+const actionTh: React.CSSProperties = { ...headerTh, width: 72, minWidth: 72, textAlign: 'center' }
 const actionTd: React.CSSProperties = { ...td, width: 72, minWidth: 72, textAlign: 'center', verticalAlign: 'middle' }
 const actionCell: React.CSSProperties = { display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'center' }
 
@@ -1292,26 +1331,36 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
 // % move. Yesterday's price comes from the prior trading day's row matched by
 // symbol (null when that stock has no prior line). Reuses the shared modal
 // chrome (backdrop + scrollable card) and currency formatting.
-export function HoldingsModal({ row, prev, onClose }: {
+export function HoldingsModal({ row, prev, region = null, onClose }: {
   row: HistoryRow
   prev: HistoryRow | null
+  region?: RegionKey | null
   onClose: () => void
 }) {
-  const prevBySymbol = new Map((prev?.holdings ?? []).map(h => [h.symbol, h]))
-  const holdings = row.holdings ?? []
+  const holdingCurrency = (h: HistoryHolding): RegionKey => {
+    const code = (h.currency || 'INR').toUpperCase()
+    return code === 'EUR' || code === 'USD' ? code : 'INR'
+  }
+  const keyFor = (h: HistoryHolding) => `${h.symbol}\u0000${holdingCurrency(h)}`
+  const inRegion = (h: HistoryHolding) => !region || holdingCurrency(h) === region
+  const prevByKey = new Map((prev?.holdings ?? []).filter(inRegion).map(h => [keyFor(h), h]))
+  const holdings = (row.holdings ?? []).filter(inRegion)
 
   const priceFmt = (n: number, code?: string) =>
     fmtCurrency(n, CURRENCY_SYMBOL[(code as 'INR' | 'EUR' | 'USD') ?? 'INR'] ?? '₹')
+  const emptyLabel = region ? `${region} per-stock breakdown` : 'per-stock breakdown'
 
   return (
     <div style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.date}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            {row.date}{region ? ` · ${region}` : ''}
+          </span>
         </div>
         {holdings.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No per-stock breakdown for this row.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No {emptyLabel} for this row.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
@@ -1327,7 +1376,7 @@ export function HoldingsModal({ row, prev, onClose }: {
               <tbody>
                 {holdings.map((h: HistoryHolding) => {
                   const cur = h.close_price
-                  const y = prevBySymbol.get(h.symbol)?.close_price
+                  const y = prevByKey.get(keyFor(h))?.close_price
                   const yesterday = y ?? null
                   const change = yesterday === null ? null : cur - yesterday
                   const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100

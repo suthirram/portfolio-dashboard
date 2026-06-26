@@ -361,6 +361,19 @@ describe('HistoryTable', () => {
     expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-17')
     expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-16')
   })
+
+  it('pins the header on the cells, not the thead, so it never covers the top row', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}}
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
+
+    const amountHeader = screen.getAllByText('Amount invested')[0].closest('th') as HTMLTableCellElement
+    const tableHead = amountHeader.closest('thead') as HTMLTableSectionElement
+    // Sticky lives on the header CELLS (Safari ignores sticky on <thead>, which
+    // detaches it and hides the first data row).
+    expect(tableHead.style.position).toBe('')
+    expect(amountHeader.style.position).toBe('sticky')
+    expect(amountHeader.style.top).toBe('var(--nav-height, 56px)')
+  })
 })
 
 // ---- HistoryTable cell tints ----
@@ -652,12 +665,14 @@ describe('HoldingsModal', () => {
     holdings: [
       { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 110, quantity: 2, current: 220 },
       { symbol: 'NEW.NS', script: 'New Co', currency: 'INR', close_price: 50, quantity: 1, current: 50 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', close_price: 12, quantity: 2, current: 24 },
     ],
   })
   const prev: HistoryRow = row({
     date: '2026-06-24',
     holdings: [
       { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 100, quantity: 2, current: 200 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', close_price: 10, quantity: 2, current: 20 },
     ],
   })
 
@@ -681,6 +696,15 @@ describe('HoldingsModal', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
   })
 
+  it('filters the per-stock table to the selected currency', () => {
+    render(<HoldingsModal row={today} prev={prev} region="EUR" onClose={() => {}} />)
+    expect(screen.getByText('SAP')).toBeInTheDocument()
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    expect(screen.getByText('€12.00')).toBeInTheDocument()
+    expect(screen.queryByText('TCS')).toBeNull()
+    expect(screen.queryByText('New Co')).toBeNull()
+  })
+
   it('calls onClose when Close is clicked', () => {
     const onClose = vi.fn()
     render(<HoldingsModal row={today} prev={prev} onClose={onClose} />)
@@ -692,13 +716,25 @@ describe('HoldingsModal', () => {
 describe('HistoryTable row click → onSelectRow', () => {
   const newer = row({
     date: '2026-06-25',
-    regions: { INR: { invested: 100, current: 110, source: 'cron' } },
-    holdings: [{ symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 110 }],
+    regions: {
+      INR: { invested: 100, current: 110, source: 'cron' },
+      EUR: { invested: 20, current: 24, source: 'cron' },
+    },
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 110 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', close_price: 12 },
+    ],
   })
   const older = row({
     date: '2026-06-24',
-    regions: { INR: { invested: 100, current: 100, source: 'cron' } },
-    holdings: [{ symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 100 }],
+    regions: {
+      INR: { invested: 100, current: 100, source: 'cron' },
+      EUR: { invested: 20, current: 20, source: 'cron' },
+    },
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', close_price: 100 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', close_price: 10 },
+    ],
   })
 
   it('opens with the clicked row and the prior trading day as previous', () => {
@@ -708,6 +744,17 @@ describe('HistoryTable row click → onSelectRow', () => {
     expect(onSelectRow).toHaveBeenCalledTimes(1)
     expect(onSelectRow.mock.calls[0][0].date).toBe('2026-06-25')
     expect(onSelectRow.mock.calls[0][1].date).toBe('2026-06-24')
+    expect(onSelectRow.mock.calls[0][2]).toBeNull()
+  })
+
+  it('passes the clicked currency group to the holdings modal callback', () => {
+    const onSelectRow = vi.fn()
+    render(<HistoryTable rows={[newer]} currency="INR" onDelete={() => {}} onSelectRow={onSelectRow} />)
+    fireEvent.click(screen.getAllByTitle('View EUR holdings')[0])
+    expect(onSelectRow).toHaveBeenCalledTimes(1)
+    expect(onSelectRow.mock.calls[0][0].date).toBe('2026-06-25')
+    expect(onSelectRow.mock.calls[0][1]).toBeNull()
+    expect(onSelectRow.mock.calls[0][2]).toBe('EUR')
   })
 
   it('does not fire for a row without a per-stock breakdown', () => {
