@@ -328,6 +328,30 @@ describe('HistoryTable', () => {
     expect(screen.getByText('10.00')).toBeInTheDocument()
   })
 
+  it('volatility of the next row updates when the prior row current value is edited', () => {
+    const rowsV1: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 220, 'cron') } }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }),
+    ]
+    const { rerender } = render(
+      <HistoryTable currency="INR" onDelete={() => {}} rows={rowsV1} />,
+    )
+    // Initial: 06-17 volatility = (220 - 200) / 200 * 100 = +10.00
+    expect(screen.getByText('10.00')).toBeInTheDocument()
+
+    // Simulate the immediate optimistic row update after PATCH /history/:date/regions:
+    // 06-16 current changes from 200 → 180.
+    const rowsV2: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 220, 'cron') } }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 180, 'manual') } }),
+    ]
+    rerender(<HistoryTable currency="INR" onDelete={() => {}} rows={rowsV2} />)
+
+    // 06-17 volatility must now reflect the new baseline: (220 - 180) / 180 ≈ +22.22
+    expect(screen.getByText('22.22')).toBeInTheDocument()
+    expect(screen.queryByText('10.00')).toBeNull()
+  })
+
   it('clicking the Date header flips to oldest-first while volatility stays pinned to the prior day', () => {
     const rows: HistoryRow[] = [
       // server order = newest-first

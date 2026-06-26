@@ -303,7 +303,8 @@ export default function HistoryPage() {
   const handleConflictResolve = async (date: string, chosen: Record<string, { invested: number; current: number }>) => {
     if (Object.keys(chosen).length > 0) {
       try {
-        await api.patchHistoryRegions(date, { regions: chosen })
+        const updated = await api.patchHistoryRegions(date, { regions: chosen })
+        setRows(prev => prev.map(r => r.date === updated.date ? updated : r))
       } catch (e) {
         alert('Save failed: ' + (e instanceof Error ? e.message : String(e)))
       }
@@ -319,7 +320,11 @@ export default function HistoryPage() {
 
   const handleEditSaved = async (date: string, regions: Record<string, { invested: number; current: number }>) => {
     try {
-      await api.patchHistoryRegions(date, { regions })
+      const updated = await api.patchHistoryRegions(date, { regions })
+      // Immediately apply the server-confirmed row so this row AND the adjacent
+      // row (whose daily volatility uses this row as its day-over-day baseline)
+      // both update without waiting for the full reload round-trip.
+      setRows(prev => prev.map(r => r.date === updated.date ? updated : r))
       setEditRow(null)
       await reload()
     } catch (e) {

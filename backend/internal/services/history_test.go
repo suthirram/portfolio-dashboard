@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -120,6 +121,32 @@ func TestHistoryService_Add_RejectsNegative(t *testing.T) {
 			t.Errorf("err = %v, want ErrInvalidRegions", err)
 		}
 	})
+}
+
+func TestHistoryService_Add_RejectsNaNAndInf(t *testing.T) {
+	cases := []struct {
+		name    string
+		regions map[string]domain.RegionSnapshot
+	}{
+		{"NaN invested", map[string]domain.RegionSnapshot{"INR": {Invested: math.NaN(), Current: 1}}},
+		{"Inf invested", map[string]domain.RegionSnapshot{"INR": {Invested: math.Inf(1), Current: 1}}},
+		{"NaN current", map[string]domain.RegionSnapshot{"INR": {Invested: 1, Current: math.NaN()}}},
+		{"Inf current", map[string]domain.RegionSnapshot{"INR": {Invested: 1, Current: math.Inf(-1)}}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+		mt.Run(tc.name, func(mt *mtest.T) {
+			svc := newHistorySvc(mt)
+			_, err := svc.Add(context.Background(), primitive.NewObjectID(), AddRowInput{
+				Date:    "2026-06-15",
+				Regions: tc.regions,
+			})
+			if !errors.Is(err, ErrInvalidRegions) {
+				t.Errorf("%s: err = %v, want ErrInvalidRegions", tc.name, err)
+			}
+		})
+	}
 }
 
 func TestHistoryService_Add_StampsWriteCurrencyFromBucketKey(t *testing.T) {

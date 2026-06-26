@@ -370,6 +370,12 @@ func validateRegions(in map[string]domain.RegionSnapshot) error {
 		if _, ok := known[k]; !ok {
 			return fmt.Errorf("%w: unknown region %q", ErrInvalidRegions, k)
 		}
+		if math.IsNaN(r.Invested) || math.IsInf(r.Invested, 0) {
+			return fmt.Errorf("%w: non-finite invested for region %q", ErrInvalidRegions, k)
+		}
+		if math.IsNaN(r.Current) || math.IsInf(r.Current, 0) {
+			return fmt.Errorf("%w: non-finite current for region %q", ErrInvalidRegions, k)
+		}
 		if r.Invested < 0 || r.Current < 0 {
 			return fmt.Errorf("%w: negative value for region %q", ErrInvalidRegions, k)
 		}
