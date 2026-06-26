@@ -9,6 +9,7 @@ import {
   sanitizeAmount,
   normaliseDate,
   HistoryTable,
+  HoldingsModal,
   AddRowModal,
   ConflictDialog,
   PasteModal,
@@ -640,5 +641,107 @@ describe('fmtAxisAmount', () => {
     expect(fmtAxisAmount(1500000)).toBe('1.5M')
     expect(fmtAxisAmount(2000000)).toBe('2M')
     expect(fmtAxisAmount(500)).toBe('500')
+  })
+})
+
+// ---- Per-currency Holdings modal ----
+
+describe('HoldingsModal', () => {
+  const today: HistoryRow = row({
+    date: '2026-06-25',
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 2, close_price: 110, current: 220 },
+      { symbol: 'OLD.NS', script: 'Sold Out', currency: 'INR', quantity: 0, close_price: 5, current: 0 },
+      { symbol: 'SHORT.NS', script: 'Shorted', currency: 'INR', quantity: -3, close_price: 9, current: -27 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', quantity: 2, close_price: 12, current: 24 },
+    ],
+  })
+  const prev: HistoryRow = row({
+    date: '2026-06-24',
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 2, close_price: 100, current: 200 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', quantity: 2, close_price: 10, current: 20 },
+    ],
+  })
+
+  it('renders the title, columns and per-stock yesterday/current/change/daily for the chosen currency', () => {
+    render(<HoldingsModal row={today} prev={prev} region="INR" onClose={() => {}} />)
+    expect(screen.getByRole('heading', { name: 'Holdings' })).toBeInTheDocument()
+    for (const col of ['Script name', 'Yesterday price', 'Current price', 'Change value', 'Daily change']) {
+      expect(screen.getByText(col)).toBeInTheDocument()
+    }
+    // TCS: 100 → 110 → +10 → +10.00%.
+    expect(screen.getByText('₹100.00')).toBeInTheDocument()
+    expect(screen.getByText('₹110.00')).toBeInTheDocument()
+    expect(screen.getByText('₹10.00')).toBeInTheDocument()
+    expect(screen.getByText('10.00%')).toBeInTheDocument()
+  })
+
+  it('excludes zero and negative positions, and other currencies', () => {
+    render(<HoldingsModal row={today} prev={prev} region="INR" onClose={() => {}} />)
+    expect(screen.getByText('TCS')).toBeInTheDocument()
+    expect(screen.queryByText('Sold Out')).toBeNull()   // quantity 0
+    expect(screen.queryByText('Shorted')).toBeNull()    // quantity < 0
+    expect(screen.queryByText('SAP')).toBeNull()        // other currency
+  })
+
+  it('scopes to the selected currency (EUR) with its symbol', () => {
+    render(<HoldingsModal row={today} prev={prev} region="EUR" onClose={() => {}} />)
+    expect(screen.getByText('SAP')).toBeInTheDocument()
+    expect(screen.getByText('€10.00')).toBeInTheDocument()
+    expect(screen.getByText('€12.00')).toBeInTheDocument()
+    expect(screen.queryByText('TCS')).toBeNull()
+  })
+
+  it('shows an em dash when a stock has no prior-day price', () => {
+    const noPrev: HistoryRow = row({ date: '2026-06-25', holdings: [
+      { symbol: 'NEW.NS', script: 'New Co', currency: 'INR', quantity: 1, close_price: 50, current: 50 },
+    ] })
+    render(<HoldingsModal row={noPrev} prev={null} region="INR" onClose={() => {}} />)
+    expect(screen.getByText('New Co')).toBeInTheDocument()
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('calls onClose when Close is clicked', () => {
+    const onClose = vi.fn()
+    render(<HoldingsModal row={today} prev={prev} region="INR" onClose={onClose} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('HistoryTable currency-cell click → onSelectRegion', () => {
+  const newer = row({
+    date: '2026-06-25',
+    regions: {
+      INR: { invested: 100, current: 110, source: 'cron' },
+      EUR: { invested: 20, current: 24, source: 'cron' },
+    },
+    holdings: [
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 2, close_price: 110 },
+      { symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', quantity: 2, close_price: 12 },
+    ],
+  })
+  const older = row({
+    date: '2026-06-24',
+    regions: { INR: { invested: 100, current: 100, source: 'cron' } },
+    holdings: [{ symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 2, close_price: 100 }],
+  })
+
+  it('opens with the clicked row, prior row, and the clicked currency', () => {
+    const onSelectRegion = vi.fn()
+    render(<HistoryTable rows={[newer, older]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
+    fireEvent.click(screen.getAllByTitle('View EUR holdings')[0])
+    expect(onSelectRegion).toHaveBeenCalledTimes(1)
+    expect(onSelectRegion.mock.calls[0][0].date).toBe('2026-06-25')
+    expect(onSelectRegion.mock.calls[0][1].date).toBe('2026-06-24')
+    expect(onSelectRegion.mock.calls[0][2]).toBe('EUR')
+  })
+
+  it('is not clickable for a currency with no positive holding', () => {
+    const onSelectRegion = vi.fn()
+    // newer has no USD holding → USD cells not selectable.
+    render(<HistoryTable rows={[newer]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
+    expect(screen.queryByTitle('View USD holdings')).toBeNull()
   })
 })

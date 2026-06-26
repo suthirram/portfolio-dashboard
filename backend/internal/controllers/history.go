@@ -156,11 +156,35 @@ func toAPIHistoryList(list services.HistoryList) api.HistoryList {
 
 func toAPIHistoryRow(r services.HistoryRow) api.HistoryRow {
 	return api.HistoryRow{
-		Date:    mustParseAPIDate(r.Date),
-		Regions: toAPIRegionMap(r.Regions),
-		Totals:  toAPITotals(r.Totals),
+		Date:     mustParseAPIDate(r.Date),
+		Regions:  toAPIRegionMap(r.Regions),
+		Totals:   toAPITotals(r.Totals),
+		Holdings: toAPIHistoryHoldings(r.Holdings),
 	}
 }
+
+// toAPIHistoryHoldings maps the per-stock lines; nil (omitted) when the row has
+// no breakdown, e.g. a manual-only row.
+func toAPIHistoryHoldings(hs []services.HistoryHolding) *[]api.HistoryHolding {
+	if len(hs) == 0 {
+		return nil
+	}
+	out := make([]api.HistoryHolding, 0, len(hs))
+	for _, h := range hs {
+		out = append(out, api.HistoryHolding{
+			Symbol:     h.Symbol,
+			Script:     h.Script,
+			Currency:   h.Currency,
+			Quantity:   h.Quantity,
+			ClosePrice: h.ClosePrice,
+			PriceDate:  ptrString(h.PriceDate),
+			Current:    ptrFloat(h.Current),
+		})
+	}
+	return &out
+}
+
+func ptrFloat(f float64) *float64 { return &f }
 
 func toAPIRegionMap(in map[string]domain.RegionSnapshot) map[string]api.HistoryRegionSnapshot {
 	out := make(map[string]api.HistoryRegionSnapshot, len(in))
