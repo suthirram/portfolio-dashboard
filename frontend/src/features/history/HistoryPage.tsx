@@ -378,15 +378,13 @@ export default function HistoryPage() {
         <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
-            <select value={year} onChange={e => setYear(Number(e.target.value))}
-              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+            <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Month</span>
-            <select value={month} onChange={e => setMonth(Number(e.target.value))}
-              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+            <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selectStyle}>
               {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
           </label>
@@ -525,7 +523,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                   tickFormatter={fmtAxisAmount} width={64} />
-                <Tooltip formatter={(v) => fmtCurrency(Number(v), sym)} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
                 <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
@@ -543,7 +541,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
-                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
@@ -560,7 +558,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
-                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
                 <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
@@ -934,6 +932,23 @@ const actionCell: React.CSSProperties = { display: 'inline-flex', gap: 8, alignI
 
 // ---- Modals ----
 
+// selectStyle keeps the Year/Month dropdowns theme-aware. Without an explicit
+// background/colour, native <select> falls back to the browser default (white
+// on black text), which reads as light-mode in the dark theme.
+const selectStyle: React.CSSProperties = {
+  padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)',
+  background: 'var(--bg-card)', color: 'var(--text-primary)',
+}
+// Recharts renders its tooltip with a hard-coded white background; in dark mode
+// the (theme-set) white text then sits on white. Force a theme-aware surface.
+const chartTooltipProps = {
+  contentStyle: {
+    background: 'var(--bg-card)', border: '1px solid var(--border)',
+    borderRadius: 6, color: 'var(--text-primary)',
+  } as React.CSSProperties,
+  labelStyle: { color: 'var(--text-secondary)' } as React.CSSProperties,
+  itemStyle: { color: 'var(--text-primary)' } as React.CSSProperties,
+}
 const modalBackdrop: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
