@@ -134,7 +134,6 @@ func TestHistoryService_Add_RejectsNaNAndInf(t *testing.T) {
 		{"Inf current", map[string]domain.RegionSnapshot{"INR": {Invested: 1, Current: math.Inf(-1)}}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 		mt.Run(tc.name, func(mt *mtest.T) {
 			svc := newHistorySvc(mt)
