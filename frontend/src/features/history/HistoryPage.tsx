@@ -866,17 +866,23 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
   // The cell group opens the per-currency Holdings modal only when this row has
-  // at least one positive holding in this currency.
+  // at least one positive holding in this currency. The whole group is
+  // mouse-clickable, but only the first cell carries the button semantics +
+  // keyboard focus, so a screen reader hears one "View <currency> holdings"
+  // button per group rather than four identical tab stops.
   const hasHoldings = !!r.holdings?.some(h => holdingRegion(h) === region && h.quantity > 0)
   const selectable = !!onSelectRegion && hasHoldings
-  const clickProps = selectable
+  const mouseProps = selectable ? { onClick: () => onSelectRegion!() } : {}
+  const buttonProps = selectable
     ? {
-        onClick: (e: React.MouseEvent) => { e.stopPropagation(); onSelectRegion!() },
+        ...mouseProps,
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `View ${region} holdings`,
+        title: `View ${region} holdings`,
         onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectRegion!() }
         },
-        tabIndex: 0,
-        title: `View ${region} holdings`,
       }
     : {}
   const base: React.CSSProperties = { ...td, background: tint, cursor: selectable ? 'pointer' : undefined }
@@ -900,12 +906,12 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
-      <td {...clickProps} style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td {...clickProps} style={base}>{fmtCurrency(current, sym)}</td>
-      <td {...clickProps} style={{ ...base, color: volColor }}>
+      <td {...buttonProps} style={investedStyle}>{fmtCurrency(invested, sym)}</td>
+      <td {...mouseProps} style={base}>{fmtCurrency(current, sym)}</td>
+      <td {...mouseProps} style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td {...clickProps} style={pnlStyle}>
+      <td {...mouseProps} style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
@@ -1338,10 +1344,13 @@ export function HoldingsModal({ row, prev, region, onClose }: {
 }) {
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
   const inRegion = (h: HistoryHolding) => holdingRegion(h) === region
+  // Key by symbol+script so two holdings that share a symbol (e.g. a dual
+  // listing) don't collide on the React key or the yesterday-price lookup.
+  const keyFor = (h: HistoryHolding) => `${h.symbol} ${h.script}`
   // Only real (positive-quantity) holdings in this currency.
   const holdings = (row.holdings ?? []).filter(h => inRegion(h) && h.quantity > 0)
-  const prevBySymbol = new Map(
-    (prev?.holdings ?? []).filter(inRegion).map(h => [h.symbol, h]),
+  const prevByKey = new Map(
+    (prev?.holdings ?? []).filter(inRegion).map(h => [keyFor(h), h]),
   )
   const priceFmt = (n: number) => fmtCurrency(n, sym)
 
@@ -1369,14 +1378,15 @@ export function HoldingsModal({ row, prev, region, onClose }: {
               <tbody>
                 {holdings.map(h => {
                   const cur = h.close_price
-                  const y = prevBySymbol.get(h.symbol)?.close_price
+                  const y = prevByKey.get(keyFor(h))?.close_price
                   const yesterday = y ?? null
                   const change = yesterday === null ? null : cur - yesterday
                   const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100
-                  const color = change === null ? undefined : change >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+                  // Green up, red down, neutral when unchanged or no prior price.
+                  const color = change === null || change === 0 ? undefined : change > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
                   const num: React.CSSProperties = { ...td, textAlign: 'right' }
                   return (
-                    <tr key={h.symbol}>
+                    <tr key={keyFor(h)}>
                       <td style={td}>{h.script || h.symbol}</td>
                       <td style={num}>{yesterday === null ? '—' : priceFmt(yesterday)}</td>
                       <td style={num}>{priceFmt(cur)}</td>

@@ -745,3 +745,42 @@ describe('HistoryTable currency-cell click → onSelectRegion', () => {
     expect(screen.queryByTitle('View USD holdings')).toBeNull()
   })
 })
+
+describe('HistoryTable currency cell — accessibility', () => {
+  const r = row({
+    date: '2026-06-25',
+    regions: { EUR: { invested: 20, current: 24, source: 'cron' } },
+    holdings: [{ symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', quantity: 2, close_price: 12 }],
+  })
+
+  it('exposes exactly one focusable button per clickable currency group', () => {
+    render(<HistoryTable rows={[r]} currency="INR" onDelete={() => {}} onSelectRegion={() => {}} />)
+    expect(screen.getAllByRole('button', { name: 'View EUR holdings' })).toHaveLength(1)
+  })
+
+  it('opens via keyboard (Enter) on the group button', () => {
+    const onSelectRegion = vi.fn()
+    render(<HistoryTable rows={[r]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'View EUR holdings' }), { key: 'Enter' })
+    expect(onSelectRegion).toHaveBeenCalledTimes(1)
+    expect(onSelectRegion.mock.calls[0][2]).toBe('EUR')
+  })
+})
+
+describe('HoldingsModal — duplicate symbol', () => {
+  it('renders both same-symbol holdings and matches each to its own prior price', () => {
+    const today: HistoryRow = row({ date: '2026-06-25', holdings: [
+      { symbol: 'DUP.NS', script: 'Plan A', currency: 'INR', quantity: 1, close_price: 110 },
+      { symbol: 'DUP.NS', script: 'Plan B', currency: 'INR', quantity: 2, close_price: 220 },
+    ] })
+    const prev: HistoryRow = row({ date: '2026-06-24', holdings: [
+      { symbol: 'DUP.NS', script: 'Plan A', currency: 'INR', quantity: 1, close_price: 100 },
+      { symbol: 'DUP.NS', script: 'Plan B', currency: 'INR', quantity: 2, close_price: 200 },
+    ] })
+    render(<HoldingsModal row={today} prev={prev} region="INR" onClose={() => {}} />)
+    expect(screen.getByText('Plan A')).toBeInTheDocument()
+    expect(screen.getByText('Plan B')).toBeInTheDocument()
+    expect(screen.getByText('₹100.00')).toBeInTheDocument() // Plan A yesterday
+    expect(screen.getByText('₹200.00')).toBeInTheDocument() // Plan B yesterday
+  })
+})
