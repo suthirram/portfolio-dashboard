@@ -7,6 +7,7 @@ import {
 import {
   api,
   type DateConflict,
+  type HistoryHolding,
   type HistoryRow,
   type PasteHistoryReport,
   type RegionSnapshot,
@@ -218,6 +219,9 @@ export default function HistoryPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [editRow, setEditRow] = useState<HistoryRow | null>(null)
+  // Per-currency Holdings modal: the clicked row, the prior trading day's row
+  // (for yesterday's price), and the currency clicked. null = closed.
+  const [holdingsView, setHoldingsView] = useState<{ row: HistoryRow; prev: HistoryRow | null; region: RegionKey } | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
 
@@ -374,15 +378,13 @@ export default function HistoryPage() {
         <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
-            <select value={year} onChange={e => setYear(Number(e.target.value))}
-              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+            <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Month</span>
-            <select value={month} onChange={e => setMonth(Number(e.target.value))}
-              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+            <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selectStyle}>
               {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
             </select>
           </label>
@@ -408,6 +410,7 @@ export default function HistoryPage() {
           <>
             <HistoryTable rows={rows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
+              onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
             <div style={{ height: 16 }} />
             {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
@@ -430,6 +433,12 @@ export default function HistoryPage() {
         conflict={headConflict}
         onResolve={handleConflictResolve}
         onSkip={handleConflictSkip}
+      />}
+      {holdingsView && <HoldingsModal
+        row={holdingsView.row}
+        prev={holdingsView.prev}
+        region={holdingsView.region}
+        onClose={() => setHoldingsView(null)}
       />}
     </div>
   )
@@ -514,7 +523,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                   tickFormatter={fmtAxisAmount} width={64} />
-                <Tooltip formatter={(v) => fmtCurrency(Number(v), sym)} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
                 <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
@@ -532,7 +541,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
-                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
               </ComposedChart>
@@ -549,7 +558,7 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
-                <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
+                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
                 <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
@@ -725,11 +734,15 @@ export function regionCurrentDirection(
 // Header spelling "volatlity" matches the user's reference screenshot
 // verbatim. If we ever correct the typo, update the test expectation
 // in HistoryPage.test.tsx too.
-export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, theme = 'dark', canForceDelete = false }: {
+export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSelectRegion, theme = 'dark', canForceDelete = false }: {
   rows: HistoryRow[]
   currency: string
   onDelete: (date: string) => void
   onEdit?: (row: HistoryRow) => void
+  // Clicking a currency-group cell opens the Holdings modal scoped to that
+  // currency. prev is the prior trading day's row (for yesterday's price), or
+  // null when this is the oldest row loaded.
+  onSelectRegion?: (row: HistoryRow, prev: HistoryRow | null, region: RegionKey) => void
   theme?: ThemeName
   canForceDelete?: boolean
 }) {
@@ -778,6 +791,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
             const i = indexOfDate.get(r.date)!
             const sources = new Set(Object.values(r.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
+            const prev = byDateDesc[i + 1] ?? null
             return (
               <tr key={r.date} title={`Source: ${sourceLabel}`}>
                 <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{r.date}</td>
@@ -789,6 +803,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, them
                     region={region}
                     last={idx === REGIONS.length - 1}
                     theme={theme}
+                    onSelectRegion={onSelectRegion ? () => onSelectRegion(r, prev, region) : undefined}
                   />
                 ))}
                 <td style={actionTd}>
@@ -831,12 +846,13 @@ function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last:
   )
 }
 
-function CurrencyRowCells({ rows, i, region, last, theme }: {
+function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   rows: HistoryRow[]
   i: number
   region: RegionKey
   last: boolean
   theme: ThemeName
+  onSelectRegion?: () => void
 }) {
   const r = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
@@ -849,7 +865,27 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const dir      = regionCurrentDirection(rows, i, region)
   const tint = REGION_TINTS[theme][region].cell
   const sep = last ? {} : { borderRight: '2px solid var(--border)' }
-  const base: React.CSSProperties = { ...td, background: tint }
+  // The cell group opens the per-currency Holdings modal only when this row has
+  // at least one positive holding in this currency. The whole group is
+  // mouse-clickable, but only the first cell carries the button semantics +
+  // keyboard focus, so a screen reader hears one "View <currency> holdings"
+  // button per group rather than four identical tab stops.
+  const hasHoldings = !!r.holdings?.some(h => holdingRegion(h) === region && h.quantity > 0)
+  const selectable = !!onSelectRegion && hasHoldings
+  const mouseProps = selectable ? { onClick: () => onSelectRegion!() } : {}
+  const buttonProps = selectable
+    ? {
+        ...mouseProps,
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `View ${region} holdings`,
+        title: `View ${region} holdings`,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectRegion!() }
+        },
+      }
+    : {}
+  const base: React.CSSProperties = { ...td, background: tint, cursor: selectable ? 'pointer' : undefined }
   // New-investment override beats the group tint to keep the signal loud:
   // a day the user added holdings gets a mild purple "Amount invested" cell.
   const investedStyle: React.CSSProperties = {
@@ -870,16 +906,23 @@ function CurrencyRowCells({ rows, i, region, last, theme }: {
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
     <>
-      <td style={investedStyle}>{fmtCurrency(invested, sym)}</td>
-      <td style={base}>{fmtCurrency(current, sym)}</td>
-      <td style={{ ...base, color: volColor }}>
+      <td {...buttonProps} style={investedStyle}>{fmtCurrency(invested, sym)}</td>
+      <td {...mouseProps} style={base}>{fmtCurrency(current, sym)}</td>
+      <td {...mouseProps} style={{ ...base, color: volColor }}>
         {vol === null ? '—' : vol.toFixed(2)}
       </td>
-      <td style={pnlStyle}>
+      <td {...mouseProps} style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
     </>
   )
+}
+
+// holdingRegion maps a holding's currency code to its table currency group,
+// defaulting unknown/blank to INR (the Holding.Currency default).
+export function holdingRegion(h: HistoryHolding): RegionKey {
+  const code = (h.currency || 'INR').toUpperCase()
+  return code === 'EUR' || code === 'USD' ? code : 'INR'
 }
 
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)' }
@@ -895,6 +938,23 @@ const actionCell: React.CSSProperties = { display: 'inline-flex', gap: 8, alignI
 
 // ---- Modals ----
 
+// selectStyle keeps the Year/Month dropdowns theme-aware. Without an explicit
+// background/colour, native <select> falls back to the browser default (white
+// on black text), which reads as light-mode in the dark theme.
+const selectStyle: React.CSSProperties = {
+  padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)',
+  background: 'var(--bg-card)', color: 'var(--text-primary)',
+}
+// Recharts renders its tooltip with a hard-coded white background; in dark mode
+// the (theme-set) white text then sits on white. Force a theme-aware surface.
+const chartTooltipProps = {
+  contentStyle: {
+    background: 'var(--bg-card)', border: '1px solid var(--border)',
+    borderRadius: 6, color: 'var(--text-primary)',
+  } as React.CSSProperties,
+  labelStyle: { color: 'var(--text-secondary)' } as React.CSSProperties,
+  itemStyle: { color: 'var(--text-primary)' } as React.CSSProperties,
+}
 const modalBackdrop: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
@@ -1264,6 +1324,88 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onSkip} style={btnSecondaryStyle}>Skip</button>
           <button onClick={submit} style={btnPrimaryStyle}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// HoldingsModal shows the per-stock breakdown for one currency on a clicked
+// history row: each stock's yesterday vs current close, the price change, and
+// the daily % move. Only positive holdings in the selected currency are shown
+// (negative/zero positions are excluded). Yesterday's price comes from the
+// prior trading day's row matched by symbol (— when that stock has no prior
+// line). Reuses the shared modal chrome (dimmed backdrop + scrollable card).
+export function HoldingsModal({ row, prev, region, onClose }: {
+  row: HistoryRow
+  prev: HistoryRow | null
+  region: RegionKey
+  onClose: () => void
+}) {
+  const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
+  const inRegion = (h: HistoryHolding) => holdingRegion(h) === region
+  // Key by symbol+script so two holdings that share a symbol (e.g. a dual
+  // listing) don't collide on the React key or the yesterday-price lookup.
+  const keyFor = (h: HistoryHolding) => `${h.symbol} ${h.script}`
+  // Only real (positive-quantity) holdings in this currency.
+  const holdings = (row.holdings ?? []).filter(h => inRegion(h) && h.quantity > 0)
+  const prevByKey = new Map(
+    (prev?.holdings ?? []).filter(inRegion).map(h => [keyFor(h), h]),
+  )
+  const priceFmt = (n: number) => fmtCurrency(n, sym)
+
+  return (
+    <div style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.date} · {region}</span>
+        </div>
+        {holdings.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No {region} holdings for this row.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={th}>Script name</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Current price</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Change value</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Daily change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {holdings.map(h => {
+                  const cur = h.close_price
+                  const y = prevByKey.get(keyFor(h))?.close_price
+                  const yesterday = y ?? null
+                  const change = yesterday === null ? null : cur - yesterday
+                  const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100
+                  // Green up, red down, blue unchanged; neutral only when there
+                  // is no prior price to compare against.
+                  const color = change === null
+                    ? undefined
+                    : change > 0 ? 'var(--green, #16a34a)'
+                    : change < 0 ? 'var(--red, #dc2626)'
+                    : 'var(--blue, #2563eb)'
+                  const num: React.CSSProperties = { ...td, textAlign: 'right' }
+                  return (
+                    <tr key={keyFor(h)}>
+                      <td style={td}>{h.script || h.symbol}</td>
+                      <td style={num}>{yesterday === null ? '—' : priceFmt(yesterday)}</td>
+                      <td style={num}>{priceFmt(cur)}</td>
+                      <td style={{ ...num, color }}>{change === null ? '—' : priceFmt(change)}</td>
+                      <td style={{ ...num, color }}>{pct === null ? '—' : `${pct.toFixed(2)}%`}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <button onClick={onClose} style={btnSecondaryStyle}>Close</button>
         </div>
       </div>
     </div>

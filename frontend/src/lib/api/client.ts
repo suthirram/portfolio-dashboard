@@ -167,10 +167,22 @@ export interface HistoryTotals {
   pnl_pct: number | null
 }
 
+export interface HistoryHolding {
+  symbol: string
+  script: string
+  currency: string
+  quantity: number
+  close_price: number
+  price_date?: string
+  current?: number
+}
+
 export interface HistoryRow {
   date: string
   regions: Record<string, RegionSnapshot>
   totals: HistoryTotals
+  // Per-stock breakdown for cron rows; absent on manual-only rows.
+  holdings?: HistoryHolding[]
 }
 
 export interface HistoryList {

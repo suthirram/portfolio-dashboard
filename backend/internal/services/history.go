@@ -37,9 +37,22 @@ func NewHistoryService(store *persistence.SnapshotStore, logger *zap.Logger) *Hi
 
 // HistoryRow is the per-date API DTO returned by List.
 type HistoryRow struct {
-	Date    string                           `json:"date"` // YYYY-MM-DD
-	Regions map[string]domain.RegionSnapshot `json:"regions"`
-	Totals  domain.SnapshotTotals            `json:"totals"`
+	Date     string                           `json:"date"` // YYYY-MM-DD
+	Regions  map[string]domain.RegionSnapshot `json:"regions"`
+	Totals   domain.SnapshotTotals            `json:"totals"`
+	Holdings []HistoryHolding                 `json:"holdings,omitempty"` // per-stock breakdown (cron rows only)
+}
+
+// HistoryHolding is one stock's line within a history snapshot, surfaced so the
+// UI can show the per-stock breakdown behind a row.
+type HistoryHolding struct {
+	Symbol     string  `json:"symbol"`
+	Script     string  `json:"script"`
+	Currency   string  `json:"currency"`
+	Quantity   float64 `json:"quantity"`
+	ClosePrice float64 `json:"close_price"`
+	PriceDate  string  `json:"price_date,omitempty"`
+	Current    float64 `json:"current"`
 }
 
 // HistoryList is the GET /api/history response envelope.
@@ -136,12 +149,36 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		totals.InvestedTotal = round(totals.InvestedTotal)
 		totals.CurrentTotal = round(totals.CurrentTotal)
 		rows = append(rows, HistoryRow{
-			Date:    snap.Date.UTC().Format("2006-01-02"),
-			Regions: regions,
-			Totals:  totals,
+			Date:     snap.Date.UTC().Format("2006-01-02"),
+			Regions:  regions,
+			Totals:   totals,
+			Holdings: holdingsFromLines(snap.Lines),
 		})
 	}
 	return HistoryList{Currency: currency, Rows: rows}, nil
+}
+
+// holdingsFromLines maps a snapshot's per-stock lines to the API shape,
+// rounding the derived current value. nil for a row with no lines (manual-only
+// rows) so the field is omitted. Negative/zero positions are kept here — the UI
+// decides what to show — so totals stay reconcilable.
+func holdingsFromLines(lines []domain.HoldingSnapshot) []HistoryHolding {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([]HistoryHolding, 0, len(lines))
+	for _, ln := range lines {
+		out = append(out, HistoryHolding{
+			Symbol:     ln.Symbol,
+			Script:     ln.Script,
+			Currency:   ln.Currency,
+			Quantity:   ln.Quantity,
+			ClosePrice: ln.ClosePrice,
+			PriceDate:  ln.PriceDate,
+			Current:    round(ln.Current),
+		})
+	}
+	return out
 }
 
 // Add inserts a new manual row or returns *ErrConflict when the date

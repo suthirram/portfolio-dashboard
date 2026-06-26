@@ -370,6 +370,24 @@ type HistoryDateConflict struct {
 	Incoming map[string]HistoryRegionInput    `json:"incoming"`
 }
 
+// HistoryHolding One stock's line within a history snapshot (cron rows only).
+type HistoryHolding struct {
+	// ClosePrice Close price on price_date (the row's current price)
+	ClosePrice float64 `json:"close_price"`
+
+	// Currency Bucket currency code (INR|EUR|USD)
+	Currency string `json:"currency"`
+
+	// Current quantity × close_price
+	Current *float64 `json:"current,omitempty"`
+
+	// PriceDate Trading date the close_price belongs to (YYYY-MM-DD)
+	PriceDate *string `json:"price_date,omitempty"`
+	Quantity  float64 `json:"quantity"`
+	Script    string  `json:"script"`
+	Symbol    string  `json:"symbol"`
+}
+
 // HistoryList defines model for HistoryList.
 type HistoryList struct {
 	Currency string       `json:"currency"`
@@ -401,9 +419,12 @@ type HistoryRegionSnapshotSource string
 
 // HistoryRow defines model for HistoryRow.
 type HistoryRow struct {
-	Date    openapi_types.Date               `json:"date"`
-	Regions map[string]HistoryRegionSnapshot `json:"regions"`
-	Totals  HistoryTotals                    `json:"totals"`
+	Date openapi_types.Date `json:"date"`
+
+	// Holdings Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
+	Holdings *[]HistoryHolding                `json:"holdings,omitempty"`
+	Regions  map[string]HistoryRegionSnapshot `json:"regions"`
+	Totals   HistoryTotals                    `json:"totals"`
 }
 
 // HistoryTotals defines model for HistoryTotals.
