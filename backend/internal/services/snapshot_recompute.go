@@ -193,16 +193,29 @@ func (r *SnapshotRecomputer) linesAsOf(
 	return lines
 }
 
-// asOfLedger keeps every event dated before cutoff. Filtering is purely by
-// date — including for an opening: an opening dated AFTER the snapshot date is
-// a baseline that did not yet exist on that date and must not inflate a past
-// row. RecomputePosition still sorts a retained opening first as the baseline;
-// ordering and as-of membership are separate concerns. A normal opening dated
-// at/before the snapshot (the common case, incl. zero-dated migration
-// openings) is < cutoff and stays.
+// asOfLedger keeps every event in effect as-of cutoff. Non-opening events are
+// filtered purely by date (dated before cutoff). The opening event is the
+// timeless baseline (RecomputePosition sorts it first regardless of date) and
+// its as-of membership is governed by the user's DECLARED opening date, not the
+// event's ordering Date: it is retained unless OpeningDate is set AND falls
+// on/after cutoff (the position genuinely did not exist as-of this row).
+//
+// An UNSET OpeningDate is retained unconditionally. The opening's ordering Date
+// defaults to the holding's creation / migration time, which can fall after an
+// older snapshot being healed; filtering on it dropped the holding from that
+// row and zeroed its position whenever an unrelated backdated edit re-healed an
+// earlier row (the prior known limitation). Retaining the baseline avoids that
+// data loss; setting the real opening date narrows membership precisely.
 func asOfLedger(txns []domain.Transaction, cutoff time.Time) []domain.Transaction {
 	out := make([]domain.Transaction, 0, len(txns))
 	for _, t := range txns {
+		if t.Type == domain.TxnOpening {
+			if t.OpeningDate != nil && !domain.UTCDate(*t.OpeningDate).Before(cutoff) {
+				continue // declared opening date is after this row; not yet held
+			}
+			out = append(out, t)
+			continue
+		}
 		if t.Date.Before(cutoff) {
 			out = append(out, t)
 		}
