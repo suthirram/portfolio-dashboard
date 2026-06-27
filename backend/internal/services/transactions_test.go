@@ -58,6 +58,97 @@ func TestTransactionsService_Create_OversellRollsBack(t *testing.T) {
 	})
 }
 
+// Editing an opening's date through the ledger API (which has no opening_date
+// field) must also stamp opening_date, so the snapshot heal's as-of filter
+// gates the baseline on the new effective date. A non-date edit must leave
+// opening_date untouched.
+func TestTransactionsService_Update_OpeningDateTracksDate(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	jan := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	mar := time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC)
+
+	// openingDateInTxnUpdate runs Update on an opening originally dated jan with
+	// the supplied newDate, then reports whether the transactions findAndModify
+	// $set carried opening_date (and its value).
+	openingDateInTxnUpdate := func(mt *mtest.T, newDate time.Time) (present bool, val time.Time) {
+		uid := primitive.NewObjectID()
+		hid := primitive.NewObjectID()
+		txnID := primitive.NewObjectID()
+		txnsNS := mt.DB.Name() + ".transactions"
+
+		prevOpening := bson.D{
+			{Key: "_id", Value: txnID}, {Key: "user_id", Value: uid}, {Key: "holding_id", Value: hid},
+			{Key: "type", Value: "opening"}, {Key: "date", Value: jan},
+			{Key: "quantity", Value: 10.0}, {Key: "amount", Value: 1000.0},
+		}
+		updatedOpening := bson.D{
+			{Key: "_id", Value: txnID}, {Key: "user_id", Value: uid}, {Key: "holding_id", Value: hid},
+			{Key: "type", Value: "opening"}, {Key: "date", Value: newDate},
+			{Key: "quantity", Value: 10.0}, {Key: "amount", Value: 1000.0},
+		}
+		mt.AddMockResponses(
+			// GetScoped(prev).
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, prevOpening),
+			// UpdateScopedAndReturn — findAndModify on transactions.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: updatedOpening}),
+			// recompute ListByHolding — the opening alone.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, updatedOpening),
+			// recompute holdings update.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+				{Key: "_id", Value: hid}, {Key: "user_id", Value: uid}, {Key: "currency", Value: "INR"},
+			}}),
+		)
+
+		st := persistence.New(mt.DB)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
+		q, a := 10.0, 1000.0
+		_, found, err := svc.Update(context.Background(), uid, txnID.Hex(), api.TransactionInput{
+			Type: "opening", Date: newDate, Quantity: &q, Amount: &a,
+		})
+		if err != nil || !found {
+			t.Fatalf("Update: found=%v err=%v", found, err)
+		}
+
+		for _, e := range mt.GetAllStartedEvents() {
+			if e.CommandName != "findAndModify" {
+				continue
+			}
+			coll, err := e.Command.LookupErr("findAndModify")
+			if err != nil || coll.StringValue() != "transactions" {
+				continue
+			}
+			set, err := e.Command.LookupErr("update", "$set")
+			if err != nil {
+				t.Fatalf("no $set in transactions update: %v", err)
+			}
+			if od, err := set.Document().LookupErr("opening_date"); err == nil {
+				return true, od.Time().UTC()
+			}
+			return false, time.Time{}
+		}
+		t.Fatal("no findAndModify on transactions captured")
+		return false, time.Time{}
+	}
+
+	mt.Run("date changed syncs opening_date", func(mt *mtest.T) {
+		present, val := openingDateInTxnUpdate(mt, mar)
+		if !present {
+			t.Fatal("opening_date absent from update; want it synced to the new date")
+		}
+		if !val.Equal(mar) {
+			t.Errorf("opening_date = %s, want %s", val.Format("2006-01-02"), mar.Format("2006-01-02"))
+		}
+	})
+
+	mt.Run("date unchanged leaves opening_date untouched", func(mt *mtest.T) {
+		present, _ := openingDateInTxnUpdate(mt, jan)
+		if present {
+			t.Error("opening_date written on a non-date edit; want it left untouched")
+		}
+	})
+}
+
 // Deleting a buy that a later sell depends on must be rejected and the buy
 // re-inserted so the ledger stays consistent.
 func TestTransactionsService_Delete_OversellReinserts(t *testing.T) {

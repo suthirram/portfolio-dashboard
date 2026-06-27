@@ -193,6 +193,17 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 		{Key: "notes", Value: patch.Notes},
 		{Key: "updated_at", Value: time.Now()},
 	}
+	// The ledger API carries no opening_date field, but editing an opening's
+	// date in the modal IS the user declaring its effective date. Keep the two
+	// in sync (mirroring setOpeningDate) whenever an opening's effective day
+	// changes, so the snapshot heal's as-of filter (asOfLedger) gates the
+	// baseline on the new date instead of retaining it on rows before the
+	// position existed. A non-date edit (e.g. quantity only) leaves opening_date
+	// untouched: an unset baseline stays unset (retained everywhere), a declared
+	// one stays put.
+	if patch.Type == domain.TxnOpening && !domain.UTCDate(patch.Date).Equal(domain.UTCDate(prev.Date)) {
+		set = append(set, bson.E{Key: "opening_date", Value: patch.Date})
+	}
 	updated, err := s.txns.UpdateScopedAndReturn(ctx, uid, id, set)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
