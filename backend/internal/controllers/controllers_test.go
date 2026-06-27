@@ -18,8 +18,6 @@ import (
 	"portfolio-dashboard/internal/services"
 )
 
-// ── mock price fetcher ─────────────────────────────────────────────────────
-
 type mockPriceFetcher struct {
 	prices     map[string]float64
 	currencies map[string]string
@@ -167,8 +165,6 @@ func TestGetForexRate_ServiceErrorIsReturned(t *testing.T) {
 	}
 }
 
-// ── services.HoldingToAPI ───────────────────────────────────────────────────────────
-
 func TestHoldingToAPI_DefaultsCurrencyToINR(t *testing.T) {
 	h := domain.Holding{ID: primitive.NewObjectID(), Currency: ""}
 	got := services.HoldingToAPI(h)
@@ -223,8 +219,6 @@ func TestHoldingToAPI_MapsAllFields(t *testing.T) {
 		}
 	}
 }
-
-// ── services.HoldingFromInput ───────────────────────────────────────────────────────
 
 func TestHoldingFromInput_DefaultsCurrencyToINR(t *testing.T) {
 	input := api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock"}
@@ -295,8 +289,6 @@ func TestHoldingFromInput_PopulatesOptionalFields(t *testing.T) {
 		t.Errorf("Notes = %q", got.Notes)
 	}
 }
-
-// ── services.HoldingWithPriceToAPI ──────────────────────────────────────────────────
 
 const testEurRate = 0.011 // 1 INR = 0.011 EUR  →  1 EUR ≈ 90.909 INR
 

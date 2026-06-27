@@ -81,8 +81,6 @@ func sessionCookie(id string) *http.Cookie {
 	return &http.Cookie{Name: controllers.SessionCookieName, Value: id} //nolint:gosec // request-side cookie
 }
 
-// ── Public vs protected ────────────────────────────────────────────────────
-
 func TestPublicEndpointsNeedNoLogin(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -158,8 +156,6 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 	})
 }
 
-// ── Role gates ─────────────────────────────────────────────────────────────
-
 func TestRoleGates(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -196,8 +192,6 @@ func TestRoleGates(t *testing.T) {
 	})
 }
 
-// ── CSRF ───────────────────────────────────────────────────────────────────
-
 func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -217,8 +211,6 @@ func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 		}
 	})
 }
-
-// ── Forced onboarding ──────────────────────────────────────────────────────
 
 func TestMustChangePasswordGate(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))

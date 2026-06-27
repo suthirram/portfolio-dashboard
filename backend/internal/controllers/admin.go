@@ -71,7 +71,7 @@ func notFoundUser() api.NotFoundJSONResponse {
 	return api.NotFoundJSONResponse{Error: lo.ToPtr("no such user")}
 }
 
-// ── Listing ────────────────────────────────────────────────────────────────
+// Listing.
 
 func (h *Controller) AdminListUsers(ctx context.Context, request api.AdminListUsersRequestObject) (api.AdminListUsersResponseObject, error) {
 	caller, err := adminCaller(ctx)
@@ -140,7 +140,7 @@ func (h *Controller) AdminGetUser(ctx context.Context, request api.AdminGetUserR
 	return api.AdminGetUser200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
-// ── Lockout / hide / delete ────────────────────────────────────────────────
+// Lockout / hide / delete.
 
 func (h *Controller) AdminResetLockout(ctx context.Context, request api.AdminResetLockoutRequestObject) (api.AdminResetLockoutResponseObject, error) {
 	caller, err := adminCaller(ctx)
@@ -271,7 +271,7 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 	return api.AdminDeleteUser204Response{}, nil
 }
 
-// ── Promote / demote / region (super admin only) ───────────────────────────
+// Promote / demote / region (super admin only).
 
 // superAdminCaller returns the caller when they are the super admin.
 func superAdminCaller(ctx context.Context) (*domain.User, bool) {
@@ -385,7 +385,7 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 	return api.AdminSetUserRegion200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
-// ── Act on a user's portfolio (region-scoped) ──────────────────────────────
+// Act on a user's portfolio (region-scoped).
 
 func (h *Controller) AdminListUserHoldings(ctx context.Context, request api.AdminListUserHoldingsRequestObject) (api.AdminListUserHoldingsResponseObject, error) {
 	caller, err := adminCaller(ctx)

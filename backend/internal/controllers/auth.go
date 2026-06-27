@@ -30,7 +30,7 @@ const (
 	recoveryMaxFailures = 3
 )
 
-// ── Validation helpers ─────────────────────────────────────────────────────
+// Validation helpers.
 
 func validateUsername(username string) error {
 	if !usernameRe.MatchString(username) {
@@ -87,7 +87,7 @@ func (h *Controller) findUserByUsername(ctx context.Context, username string) (*
 	return h.store.Users.FindByUsername(ctx, username)
 }
 
-// ── Catalogues ─────────────────────────────────────────────────────────────
+// Catalogues.
 
 func (h *Controller) GetRegions(_ context.Context, _ api.GetRegionsRequestObject) (api.GetRegionsResponseObject, error) {
 	regions := auth.Regions()
@@ -106,8 +106,6 @@ func (h *Controller) GetSecurityQuestionCatalogue(_ context.Context, _ api.GetSe
 	}
 	return out, nil
 }
-
-// ── Signup ─────────────────────────────────────────────────────────────────
 
 func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject) (api.SignupResponseObject, error) {
 	in := request.Body
@@ -177,7 +175,7 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 	return api.Signup201JSONResponse(services.UserToAPI(&user, true)), nil
 }
 
-// ── Login / logout / me ────────────────────────────────────────────────────
+// Login / logout / me.
 
 func (h *Controller) Login(ctx context.Context, request api.LoginRequestObject) (api.LoginResponseObject, error) {
 	in := request.Body
@@ -233,7 +231,7 @@ func (h *Controller) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.G
 	return api.GetMe200JSONResponse(services.UserToAPI(user, true)), nil
 }
 
-// ── Forgot password (no email) ─────────────────────────────────────────────
+// Forgot password (no email).
 
 func (h *Controller) GetRecoveryQuestions(ctx context.Context, request api.GetRecoveryQuestionsRequestObject) (api.GetRecoveryQuestionsResponseObject, error) {
 	user, err := h.findUserByUsername(ctx, request.Body.Username)
@@ -326,7 +324,7 @@ func (h *Controller) RecoverPassword(ctx context.Context, request api.RecoverPas
 	return api.RecoverPassword204Response{}, nil
 }
 
-// ── Own account management ─────────────────────────────────────────────────
+// Own account management.
 
 func (h *Controller) ChangePassword(ctx context.Context, request api.ChangePasswordRequestObject) (api.ChangePasswordResponseObject, error) {
 	user, ok := auth.UserFromContext(ctx)
