@@ -54,8 +54,6 @@ func firstUpdateSet(t *testing.T, mt *mtest.T) bson.Raw {
 	return nil
 }
 
-// ── List users ─────────────────────────────────────────────────────────────
-
 func TestAdminListUsers_AdminSeesOwnRegionUsersOnly(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -122,8 +120,6 @@ func TestAdminListUsers_SuperAdminSeesAllRegions(t *testing.T) {
 	})
 }
 
-// ── Target scoping ─────────────────────────────────────────────────────────
-
 func TestAdminGetUser_OutOfRegionReadsAsNotFound(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -179,8 +175,6 @@ func TestAdminGetUser_OutOfRegionReadsAsNotFound(t *testing.T) {
 		}
 	})
 }
-
-// ── Lockout / hide / delete ────────────────────────────────────────────────
 
 func TestAdminResetLockout_ClearsRecoveryNotLoginFailures(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -283,8 +277,6 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 		}
 	})
 }
-
-// ── Promote / demote / region (super admin) ────────────────────────────────
 
 func TestAdminPromoteUser(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -462,8 +454,6 @@ func TestAdminListAdmins(t *testing.T) {
 		}
 	})
 }
-
-// ── Act on a user's portfolio ──────────────────────────────────────────────
 
 func TestAdminCreateUserHolding_StampsTargetOwner(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))

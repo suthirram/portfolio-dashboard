@@ -16,7 +16,7 @@ import (
 	"portfolio-dashboard/internal/domain"
 )
 
-// EnsureSuperAdmin creates the bootstrap super admin (admin/admin) when no
+// EnsureSuperAdmin creates the bootstrap super admin when no
 // super admin exists yet. The placeholder security answers are random
 // crypto-rand bytes, so the recover flow cannot bypass onboarding (PRD-001
 // §6.5, DD-001 §7).

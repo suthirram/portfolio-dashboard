@@ -90,8 +90,6 @@ func userDocument(t *testing.T, id primitive.ObjectID, username, password, role,
 
 func usersNS(mt *mtest.T) string { return mt.DB.Name() + ".users" }
 
-// ── Catalogues ─────────────────────────────────────────────────────────────
-
 func TestGetRegions_ReturnsCatalogue(t *testing.T) {
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetRegions(context.Background(), api.GetRegionsRequestObject{})
@@ -118,8 +116,6 @@ func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
 		t.Fatalf("questions = %d, want 10", len(got))
 	}
 }
-
-// ── Signup ─────────────────────────────────────────────────────────────────
 
 func TestSignup_RejectsInvalidInput(t *testing.T) {
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
@@ -210,8 +206,6 @@ func TestSignup_CreatesUserAndLogsIn(t *testing.T) {
 		}
 	})
 }
-
-// ── Login ──────────────────────────────────────────────────────────────────
 
 func TestLogin_UnknownUser(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -328,8 +322,6 @@ func TestLogin_SuccessIssuesSessionCookie(t *testing.T) {
 	})
 }
 
-// ── Me / Logout ────────────────────────────────────────────────────────────
-
 func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	u := &domain.User{
@@ -397,8 +389,6 @@ func TestLogout_DeletesSessionAndClearsCookie(t *testing.T) {
 		}
 	})
 }
-
-// ── Recovery ───────────────────────────────────────────────────────────────
 
 func TestGetRecoveryQuestions(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -552,8 +542,6 @@ func TestRecoverPassword_WrongAnswerCountsAndLocks(t *testing.T) {
 		}
 	})
 }
-
-// ── Password / profile / questions / onboarding ────────────────────────────
 
 func authedCtx(u *domain.User) context.Context {
 	ctx := auth.WithUser(context.Background(), u)

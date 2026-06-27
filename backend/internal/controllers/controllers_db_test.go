@@ -53,8 +53,6 @@ func addOpeningRecompute(mt *mtest.T, qty, avg float64, holding bson.D) {
 	)
 }
 
-// ── GetHolding ─────────────────────────────────────────────────────────────
-
 func TestIntegration_GetHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
 	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 
@@ -116,8 +114,6 @@ func TestIntegration_GetHolding_ReturnsNotFoundWhenMissing(t *testing.T) {
 		}
 	})
 }
-
-// ── CreateHolding ──────────────────────────────────────────────────────────
 
 func TestIntegration_CreateHolding_INR(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -201,8 +197,6 @@ func TestIntegration_CreateHolding_EUR(t *testing.T) {
 	})
 }
 
-// ── ListHoldings ───────────────────────────────────────────────────────────
-
 func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
@@ -265,8 +259,6 @@ func TestIntegration_ListHoldings_ReturnsCurrencyField(t *testing.T) {
 		}
 	})
 }
-
-// ── UpdateHolding ──────────────────────────────────────────────────────────
 
 func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -417,8 +409,6 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 	})
 }
 
-// ── DeleteHolding ──────────────────────────────────────────────────────────
-
 func TestIntegration_DeleteHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
 	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 
@@ -472,8 +462,6 @@ func TestIntegration_DeleteHolding_ReturnsNotFoundWhenNoDocumentDeleted(t *testi
 		}
 	})
 }
-
-// ── GetPrices ──────────────────────────────────────────────────────────────
 
 func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
@@ -542,8 +530,6 @@ func TestIntegration_GetPrices_ReturnsErrorWhenForexRateIsZero(t *testing.T) {
 		}
 	})
 }
-
-// ── GetSummary ─────────────────────────────────────────────────────────────
 
 func TestIntegration_GetSummary_MixedCurrenciesNormalisedToINR(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))

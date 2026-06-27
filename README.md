@@ -97,6 +97,12 @@ close). The **History** page (`/history`):
 Backdated ledger edits **heal** the affected stored snapshots so history stays
 consistent with the corrected ledger.
 
+> **Known limitation:** the heal replays each holding's ledger *as-of* the
+> snapshot date, and an `opening` event dated *after* that date is dropped — so
+> a holding seeded with an opening dated "today" (the default) can be zeroed on
+> an older row when an unrelated backdated edit re-heals it. Setting the
+> holding's real **opening date** (via the prompt) avoids this.
+
 ## Symbol format (Yahoo Finance)
 
 | Exchange | Format | Example |
@@ -238,7 +244,7 @@ Full spec: `/api/specs/openapi.yaml`
 | `LOG_FORMAT` / `--log-format` | `json` | `json` \| `text` |
 | `CORS_ALLOWED_ORIGINS` | dev: `http://localhost:3000,http://localhost:5173` | Comma-separated allow-list. **Required in production** — credentialed CORS forbids `*`, so set the real origin (e.g. `https://<app>.pages.dev`). |
 | `COOKIE_SECURE` | `false` | Set to `true` in production so the session cookie is emitted with `Secure; SameSite=None`. Driven by config, not `c.Scheme()`, so the hardening does not silently degrade if the proxy stops forwarding `X-Forwarded-Proto`. |
-| `PD_NEW_PASSWORD` | _(unset)_ | Read only by `admin set-password` so the new password stays out of shell history |
+| `PD_NEW_PASSWORD` | *(unset)* | Read only by `admin set-password` so the new password stays out of shell history |
 
 Flags take precedence over env vars, which take precedence over defaults.
 Example: `PORT=9090 go run . serve` or `go run . serve --port 9090`.
