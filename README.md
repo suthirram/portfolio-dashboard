@@ -97,11 +97,12 @@ close). The **History** page (`/history`):
 Backdated ledger edits **heal** the affected stored snapshots so history stays
 consistent with the corrected ledger.
 
-> **Known limitation:** the heal replays each holding's ledger *as-of* the
-> snapshot date, and an `opening` event dated *after* that date is dropped — so
-> a holding seeded with an opening dated "today" (the default) can be zeroed on
-> an older row when an unrelated backdated edit re-heals it. Setting the
-> holding's real **opening date** (via the prompt) avoids this.
+The heal replays each holding's ledger *as-of* the snapshot date. The `opening`
+event is treated as the **timeless baseline**: it is retained on a healed row
+unless the user has set a real **opening date** that falls after that row (the
+position genuinely did not exist yet). An unset opening date never drops the
+holding — so re-healing an older row can no longer zero a holding that was only
+recently entered.
 
 ## Symbol format (Yahoo Finance)
 

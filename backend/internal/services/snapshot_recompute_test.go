@@ -81,22 +81,55 @@ func utcDay(m time.Month, d int) time.Time {
 	return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func TestAsOfLedger_FiltersStrictlyByDate(t *testing.T) {
+func TestAsOfLedger_FiltersNonOpeningsByDate(t *testing.T) {
 	cutoff := utcDay(6, 19).Add(24 * time.Hour) // include events on/before 06-19
-	txns := []domain.Transaction{
-		{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 5, Amount: 500},  // past opening: kept (baseline)
-		{Type: domain.TxnBuy, Date: utcDay(6, 18), Quantity: 10, Amount: 1000},   // kept
-		{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300}, // FUTURE opening: dropped, did not exist as-of
-		{Type: domain.TxnBuy, Date: utcDay(6, 25), Quantity: 7, Amount: 700},     // future buy: dropped
+	buyDated := func(m time.Month, d int) domain.Transaction {
+		return domain.Transaction{Type: domain.TxnBuy, Date: utcDay(m, d), Quantity: 1, Amount: 100}
 	}
-	got := asOfLedger(txns, cutoff)
-	if len(got) != 2 {
-		t.Fatalf("kept %d events, want 2 (past opening + 06-18 buy)", len(got))
+	got := asOfLedger([]domain.Transaction{buyDated(6, 18), buyDated(6, 25)}, cutoff)
+	if len(got) != 1 {
+		t.Fatalf("kept %d events, want 1 (06-18 buy; future 06-25 buy dropped)", len(got))
 	}
-	for _, tx := range got {
-		if !tx.Date.Before(cutoff) {
-			t.Errorf("kept event dated %s at/after cutoff (incl. a future opening)", tx.Date.Format("2006-01-02"))
-		}
+	if !got[0].Date.Before(cutoff) {
+		t.Errorf("kept buy dated %s at/after cutoff", got[0].Date.Format("2006-01-02"))
+	}
+}
+
+// TestAsOfLedger_OpeningBaselineRetainedUnlessDeclaredAfter is the regression
+// for the opening-drop limitation: an opening with an UNSET OpeningDate is the
+// timeless baseline and must be kept even when its ordering Date falls after the
+// row (it defaults to creation/migration time). Only a DECLARED OpeningDate
+// on/after the row drops the opening — the position genuinely did not exist yet.
+func TestAsOfLedger_OpeningBaselineRetainedUnlessDeclaredAfter(t *testing.T) {
+	cutoff := utcDay(6, 19).Add(24 * time.Hour) // as-of 06-19
+	declared := func(m time.Month, d int) *time.Time { t := utcDay(m, d); return &t }
+
+	cases := []struct {
+		name string
+		txn  domain.Transaction
+		keep bool
+	}{
+		{"unset opening dated in the future is retained (baseline, the bug fix)",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300}, true},
+		{"unset opening dated in the past is retained",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 5, Amount: 500}, true},
+		{"declared opening date before the row is retained",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300, OpeningDate: declared(6, 1)}, true},
+		{"declared opening date on the row (snapshot day) is retained",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(12, 1), Quantity: 3, Amount: 300, OpeningDate: declared(6, 19)}, true},
+		{"declared opening date the day after the row is dropped",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 3, Amount: 300, OpeningDate: declared(6, 20)}, false},
+		{"declared opening date well after the row is dropped",
+			domain.Transaction{Type: domain.TxnOpening, Date: utcDay(1, 1), Quantity: 3, Amount: 300, OpeningDate: declared(6, 25)}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := asOfLedger([]domain.Transaction{c.txn}, cutoff)
+			kept := len(got) == 1
+			if kept != c.keep {
+				t.Errorf("kept=%v, want %v", kept, c.keep)
+			}
+		})
 	}
 }
 
