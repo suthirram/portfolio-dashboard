@@ -149,6 +149,100 @@ func TestTransactionsService_Update_OpeningDateTracksDate(t *testing.T) {
 	})
 }
 
+// An opening edit that changes the date stamps opening_date BEFORE recompute
+// runs. If that recompute oversells (e.g. lowering the opening quantity below a
+// later sell), the rollback must restore the prior opening_date too — otherwise
+// asOfLedger keeps gating history on a date the edit reverted.
+func TestTransactionsService_Update_OversellRestoresOpeningDate(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("oversell rolls opening_date back to prior declared date", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		hid := primitive.NewObjectID()
+		txnID := primitive.NewObjectID()
+		sellID := primitive.NewObjectID()
+		txnsNS := mt.DB.Name() + ".transactions"
+
+		feb := time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC)
+		mar := time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC)
+		mar15 := time.Date(2026, time.March, 15, 0, 0, 0, 0, time.UTC)
+
+		// prev: opening dated feb with a DECLARED opening_date of feb, qty 10.
+		prevOpening := bson.D{
+			{Key: "_id", Value: txnID}, {Key: "user_id", Value: uid}, {Key: "holding_id", Value: hid},
+			{Key: "type", Value: "opening"}, {Key: "date", Value: feb}, {Key: "opening_date", Value: feb},
+			{Key: "quantity", Value: 10.0}, {Key: "amount", Value: 1000.0},
+		}
+		sell := bson.D{
+			{Key: "_id", Value: sellID}, {Key: "user_id", Value: uid}, {Key: "holding_id", Value: hid},
+			{Key: "type", Value: "sell"}, {Key: "date", Value: mar15},
+			{Key: "quantity", Value: 5.0}, {Key: "amount", Value: 600.0},
+		}
+		// Edit moves the opening to mar and lowers qty to 1 ⇒ oversell vs the sell.
+		stampedOpening := bson.D{
+			{Key: "_id", Value: txnID}, {Key: "user_id", Value: uid}, {Key: "holding_id", Value: hid},
+			{Key: "type", Value: "opening"}, {Key: "date", Value: mar}, {Key: "opening_date", Value: mar},
+			{Key: "quantity", Value: 1.0}, {Key: "amount", Value: 100.0},
+		}
+
+		mt.AddMockResponses(
+			// GetScoped(prev).
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, prevOpening),
+			// UpdateScopedAndReturn — the stamping update (date + opening_date → mar).
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: stampedOpening}),
+			// recompute#1 ListByHolding — opening qty 1 under a sell of 5 ⇒ oversell.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, stampedOpening, sell),
+			// restore UpdateScopedAndReturn — findAndModify reverting the opening.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: prevOpening}),
+			// restore recompute ListByHolding — opening qty 10, sell 5 ⇒ valid.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, prevOpening, sell),
+			// restore recompute holdings update.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+				{Key: "_id", Value: hid}, {Key: "user_id", Value: uid}, {Key: "currency", Value: "INR"},
+			}}),
+		)
+
+		st := persistence.New(mt.DB)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
+		q, a := 1.0, 100.0
+		_, found, err := svc.Update(context.Background(), uid, txnID.Hex(), api.TransactionInput{
+			Type: "opening", Date: mar, Quantity: &q, Amount: &a,
+		})
+		if !found {
+			t.Fatal("found=false; want the transaction to be located")
+		}
+		if !errors.Is(err, ErrOversell) {
+			t.Fatalf("err = %v, want ErrOversell", err)
+		}
+
+		// The LAST findAndModify on transactions is the restore; its $set must
+		// revert opening_date to the prior declared date (feb), not leave mar.
+		var lastSet bson.RawValue
+		var sawRestore bool
+		for _, e := range mt.GetAllStartedEvents() {
+			if e.CommandName != "findAndModify" {
+				continue
+			}
+			if coll, err := e.Command.LookupErr("findAndModify"); err != nil || coll.StringValue() != "transactions" {
+				continue
+			}
+			if set, err := e.Command.LookupErr("update", "$set"); err == nil {
+				lastSet, sawRestore = set, true
+			}
+		}
+		if !sawRestore {
+			t.Fatal("no transactions findAndModify captured")
+		}
+		od, err := lastSet.Document().LookupErr("opening_date")
+		if err != nil {
+			t.Fatal("restore $set omits opening_date; want it reverted to the prior date")
+		}
+		if !od.Time().UTC().Equal(feb) {
+			t.Errorf("restored opening_date = %s, want %s", od.Time().UTC().Format("2006-01-02"), feb.Format("2006-01-02"))
+		}
+	})
+}
+
 // Deleting a buy that a later sell depends on must be rejected and the buy
 // re-inserted so the ledger stays consistent.
 func TestTransactionsService_Delete_OversellReinserts(t *testing.T) {

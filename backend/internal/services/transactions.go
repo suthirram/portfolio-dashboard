@@ -268,6 +268,10 @@ func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectI
 		{Key: "realized_seed", Value: prev.RealizedSeed},
 		{Key: "notes", Value: prev.Notes},
 		{Key: "updated_at", Value: prev.UpdatedAt},
+		// Update may stamp opening_date when an opening's date changes; the
+		// rollback must restore the prior value (nil = unset) so a rejected edit
+		// can't leave asOfLedger gating history on a date that was reverted.
+		{Key: "opening_date", Value: prev.OpeningDate},
 	}
 	if _, err := s.txns.UpdateScopedAndReturn(ctx, uid, prev.ID, set); err != nil {
 		s.log(ctx).Error("restore transaction failed", zap.String("error", err.Error()))
