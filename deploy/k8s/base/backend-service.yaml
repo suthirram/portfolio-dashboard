@@ -1,0 +1,35 @@
+# ClusterIP fronting the backend pods. The NEG annotation enables container-
+# native load balancing so the GCLB Ingress routes straight to pods (not via
+# kube-proxy). The BackendConfig wires the load-balancer health check to the
+# app's real health endpoint instead of the default "/".
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: portfolio
+  labels:
+    app: backend
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "backend-config"}'
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: backend-config
+  namespace: portfolio
+spec:
+  healthCheck:
+    type: HTTP
+    requestPath: /api/healthz
+    port: 8080
+  # Session cookie is opaque + server-stored, so no LB affinity is required;
+  # any backend pod can serve any request.

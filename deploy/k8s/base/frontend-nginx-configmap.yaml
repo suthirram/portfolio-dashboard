@@ -1,0 +1,23 @@
+# Replaces the image's baked default.conf. In the cluster the Ingress routes
+# /api → backend, so nginx only serves the static SPA (no upstream proxy). Listens
+# on 8080 to run as the unprivileged nginx user without binding a low port.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx
+  namespace: portfolio
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript;
+    }

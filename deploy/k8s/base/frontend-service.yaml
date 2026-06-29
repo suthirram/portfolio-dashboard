@@ -1,0 +1,20 @@
+# ClusterIP fronting the SPA pods, NEG-enabled for container-native LB. The
+# Ingress default health check ("/") returns index.html (200), so no BackendConfig
+# is needed here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: portfolio
+  labels:
+    app: frontend
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

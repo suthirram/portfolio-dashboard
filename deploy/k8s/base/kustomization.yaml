@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: portfolio
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - configmap.yaml
+  - secretproviderclass.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - backend-hpa.yaml
+  - frontend-nginx-configmap.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - ingress.yaml
+  - snapshot-cronjob.yaml
+
+# CI rewrites these to the freshly pushed Artifact Registry refs via
+# `kustomize edit set image portfolio-backend=<ref> portfolio-frontend=<ref>`.
+images:
+  - name: portfolio-backend
+    newName: portfolio-backend
+    newTag: latest
+  - name: portfolio-frontend
+    newName: portfolio-frontend
+    newTag: latest

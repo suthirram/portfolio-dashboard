@@ -1,0 +1,57 @@
+# Daily history tick — the GKE-native replacement for the Cloud Run Job
+# (pd-snapshot) + Cloud Scheduler (pd-snapshot-daily) pair. Runs the SAME image
+# as the backend, invoking the `snapshot` subcommand once. 00:00 UTC matches the
+# old schedule; the subcommand maps the wall clock to the IST trading day and is
+# idempotent per (user, date), so a re-run or a missed tick self-heals.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pd-snapshot
+  namespace: portfolio
+spec:
+  schedule: "0 0 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        spec:
+          serviceAccountName: portfolio
+          restartPolicy: Never
+          containers:
+            - name: snapshot
+              # Patched by CI to the same ref as the backend Deployment.
+              image: portfolio-backend:latest
+              command: ["./portfolio-api", "snapshot"]
+              envFrom:
+                - configMapRef:
+                    name: backend-config
+              env:
+                - name: MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: backend-secrets
+                      key: MONGODB_URI
+              volumeMounts:
+                - name: secrets-store
+                  mountPath: /mnt/secrets-store
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+          volumes:
+            - name: secrets-store
+              csi:
+                driver: secrets-store.csi.k8s.io
+                readOnly: true
+                volumeAttributes:
+                  secretProviderClass: backend-secrets

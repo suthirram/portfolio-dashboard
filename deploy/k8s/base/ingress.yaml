@@ -1,0 +1,54 @@
+# Single external GCLB. Path /api → backend, everything else → the SPA. TLS is a
+# Google-managed certificate (auto-provisioned/renewed once DNS for the domain
+# points at the reserved static IP). The FrontendConfig forces HTTP → HTTPS.
+#
+# Learning without a domain? Delete the managed-certificate + FrontendConfig
+# annotations and the two extra docs below, then reach the app over plain HTTP at
+# the reserved IP (or <ip>.nip.io). See PD-050 for the trade-offs.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio
+  namespace: portfolio
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "pd-ingress-ip"
+    networking.gke.io/managed-certificates: "pd-cert"
+    networking.gke.io/v1beta1.FrontendConfig: "pd-frontend-config"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: pd-cert
+  namespace: portfolio
+spec:
+  domains:
+    # Replace with the real domain that resolves to pd-ingress-ip.
+    - portfolio.REPLACE_ME
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: pd-frontend-config
+  namespace: portfolio
+spec:
+  redirectToHttps:
+    enabled: true

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: portfolio
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: portfolio
+      containers:
+        - name: backend
+          # Patched by CI (kustomize edit set image portfolio-backend=<ref>).
+          image: portfolio-backend:latest
+          command: ["./portfolio-api", "serve"]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: MONGODB_URI
+          # Mounting the CSI volume is what triggers Secret Manager → k8s Secret
+          # sync; the file mount itself is unused (the env var above is the path).
+          volumeMounts:
+            - name: secrets-store
+              mountPath: /mnt/secrets-store
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: backend-secrets

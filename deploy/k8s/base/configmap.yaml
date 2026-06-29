@@ -1,0 +1,16 @@
+# Non-secret runtime config, mirroring the Cloud Run --set-env-vars block.
+# CORS_ALLOWED_ORIGINS must list the public origin(s) the SPA is served from;
+# credentialed CORS forbids "*", so set the real domain before going live.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: portfolio
+data:
+  LOG_FORMAT: "json"
+  LOG_LEVEL: "info"
+  COOKIE_SECURE: "true"
+  MONGODB_DATABASE: "portfolio"
+  PORT: "8080"
+  # Patched per-environment. Example: https://portfolio.example.com
+  CORS_ALLOWED_ORIGINS: "https://REPLACE_ME"

@@ -1,0 +1,81 @@
+name: Deploy to GKE
+
+# Builds the backend + frontend images, pushes them to Artifact Registry, and
+# applies the Kustomize base to the GKE cluster (PD-050). Manual-only so it never
+# races the Cloud Run auto-deploy; the two deploys coexist until the migration is
+# confirmed. Auth is keyless via Workload Identity Federation (same as Cloud Run).
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        description: GKE cluster name
+        default: pd-gke
+      region:
+        description: Cluster region
+        default: europe-west1
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REGION: ${{ github.event.inputs.region }}
+  CLUSTER: ${{ github.event.inputs.cluster_name }}
+  REPO: pd
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build & push images
+        run: |
+          PREFIX="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPO}"
+          SHA="${GITHUB_SHA::7}"
+          echo "BACKEND_IMAGE=${PREFIX}/backend:${SHA}"   >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=${PREFIX}/frontend:${SHA}" >> "$GITHUB_ENV"
+          docker build -t "${PREFIX}/backend:${SHA}"  backend
+          docker build -t "${PREFIX}/frontend:${SHA}" frontend
+          docker push "${PREFIX}/backend:${SHA}"
+          docker push "${PREFIX}/frontend:${SHA}"
+
+      - name: Get cluster credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER }}
+          location: ${{ env.REGION }}
+
+      - name: Patch image refs and apply
+        run: |
+          cd deploy/k8s/base
+          kubectl kustomize . >/dev/null   # render-check before applying
+          # kustomize is bundled with kubectl; edit via the standalone binary if present.
+          if command -v kustomize >/dev/null; then
+            kustomize edit set image \
+              portfolio-backend="${BACKEND_IMAGE}" \
+              portfolio-frontend="${FRONTEND_IMAGE}"
+            kubectl apply -k .
+          else
+            # Fallback: overlay images with a kubectl-only patch via env substitution.
+            sed -i "s#portfolio-backend:latest#${BACKEND_IMAGE}#; s#portfolio-frontend:latest#${FRONTEND_IMAGE}#" \
+              backend-deployment.yaml frontend-deployment.yaml snapshot-cronjob.yaml
+            kubectl apply -k .
+          fi
+
+      - name: Wait for rollout
+        run: |
+          kubectl -n portfolio rollout status deployment/backend  --timeout=180s
+          kubectl -n portfolio rollout status deployment/frontend --timeout=180s
