@@ -8,6 +8,7 @@ import OnboardingPage from './features/auth/OnboardingPage'
 import ProfilePage from './features/auth/ProfilePage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import HistoryPage from './features/history/HistoryPage'
+import HistoryChartPage from './features/history/HistoryChartPage'
 import AdminUserList from './features/admin/AdminUserList'
 import AdminUserView from './features/admin/AdminUserView'
 import AdminManageAdmins from './features/admin/AdminManageAdmins'
@@ -24,6 +25,7 @@ export default function App() {
 
           <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
           <Route path="/history" element={<RequireAuth><HistoryPage /></RequireAuth>} />
+          <Route path="/history/chart/:region" element={<RequireAuth><HistoryChartPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
 
           <Route path="/admin" element={<RequireAdmin><AdminUserList /></RequireAdmin>} />

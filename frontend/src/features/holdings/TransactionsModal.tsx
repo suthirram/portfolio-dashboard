@@ -26,6 +26,7 @@ interface FormState {
   type: TransactionType
   date: string // yyyy-mm-dd
   quantity: string
+  price: string // optional per-share price; convenience to compute amount = price × shares
   amount: string
   ratio: string
   realized: string // opening only: realised P&L seed
@@ -34,7 +35,7 @@ interface FormState {
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 
-const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', amount: '', ratio: '', realized: '', notes: '' })
+const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
   holding: HoldingWithPrice
@@ -71,12 +72,27 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
 
   const resetForm = () => { setForm(emptyForm()); setEditingId(null) }
 
+  // Optional per-share price is a convenience: when both shares and price are
+  // present, auto-fill the total amount (= price × shares). Amount stays
+  // editable so the user can fold in brokerage/charges afterwards (e.g. enter
+  // NAV 41.1086 × 279.733 = 11499.43, then bump to the 11500 actually debited).
+  const recompute = (next: Partial<FormState>) => setForm(f => {
+    const merged = { ...f, ...next }
+    const qty = parseDecimalInput(merged.quantity, { singleSeparator: 'decimal' })
+    const px = parseDecimalInput(merged.price)
+    if (merged.price.trim() !== '' && Number.isFinite(qty) && Number.isFinite(px) && qty > 0) {
+      merged.amount = (qty * px).toFixed(2)
+    }
+    return merged
+  })
+
   const startEdit = (t: Transaction) => {
     setEditingId(t.id || null)
     setForm({
       type: (t.type as TransactionType) || 'buy',
       date: t.date ? t.date.slice(0, 10) : todayISO(),
       quantity: t.quantity != null ? String(t.quantity) : '',
+      price: '',
       amount: t.amount != null ? String(t.amount) : '',
       ratio: t.ratio != null && t.ratio !== 0 ? String(t.ratio) : '',
       realized: t.realized_seed != null && t.realized_seed !== 0 ? String(t.realized_seed) : '',
@@ -196,12 +212,19 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
           </div>
 
           {!isCorporate && !isMerger && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: form.type === 'dividend' ? '1fr' : '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
               {form.type !== 'dividend' && (
                 <div>
                   <label style={LABEL}>Shares</label>
                   <DecimalInput style={INPUT} value={form.quantity}
-                    onValueChange={value => setForm(f => ({ ...f, quantity: value }))} placeholder="0" />
+                    onValueChange={value => recompute({ quantity: value })} placeholder="0" />
+                </div>
+              )}
+              {form.type !== 'dividend' && (
+                <div>
+                  <label style={LABEL}>Price / share ({sym}) <span style={{ textTransform: 'none', color: 'var(--text-muted)' }}>optional</span></label>
+                  <DecimalInput style={INPUT} value={form.price}
+                    onValueChange={value => recompute({ price: value })} placeholder="NAV / price" />
                 </div>
               )}
               <div>

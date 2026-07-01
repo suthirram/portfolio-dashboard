@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Dispatch, FocusEvent, SetStateAction } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
 } from 'recharts'
@@ -22,10 +22,10 @@ import { useAuthOptional } from '../auth/AuthContext'
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
 // holding falls into based on Exchange first, Currency fallback.
-const REGIONS = ['INR', 'EUR', 'USD'] as const
-type RegionKey = typeof REGIONS[number]
+export const REGIONS = ['INR', 'EUR', 'USD'] as const
+export type RegionKey = typeof REGIONS[number]
 
-const REGION_LABELS: Record<RegionKey, string> = {
+export const REGION_LABELS: Record<RegionKey, string> = {
   INR: 'India (INR)',
   EUR: 'Europe (EUR)',
   USD: 'US (USD)',
@@ -35,8 +35,8 @@ const REGION_LABELS: Record<RegionKey, string> = {
 // Palettes are theme-aware: brighter hues for dark backgrounds, darker
 // hues for light. The previous single palette was muddy on white and
 // faded on near-black.
-type LinePalette = Record<RegionKey, { invested: string; current: string }>
-const REGION_COLOURS: Record<ThemeName, LinePalette> = {
+export type LinePalette = Record<RegionKey, { invested: string; current: string }>
+export const REGION_COLOURS: Record<ThemeName, LinePalette> = {
   dark: {
     INR: { invested: '#fcd34d', current: '#f97316' }, // amber-300 / orange-500
     EUR: { invested: '#60a5fa', current: '#3b82f6' }, // blue-400 / 500
@@ -483,6 +483,7 @@ export function fmtCurrency(amount: number, sym: string): string {
 // has its own y-axis range so it is read independently — P/L % and daily
 // volatility are not crushed by the amount axis.
 function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
+  const navigate = useNavigate()
   const cur = CURRENCY_BY_REGION[region]
   const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
@@ -513,10 +514,17 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
-            Invested vs Current
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Invested vs Current</span>
+            <span style={{ fontSize: 10, color: 'var(--blue)' }}>click to expand →</span>
           </div>
-          <div style={{ height: 220 }}>
+          <div style={{ height: 220, cursor: 'pointer' }}
+            onClick={() => navigate(`/history/chart/${region}`)}
+            role="button" tabIndex={0}
+            aria-label={`Expand full ${REGION_LABELS[region]} invested vs current history`}
+            title="Open full history (2000–today) with horizontal scroll"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/history/chart/${region}`) } }}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -947,7 +955,7 @@ const selectStyle: React.CSSProperties = {
 }
 // Recharts renders its tooltip with a hard-coded white background; in dark mode
 // the (theme-set) white text then sits on white. Force a theme-aware surface.
-const chartTooltipProps = {
+export const chartTooltipProps = {
   contentStyle: {
     background: 'var(--bg-card)', border: '1px solid var(--border)',
     borderRadius: 6, color: 'var(--text-primary)',
