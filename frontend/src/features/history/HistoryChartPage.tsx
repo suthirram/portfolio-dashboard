@@ -32,7 +32,7 @@ type Granularity = 'day' | 'week'
 // weekKey returns the Monday (ISO week start) of a YYYY-MM-DD date as its
 // own YYYY-MM-DD, so all days in a week collapse to one bucket keyed by that
 // Monday.
-function weekKey(iso: string): string {
+export function weekKey(iso: string): string {
   const d = new Date(iso + 'T00:00:00Z')
   const dow = (d.getUTCDay() + 6) % 7 // Mon=0 … Sun=6
   d.setUTCDate(d.getUTCDate() - dow)
@@ -42,7 +42,7 @@ function weekKey(iso: string): string {
 // toWeekly collapses a daily oldest-first series to one point per ISO week,
 // keeping the LAST (most recent) day's invested/current in each week —
 // weekly close, the natural down-sample for a value series.
-function toWeekly(daily: { date: string; invested: number | null; current: number | null }[]) {
+export function toWeekly(daily: { date: string; invested: number | null; current: number | null }[]) {
   const byWeek = new Map<string, { date: string; invested: number | null; current: number | null }>()
   for (const p of daily) byWeek.set(weekKey(p.date), { ...p, date: weekKey(p.date) })
   return [...byWeek.values()].sort((a, b) => a.date.localeCompare(b.date))
@@ -51,7 +51,7 @@ function toWeekly(daily: { date: string; invested: number | null; current: numbe
 // fullSeries builds an oldest-first invested/current series for one region
 // using the FULL ISO date (unlike HistoryPage's perCurrencyChartData, which
 // slices to MM-DD — that collides across years on a multi-year view).
-function fullSeries(rows: HistoryRow[], region: RegionKey) {
+export function fullSeries(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return oldestFirst.map(r => {
     const rs = r.regions[region]
