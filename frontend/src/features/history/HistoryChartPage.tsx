@@ -18,10 +18,35 @@ import {
 // "Invested vs Current" mini-chart on the History page.
 
 const HISTORY_START = '2000-01-01'
-// Pixels of chart width per data point. Wide enough that daily plots don't
-// smear together; the container scrolls horizontally past the viewport.
-const PX_PER_POINT = 14
+// Zoom = pixels of chart width per data point. Higher = more horizontal
+// room per plot (zoom in), lower = denser (zoom out). Clamped to [ZOOM_MIN,
+// ZOOM_MAX]; the container scrolls horizontally past the viewport.
+const ZOOM_MIN = 4
+const ZOOM_MAX = 48
+const ZOOM_STEP = 4
+const ZOOM_DEFAULT = 14
 const MIN_CHART_WIDTH = 900
+
+type Granularity = 'day' | 'week'
+
+// weekKey returns the Monday (ISO week start) of a YYYY-MM-DD date as its
+// own YYYY-MM-DD, so all days in a week collapse to one bucket keyed by that
+// Monday.
+function weekKey(iso: string): string {
+  const d = new Date(iso + 'T00:00:00Z')
+  const dow = (d.getUTCDay() + 6) % 7 // Mon=0 … Sun=6
+  d.setUTCDate(d.getUTCDate() - dow)
+  return d.toISOString().slice(0, 10)
+}
+
+// toWeekly collapses a daily oldest-first series to one point per ISO week,
+// keeping the LAST (most recent) day's invested/current in each week —
+// weekly close, the natural down-sample for a value series.
+function toWeekly(daily: { date: string; invested: number | null; current: number | null }[]) {
+  const byWeek = new Map<string, { date: string; invested: number | null; current: number | null }>()
+  for (const p of daily) byWeek.set(weekKey(p.date), { ...p, date: weekKey(p.date) })
+  return [...byWeek.values()].sort((a, b) => a.date.localeCompare(b.date))
+}
 
 // fullSeries builds an oldest-first invested/current series for one region
 // using the FULL ISO date (unlike HistoryPage's perCurrencyChartData, which
@@ -42,6 +67,12 @@ function isRegionKey(s: string | undefined): s is RegionKey {
   return !!s && (REGIONS as readonly string[]).includes(s)
 }
 
+const zoomBtnStyle: React.CSSProperties = {
+  width: 28, height: 28, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+  border: '1px solid var(--border)', borderRadius: 6,
+  background: 'var(--bg-card)', color: 'var(--text-primary)',
+}
+
 export default function HistoryChartPage() {
   const { theme, toggle: toggleTheme } = useTheme()
   const params = useParams<{ region: string }>()
@@ -50,6 +81,8 @@ export default function HistoryChartPage() {
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [granularity, setGranularity] = useState<Granularity>('day')
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT)
 
   useEffect(() => {
     let cancelled = false
@@ -67,14 +100,19 @@ export default function HistoryChartPage() {
   const sym = CURRENCY_SYMBOL[cur]
   const palette = REGION_COLOURS[theme][region]
 
-  const data = useMemo(() => fullSeries(rows, region), [rows, region])
+  const daily = useMemo(() => fullSeries(rows, region), [rows, region])
+  const data = useMemo(
+    () => granularity === 'week' ? toWeekly(daily) : daily,
+    [daily, granularity],
+  )
   const amountDomain = useMemo(
     () => niceDomain(data.flatMap(d => [d.invested, d.current])),
     [data],
   )
-  // Width grows with the number of points so every day gets horizontal room;
-  // the wrapping div scrolls when it exceeds the viewport.
-  const chartWidth = Math.max(MIN_CHART_WIDTH, data.length * PX_PER_POINT)
+  // Width grows with the number of points × the zoom factor so every plot
+  // gets horizontal room; the wrapping div scrolls when it exceeds the
+  // viewport.
+  const chartWidth = Math.max(MIN_CHART_WIDTH, data.length * zoom)
   const hasData = data.some(d => (d.invested ?? 0) !== 0 || (d.current ?? 0) !== 0)
   const firstDate = data.length ? data[0].date : null
   const lastDate = data.length ? data[data.length - 1].date : null
@@ -131,6 +169,30 @@ export default function HistoryChartPage() {
             background: 'var(--bg-secondary)', border: '1px solid var(--border)',
             borderRadius: 8, padding: 16,
           }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center',
+              flexWrap: 'wrap', marginBottom: 12 }}>
+              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+                {(['week', 'day'] as Granularity[]).map(g => (
+                  <button key={g} onClick={() => setGranularity(g)} style={{
+                    padding: '5px 12px', fontSize: 12, cursor: 'pointer', border: 'none',
+                    background: granularity === g ? 'var(--blue)' : 'transparent',
+                    color: granularity === g ? '#fff' : 'var(--text-primary)',
+                  }} aria-pressed={granularity === g}>
+                    {g === 'week' ? 'Weekly' : 'Daily'}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Zoom</span>
+                <button onClick={() => setZoom(z => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
+                  disabled={zoom <= ZOOM_MIN} style={zoomBtnStyle} aria-label="Zoom out (shrink)">−</button>
+                <button onClick={() => setZoom(z => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
+                  disabled={zoom >= ZOOM_MAX} style={zoomBtnStyle} aria-label="Zoom in">+</button>
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {data.length} points · {granularity === 'week' ? 'weekly close' : 'daily'}
+              </span>
+            </div>
             <div style={{ overflowX: 'auto' }}>
               <div style={{ width: chartWidth, height: 460 }}>
                 <ResponsiveContainer width="100%" height="100%">
