@@ -592,25 +592,30 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   // daily_vol is the per-currency day-over-day % change of the current
-  // value vs the previous data point. null on the first point and whenever
-  // the prior current is absent or zero (divide-by-zero / no baseline).
+  // value vs the previous data point, net of the change in invested so a
+  // contribution/withdrawal doesn't read as a market move. null on the
+  // first point and whenever either side of the baseline is absent or the
+  // prior current is zero (divide-by-zero / no baseline).
   let prevCurrent: number | null = null
+  let prevInvested: number | null = null
   return oldestFirst.map(r => {
     const rs = r.regions[region]
     const invested = rs ? rs.invested : null
     const current  = rs ? rs.current  : null
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
     const daily_vol = current != null && prevCurrent != null && prevCurrent !== 0
-      ? ((current - prevCurrent) / prevCurrent) * 100
+        && invested != null && prevInvested != null
+      ? ((current - prevCurrent - (invested - prevInvested)) / prevCurrent) * 100
       : null
     prevCurrent = current
+    prevInvested = invested
     return { date: r.date.slice(5), invested, current, pnl_pct, daily_vol }
   })
 }
 
 // niceDomain returns a padded, nicely-rounded [min, max] for a value
 // axis so the plotted lines fill the chart instead of being crushed
-// against a zero floor. Pads ~8% beyond the data range and snaps the
+// against a zero floor. Pads ~8% beyond the data range and snaps the 
 // bounds to a readable step. Returns undefined when there are no finite
 // values (caller falls back to Recharts' 'auto' domain).
 export function niceDomain(values: (number | null | undefined)[]): [number, number] | undefined {
