@@ -604,6 +604,32 @@ describe('perCurrencyChartData daily_vol', () => {
     expect(series[0].daily_vol).toBeNull() // INR absent
     expect(series[1].daily_vol).toBeNull() // no prior INR baseline
   })
+
+  it('excludes the change in invested so it reflects only market movement', () => {
+    // Day 1: invested 100, current 100. Day 2: user adds 50 of principal
+    // (invested 150) and the market lifts current to 165. The raw current
+    // jump is +65 but 50 of that is fresh contribution, not a market gain.
+    // daily_vol = ((165 - 100) - (150 - 100)) / 100 = 15%.
+    const flows: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(150, 165, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 100, 'cron') } }),
+    ]
+    const series = perCurrencyChartData(flows, 'INR') // sorts oldest-first
+    expect(series[0].daily_vol).toBeNull()          // 06-01, no baseline
+    expect(series[1].daily_vol).toBeCloseTo(15, 5)  // net of the +50 contribution
+  })
+
+  it('still computes when invested is zero (principal withdrawn, gains riding)', () => {
+    // Division is by prevCurrent; invested 0 is a valid baseline. Day 1:
+    // invested 0, current 50. Day 2: invested still 0, market lifts to 55.
+    // daily_vol = ((55 - 50) - 0) / 50 = 10%.
+    const zeroInvested: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(0, 55, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(0, 50, 'cron') } }),
+    ]
+    const series = perCurrencyChartData(zeroInvested, 'INR')
+    expect(series[1].daily_vol).toBeCloseTo(10, 5)
+  })
 })
 
 describe('regionCurrentDirection', () => {
