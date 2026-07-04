@@ -46,7 +46,7 @@ identity (deploy SA gets rights on the dev resources):
 |---|---|---|
 | Backend | Cloud Run `portfolio-dashboard-api` | Cloud Run `portfolio-dashboard-api-dev` (min 0, max 1, 256–512 Mi) |
 | Mongo | Atlas prod cluster / `portfolio` | same cluster, **separate database** `portfolio_dev` + separate secret `MONGODB_URI_DEV` |
-| Postgres (PD-043) | TBD prod instance | **decision pending**: Cloud SQL `db-f1-micro`-class shared instance with `portfolio_dev` database, vs. Neon free tier. Secret `POSTGRES_URI_DEV`. |
+| Postgres (PD-043) | **Neon** (owner pick, 2026-07-04) — prod branch/database, secret `POSTGRES_URI` | **Neon** — separate branch/database `portfolio_dev`, secret `POSTGRES_URI_DEV` |
 | Frontend | prod hosting | dev site (same host, `-dev` project/branch) built with `VITE_API_URL` = dev API URL |
 | Snapshot cron | Cloud Run Job `pd-snapshot` | **none** — dev snapshots seeded manually (`go run . snapshot` against dev DBs or run-app skill seed flow) |
 
@@ -75,8 +75,10 @@ origin. `COOKIE_SECURE=true` (dev is HTTPS too).
 
 ## 6. Open questions
 
-1. Dev Postgres flavor: Cloud SQL (same-cloud, ~always-on cost) vs Neon
-   free tier (zero cost, external). Owner to pick.
+1. ~~Dev Postgres flavor~~ — **Neon free tier** (owner, 2026-07-04).
+   Serverless, scales to zero, separate Neon branches for dev and prod;
+   connection strings in Secret Manager. Owner creates the Neon project
+   and provides both URIs.
 2. Frontend dev hosting target — mirror of prod host (which one is prod
    frontend on: Cloudflare Pages per PD-012, or Cloud Run?). Confirm and
    wire the matching preview/branch deploy.
