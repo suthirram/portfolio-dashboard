@@ -40,7 +40,7 @@ Order note: PR4 before PR5 so every gold endpoint lands already gated.
 ## 3. Environment changes
 
 * **Local**: `docker-compose.dev.yml` gains `postgres:16-alpine`
-  (port 5432, volume `pgdata-dev`). `make dev-db` starts both DBs.
+  (port 5432, volume `pg_data_dev`). `make dev-db` starts both DBs.
 * **Full stack**: `docker-compose.yml` gains the same + `POSTGRES_URI` on
   the backend service.
 * **Dev (GCP)**: PD-044 provisions dev Cloud Run + dev Mongo + dev

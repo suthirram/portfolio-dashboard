@@ -67,7 +67,7 @@ PRD-002 §3 explicitly deferred gold as a holding type. This PRD picks it up.
 | Role | What they can do |
 |---|---|
 | **User (gold-enabled)** | Full Gold page: transactions, daily prices, metrics. History gold columns. |
-| **User (not enabled)** | Nothing gold-related is visible. Gold API returns 403/404. |
+| **User (not enabled)** | Nothing gold-related is visible. Gold API returns 404 (no enumeration, per DD-003). |
 | **Admin** | Same as user for their own portfolio (if enabled). No gold act-as. |
 | **Super admin** | Everything a user gets (if enabled for themselves), plus enable/disable gold per user from the admin user list. |
 
@@ -171,4 +171,4 @@ stock buckets and is not double-counted here.
    ledger, including XIRR.
 4. History page shows the four gold values for enabled users and nothing
    for others.
-5. A non-enabled user probing gold API routes gets 403/404, never data.
+5. A non-enabled user probing gold API routes gets 404, never data.

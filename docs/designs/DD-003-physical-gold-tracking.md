@@ -111,8 +111,7 @@ Follows the existing layering exactly:
   false; no Mongo migration needed).
 * `AuthGate` table gains the gold operations with a `RequireGold`
   predicate: authenticated AND `user.GoldEnabled`. Disabled users get
-  **404** (consistent with the no-enumeration rule) — the PRD's "403/404"
-  resolves to 404.
+  **404** (consistent with the no-enumeration rule).
 * Super admin toggle: `PUT /api/admin/users/{id}/gold` body
   `{"enabled": bool}` — **super admin only** (not region admins; PRD §2.4).
   Toggling off hides data but deletes nothing.
