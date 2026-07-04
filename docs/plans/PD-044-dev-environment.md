@@ -45,8 +45,8 @@ identity (deploy SA gets rights on the dev resources):
 | Piece | Prod | Dev |
 |---|---|---|
 | Backend | Cloud Run `portfolio-dashboard-api` | Cloud Run `portfolio-dashboard-api-dev` (min 0, max 1, 256–512 Mi) |
-| Mongo | Atlas prod cluster / `portfolio` | same cluster, **separate database** `portfolio_dev` + separate secret `MONGODB_URI_DEV` |
-| Postgres (PD-043) | **Neon** (owner pick, 2026-07-04) — prod branch/database, secret `POSTGRES_URI` | **Neon** — separate branch/database `portfolio_dev`, secret `POSTGRES_URI_DEV` |
+| Mongo | Atlas prod cluster / `portfolio` | same cluster, **same `MONGODB_URI` secret**, separate database via `MONGODB_DATABASE=portfolio_dev` (the DB name comes from the env var, not the URI — no new secret) |
+| Postgres (PD-043) | **Neon** (owner pick, 2026-07-04) — prod branch/database, secret `POSTGRES_URI` | **Neon** — separate branch/database, secret `POSTGRES_URI_DEV`. **Optional**: the workflow wires it only when the secret exists; until then the backend deploys with gold features disabled (designed degrade path) |
 | Frontend | Cloudflare Pages + `/api` same-origin proxy function | second Pages project (or branch env), **`VITE_API_URL` left unset**, Pages env `API_ORIGIN` = dev Cloud Run URL |
 | Snapshot cron | Cloud Run Job `pd-snapshot` | **none** — dev snapshots seeded manually (`go run . snapshot` against dev DBs or run-app skill seed flow) |
 
@@ -72,14 +72,20 @@ the dev Cloud Run service.
 
 ## 5. Work items
 
-1. GCP: create dev Cloud Run service, dev secrets (`MONGODB_URI_DEV`,
-   later `POSTGRES_URI_DEV`), grant deploy SA. Script it in
-   `infra/gcp/dev-stack.sh` (idempotent, like `snapshot-job.sh`).
-2. `deploy-dev.yml` workflow (backend deploy + PR comment with URL).
-3. Frontend dev deploy step (same workflow): Cloudflare Pages dev
-   project/branch with `API_ORIGIN` set to the dev Cloud Run URL and
-   `VITE_API_URL` unset (same-origin rule above).
-4. Create the `dev` label in the repo.
+1. ~~GCP provisioning script~~ — not needed: the first labeled deploy
+   creates the dev Cloud Run service (`gcloud run deploy` creates on
+   first use), the Mongo secret is reused, and the Postgres secret is
+   optional. The only manual GCP step left is adding `POSTGRES_URI_DEV`
+   to Secret Manager once the Neon dev branch exists (plus
+   `CORS_ALLOWED_ORIGINS_DEV` GitHub secret when the dev Pages origin is
+   known — the workflow falls back to the prod value until then).
+2. ~~`deploy-dev.yml` workflow~~ — done (backend deploy + PR comment
+   with URL; label + same-repo gated; `concurrency: deploy-dev` so the
+   newest labeled deploy wins).
+3. Frontend dev: Cloudflare Pages dev project/branch with `API_ORIGIN`
+   set to the dev Cloud Run URL and `VITE_API_URL` unset (same-origin
+   rule above). Owner action in the Pages dashboard.
+4. ~~Create the `dev` label~~ — done.
 5. README note: how to claim the dev stack (label a PR), how to seed it.
 
 ## 6. Open questions
