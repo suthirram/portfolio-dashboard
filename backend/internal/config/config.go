@@ -18,6 +18,11 @@ type Config struct {
 	LogLevel  string
 	LogFormat string
 
+	// PostgresURI is the connection string for the gold-tracking database
+	// (DD-003). Postgres is optional at boot: when unset or unreachable the
+	// server runs without gold features instead of failing.
+	PostgresURI string
+
 	CORSAllowedOrigins []string
 
 	// CookieSecure controls whether the session cookie is emitted with
@@ -35,12 +40,18 @@ type Config struct {
 	ShutdownTimeout time.Duration
 }
 
+// defaultPostgresURI carries the local-dev credentials matching
+// docker-compose; production always overrides via $POSTGRES_URI
+// (Secret Manager).
+const defaultPostgresURI = "postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable" //nolint:gosec // dev-only default, not a real credential
+
 // Default returns the baseline configuration.
 func Default() Config {
 	return Config{
 		Port:            "8080",
 		MongoURI:        "mongodb://localhost:27017/portfolio",
 		MongoDB:         "portfolio",
+		PostgresURI:     defaultPostgresURI,
 		LogLevel:        "info",
 		LogFormat:       "json",
 		ReadTimeout:     10 * time.Second,
@@ -62,6 +73,9 @@ func (c *Config) ApplyEnv() {
 	}
 	if v := os.Getenv("MONGODB_DATABASE"); v != "" {
 		c.MongoDB = v
+	}
+	if v := os.Getenv("POSTGRES_URI"); v != "" {
+		c.PostgresURI = v
 	}
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		c.LogLevel = v
