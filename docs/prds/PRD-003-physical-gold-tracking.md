@@ -84,19 +84,17 @@ One row per purchase. Columns as specified by the owner, split into
 | 4 | Gold cost | computed | `gm Price × Weight` |
 | 5 | 3% | computed | `Gold cost × 0.03` (GST on gold cost) |
 | 6 | Total expected | computed | `Gold cost + 3%` |
-| 7 | Gold price in quote | entered | Per-gram rate the jeweler quoted |
-| 8 | 3% (on quote) | computed | `Gold price in quote × Weight × 0.03` **(assumption — confirm)** |
+| 7 | Gold price in quote | entered | Rate the jeweler quoted |
+| 8 | 3% (on quote) | computed | `Gold price in quote × 0.03` |
 | 9 | Amt according to bill | entered | Amount printed on the bill |
 | 10 | Actual amt paid | entered | Cash actually paid |
 | 11 | Nett per gram value | computed | `Actual amt paid ÷ Weight` |
-| 12 | Nett Reduction | computed | **Formula TBD — owner to confirm** (working assumption: `Total expected − Actual amt paid`) |
+| 12 | Nett Reduction | computed | `Amt according to bill − Actual amt paid` |
 | 13 | Billed weight | entered | Grams on the bill (can differ from Weight) |
-| 14 | LOSS due to NIMMI | computed | **Formula TBD — owner to confirm** (working assumption: `(Weight − Billed weight) × gm Price`) |
+| 14 | LOSS due to NIMMI | computed | `Actual amt paid − Gold cost` (spreadsheet column J − D) |
 | 15 | Chennai rate | entered | Market reference rate that day |
 
-The two TBD formulas are captured as open questions (§9) and MUST be
-confirmed against the owner's spreadsheet before the transactions PR ships.
-The owner offered real spreadsheet rows; DD-003 will lock the formulas.
+All formulas confirmed by the owner on 2026-07-04 (§9).
 
 ## 6. The metrics table
 
@@ -110,7 +108,7 @@ sheet shown for shape only:
 | Profit/Loss from Bees (excluding tax loss) | Realised + unrealised P&L of the user's GOLDBEES holding(s) from the live stocks table |
 | Nett Profit/Loss excluding bees | `Current value − Total Amt invested` |
 | Nett Profit/Loss including bees | previous row + Bees P/L (realised + unrealised, per owner's note) |
-| Total gold in grams | Σ `Weight` **(assumption — or Billed weight; confirm)** |
+| Total gold in grams | Σ `Weight` (actual weight, confirmed — not billed weight) |
 | Avg cost per gram | `Total Amt invested ÷ Total gold in grams` |
 | XIRR of physical | XIRR over cash flows: each transaction's `Actual amt paid` as an outflow on its date, current value as the terminal inflow today |
 
@@ -123,8 +121,8 @@ sheet shown for shape only:
   day should have a price. On opening the Gold page, missing days trigger
   a **blocking prompt** (same pattern as the opening-date prompt on the
   dashboard) listing the gaps with inline inputs and a "Save all" action.
-  * **Assumption to confirm**: every calendar day including weekends and
-    holidays (gold retail rates exist daily), vs. weekdays only.
+  * **Every calendar day** requires an entry, weekends and holidays
+    included (confirmed — retail gold rates exist daily).
 * Days before the first transaction never prompt.
 * The **latest available** price values the position everywhere (metrics,
   history column). A missing today's price falls back to the most recent
@@ -149,19 +147,18 @@ These are **computed on read** from the gold ledger + price series; nothing
 gold-related is written into `portfolio_snapshots`. GOLDBEES stays in the
 stock buckets and is not double-counted here.
 
-## 9. Open questions (resolve in DD-003 review)
+## 9. Open questions — RESOLVED (owner, 2026-07-04)
 
-1. **Nett Reduction** exact formula (row 12).
-2. **LOSS due to NIMMI** exact formula (row 14) — and what NIMMI stands
-   for, for the docs.
-3. **3% on quote** (row 8) base: quote × weight, or Amt according to bill?
-4. **Total grams**: actual `Weight` or `Billed weight`?
-5. **Daily price days**: all calendar days, or weekdays only?
-6. **GOLDBEES identification**: symbol match (`GOLDBEES.NS`/`.BO`) or
-   user-tagged holdings? v1 assumption: symbol match.
-7. **"excluding tax loss"** on the Bees metric: is this simply the raw
-   realised+unrealised P&L (no tax adjustment applied), or does a tax
-   figure need subtracting?
+1. **Nett Reduction** = `Amt according to bill − Actual amt paid`.
+2. **LOSS due to NIMMI** = `Actual amt paid − Gold cost` (spreadsheet
+   J − D). (What "NIMMI" stands for remains unrecorded — cosmetic only.)
+3. **3% columns**: first = 3% of `Gold cost` (gm × weight); second = 3% of
+   `Gold price in quote`.
+4. **Total grams** = Σ actual `Weight`.
+5. **Daily price**: every calendar day, weekends/holidays included.
+6. **GOLDBEES identification**: symbol match (`GOLDBEES.NS` / `GOLDBEES.BO`).
+7. **"excluding tax loss"**: raw realised + unrealised P&L, no tax
+   adjustment subtracted.
 
 ## 10. Success criteria
 

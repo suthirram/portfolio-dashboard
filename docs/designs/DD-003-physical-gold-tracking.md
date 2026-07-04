@@ -76,9 +76,10 @@ backfills.
 
 Follows the existing layering exactly:
 
-* `internal/persistence/postgres.go` — pgxpool construction + migration
-  runner. `persistence.Store` gains an optional `Gold *GoldStore` (nil when
-  Postgres is not configured/reachable).
+* `internal/db/postgres.go` — pgxpool construction + embedded migration
+  runner (mirrors `db/mongo.go`; landed in PR2). `persistence.Store` gains
+  an optional `Gold *GoldStore` (nil when Postgres is not
+  configured/reachable).
 * `internal/persistence/gold.go` — `GoldStore`: owner-scoped CRUD for
   transactions and daily prices. Every query pins `user_id` (the
   `scopedFilter` discipline, SQL edition). `ErrNotFound` on missing rows.
@@ -91,7 +92,8 @@ Follows the existing layering exactly:
   * `Prices(from,to)`, `PutPrices([]{date,price})` (bulk upsert — the
     missing-day prompt saves all gaps in one call).
   * `MissingDates(today)` — calendar gaps between
-    `min(first txn, first price)` and today (weekend rule per PRD open Q5).
+    `min(first txn, first price)` and today; every calendar day counts,
+    weekends included (PRD §9.5).
   * `Metrics(today)` — §3.
   * `HistoryOverlay(dates)` — §4.
 * `internal/services/xirr.go` — pure XIRR: Newton–Raphson with bisection
@@ -134,10 +136,10 @@ All live, nothing stored (PRD §3):
 
 ```
 invested   = Σ actual_paid
-grams      = Σ weight_grams            // pending PRD Q4
+grams      = Σ weight_grams            // actual weight (PRD §9.4)
 latestGm   = most recent gold_daily_prices row ≤ today
 current    = grams × latestGm
-beesPL     = Σ over holdings where symbol ∈ {GOLDBEES.NS, GOLDBEES.BO}:   // pending PRD Q6
+beesPL     = Σ over holdings where symbol ∈ {GOLDBEES.NS, GOLDBEES.BO}:   // raw P/L, no tax adj (PRD §9.6/§9.7)
                (qty × livePrice − qty × avgCost) + realized_pnl
 nettExBees = current − invested
 nettInBees = nettExBees + beesPL
@@ -199,8 +201,8 @@ DB-availability tests):
 
 * **Two databases** — accepted (owner decision, §1). Mitigation: gold
   routes degrade to 503 when Postgres is down; rest of app unaffected.
-* **Formula ambiguity** — two columns are TBD (PRD §9). The transactions
-  PR is blocked on owner confirmation; `computeColumns` isolates the blast
-  radius to one function.
+* **Formula ambiguity** — resolved: all column formulas confirmed by the
+  owner (PRD §9, 2026-07-04). `computeColumns` still isolates any future
+  formula change to one function.
 * **XIRR non-convergence** on pathological flows — bisection fallback +
   "—" rendering.

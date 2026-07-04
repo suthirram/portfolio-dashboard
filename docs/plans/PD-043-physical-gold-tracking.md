@@ -26,7 +26,7 @@
 | PR2 | `feat/PD-043-postgres-infra` | pgx dep, `POSTGRES_URI` config, pool + embedded migrations, compose services, `Store.Gold` wiring (nil-safe) | migration runner unit test; `go build` green; app boots with and without Postgres |
 | PR3 | `feat/PD-043-gold-domain-store` | `domain/gold.go`, `persistence/gold.go` (owner-scoped CRUD, bulk price upsert) | store tests against local Postgres (compose) |
 | PR4 | `feat/PD-043-gold-flag-gate` | `gold_enabled` on user, `RequireGold` auth gate, super-admin toggle endpoint + admin UI toggle | gate tests: disabled→404, non-super-admin→403/404 |
-| PR5 | `feat/PD-043-gold-txn-api` | `computeColumns` (**blocked on PRD §9 formulas**), GoldService txn CRUD, controllers, OpenAPI + codegen | spreadsheet-pinned unit tests |
+| PR5 | `feat/PD-043-gold-txn-api` | `computeColumns` (formulas locked, PRD §9), GoldService txn CRUD, controllers, OpenAPI + codegen | spreadsheet-pinned unit tests |
 | PR6 | `feat/PD-043-gold-prices-api` | price series GET/bulk PUT, `MissingDates` | gap-detection unit tests |
 | PR7 | `feat/PD-043-gold-metrics-api` | XIRR, `Metrics` incl. beesPL via `PriceFetcher` | XIRR vs spreadsheet `XIRR()`; metrics service tests |
 | PR8 | `feat/PD-043-gold-page-ui` | `/gold` route, guard, nav link, transactions table + modal | vitest render tests |
@@ -51,10 +51,9 @@ Order note: PR4 before PR5 so every gold endpoint lands already gated.
 
 ## 4. Blockers / decisions pending
 
-1. PRD-003 §9 formulas (Nett Reduction, NIMMI, 3%-on-quote base, grams
-   source) — owner to confirm from spreadsheet before PR5.
-2. Daily-price day rule (all days vs weekdays) — before PR6.
-3. GOLDBEES identification (symbol match assumed) — before PR7.
+1. ~~PRD-003 §9 formulas~~ — resolved 2026-07-04, see PRD-003 §9.
+2. ~~Daily-price day rule~~ — every calendar day (PRD §9.5).
+3. ~~GOLDBEES identification~~ — symbol match (PRD §9.6).
 4. Dev Postgres flavor (Cloud SQL vs Neon) — before PD-044 lands.
 
 ## 5. Follow-ups (out of v1)
