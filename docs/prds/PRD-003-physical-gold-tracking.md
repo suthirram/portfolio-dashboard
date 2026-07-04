@@ -116,9 +116,10 @@ sheet shown for shape only:
 
 * The user enters **one per-gram price per calendar day** (plus the date it
   belongs to). Editing an existing day's price is allowed.
-* **Gap detection**: from the date of the user's first gold transaction (or
-  first price entry, whichever is earlier) through today, every calendar
-  day should have a price. On opening the Gold page, missing days trigger
+* **Gap detection**: from the date of the user's **first gold
+  transaction** through today, every calendar day should have a price.
+  Price entries earlier than the first transaction are allowed (pre-seeded
+  history) but never create a gap obligation. On opening the Gold page, missing days trigger
   a **blocking prompt** (same pattern as the opening-date prompt on the
   dashboard) listing the gaps with inline inputs and a "Save all" action.
   * **Every calendar day** requires an entry, weekends and holidays

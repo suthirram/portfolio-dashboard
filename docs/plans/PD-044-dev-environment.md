@@ -47,12 +47,20 @@ identity (deploy SA gets rights on the dev resources):
 | Backend | Cloud Run `portfolio-dashboard-api` | Cloud Run `portfolio-dashboard-api-dev` (min 0, max 1, 256–512 Mi) |
 | Mongo | Atlas prod cluster / `portfolio` | same cluster, **separate database** `portfolio_dev` + separate secret `MONGODB_URI_DEV` |
 | Postgres (PD-043) | **Neon** (owner pick, 2026-07-04) — prod branch/database, secret `POSTGRES_URI` | **Neon** — separate branch/database `portfolio_dev`, secret `POSTGRES_URI_DEV` |
-| Frontend | prod hosting | dev site (same host, `-dev` project/branch) built with `VITE_API_URL` = dev API URL |
+| Frontend | Cloudflare Pages + `/api` same-origin proxy function | second Pages project (or branch env), **`VITE_API_URL` left unset**, Pages env `API_ORIGIN` = dev Cloud Run URL |
 | Snapshot cron | Cloud Run Job `pd-snapshot` | **none** — dev snapshots seeded manually (`go run . snapshot` against dev DBs or run-app skill seed flow) |
 
 Deploy step reuses the prod `gcloud run deploy` block with dev names,
 dev secrets, and `CORS_ALLOWED_ORIGINS` pointing at the dev frontend
 origin. `COOKIE_SECURE=true` (dev is HTTPS too).
+
+**Same-origin rule (do not regress):** the dev frontend keeps the
+relative `/api` path through the Pages proxy function
+(`frontend/functions/api/[[path]].ts`), exactly like prod. Building the
+dev site with a cross-origin `VITE_API_URL` would make the session cookie
+third-party — iOS Safari/Chrome block it and login silently breaks. Dev
+differs from prod only in the Pages `API_ORIGIN` env var, which points at
+the dev Cloud Run service.
 
 ## 4. Data policy
 
@@ -68,8 +76,9 @@ origin. `COOKIE_SECURE=true` (dev is HTTPS too).
    later `POSTGRES_URI_DEV`), grant deploy SA. Script it in
    `infra/gcp/dev-stack.sh` (idempotent, like `snapshot-job.sh`).
 2. `deploy-dev.yml` workflow (backend deploy + PR comment with URL).
-3. Frontend dev deploy step (same workflow) once the hosting choice for
-   dev is confirmed (mirror of the prod frontend host).
+3. Frontend dev deploy step (same workflow): Cloudflare Pages dev
+   project/branch with `API_ORIGIN` set to the dev Cloud Run URL and
+   `VITE_API_URL` unset (same-origin rule above).
 4. Create the `dev` label in the repo.
 5. README note: how to claim the dev stack (label a PR), how to seed it.
 
@@ -79,9 +88,11 @@ origin. `COOKIE_SECURE=true` (dev is HTTPS too).
    Serverless, scales to zero, separate Neon branches for dev and prod;
    connection strings in Secret Manager. Owner creates the Neon project
    and provides both URIs.
-2. Frontend dev hosting target — mirror of prod host (which one is prod
-   frontend on: Cloudflare Pages per PD-012, or Cloud Run?). Confirm and
-   wire the matching preview/branch deploy.
+2. ~~Frontend dev hosting target~~ — prod frontend is Cloudflare Pages
+   with the `/api` proxy function (PD-012); dev mirrors it. Remaining
+   sub-choice: separate Pages project vs branch deploy of the prod
+   project (branch deploys share prod's `API_ORIGIN` unless overridden —
+   check Pages env scoping before picking).
 3. Should removing the `dev` label tear down / scale the dev service to
    zero, or is min-instances=0 idle cost acceptable? (Default: do nothing;
    idle Cloud Run at min 0 costs ~nothing.)

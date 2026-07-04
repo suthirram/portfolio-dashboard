@@ -8,17 +8,19 @@
 
 ## 1. Storage: PostgreSQL (owner decision)
 
-Gold data lives in **PostgreSQL**, not MongoDB. The owner chose Postgres
-because gold is a structurally different holding type; the engineering
-recommendation to stay on Mongo (single-DB ops) was raised and overruled.
-Consequences accepted:
+Gold data lives in **PostgreSQL**. Physical gold is a structurally
+different holding type — relational purchase rows plus a dense daily price
+series, no live feed — and the owner decided it gets its own engine
+rather than new Mongo collections. Both options were weighed (a second
+database adds operational surface: driver, migrations, backups ×2); the
+trade-offs below are accepted knowingly.
 
 * New Go dependency: `github.com/jackc/pgx/v5` (pool: `pgxpool`).
 * New container in `docker-compose.dev.yml` and `docker-compose.yml`
   (`postgres:16-alpine`, volume-backed).
-* Prod/dev GCP: **Cloud SQL for PostgreSQL** (smallest tier,
-  `db-f1-micro`-class) or Neon/Supabase free tier — decided in PD-044.
-  Connection string via Secret Manager, same pattern as `MONGODB_URI`.
+* Prod/dev: **Neon** serverless Postgres (owner pick, PD-044) — separate
+  branches/databases for prod and dev. Connection string via Secret
+  Manager, same pattern as `MONGODB_URI`.
 * Backups/restore now cover two engines.
 
 Everything **non-gold stays in Mongo** — including the per-user
@@ -91,9 +93,11 @@ Follows the existing layering exactly:
     owner's spreadsheet rows).
   * `Prices(from,to)`, `PutPrices([]{date,price})` (bulk upsert — the
     missing-day prompt saves all gaps in one call).
-  * `MissingDates(today)` — calendar gaps between
-    `min(first txn, first price)` and today; every calendar day counts,
-    weekends included (PRD §9.5).
+  * `MissingDates(today)` — calendar gaps between the **first
+    transaction date** and today; every calendar day counts, weekends
+    included (PRD §9.5). Days before the first transaction never prompt
+    (PRD §7) — price rows earlier than that are allowed but create no
+    obligation, so a pre-seeded price history can't block the page.
   * `Metrics(today)` — §3.
   * `HistoryOverlay(dates)` — §4.
 * `internal/services/xirr.go` — pure XIRR: Newton–Raphson with bisection
