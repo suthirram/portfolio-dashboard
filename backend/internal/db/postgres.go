@@ -17,6 +17,11 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
+// migrationLockKey is the pg_advisory_lock key that serializes migration
+// runs across concurrently booting instances (Cloud Run runs several).
+// Arbitrary but fixed: ASCII "gold" as an int64.
+const migrationLockKey = int64(0x676f6c64)
+
 // ConnectPostgres opens a pgx pool and verifies connectivity with a ping.
 func ConnectPostgres(ctx context.Context, uri string, logger *zap.Logger) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, uri)
@@ -35,13 +40,37 @@ func ConnectPostgres(ctx context.Context, uri string, logger *zap.Logger) (*pgxp
 // schema_migrations. Each migration runs in its own transaction together
 // with the version bookkeeping row, so a failed migration leaves no
 // half-applied state and the next boot retries it.
+//
+// Concurrent boots (Cloud Run scales to several instances) serialize on a
+// session advisory lock held for the whole check-and-apply, so a fresh
+// database is only migrated once; late arrivals block on the lock, then
+// see the recorded versions and skip. Everything runs on one pooled
+// connection because the session lock is connection-scoped.
+//
+// Migration statements run through pgx's zero-argument Exec, i.e. the
+// simple query protocol, so one file may hold multiple SQL statements.
 func MigratePostgres(ctx context.Context, pool *pgxpool.Pool, logger *zap.Logger) error {
 	files, err := migrationFiles()
 	if err != nil {
 		return err
 	}
 
-	if _, err := pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire migration connection: %w", err)
+	}
+	defer conn.Release()
+
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	defer func() {
+		if _, err := conn.Exec(ctx, `SELECT pg_advisory_unlock($1)`, migrationLockKey); err != nil {
+			logger.Warn("release migration lock failed", zap.String("error", err.Error()))
+		}
+	}()
+
+	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		version    TEXT PRIMARY KEY,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	)`); err != nil {
@@ -49,7 +78,7 @@ func MigratePostgres(ctx context.Context, pool *pgxpool.Pool, logger *zap.Logger
 	}
 
 	applied := map[string]bool{}
-	rows, err := pool.Query(ctx, `SELECT version FROM schema_migrations`)
+	rows, err := conn.Query(ctx, `SELECT version FROM schema_migrations`)
 	if err != nil {
 		return fmt.Errorf("read schema_migrations: %w", err)
 	}
@@ -74,7 +103,7 @@ func MigratePostgres(ctx context.Context, pool *pgxpool.Pool, logger *zap.Logger
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
-		tx, err := pool.Begin(ctx)
+		tx, err := conn.Begin(ctx)
 		if err != nil {
 			return fmt.Errorf("begin migration %s: %w", name, err)
 		}
