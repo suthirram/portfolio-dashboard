@@ -1,7 +1,7 @@
-// Package persistence is the data-access layer: every MongoDB read and write
-// lives here, one store type per collection (HoldingStore, UserStore,
-// SessionStore). Callers (handlers, middleware, CLI) receive domain types and
-// run no queries of their own. The one Mongo detail that crosses the boundary
+// Package persistence is the data-access layer: every database read and write
+// lives here — one store type per Mongo collection (HoldingStore, UserStore,
+// SessionStore, ...) plus the Postgres-backed GoldStore. Callers (handlers,
+// middleware, CLI) receive domain types and run no queries of their own. The one Mongo detail that crosses the boundary
 // is the bson field patch passed to the update and list methods — a deliberate
 // trade-off for partial updates that keeps the API small. Query construction
 // otherwise lives in exactly one place per collection and is easy to audit.
@@ -11,6 +11,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -37,6 +38,19 @@ type Store struct {
 	Users        *UserStore
 	Sessions     *SessionStore
 	Snapshots    *SnapshotStore
+
+	// Gold is the Postgres-backed gold store (DD-003). Nil when Postgres
+	// is not configured or unreachable at boot — callers must treat nil as
+	// "gold features disabled".
+	Gold *GoldStore
+}
+
+// AttachGold wires the Postgres-backed gold store onto the bundle. A nil
+// pool is a no-op, leaving Gold nil.
+func (s *Store) AttachGold(pool *pgxpool.Pool) {
+	if pool != nil {
+		s.Gold = NewGoldStore(pool)
+	}
 }
 
 // New wires the collection stores onto db.
