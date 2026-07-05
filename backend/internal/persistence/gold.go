@@ -24,9 +24,6 @@ type GoldDao struct {
 // NewGoldDao wires the gold DAO onto a live pgx pool.
 func NewGoldDao(pool *pgxpool.Pool) *GoldDao { return &GoldDao{pool: pool} }
 
-// NewGoldStore is retained for compatibility.
-func NewGoldStore(pool *pgxpool.Pool) *GoldDao { return NewGoldDao(pool) }
-
 const goldTxnCols = `id, user_id, txn_date, gm_price, weight_grams,
 	quote_price, bill_amount, actual_paid, billed_weight, chennai_rate,
 	created_at, updated_at`

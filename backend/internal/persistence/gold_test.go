@@ -65,7 +65,7 @@ func goldTestStore(t *testing.T) *GoldDao {
 	if _, err := pool.Exec(ctx, `TRUNCATE gold_transactions, gold_daily_prices`); err != nil {
 		t.Fatalf("truncate gold tables: %v", err)
 	}
-	return NewGoldStore(pool)
+	return NewGoldDao(pool)
 }
 
 func date(m time.Month, d int) time.Time {

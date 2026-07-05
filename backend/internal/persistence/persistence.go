@@ -1,6 +1,6 @@
 // Package persistence is the data-access layer: every database read and write
 // lives here — one store type per Mongo collection (HoldingStore, UserStore,
-// SessionStore, ...) plus the Postgres-backed GoldStore. Callers (handlers,
+// SessionStore, ...) plus the Postgres-backed GoldDao. Callers (handlers,
 // middleware, CLI) receive domain types and run no queries of their own. The one Mongo detail that crosses the boundary
 // is the bson field patch passed to the update and list methods — a deliberate
 // trade-off for partial updates that keeps the API small. Query construction
@@ -49,7 +49,7 @@ type Store struct {
 // pool is a no-op, leaving Gold nil.
 func (s *Store) AttachGold(pool *pgxpool.Pool) {
 	if pool != nil {
-		s.Gold = NewGoldStore(pool)
+		s.Gold = NewGoldDao(pool)
 	}
 }
 
