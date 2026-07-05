@@ -1,3 +1,4 @@
+// Package domain defines domain models used across the application.
 package domain
 
 import "time"
@@ -13,7 +14,7 @@ type GoldTransaction struct {
 	UserID       string    `json:"-"`             // owner; every query scopes on it
 	Date         time.Time `json:"date"`          // purchase date (DATE)
 	GmPrice      float64   `json:"gm_price"`      // per-gram purchase rate
-	WeightGrams  float64   `json:"weight_grams"`  // actual grams bought
+	GramsBought  float64   `json:"grams_bought"`  // actual grams bought
 	QuotePrice   *float64  `json:"quote_price"`   // jeweler-quoted rate
 	BillAmount   *float64  `json:"bill_amount"`   // amount printed on the bill
 	ActualPaid   float64   `json:"actual_paid"`   // cash actually paid

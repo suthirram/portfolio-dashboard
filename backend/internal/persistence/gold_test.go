@@ -18,7 +18,7 @@ import (
 // first run), migrates it, and truncates the gold tables so every test
 // starts clean. Skips when no local Postgres is reachable — these are
 // integration tests over real SQL, run with `make dev-db` up.
-func goldTestStore(t *testing.T) *GoldStore {
+func goldTestStore(t *testing.T) *GoldDao {
 	t.Helper()
 
 	adminURI := os.Getenv("POSTGRES_URI")
@@ -80,7 +80,7 @@ func TestGoldTransactions_ScopedCRUD(t *testing.T) {
 	alice, bob := "64a000000000000000000001", "64a000000000000000000002"
 
 	ins, err := s.InsertTransaction(ctx, domain.GoldTransaction{
-		UserID: alice, Date: date(6, 10), GmPrice: 9950, WeightGrams: 8,
+		UserID: alice, Date: date(6, 10), GmPrice: 9950, GramsBought: 8,
 		QuotePrice: fp(10200), BillAmount: fp(81600), ActualPaid: 79600,
 		BilledWeight: fp(7.9), ChennaiRate: fp(10100),
 	})
@@ -91,7 +91,7 @@ func TestGoldTransactions_ScopedCRUD(t *testing.T) {
 		t.Fatalf("insert did not return stored row: %+v", ins)
 	}
 	if _, err := s.InsertTransaction(ctx, domain.GoldTransaction{
-		UserID: bob, Date: date(6, 11), GmPrice: 9000, WeightGrams: 2, ActualPaid: 18000,
+		UserID: bob, Date: date(6, 11), GmPrice: 9000, GramsBought: 2, ActualPaid: 18000,
 	}); err != nil {
 		t.Fatalf("insert bob: %v", err)
 	}
@@ -104,7 +104,7 @@ func TestGoldTransactions_ScopedCRUD(t *testing.T) {
 	if len(list) != 1 || list[0].ID != ins.ID {
 		t.Fatalf("alice list = %+v, want her single row", list)
 	}
-	if got := list[0]; got.GmPrice != 9950 || got.WeightGrams != 8 || *got.BilledWeight != 7.9 {
+	if got := list[0]; got.GmPrice != 9950 || got.GramsBought != 8 || *got.BilledWeight != 7.9 {
 		t.Fatalf("stored fields wrong: %+v", got)
 	}
 	if _, err := s.GetTransaction(ctx, bob, ins.ID); !errors.Is(err, ErrNotFound) {
@@ -147,7 +147,7 @@ func TestGoldFirstTransactionDate(t *testing.T) {
 	}
 	for _, d := range []time.Time{date(6, 20), date(6, 5), date(7, 1)} {
 		if _, err := s.InsertTransaction(ctx, domain.GoldTransaction{
-			UserID: uid, Date: d, GmPrice: 9000, WeightGrams: 1, ActualPaid: 9000,
+			UserID: uid, Date: d, GmPrice: 9000, GramsBought: 1, ActualPaid: 9000,
 		}); err != nil {
 			t.Fatalf("insert: %v", err)
 		}
@@ -219,7 +219,7 @@ func TestGoldDeleteAllByUser(t *testing.T) {
 
 	for _, uid := range []string{alice, bob} {
 		if _, err := s.InsertTransaction(ctx, domain.GoldTransaction{
-			UserID: uid, Date: date(6, 10), GmPrice: 9000, WeightGrams: 1, ActualPaid: 9000,
+			UserID: uid, Date: date(6, 10), GmPrice: 9000, GramsBought: 1, ActualPaid: 9000,
 		}); err != nil {
 			t.Fatalf("insert: %v", err)
 		}

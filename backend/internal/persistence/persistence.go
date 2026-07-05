@@ -42,7 +42,7 @@ type Store struct {
 	// Gold is the Postgres-backed gold store (DD-003). Nil when Postgres
 	// is not configured or unreachable at boot — callers must treat nil as
 	// "gold features disabled".
-	Gold *GoldStore
+	Gold *GoldDao
 }
 
 // AttachGold wires the Postgres-backed gold store onto the bundle. A nil

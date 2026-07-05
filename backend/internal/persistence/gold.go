@@ -12,17 +12,20 @@ import (
 	"portfolio-dashboard/internal/domain"
 )
 
-// GoldStore owns the Postgres gold tables (DD-003). Like the Mongo stores,
+// GoldDao owns the Postgres gold tables (DD-003). Like the Mongo stores,
 // every method takes the owner uid (the Mongo user ObjectID hex) and pins
 // it in the WHERE clause, so a gold row can never be read or written
 // without naming whose it is. Single reads return ErrNotFound — including
 // for rows owned by someone else (no enumeration).
-type GoldStore struct {
+type GoldDao struct {
 	pool *pgxpool.Pool
 }
 
-// NewGoldStore wires the gold store onto a live pgx pool.
-func NewGoldStore(pool *pgxpool.Pool) *GoldStore { return &GoldStore{pool: pool} }
+// NewGoldDao wires the gold DAO onto a live pgx pool.
+func NewGoldDao(pool *pgxpool.Pool) *GoldDao { return &GoldDao{pool: pool} }
+
+// NewGoldStore is retained for compatibility.
+func NewGoldStore(pool *pgxpool.Pool) *GoldDao { return NewGoldDao(pool) }
 
 const goldTxnCols = `id, user_id, txn_date, gm_price, weight_grams,
 	quote_price, bill_amount, actual_paid, billed_weight, chennai_rate,
@@ -41,7 +44,7 @@ func scanGoldPrice(row pgx.Row) (domain.GoldPrice, error) {
 
 func scanGoldTxn(row pgx.Row) (domain.GoldTransaction, error) {
 	var t domain.GoldTransaction
-	err := row.Scan(&t.ID, &t.UserID, &t.Date, &t.GmPrice, &t.WeightGrams,
+	err := row.Scan(&t.ID, &t.UserID, &t.Date, &t.GmPrice, &t.GramsBought,
 		&t.QuotePrice, &t.BillAmount, &t.ActualPaid, &t.BilledWeight, &t.ChennaiRate,
 		&t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
@@ -61,7 +64,7 @@ func translatePgErr(err error) error {
 
 // ListTransactions returns uid's gold purchases in replay order (date,
 // then id) — callers presenting newest-first reverse it themselves.
-func (s *GoldStore) ListTransactions(ctx context.Context, uid string) ([]domain.GoldTransaction, error) {
+func (s *GoldDao) ListTransactions(ctx context.Context, uid string) ([]domain.GoldTransaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -85,7 +88,7 @@ func (s *GoldStore) ListTransactions(ctx context.Context, uid string) ([]domain.
 
 // GetTransaction returns uid's gold purchase with the given id, or
 // ErrNotFound (also covering a row owned by someone else).
-func (s *GoldStore) GetTransaction(ctx context.Context, uid string, id int64) (domain.GoldTransaction, error) {
+func (s *GoldDao) GetTransaction(ctx context.Context, uid string, id int64) (domain.GoldTransaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -95,7 +98,7 @@ func (s *GoldStore) GetTransaction(ctx context.Context, uid string, id int64) (d
 
 // InsertTransaction stores a new gold purchase (its UserID must already be
 // set) and returns the stored row with id and timestamps filled in.
-func (s *GoldStore) InsertTransaction(ctx context.Context, t domain.GoldTransaction) (domain.GoldTransaction, error) {
+func (s *GoldDao) InsertTransaction(ctx context.Context, t domain.GoldTransaction) (domain.GoldTransaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
@@ -104,14 +107,14 @@ func (s *GoldStore) InsertTransaction(ctx context.Context, t domain.GoldTransact
 			(user_id, txn_date, gm_price, weight_grams, quote_price, bill_amount, actual_paid, billed_weight, chennai_rate)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		 RETURNING `+goldTxnCols,
-		t.UserID, t.Date, t.GmPrice, t.WeightGrams, t.QuotePrice, t.BillAmount,
+		t.UserID, t.Date, t.GmPrice, t.GramsBought, t.QuotePrice, t.BillAmount,
 		t.ActualPaid, t.BilledWeight, t.ChennaiRate))
 }
 
 // UpdateTransaction rewrites uid's gold purchase id with t's entered
 // fields and returns the post-update row, or ErrNotFound when nothing
 // matched (wrong id or wrong owner).
-func (s *GoldStore) UpdateTransaction(ctx context.Context, uid string, id int64, t domain.GoldTransaction) (domain.GoldTransaction, error) {
+func (s *GoldDao) UpdateTransaction(ctx context.Context, uid string, id int64, t domain.GoldTransaction) (domain.GoldTransaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
@@ -122,13 +125,13 @@ func (s *GoldStore) UpdateTransaction(ctx context.Context, uid string, id int64,
 			updated_at = now()
 		 WHERE user_id = $1 AND id = $2
 		 RETURNING `+goldTxnCols,
-		uid, id, t.Date, t.GmPrice, t.WeightGrams, t.QuotePrice, t.BillAmount,
+		uid, id, t.Date, t.GmPrice, t.GramsBought, t.QuotePrice, t.BillAmount,
 		t.ActualPaid, t.BilledWeight, t.ChennaiRate))
 }
 
 // DeleteTransaction removes uid's gold purchase id. Returns false when
 // nothing matched.
-func (s *GoldStore) DeleteTransaction(ctx context.Context, uid string, id int64) (bool, error) {
+func (s *GoldDao) DeleteTransaction(ctx context.Context, uid string, id int64) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
@@ -143,7 +146,7 @@ func (s *GoldStore) DeleteTransaction(ctx context.Context, uid string, id int64)
 // FirstTransactionDate returns the date of uid's earliest gold purchase.
 // ok is false when the user has no gold transactions yet — the missing-
 // price window (PRD-003 §7) then has no start and nothing prompts.
-func (s *GoldStore) FirstTransactionDate(ctx context.Context, uid string) (time.Time, bool, error) {
+func (s *GoldDao) FirstTransactionDate(ctx context.Context, uid string) (time.Time, bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -159,7 +162,7 @@ func (s *GoldStore) FirstTransactionDate(ctx context.Context, uid string) (time.
 }
 
 // ListPrices returns uid's daily prices with from ≤ date ≤ to, ascending.
-func (s *GoldStore) ListPrices(ctx context.Context, uid string, from, to time.Time) ([]domain.GoldPrice, error) {
+func (s *GoldDao) ListPrices(ctx context.Context, uid string, from, to time.Time) ([]domain.GoldPrice, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -187,7 +190,7 @@ func (s *GoldStore) ListPrices(ctx context.Context, uid string, from, to time.Ti
 // UpsertPrices bulk-inserts uid's daily prices, overwriting the price on
 // date collision — the missing-day prompt saves every gap in one call, and
 // re-entering a day's price is an edit, not an error.
-func (s *GoldStore) UpsertPrices(ctx context.Context, uid string, prices []domain.GoldPrice) error {
+func (s *GoldDao) UpsertPrices(ctx context.Context, uid string, prices []domain.GoldPrice) error {
 	if len(prices) == 0 {
 		return nil
 	}
@@ -216,7 +219,7 @@ func (s *GoldStore) UpsertPrices(ctx context.Context, uid string, prices []domai
 // LatestPriceOnOrBefore returns uid's most recent price row with
 // date ≤ onOrBefore, or ErrNotFound. This is the valuation price rule
 // (PRD-003 §7): a missing today falls back to the nearest earlier entry.
-func (s *GoldStore) LatestPriceOnOrBefore(ctx context.Context, uid string, onOrBefore time.Time) (domain.GoldPrice, error) {
+func (s *GoldDao) LatestPriceOnOrBefore(ctx context.Context, uid string, onOrBefore time.Time) (domain.GoldPrice, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -230,7 +233,7 @@ func (s *GoldStore) LatestPriceOnOrBefore(ctx context.Context, uid string, onOrB
 // DeleteAllByUser purges every gold row owned by uid (cascade on user
 // delete, mirroring the Mongo stores' DeleteByUser). Both deletes run in
 // one transaction so a failure can't leave half the user's data behind.
-func (s *GoldStore) DeleteAllByUser(ctx context.Context, uid string) error {
+func (s *GoldDao) DeleteAllByUser(ctx context.Context, uid string) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
