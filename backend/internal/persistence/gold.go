@@ -17,38 +17,16 @@ import (
 // it in the WHERE clause, so a gold row can never be read or written
 // without naming whose it is. Single reads return ErrNotFound — including
 // for rows owned by someone else (no enumeration).
+//
+// Rows scan via pgx's RowToStructByName over the domain structs' db tags,
+// so column order never matters and there is no hand-written Scan to keep
+// in sync with the schema.
 type GoldDao struct {
 	pool *pgxpool.Pool
 }
 
 // NewGoldDao wires the gold DAO onto a live pgx pool.
 func NewGoldDao(pool *pgxpool.Pool) *GoldDao { return &GoldDao{pool: pool} }
-
-const goldTxnCols = `id, user_id, txn_date, gm_price, weight_grams,
-	quote_price, bill_amount, actual_paid, billed_weight, chennai_rate,
-	created_at, updated_at`
-
-const goldPriceCols = `user_id, price_date, price_per_gram, created_at, updated_at`
-
-func scanGoldPrice(row pgx.Row) (domain.GoldPrice, error) {
-	var p domain.GoldPrice
-	err := row.Scan(&p.UserID, &p.Date, &p.PricePerGram, &p.CreatedAt, &p.UpdatedAt)
-	if err != nil {
-		return domain.GoldPrice{}, translatePgErr(err)
-	}
-	return p, nil
-}
-
-func scanGoldTxn(row pgx.Row) (domain.GoldTransaction, error) {
-	var t domain.GoldTransaction
-	err := row.Scan(&t.ID, &t.UserID, &t.Date, &t.GmPrice, &t.GramsBought,
-		&t.QuotePrice, &t.BillAmount, &t.ActualPaid, &t.BilledWeight, &t.ChennaiRate,
-		&t.CreatedAt, &t.UpdatedAt)
-	if err != nil {
-		return domain.GoldTransaction{}, translatePgErr(err)
-	}
-	return t, nil
-}
 
 // translatePgErr maps pgx's no-rows sentinel to ErrNotFound and passes
 // everything else through, mirroring translateFindErr for Mongo.
@@ -59,28 +37,37 @@ func translatePgErr(err error) error {
 	return err
 }
 
+// collectOne scans exactly one row from a Query result into T by column
+// name, translating "no rows" to ErrNotFound. Taking (rows, err) lets
+// callers stay one-liners around s.pool.Query.
+func collectOne[T any](rows pgx.Rows, err error) (T, error) {
+	var zero T
+	if err != nil {
+		return zero, err
+	}
+	v, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[T])
+	if err != nil {
+		return zero, translatePgErr(err)
+	}
+	return v, nil
+}
+
+// collectAll scans every row from a Query result into []T by column name.
+func collectAll[T any](rows pgx.Rows, err error) ([]T, error) {
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByName[T])
+}
+
 // ListTransactions returns uid's gold purchases in replay order (date,
 // then id) — callers presenting newest-first reverse it themselves.
 func (s *GoldDao) ListTransactions(ctx context.Context, uid string) ([]domain.GoldTransaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	rows, err := s.pool.Query(ctx,
-		`SELECT `+goldTxnCols+` FROM gold_transactions WHERE user_id = $1 ORDER BY txn_date, id`, uid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []domain.GoldTransaction
-	for rows.Next() {
-		t, err := scanGoldTxn(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
+	return collectAll[domain.GoldTransaction](s.pool.Query(ctx,
+		`SELECT * FROM gold_transactions WHERE user_id = $1 ORDER BY txn_date, id`, uid))
 }
 
 // GetTransaction returns uid's gold purchase with the given id, or
@@ -89,8 +76,8 @@ func (s *GoldDao) GetTransaction(ctx context.Context, uid string, id int64) (dom
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	return scanGoldTxn(s.pool.QueryRow(ctx,
-		`SELECT `+goldTxnCols+` FROM gold_transactions WHERE user_id = $1 AND id = $2`, uid, id))
+	return collectOne[domain.GoldTransaction](s.pool.Query(ctx,
+		`SELECT * FROM gold_transactions WHERE user_id = $1 AND id = $2`, uid, id))
 }
 
 // InsertTransaction stores a new gold purchase (its UserID must already be
@@ -99,11 +86,11 @@ func (s *GoldDao) InsertTransaction(ctx context.Context, t domain.GoldTransactio
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	return scanGoldTxn(s.pool.QueryRow(ctx,
+	return collectOne[domain.GoldTransaction](s.pool.Query(ctx,
 		`INSERT INTO gold_transactions
 			(user_id, txn_date, gm_price, weight_grams, quote_price, bill_amount, actual_paid, billed_weight, chennai_rate)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		 RETURNING `+goldTxnCols,
+		 RETURNING *`,
 		t.UserID, t.Date, t.GmPrice, t.GramsBought, t.QuotePrice, t.BillAmount,
 		t.ActualPaid, t.BilledWeight, t.ChennaiRate))
 }
@@ -115,13 +102,13 @@ func (s *GoldDao) UpdateTransaction(ctx context.Context, uid string, id int64, t
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	return scanGoldTxn(s.pool.QueryRow(ctx,
+	return collectOne[domain.GoldTransaction](s.pool.Query(ctx,
 		`UPDATE gold_transactions SET
 			txn_date = $3, gm_price = $4, weight_grams = $5, quote_price = $6,
 			bill_amount = $7, actual_paid = $8, billed_weight = $9, chennai_rate = $10,
 			updated_at = now()
 		 WHERE user_id = $1 AND id = $2
-		 RETURNING `+goldTxnCols,
+		 RETURNING *`,
 		uid, id, t.Date, t.GmPrice, t.GramsBought, t.QuotePrice, t.BillAmount,
 		t.ActualPaid, t.BilledWeight, t.ChennaiRate))
 }
@@ -163,25 +150,10 @@ func (s *GoldDao) ListPrices(ctx context.Context, uid string, from, to time.Time
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	rows, err := s.pool.Query(ctx,
-		`SELECT `+goldPriceCols+`
-		 FROM gold_daily_prices
+	return collectAll[domain.GoldPrice](s.pool.Query(ctx,
+		`SELECT * FROM gold_daily_prices
 		 WHERE user_id = $1 AND price_date BETWEEN $2 AND $3
-		 ORDER BY price_date`, uid, from, to)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []domain.GoldPrice
-	for rows.Next() {
-		p, err := scanGoldPrice(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, p)
-	}
-	return out, rows.Err()
+		 ORDER BY price_date`, uid, from, to))
 }
 
 // UpsertPrices bulk-inserts uid's daily prices, overwriting the price on
@@ -220,9 +192,8 @@ func (s *GoldDao) LatestPriceOnOrBefore(ctx context.Context, uid string, onOrBef
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	return scanGoldPrice(s.pool.QueryRow(ctx,
-		`SELECT `+goldPriceCols+`
-		 FROM gold_daily_prices
+	return collectOne[domain.GoldPrice](s.pool.Query(ctx,
+		`SELECT * FROM gold_daily_prices
 		 WHERE user_id = $1 AND price_date <= $2
 		 ORDER BY price_date DESC LIMIT 1`, uid, onOrBefore))
 }
