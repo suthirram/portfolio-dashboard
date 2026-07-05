@@ -28,6 +28,17 @@ const goldTxnCols = `id, user_id, txn_date, gm_price, weight_grams,
 	quote_price, bill_amount, actual_paid, billed_weight, chennai_rate,
 	created_at, updated_at`
 
+const goldPriceCols = `user_id, price_date, price_per_gram, created_at, updated_at`
+
+func scanGoldPrice(row pgx.Row) (domain.GoldPrice, error) {
+	var p domain.GoldPrice
+	err := row.Scan(&p.UserID, &p.Date, &p.PricePerGram, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return domain.GoldPrice{}, translatePgErr(err)
+	}
+	return p, nil
+}
+
 func scanGoldTxn(row pgx.Row) (domain.GoldTransaction, error) {
 	var t domain.GoldTransaction
 	err := row.Scan(&t.ID, &t.UserID, &t.Date, &t.GmPrice, &t.WeightGrams,
@@ -153,7 +164,7 @@ func (s *GoldStore) ListPrices(ctx context.Context, uid string, from, to time.Ti
 	defer cancel()
 
 	rows, err := s.pool.Query(ctx,
-		`SELECT user_id, price_date, price_per_gram, created_at, updated_at
+		`SELECT `+goldPriceCols+`
 		 FROM gold_daily_prices
 		 WHERE user_id = $1 AND price_date BETWEEN $2 AND $3
 		 ORDER BY price_date`, uid, from, to)
@@ -164,8 +175,8 @@ func (s *GoldStore) ListPrices(ctx context.Context, uid string, from, to time.Ti
 
 	var out []domain.GoldPrice
 	for rows.Next() {
-		var p domain.GoldPrice
-		if err := rows.Scan(&p.UserID, &p.Date, &p.PricePerGram, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		p, err := scanGoldPrice(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -209,28 +220,31 @@ func (s *GoldStore) LatestPriceOnOrBefore(ctx context.Context, uid string, onOrB
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	var p domain.GoldPrice
-	err := s.pool.QueryRow(ctx,
-		`SELECT user_id, price_date, price_per_gram, created_at, updated_at
+	return scanGoldPrice(s.pool.QueryRow(ctx,
+		`SELECT `+goldPriceCols+`
 		 FROM gold_daily_prices
 		 WHERE user_id = $1 AND price_date <= $2
-		 ORDER BY price_date DESC LIMIT 1`, uid, onOrBefore).
-		Scan(&p.UserID, &p.Date, &p.PricePerGram, &p.CreatedAt, &p.UpdatedAt)
-	if err != nil {
-		return domain.GoldPrice{}, translatePgErr(err)
-	}
-	return p, nil
+		 ORDER BY price_date DESC LIMIT 1`, uid, onOrBefore))
 }
 
 // DeleteAllByUser purges every gold row owned by uid (cascade on user
-// delete, mirroring the Mongo stores' DeleteByUser).
+// delete, mirroring the Mongo stores' DeleteByUser). Both deletes run in
+// one transaction so a failure can't leave half the user's data behind.
 func (s *GoldStore) DeleteAllByUser(ctx context.Context, uid string) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	if _, err := s.pool.Exec(ctx, `DELETE FROM gold_transactions WHERE user_id = $1`, uid); err != nil {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
-	_, err := s.pool.Exec(ctx, `DELETE FROM gold_daily_prices WHERE user_id = $1`, uid)
-	return err
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `DELETE FROM gold_transactions WHERE user_id = $1`, uid); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM gold_daily_prices WHERE user_id = $1`, uid); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
