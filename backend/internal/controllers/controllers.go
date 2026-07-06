@@ -68,6 +68,10 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 	}
 }
 
+// GoldAvailable reports whether the Postgres-backed gold store is attached;
+// httpserver's goldGate turns false into a 503 on every gold route.
+func (h *Controller) GoldAvailable() bool { return h.gold != nil }
+
 // CookieSecure reports the configured session-cookie hardening.
 func (h *Controller) CookieSecure() bool { return h.cookieSecure }
 

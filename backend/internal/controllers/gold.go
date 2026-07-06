@@ -11,12 +11,9 @@ import (
 	"portfolio-dashboard/internal/services"
 )
 
-// goldUnavailable is the 503 body served on every gold route while Postgres
-// is not configured (DD-003 §1): the flag gate has already passed, so the
-// caller is allowed to know the feature exists but is down.
-func goldUnavailable() api.GoldUnavailableJSONResponse {
-	return api.GoldUnavailableJSONResponse{Error: lo.ToPtr("gold storage unavailable")}
-}
+// Gold handlers assume the gold service is attached: httpserver's goldGate
+// answers 503 on every /api/gold/* operation when it is not (DD-003 §1), so
+// h.gold is never nil by the time a handler runs.
 
 // goldCaller resolves the calling user's id in the string form the gold
 // store keys on (Mongo ObjectID hex — the two engines share one identity
@@ -30,9 +27,6 @@ func (h *Controller) goldCaller(ctx context.Context) (string, error) {
 }
 
 func (h *Controller) ListGoldTransactions(ctx context.Context, _ api.ListGoldTransactionsRequestObject) (api.ListGoldTransactionsResponseObject, error) {
-	if h.gold == nil {
-		return api.ListGoldTransactions503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -46,9 +40,6 @@ func (h *Controller) ListGoldTransactions(ctx context.Context, _ api.ListGoldTra
 }
 
 func (h *Controller) CreateGoldTransaction(ctx context.Context, request api.CreateGoldTransactionRequestObject) (api.CreateGoldTransactionResponseObject, error) {
-	if h.gold == nil {
-		return api.CreateGoldTransaction503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -65,9 +56,6 @@ func (h *Controller) CreateGoldTransaction(ctx context.Context, request api.Crea
 }
 
 func (h *Controller) ListGoldPrices(ctx context.Context, request api.ListGoldPricesRequestObject) (api.ListGoldPricesResponseObject, error) {
-	if h.gold == nil {
-		return api.ListGoldPrices503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -84,9 +72,6 @@ func (h *Controller) ListGoldPrices(ctx context.Context, request api.ListGoldPri
 }
 
 func (h *Controller) PutGoldPrices(ctx context.Context, request api.PutGoldPricesRequestObject) (api.PutGoldPricesResponseObject, error) {
-	if h.gold == nil {
-		return api.PutGoldPrices503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -102,9 +87,6 @@ func (h *Controller) PutGoldPrices(ctx context.Context, request api.PutGoldPrice
 }
 
 func (h *Controller) ListGoldMissingDates(ctx context.Context, _ api.ListGoldMissingDatesRequestObject) (api.ListGoldMissingDatesResponseObject, error) {
-	if h.gold == nil {
-		return api.ListGoldMissingDates503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -118,9 +100,6 @@ func (h *Controller) ListGoldMissingDates(ctx context.Context, _ api.ListGoldMis
 }
 
 func (h *Controller) GetGoldMetrics(ctx context.Context, _ api.GetGoldMetricsRequestObject) (api.GetGoldMetricsResponseObject, error) {
-	if h.gold == nil {
-		return api.GetGoldMetrics503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -134,9 +113,6 @@ func (h *Controller) GetGoldMetrics(ctx context.Context, _ api.GetGoldMetricsReq
 }
 
 func (h *Controller) UpdateGoldTransaction(ctx context.Context, request api.UpdateGoldTransactionRequestObject) (api.UpdateGoldTransactionResponseObject, error) {
-	if h.gold == nil {
-		return api.UpdateGoldTransaction503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -156,9 +132,6 @@ func (h *Controller) UpdateGoldTransaction(ctx context.Context, request api.Upda
 }
 
 func (h *Controller) DeleteGoldTransaction(ctx context.Context, request api.DeleteGoldTransactionRequestObject) (api.DeleteGoldTransactionResponseObject, error) {
-	if h.gold == nil {
-		return api.DeleteGoldTransaction503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
-	}
 	uid, err := h.goldCaller(ctx)
 	if err != nil {
 		return nil, err

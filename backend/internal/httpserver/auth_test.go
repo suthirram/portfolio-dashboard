@@ -249,6 +249,18 @@ func TestGoldRouteGate(t *testing.T) {
 			t.Fatalf("gold-disabled super admin = %d, want 404 (flag, not role, gates gold)", rec.Code)
 		}
 	})
+
+	mt.Run("gold-enabled user gets 503 while Postgres is unattached", func(mt *mtest.T) {
+		// The real server without AttachGold: the flag gate passes, then
+		// goldGate degrades every gold operation to 503 (DD-003 §1).
+		uid := primitive.NewObjectID()
+		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", func(m bson.M) { m["gold_enabled"] = true }), "sess-g4", uid)
+		srv := newTestServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/gold/transactions", sessionCookie("sess-g4"))
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("gold without Postgres = %d, want 503; body=%s", rec.Code, rec.Body.String())
+		}
+	})
 }
 
 func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {

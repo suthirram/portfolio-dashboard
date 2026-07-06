@@ -83,7 +83,10 @@ func xirr(flows []cashFlow) (rate float64, ok bool) {
 	// 100,000%/yr are not meaningful answers for a gold ledger anyway.
 	lower, upper := -1+1e-9, 1000.0
 	vLower, vUpper := npv(lower), npv(upper)
-	if math.IsNaN(vLower) || math.IsInf(vLower, 0) || vLower*vUpper > 0 {
+	if math.IsNaN(vLower) || math.IsInf(vLower, 0) ||
+		math.IsNaN(vUpper) || math.IsInf(vUpper, 0) || vLower*vUpper > 0 {
+		// NaN comparisons are always false, so an unchecked NaN bound would
+		// slip past the sign test and bisect garbage.
 		return 0, false
 	}
 	for range 200 {

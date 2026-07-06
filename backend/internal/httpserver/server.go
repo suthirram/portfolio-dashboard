@@ -67,7 +67,7 @@ func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controlle
 		"openapi.yaml", "portfolio-api.yaml",
 		"holdings/holdings.yaml", "market/market.yaml",
 		"auth/auth.yaml", "admin/admin.yaml",
-		"history/history.yaml",
+		"history/history.yaml", "gold/gold.yaml",
 	} {
 		e.File("/api/specs/"+rel, "api/specs/"+rel)
 	}
@@ -80,7 +80,18 @@ func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controlle
 			return f(c, req)
 		}
 	}
-	strict := api.NewStrictHandler(h, []api.StrictMiddlewareFunc{stashEcho})
+	// Gold routes need Postgres; when it is not attached every /api/gold/*
+	// operation degrades to 503 here, once, instead of a nil-guard in each
+	// handler (DD-003 §1). The error handler renders the OpenAPI shape.
+	goldGate := func(f api.StrictHandlerFunc, _ string) api.StrictHandlerFunc {
+		return func(c echo.Context, req any) (any, error) {
+			if isGoldRoute(c.Path()) && !h.GoldAvailable() {
+				return nil, echo.NewHTTPError(http.StatusServiceUnavailable, "gold storage unavailable")
+			}
+			return f(c, req)
+		}
+	}
+	strict := api.NewStrictHandler(h, []api.StrictMiddlewareFunc{stashEcho, goldGate})
 	api.RegisterHandlersWithBaseURL(e, strict, "/api")
 
 	return e
