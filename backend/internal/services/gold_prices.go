@@ -31,17 +31,17 @@ func goldToday() time.Time {
 // Prices returns uid's price rows with from ≤ date ≤ to (either bound open
 // when nil), oldest first.
 func (s *GoldService) Prices(ctx context.Context, uid string, from, to *openapi_types.Date) ([]api.GoldPrice, error) {
-	lo, hi := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+	lower, upper := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 	if from != nil {
-		lo = from.Time
+		lower = from.Time
 	}
 	if to != nil {
-		hi = to.Time
+		upper = to.Time
 	}
-	if lo.After(hi) {
+	if lower.After(upper) {
 		return nil, fmt.Errorf("%w: to before from", ErrInvalidGoldPrice)
 	}
-	rows, err := s.store.ListPrices(ctx, uid, lo, hi)
+	rows, err := s.store.ListPrices(ctx, uid, lower, upper)
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,17 @@ func (s *GoldService) PutPrices(ctx context.Context, uid string, prices []api.Go
 	if len(prices) == 0 {
 		return fmt.Errorf("%w: empty payload", ErrInvalidGoldPrice)
 	}
+	today := goldToday()
 	seen := make(map[string]bool, len(prices))
 	rows := make([]domain.GoldPrice, 0, len(prices))
 	for _, p := range prices {
 		if p.Date.IsZero() {
 			return fmt.Errorf("%w: date is required", ErrInvalidGoldPrice)
+		}
+		if dateOnly(p.Date.Time).After(today) {
+			// Tomorrow's rate cannot be known yet — a future date is a typo
+			// (usually the year). Backdated entries stay allowed (PRD §7).
+			return fmt.Errorf("%w: %s is in the future", ErrInvalidGoldPrice, p.Date.Format("2006-01-02"))
 		}
 		if p.PricePerGram <= 0 {
 			return fmt.Errorf("%w: price for %s must be > 0", ErrInvalidGoldPrice, p.Date.Format("2006-01-02"))

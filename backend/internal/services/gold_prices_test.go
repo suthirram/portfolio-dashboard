@@ -108,6 +108,7 @@ func TestPutPricesValidation(t *testing.T) {
 		{"negative price", []api.GoldPrice{apiPrice("2026-07-01", -5)}},
 		{"zero date", []api.GoldPrice{{PricePerGram: 7000}}},
 		{"duplicate dates", []api.GoldPrice{apiPrice("2026-07-01", 7000), apiPrice("2026-07-01", 7100)}},
+		{"future date", []api.GoldPrice{{Date: openapi_types.Date{Time: goldToday().AddDate(0, 0, 1)}, PricePerGram: 7000}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
