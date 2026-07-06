@@ -2277,14 +2277,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated account */
-            200: {
+            /** @description Gold access updated */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["User"];
-                };
+                content?: never;
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

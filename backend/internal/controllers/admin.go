@@ -409,11 +409,9 @@ func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetU
 		h.reqLog(ctx).Error("gold toggle failed", zap.String("error", err.Error()))
 		return nil, err
 	}
-	target.GoldEnabled = request.Body.Enabled
-
 	h.reqLog(ctx).Info("gold tracking toggled",
-		zap.String("target", target.ID.Hex()), zap.Bool("enabled", target.GoldEnabled))
-	return api.AdminSetUserGold200JSONResponse(services.UserToAPI(target, false)), nil
+		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
+	return api.AdminSetUserGold204Response{}, nil
 }
 
 // Act on a user's portfolio (region-scoped).

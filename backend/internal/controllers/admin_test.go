@@ -389,12 +389,8 @@ func TestAdminSetUserGold(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AdminSetUserGold: %v", err)
 		}
-		got, ok := resp.(api.AdminSetUserGold200JSONResponse)
-		if !ok {
-			t.Fatalf("response = %T, want 200", resp)
-		}
-		if !got.GoldEnabled {
-			t.Error("gold_enabled = false, want true")
+		if _, ok := resp.(api.AdminSetUserGold204Response); !ok {
+			t.Fatalf("response = %T, want 204", resp)
 		}
 	})
 
@@ -413,12 +409,8 @@ func TestAdminSetUserGold(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AdminSetUserGold: %v", err)
 		}
-		got, ok := resp.(api.AdminSetUserGold200JSONResponse)
-		if !ok {
-			t.Fatalf("response = %T, want 200 (self-toggle allowed)", resp)
-		}
-		if !got.GoldEnabled {
-			t.Error("gold_enabled = false, want true")
+		if _, ok := resp.(api.AdminSetUserGold204Response); !ok {
+			t.Fatalf("response = %T, want 204 (self-toggle allowed)", resp)
 		}
 	})
 

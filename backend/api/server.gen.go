@@ -1326,18 +1326,12 @@ type AdminSetUserGoldResponseObject interface {
 	VisitAdminSetUserGoldResponse(w http.ResponseWriter) error
 }
 
-type AdminSetUserGold200JSONResponse User
+type AdminSetUserGold204Response struct {
+}
 
-func (response AdminSetUserGold200JSONResponse) VisitAdminSetUserGoldResponse(w http.ResponseWriter) error {
-
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(response); err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	_, err := buf.WriteTo(w)
-	return err
+func (response AdminSetUserGold204Response) VisitAdminSetUserGoldResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
 }
 
 type AdminSetUserGold403JSONResponse struct{ ForbiddenJSONResponse }

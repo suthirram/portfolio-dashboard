@@ -146,7 +146,7 @@ export const api = {
   adminPromoteUser:     (id: string) => request<User>('POST', `/admin/users/${id}/promote`, {}),
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
-  adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<User>('PUT', `/admin/users/${id}/gold`, body),
+  adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 

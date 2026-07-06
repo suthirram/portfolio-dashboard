@@ -199,12 +199,8 @@ users_id_gold:
           schema:
             $ref: "../portfolio-api.yaml#/components/schemas/GoldToggleRequest"
     responses:
-      "200":
-        description: Updated account
-        content:
-          application/json:
-            schema:
-              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "204":
+        description: Gold access updated
       "403":
         $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
       "404":
