@@ -120,6 +120,23 @@ missing_dates:
       "503":
         $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
 
+metrics:
+  get:
+    tags: [Gold]
+    summary: The live gold metrics table incl. XIRR
+    operationId: getGoldMetrics
+    responses:
+      "200":
+        description: Metrics computed from the ledger + latest price + GOLDBEES
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/GoldMetrics"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
 transactions_id:
   parameters:
     - name: id

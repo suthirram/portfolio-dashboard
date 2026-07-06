@@ -40,7 +40,7 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 		return
 	}
 	h.store.AttachGold(pool)
-	h.gold = services.NewGoldService(h.store.Gold, h.log())
+	h.gold = services.NewGoldService(h.store.Gold, h.store.Holdings, h.priceService, h.log())
 }
 
 // New builds a Controller with the default PriceService. cookieSecure controls
@@ -67,6 +67,10 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 		cookieSecure: cookieSecure,
 	}
 }
+
+// GoldAvailable reports whether the Postgres-backed gold store is attached;
+// httpserver's goldGate turns false into a 503 on every gold route.
+func (h *Controller) GoldAvailable() bool { return h.gold != nil }
 
 // CookieSecure reports the configured session-cookie hardening.
 func (h *Controller) CookieSecure() bool { return h.cookieSecure }

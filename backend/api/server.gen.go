@@ -209,6 +209,9 @@ type ServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx echo.Context) error
+	// The live gold metrics table incl. XIRR
+	// (GET /gold/metrics)
+	GetGoldMetrics(ctx echo.Context) error
 	// Calendar days since the first purchase that lack a price row
 	// (GET /gold/missing-dates)
 	ListGoldMissingDates(ctx echo.Context) error
@@ -722,6 +725,17 @@ func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
 	return err
 }
 
+// GetGoldMetrics converts echo context to params.
+func (w *ServerInterfaceWrapper) GetGoldMetrics(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetGoldMetrics(ctx)
+	return err
+}
+
 // ListGoldMissingDates converts echo context to params.
 func (w *ServerInterfaceWrapper) ListGoldMissingDates(ctx echo.Context) error {
 	var err error
@@ -1215,6 +1229,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/auth/security-questions", wrapper.GetSecurityQuestionCatalogue, options.OperationMiddlewares["getSecurityQuestionCatalogue"]...)
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
+	router.GET(options.BaseURL+"/gold/metrics", wrapper.GetGoldMetrics, options.OperationMiddlewares["getGoldMetrics"]...)
 	router.GET(options.BaseURL+"/gold/missing-dates", wrapper.ListGoldMissingDates, options.OperationMiddlewares["listGoldMissingDates"]...)
 	router.GET(options.BaseURL+"/gold/prices", wrapper.ListGoldPrices, options.OperationMiddlewares["listGoldPrices"]...)
 	router.PUT(options.BaseURL+"/gold/prices", wrapper.PutGoldPrices, options.OperationMiddlewares["putGoldPrices"]...)
@@ -2496,6 +2511,55 @@ func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter)
 	return err
 }
 
+type GetGoldMetricsRequestObject struct {
+}
+
+type GetGoldMetricsResponseObject interface {
+	VisitGetGoldMetricsResponse(w http.ResponseWriter) error
+}
+
+type GetGoldMetrics200JSONResponse GoldMetrics
+
+func (response GetGoldMetrics200JSONResponse) VisitGetGoldMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGoldMetrics401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetGoldMetrics401JSONResponse) VisitGetGoldMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGoldMetrics503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response GetGoldMetrics503JSONResponse) VisitGetGoldMetricsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListGoldMissingDatesRequestObject struct {
 }
 
@@ -3737,6 +3801,9 @@ type StrictServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
+	// The live gold metrics table incl. XIRR
+	// (GET /gold/metrics)
+	GetGoldMetrics(ctx context.Context, request GetGoldMetricsRequestObject) (GetGoldMetricsResponseObject, error)
 	// Calendar days since the first purchase that lack a price row
 	// (GET /gold/missing-dates)
 	ListGoldMissingDates(ctx context.Context, request ListGoldMissingDatesRequestObject) (ListGoldMissingDatesResponseObject, error)
@@ -4573,6 +4640,29 @@ func (sh *strictHandler) Signup(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(SignupResponseObject); ok {
 		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetGoldMetrics operation middleware
+func (sh *strictHandler) GetGoldMetrics(ctx echo.Context) error {
+	var request GetGoldMetricsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGoldMetrics(ctx.Request().Context(), request.(GetGoldMetricsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGoldMetrics")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetGoldMetricsResponseObject); ok {
+		return validResponse.VisitGetGoldMetricsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

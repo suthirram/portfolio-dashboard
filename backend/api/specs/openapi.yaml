@@ -118,6 +118,8 @@ paths:
     $ref: "./gold/gold.yaml#/prices"
   /gold/missing-dates:
     $ref: "./gold/gold.yaml#/missing_dates"
+  /gold/metrics:
+    $ref: "./gold/gold.yaml#/metrics"
   /admin/users/{id}/holdings:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:

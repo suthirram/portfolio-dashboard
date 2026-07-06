@@ -255,6 +255,59 @@ components:
             type: string
             format: date
 
+    GoldMetrics:
+      type: object
+      description: |
+        The live metrics table (PRD-003 §6) — computed from the ledger,
+        the latest price on/before today, and the GOLDBEES holdings.
+        Nullable fields are unknowable in the current state (no price row
+        yet, empty ledger, or the live GOLDBEES quote unavailable).
+      required: [invested, grams]
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid over all purchases
+        grams:
+          type: number
+          format: double
+          description: Σ grams_bought (actual weight, PRD §9.4)
+        latest_price:
+          type: number
+          format: double
+          nullable: true
+          description: Most recent daily price on/before today — the valuation rate
+        current:
+          type: number
+          format: double
+          nullable: true
+          description: grams × latest_price
+        bees_pl:
+          type: number
+          format: double
+          nullable: true
+          description: GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+        nett_ex_bees:
+          type: number
+          format: double
+          nullable: true
+          description: current − invested
+        nett_in_bees:
+          type: number
+          format: double
+          nullable: true
+          description: nett_ex_bees + bees_pl
+        avg_per_gram:
+          type: number
+          format: double
+          nullable: true
+          description: invested ÷ grams
+        xirr:
+          type: number
+          format: double
+          nullable: true
+          description: Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+
     GoldTransactionInput:
       type: object
       description: |
