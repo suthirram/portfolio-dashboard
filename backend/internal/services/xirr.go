@@ -37,6 +37,13 @@ func xirr(flows []cashFlow) (rate float64, ok bool) {
 	if !hasNeg || !hasPos {
 		return 0, false
 	}
+	if !sorted[len(sorted)-1].Date.After(t0) {
+		// Zero elapsed time: every years[i] is 0, so npv(r) is a constant
+		// independent of the rate. When the flows also net to zero, Newton
+		// "converges" on its arbitrary 0.1 starting guess — an annualized
+		// return over no time is undefined, not 10%.
+		return 0, false
+	}
 
 	npv := func(r float64) float64 {
 		sum := 0.0
