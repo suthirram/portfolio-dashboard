@@ -71,6 +71,11 @@ func TestXIRR_NoRate(t *testing.T) {
 		{"single flow", []cashFlow{flow("2026-01-01", -100)}},
 		{"all outflows", []cashFlow{flow("2026-01-01", -100), flow("2026-02-01", -50)}},
 		{"all inflows", []cashFlow{flow("2026-01-01", 100), flow("2026-02-01", 50)}},
+		// Bought today, valued today: npv is rate-independent (all year
+		// offsets zero); zero-netting flows used to return the 0.1 Newton
+		// guess as a "10%" rate (#105 follow-up).
+		{"same-day flows netting to zero", []cashFlow{flow("2026-07-07", -7200), flow("2026-07-07", 7200)}},
+		{"same-day flows netting positive", []cashFlow{flow("2026-07-07", -7200), flow("2026-07-07", 7500)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
