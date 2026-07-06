@@ -106,6 +106,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_demote"
   /admin/users/{id}/region:
     $ref: "./admin/admin.yaml#/users_id_region"
+  /admin/users/{id}/gold:
+    $ref: "./admin/admin.yaml#/users_id_gold"
   /admin/users/{id}/holdings:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:

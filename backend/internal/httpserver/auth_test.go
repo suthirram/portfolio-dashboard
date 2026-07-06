@@ -8,6 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/labstack/echo/v4"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
@@ -15,6 +17,7 @@ import (
 	"portfolio-dashboard/internal/config"
 	"portfolio-dashboard/internal/controllers"
 	"portfolio-dashboard/internal/domain"
+	"portfolio-dashboard/internal/persistence"
 )
 
 func newTestServer(mt *mtest.T) http.Handler {
@@ -188,6 +191,62 @@ func TestRoleGates(t *testing.T) {
 		rec := doRequest(t, srv, http.MethodGet, "/api/admin/admins", sessionCookie("sess-5"))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("super admin on /api/admin/admins = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+// TestGoldRouteGate pins the /api/gold/* access rule (DD-003 §2.1): a
+// session whose user lacks gold_enabled reads 404 (not 403 — the feature
+// must not be enumerable), an enabled user passes. The real server
+// registers no gold routes until PD-043 PR5, so the gate is exercised with
+// a stub route behind the same AuthGate middleware.
+func TestGoldRouteGate(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	newGoldServer := func(mt *mtest.T) http.Handler {
+		e := echo.New()
+		e.Use(AuthGate(persistence.New(mt.DB), zap.NewNop(), false))
+		e.GET("/api/gold/transactions", func(c echo.Context) error {
+			return c.NoContent(http.StatusOK)
+		})
+		return e
+	}
+
+	mt.Run("anonymous request gets 401", func(mt *mtest.T) {
+		srv := newGoldServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/gold/transactions", nil)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous = %d, want 401", rec.Code)
+		}
+	})
+
+	mt.Run("gold-disabled user gets 404", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", nil), "sess-g1", uid)
+		srv := newGoldServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/gold/transactions", sessionCookie("sess-g1"))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("gold-disabled = %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	mt.Run("gold-enabled user reaches the handler", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		addAuthMocks(mt, testUserDoc(uid, domain.RoleUser, "india", func(m bson.M) { m["gold_enabled"] = true }), "sess-g2", uid)
+		srv := newGoldServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/gold/transactions", sessionCookie("sess-g2"))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("gold-enabled = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	mt.Run("gold-disabled super admin gets 404 too", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		addAuthMocks(mt, testUserDoc(uid, domain.RoleSuperAdmin, "", nil), "sess-g3", uid)
+		srv := newGoldServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/gold/transactions", sessionCookie("sess-g3"))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("gold-disabled super admin = %d, want 404 (flag, not role, gates gold)", rec.Code)
 		}
 	})
 }

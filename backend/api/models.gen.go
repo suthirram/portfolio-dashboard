@@ -353,6 +353,12 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// GoldToggleRequest defines model for GoldToggleRequest.
+type GoldToggleRequest struct {
+	// Enabled Turn gold tracking on or off for the account
+	Enabled bool `json:"enabled"`
+}
+
 // HistoryConflictResponse defines model for HistoryConflictResponse.
 type HistoryConflictResponse struct {
 	Conflicts []struct {
@@ -772,6 +778,9 @@ type User struct {
 
 	// Disabled Hidden (reversibly blocked) by an admin
 	Disabled bool `json:"disabled"`
+
+	// GoldEnabled Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
+	GoldEnabled bool `json:"gold_enabled"`
 
 	// Id MongoDB ObjectID
 	Id          string     `json:"id"`

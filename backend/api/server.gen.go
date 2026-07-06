@@ -45,6 +45,9 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// AdminSetUserGoldJSONRequestBody defines body for AdminSetUserGold for application/json ContentType.
+type AdminSetUserGoldJSONRequestBody = GoldToggleRequest
+
 // AdminCreateUserHoldingJSONRequestBody defines body for AdminCreateUserHolding for application/json ContentType.
 type AdminCreateUserHoldingJSONRequestBody = HoldingInput
 
@@ -116,6 +119,9 @@ type ServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx echo.Context, id UserID) error
+	// Enable or disable gold tracking for an account (super admin only)
+	// (PUT /admin/users/{id}/gold)
+	AdminSetUserGold(ctx echo.Context, id UserID) error
 	// Hide a user (reversibly block access, keep data)
 	// (POST /admin/users/{id}/hide)
 	AdminHideUser(ctx echo.Context, id UserID) error
@@ -328,6 +334,24 @@ func (w *ServerInterfaceWrapper) AdminDemoteUser(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminDemoteUser(ctx, id)
+	return err
+}
+
+// AdminSetUserGold converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminSetUserGold(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminSetUserGold(ctx, id)
 	return err
 }
 
@@ -1019,6 +1043,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.AdminDeleteUser, options.OperationMiddlewares["adminDeleteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.AdminDemoteUser, options.OperationMiddlewares["adminDemoteUser"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/gold", wrapper.AdminSetUserGold, options.OperationMiddlewares["adminSetUserGold"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/hide", wrapper.AdminHideUser, options.OperationMiddlewares["adminHideUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminListUserHoldings, options.OperationMiddlewares["adminListUserHoldings"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminCreateUserHolding, options.OperationMiddlewares["adminCreateUserHolding"]...)
@@ -1281,6 +1306,57 @@ func (response AdminDemoteUser403JSONResponse) VisitAdminDemoteUserResponse(w ht
 type AdminDemoteUser404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminDemoteUser404JSONResponse) VisitAdminDemoteUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserGoldRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminSetUserGoldJSONRequestBody
+}
+
+type AdminSetUserGoldResponseObject interface {
+	VisitAdminSetUserGoldResponse(w http.ResponseWriter) error
+}
+
+type AdminSetUserGold200JSONResponse User
+
+func (response AdminSetUserGold200JSONResponse) VisitAdminSetUserGoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserGold403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AdminSetUserGold403JSONResponse) VisitAdminSetUserGoldResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserGold404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminSetUserGold404JSONResponse) VisitAdminSetUserGoldResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -3021,6 +3097,9 @@ type StrictServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx context.Context, request AdminDemoteUserRequestObject) (AdminDemoteUserResponseObject, error)
+	// Enable or disable gold tracking for an account (super admin only)
+	// (PUT /admin/users/{id}/gold)
+	AdminSetUserGold(ctx context.Context, request AdminSetUserGoldRequestObject) (AdminSetUserGoldResponseObject, error)
 	// Hide a user (reversibly block access, keep data)
 	// (POST /admin/users/{id}/hide)
 	AdminHideUser(ctx context.Context, request AdminHideUserRequestObject) (AdminHideUserResponseObject, error)
@@ -3275,6 +3354,37 @@ func (sh *strictHandler) AdminDemoteUser(ctx echo.Context, id UserID) error {
 		return err
 	} else if validResponse, ok := response.(AdminDemoteUserResponseObject); ok {
 		return validResponse.VisitAdminDemoteUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminSetUserGold operation middleware
+func (sh *strictHandler) AdminSetUserGold(ctx echo.Context, id UserID) error {
+	var request AdminSetUserGoldRequestObject
+
+	request.Id = id
+
+	var body AdminSetUserGoldJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminSetUserGold(ctx.Request().Context(), request.(AdminSetUserGoldRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminSetUserGold")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminSetUserGoldResponseObject); ok {
+		return validResponse.VisitAdminSetUserGoldResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

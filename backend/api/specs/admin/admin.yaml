@@ -181,6 +181,35 @@ users_id_region:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_gold:
+  put:
+    tags: [Admin]
+    summary: Enable or disable gold tracking for an account (super admin only)
+    description: |
+      Super admin only — region admins cannot toggle gold (PRD-003 §2.4).
+      Toggling off hides gold data but deletes nothing. The super admin may
+      toggle their own account.
+    operationId: adminSetUserGold
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/GoldToggleRequest"
+    responses:
+      "200":
+        description: Updated account
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/User"
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_holdings:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
