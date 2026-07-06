@@ -27,6 +27,8 @@ const num = (v: number | null | undefined) => (v == null ? '' : String(v))
 function initialForm(txn: GoldTransaction | null): FormState {
   if (!txn) {
     return {
+      // UTC "today" is fine as a default (owner call): it is never ahead
+      // of the server's IST calendar, so the future-date rule can't trip.
       date: new Date().toISOString().slice(0, 10),
       gm_price: '', grams_bought: '', quote_price: '', bill_amount: '',
       actual_paid: '', billed_weight: '', chennai_rate: '',
@@ -44,25 +46,42 @@ function initialForm(txn: GoldTransaction | null): FormState {
   }
 }
 
+// Weights are decimals, never grouped integers: "2.500" means 2.5 g, not
+// 2,500 g — the auto heuristic would read the 3 trailing digits as
+// grouping and corrupt the ledger. Money keeps auto ("59,500" is a
+// grouped rupee amount).
+const weight = { singleSeparator: 'decimal' as const }
+
 /** Client-side mirror of the server's entered-field rules (PRD-003 §5). */
 export function validateGoldForm(f: FormState): string | null {
   if (!f.date) return 'Date is required'
   if (!(parseDecimalInput(f.gm_price) > 0)) return 'Per-gram price must be > 0'
-  if (!(parseDecimalInput(f.grams_bought) > 0)) return 'Weight must be > 0'
-  if (f.actual_paid.trim() === '' || parseDecimalInput(f.actual_paid) < 0) return 'Actual amount paid must be >= 0'
+  if (!(parseDecimalInput(f.grams_bought, weight) > 0)) return 'Weight must be > 0'
+  const paid = parseDecimalInput(f.actual_paid)
+  if (!Number.isFinite(paid) || paid < 0) return 'Actual amount paid must be >= 0'
+  for (const [name, value, opts] of [
+    ['Gold price in quote', f.quote_price, undefined],
+    ['Amount according to bill', f.bill_amount, undefined],
+    ['Billed weight', f.billed_weight, weight],
+    ['Chennai rate', f.chennai_rate, undefined],
+  ] as const) {
+    if (value.trim() !== '' && !Number.isFinite(parseDecimalInput(value, opts))) {
+      return `${name} is not a number`
+    }
+  }
   return null
 }
 
 function toInput(f: FormState): GoldTransactionInput {
-  const opt = (v: string) => (v.trim() === '' ? null : parseDecimalInput(v))
+  const opt = (v: string, opts?: typeof weight) => (v.trim() === '' ? null : parseDecimalInput(v, opts))
   return {
     date: f.date,
     gm_price: parseDecimalInput(f.gm_price),
-    grams_bought: parseDecimalInput(f.grams_bought),
+    grams_bought: parseDecimalInput(f.grams_bought, weight),
     actual_paid: parseDecimalInput(f.actual_paid),
     quote_price: opt(f.quote_price),
     bill_amount: opt(f.bill_amount),
-    billed_weight: opt(f.billed_weight),
+    billed_weight: opt(f.billed_weight, weight),
     chennai_rate: opt(f.chennai_rate),
   }
 }

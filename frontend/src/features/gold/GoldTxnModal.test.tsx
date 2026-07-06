@@ -42,6 +42,50 @@ describe('GoldTxnModal', () => {
     expect(onSaved).toHaveBeenCalled()
   })
 
+  it('parses dot-separated gram weights as decimals, not thousands', async () => {
+    render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
+
+    fill('Date *', '2026-07-01')
+    fill(/Per-gram price/, '7275')
+    fill(/Weight \(g\)/, '2.500')     // 2.5 g, not 2,500 g
+    fill(/Billed weight/, '8.000')    // 8 g, not 8,000 g
+    fill(/Actual amount paid/, '59,500') // grouped rupees stay 59500
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(api.createGoldTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      grams_bought: 2.5,
+      billed_weight: 8,
+      actual_paid: 59500,
+    })))
+  })
+
+  it('rejects malformed amounts instead of sending NaN', async () => {
+    render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
+
+    fill('Date *', '2026-07-01')
+    fill(/Per-gram price/, '7275')
+    fill(/Weight \(g\)/, '8')
+    fill(/Actual amount paid/, '1..2')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Actual amount paid must be >= 0')).toBeTruthy()
+    expect(api.createGoldTransaction).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed optional field instead of nulling it silently', async () => {
+    render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
+
+    fill('Date *', '2026-07-01')
+    fill(/Per-gram price/, '7275')
+    fill(/Weight \(g\)/, '8')
+    fill(/Actual amount paid/, '59500')
+    fill(/Gold price in quote/, '..')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Gold price in quote is not a number')).toBeTruthy()
+    expect(api.createGoldTransaction).not.toHaveBeenCalled()
+  })
+
   it('blocks save and shows the rule when a required field is invalid', async () => {
     render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
 
