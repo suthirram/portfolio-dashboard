@@ -61,7 +61,7 @@ components:
 
     User:
       type: object
-      required: [id, username, name, role, region, disabled, locked, must_change_password]
+      required: [id, username, name, role, region, disabled, locked, gold_enabled, must_change_password]
       properties:
         id:
           type: string
@@ -83,6 +83,9 @@ components:
         locked:
           type: boolean
           description: Security-question recovery locked after three wrong attempts
+        gold_enabled:
+          type: boolean
+          description: Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
         must_change_password:
           type: boolean
           description: Forced onboarding pending (bootstrap super admin)
@@ -217,6 +220,14 @@ components:
         region:
           type: string
           description: One of the /regions catalogue ids
+
+    GoldToggleRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Turn gold tracking on or off for the account
 
     Holding:
       type: object

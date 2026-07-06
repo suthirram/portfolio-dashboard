@@ -385,6 +385,35 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 	return api.AdminSetUserRegion200JSONResponse(services.UserToAPI(target, false)), nil
 }
 
+// AdminSetUserGold turns gold tracking on or off for an account. Super
+// admin only (PRD-003 §2.4); unlike role/region changes the super admin may
+// toggle their own account — the owner is the primary gold user. Toggling
+// off hides gold data but deletes nothing.
+func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetUserGoldRequestObject) (api.AdminSetUserGoldResponseObject, error) {
+	caller, ok := superAdminCaller(ctx)
+	if !ok {
+		return api.AdminSetUserGold403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminSetUserGold404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
+		"gold_enabled": request.Body.Enabled,
+		"updated_at":   time.Now(),
+	}); err != nil {
+		h.reqLog(ctx).Error("gold toggle failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	h.reqLog(ctx).Info("gold tracking toggled",
+		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
+	return api.AdminSetUserGold204Response{}, nil
+}
+
 // Act on a user's portfolio (region-scoped).
 
 func (h *Controller) AdminListUserHoldings(ctx context.Context, request api.AdminListUserHoldingsRequestObject) (api.AdminListUserHoldingsResponseObject, error) {

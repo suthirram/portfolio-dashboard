@@ -31,6 +31,7 @@ export type UpdateProfileRequest = Schemas['UpdateProfileRequest']
 export type UpdateSecurityQuestionsRequest = Schemas['UpdateSecurityQuestionsRequest']
 export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
+export type GoldToggleRequest = Schemas['GoldToggleRequest']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -145,6 +146,7 @@ export const api = {
   adminPromoteUser:     (id: string) => request<User>('POST', `/admin/users/${id}/promote`, {}),
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
+  adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 

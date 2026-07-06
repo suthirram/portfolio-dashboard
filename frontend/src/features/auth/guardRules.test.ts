@@ -16,6 +16,7 @@ const baseUser = (over: Partial<User> = {}): User => ({
   must_change_password: false,
   disabled: false,
   locked: false,
+  gold_enabled: false,
   ...(over as object),
 })
 
