@@ -29,3 +29,7 @@ portfolio-dashboard
 
 # Stray local screenshots
 Screenshot *.png
+
+# Postman workspace artifacts (MCP integration)
+backend/api/specs/.postman/
+backend/api/specs/postman/
