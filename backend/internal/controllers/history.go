@@ -6,6 +6,8 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.uber.org/zap"
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
@@ -34,7 +36,36 @@ func (h *Controller) ListHistory(ctx context.Context, req api.ListHistoryRequest
 		}
 		return nil, err
 	}
+	h.attachGoldOverlay(ctx, uid, list.Rows)
 	return api.ListHistory200JSONResponse(toAPIHistoryList(list)), nil
+}
+
+// attachGoldOverlay decorates history rows with the physical-gold position
+// (PRD-003 §8) for gold-enabled callers when the gold store is attached.
+// Overlay failure degrades to rows without gold — the stock history must
+// not break because Postgres is having a bad day.
+func (h *Controller) attachGoldOverlay(ctx context.Context, uid primitive.ObjectID, rows []services.HistoryRow) {
+	if h.gold == nil || len(rows) == 0 {
+		return
+	}
+	if caller, ok := auth.UserFromContext(ctx); !ok || !caller.GoldEnabled {
+		return
+	}
+	dates := make([]string, 0, len(rows))
+	for _, r := range rows {
+		dates = append(dates, r.Date)
+	}
+	overlay, err := h.gold.HistoryOverlay(ctx, uid.Hex(), dates)
+	if err != nil {
+		h.reqLog(ctx).Warn("gold history overlay failed", zap.String("error", err.Error()))
+		return
+	}
+	for i := range rows {
+		if p, ok := overlay[rows[i].Date]; ok {
+			point := p
+			rows[i].Gold = &point
+		}
+	}
 }
 
 func (h *Controller) AddHistoryRow(ctx context.Context, req api.AddHistoryRowRequestObject) (api.AddHistoryRowResponseObject, error) {
@@ -160,6 +191,19 @@ func toAPIHistoryRow(r services.HistoryRow) api.HistoryRow {
 		Regions:  toAPIRegionMap(r.Regions),
 		Totals:   toAPITotals(r.Totals),
 		Holdings: toAPIHistoryHoldings(r.Holdings),
+		Gold:     toAPIGoldOverlay(r.Gold),
+	}
+}
+
+func toAPIGoldOverlay(p *domain.GoldHistoryPoint) *api.GoldHistoryOverlay {
+	if p == nil {
+		return nil
+	}
+	return &api.GoldHistoryOverlay{
+		Invested:      p.Invested,
+		Current:       p.Current,
+		VolatilityPct: p.VolatilityPct,
+		PnlPct:        p.PnlPct,
 	}
 }
 

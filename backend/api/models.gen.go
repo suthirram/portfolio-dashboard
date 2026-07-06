@@ -353,6 +353,25 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// GoldHistoryOverlay Physical-gold position as of a history row's date (PRD-003 §8) —
+// present only for gold-enabled users, only on dates on/after their
+// first purchase with a valuation price available. Computed on read
+// from the gold ledger + price series; never snapshotted. GOLDBEES
+// is excluded (already in the stock buckets).
+type GoldHistoryOverlay struct {
+	// Current grams held on/before the row date × that date's price (nearest earlier fallback)
+	Current float64 `json:"current"`
+
+	// Invested Σ actual_paid of purchases dated on/before the row date
+	Invested float64 `json:"invested"`
+
+	// PnlPct (current − invested) ÷ invested × 100; null when nothing invested
+	PnlPct *float64 `json:"pnl_pct,omitempty"`
+
+	// VolatilityPct % change of current vs the previous row in the response window (0 on the first)
+	VolatilityPct float64 `json:"volatility_pct"`
+}
+
 // GoldMetrics The live metrics table (PRD-003 §6) — computed from the ledger,
 // the latest price on/before today, and the GOLDBEES holdings.
 // Nullable fields are unknowable in the current state (no price row
@@ -535,6 +554,13 @@ type HistoryRegionSnapshotSource string
 // HistoryRow defines model for HistoryRow.
 type HistoryRow struct {
 	Date openapi_types.Date `json:"date"`
+
+	// Gold Physical-gold position as of a history row's date (PRD-003 §8) —
+	// present only for gold-enabled users, only on dates on/after their
+	// first purchase with a valuation price available. Computed on read
+	// from the gold ledger + price series; never snapshotted. GOLDBEES
+	// is excluded (already in the stock buckets).
+	Gold *GoldHistoryOverlay `json:"gold,omitempty"`
 
 	// Holdings Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
 	Holdings *[]HistoryHolding                `json:"holdings,omitempty"`
