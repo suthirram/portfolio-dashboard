@@ -114,6 +114,10 @@ paths:
     $ref: "./gold/gold.yaml#/transactions"
   /gold/transactions/{id}:
     $ref: "./gold/gold.yaml#/transactions_id"
+  /gold/prices:
+    $ref: "./gold/gold.yaml#/prices"
+  /gold/missing-dates:
+    $ref: "./gold/gold.yaml#/missing_dates"
   /admin/users/{id}/holdings:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:

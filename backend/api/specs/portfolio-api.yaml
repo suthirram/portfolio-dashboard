@@ -229,6 +229,32 @@ components:
           type: boolean
           description: Turn gold tracking on or off for the account
 
+    GoldPrice:
+      type: object
+      description: One user-entered daily per-gram gold price (PRD-003 §7).
+      required: [date, price_per_gram]
+      properties:
+        date:
+          type: string
+          format: date
+        price_per_gram:
+          type: number
+          format: double
+          description: Per-gram rate for that calendar day (> 0)
+
+    GoldMissingDates:
+      type: object
+      description: |
+        Calendar days between the first gold purchase and today that have
+        no price row — the Gold page's blocking prompt (PRD-003 §7).
+      required: [missing]
+      properties:
+        missing:
+          type: array
+          items:
+            type: string
+            format: date
+
     GoldTransactionInput:
       type: object
       description: |

@@ -64,6 +64,59 @@ func (h *Controller) CreateGoldTransaction(ctx context.Context, request api.Crea
 	return api.CreateGoldTransaction201JSONResponse(created), nil
 }
 
+func (h *Controller) ListGoldPrices(ctx context.Context, request api.ListGoldPricesRequestObject) (api.ListGoldPricesResponseObject, error) {
+	if h.gold == nil {
+		return api.ListGoldPrices503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
+	}
+	uid, err := h.goldCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := h.gold.Prices(ctx, uid, request.Params.From, request.Params.To)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidGoldPrice) {
+			return api.ListGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+		}
+		h.reqLog(ctx).Error("gold prices list failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	return api.ListGoldPrices200JSONResponse(rows), nil
+}
+
+func (h *Controller) PutGoldPrices(ctx context.Context, request api.PutGoldPricesRequestObject) (api.PutGoldPricesResponseObject, error) {
+	if h.gold == nil {
+		return api.PutGoldPrices503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
+	}
+	uid, err := h.goldCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.gold.PutPrices(ctx, uid, *request.Body); err != nil {
+		if errors.Is(err, services.ErrInvalidGoldPrice) {
+			return api.PutGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+		}
+		h.reqLog(ctx).Error("gold prices upsert failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	return api.PutGoldPrices204Response{}, nil
+}
+
+func (h *Controller) ListGoldMissingDates(ctx context.Context, _ api.ListGoldMissingDatesRequestObject) (api.ListGoldMissingDatesResponseObject, error) {
+	if h.gold == nil {
+		return api.ListGoldMissingDates503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
+	}
+	uid, err := h.goldCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	missing, err := h.gold.MissingDates(ctx, uid)
+	if err != nil {
+		h.reqLog(ctx).Error("gold missing-dates failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	return api.ListGoldMissingDates200JSONResponse{Missing: missing}, nil
+}
+
 func (h *Controller) UpdateGoldTransaction(ctx context.Context, request api.UpdateGoldTransactionRequestObject) (api.UpdateGoldTransactionResponseObject, error) {
 	if h.gold == nil {
 		return api.UpdateGoldTransaction503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
