@@ -40,7 +40,7 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 		return
 	}
 	h.store.AttachGold(pool)
-	h.gold = services.NewGoldService(h.store.Gold, h.log())
+	h.gold = services.NewGoldService(h.store.Gold, h.store.Holdings, h.priceService, h.log())
 }
 
 // New builds a Controller with the default PriceService. cookieSecure controls

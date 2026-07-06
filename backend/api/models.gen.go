@@ -353,6 +353,39 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// GoldMetrics The live metrics table (PRD-003 §6) — computed from the ledger,
+// the latest price on/before today, and the GOLDBEES holdings.
+// Nullable fields are unknowable in the current state (no price row
+// yet, empty ledger, or the live GOLDBEES quote unavailable).
+type GoldMetrics struct {
+	// AvgPerGram invested ÷ grams
+	AvgPerGram *float64 `json:"avg_per_gram,omitempty"`
+
+	// BeesPl GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+	BeesPl *float64 `json:"bees_pl,omitempty"`
+
+	// Current grams × latest_price
+	Current *float64 `json:"current,omitempty"`
+
+	// Grams Σ grams_bought (actual weight, PRD §9.4)
+	Grams float64 `json:"grams"`
+
+	// Invested Σ actual_paid over all purchases
+	Invested float64 `json:"invested"`
+
+	// LatestPrice Most recent daily price on/before today — the valuation rate
+	LatestPrice *float64 `json:"latest_price,omitempty"`
+
+	// NettExBees current − invested
+	NettExBees *float64 `json:"nett_ex_bees,omitempty"`
+
+	// NettInBees nett_ex_bees + bees_pl
+	NettInBees *float64 `json:"nett_in_bees,omitempty"`
+
+	// Xirr Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+	Xirr *float64 `json:"xirr,omitempty"`
+}
+
 // GoldMissingDates Calendar days between the first gold purchase and today that have
 // no price row — the Gold page's blocking prompt (PRD-003 §7).
 type GoldMissingDates struct {

@@ -23,19 +23,23 @@ var ErrInvalidGoldTransaction = errors.New("gold: invalid transaction")
 // rate (PRD-003 §9.3).
 const goldGstRate = 0.03
 
-// GoldService owns the gold-transaction use cases (DD-003 §2): owner-scoped
-// CRUD over the Postgres store, returning API views with the computed
-// columns filled in. Construction implies a live store — when Postgres is
-// not configured the Controller has no GoldService and answers 503 before
-// reaching here.
+// GoldService owns the gold use cases (DD-003 §2): owner-scoped CRUD over
+// the Postgres store returning API views with computed columns, the daily
+// price series, and the live metrics table (which folds in the GOLDBEES
+// holdings via the stock stores). Construction implies a live gold store —
+// when Postgres is not configured the Controller has no GoldService and
+// answers 503 before reaching here.
 type GoldService struct {
-	store  *persistence.GoldDao
-	logger *zap.Logger
+	store    *persistence.GoldDao
+	holdings *persistence.HoldingStore
+	prices   PriceFetcher
+	logger   *zap.Logger
 }
 
-// NewGoldService wires the gold-transaction service.
-func NewGoldService(store *persistence.GoldDao, logger *zap.Logger) *GoldService {
-	return &GoldService{store: store, logger: logger}
+// NewGoldService wires the gold service. holdings + prices serve only the
+// metrics table's GOLDBEES row (DD-003 §3).
+func NewGoldService(store *persistence.GoldDao, holdings *persistence.HoldingStore, prices PriceFetcher, logger *zap.Logger) *GoldService {
+	return &GoldService{store: store, holdings: holdings, prices: prices, logger: logger}
 }
 
 // ListTransactions returns uid's purchases newest-first with computed

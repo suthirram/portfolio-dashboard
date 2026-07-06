@@ -69,5 +69,11 @@ func TestGoldRoutes_UnavailableWithoutPostgres(t *testing.T) {
 		} else if _, ok := resp.(api.ListGoldMissingDates503JSONResponse); !ok {
 			t.Errorf("missing-dates response = %T, want 503", resp)
 		}
+
+		if resp, err := h.GetGoldMetrics(ctx, api.GetGoldMetricsRequestObject{}); err != nil {
+			t.Fatalf("metrics: %v", err)
+		} else if _, ok := resp.(api.GetGoldMetrics503JSONResponse); !ok {
+			t.Errorf("metrics response = %T, want 503", resp)
+		}
 	})
 }

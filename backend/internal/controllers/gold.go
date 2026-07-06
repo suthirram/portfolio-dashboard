@@ -117,6 +117,22 @@ func (h *Controller) ListGoldMissingDates(ctx context.Context, _ api.ListGoldMis
 	return api.ListGoldMissingDates200JSONResponse{Missing: missing}, nil
 }
 
+func (h *Controller) GetGoldMetrics(ctx context.Context, _ api.GetGoldMetricsRequestObject) (api.GetGoldMetricsResponseObject, error) {
+	if h.gold == nil {
+		return api.GetGoldMetrics503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
+	}
+	uid, err := h.goldCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	metrics, err := h.gold.Metrics(ctx, uid)
+	if err != nil {
+		h.reqLog(ctx).Error("gold metrics failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	return api.GetGoldMetrics200JSONResponse(metrics), nil
+}
+
 func (h *Controller) UpdateGoldTransaction(ctx context.Context, request api.UpdateGoldTransactionRequestObject) (api.UpdateGoldTransactionResponseObject, error) {
 	if h.gold == nil {
 		return api.UpdateGoldTransaction503JSONResponse{GoldUnavailableJSONResponse: goldUnavailable()}, nil
