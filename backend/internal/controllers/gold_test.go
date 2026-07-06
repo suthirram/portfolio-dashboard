@@ -50,5 +50,24 @@ func TestGoldRoutes_UnavailableWithoutPostgres(t *testing.T) {
 		} else if _, ok := resp.(api.DeleteGoldTransaction503JSONResponse); !ok {
 			t.Errorf("delete response = %T, want 503", resp)
 		}
+
+		if resp, err := h.ListGoldPrices(ctx, api.ListGoldPricesRequestObject{}); err != nil {
+			t.Fatalf("prices list: %v", err)
+		} else if _, ok := resp.(api.ListGoldPrices503JSONResponse); !ok {
+			t.Errorf("prices list response = %T, want 503", resp)
+		}
+
+		prices := []api.GoldPrice{{Date: body.Date, PricePerGram: 7000}}
+		if resp, err := h.PutGoldPrices(ctx, api.PutGoldPricesRequestObject{Body: (*api.PutGoldPricesJSONRequestBody)(&prices)}); err != nil {
+			t.Fatalf("prices put: %v", err)
+		} else if _, ok := resp.(api.PutGoldPrices503JSONResponse); !ok {
+			t.Errorf("prices put response = %T, want 503", resp)
+		}
+
+		if resp, err := h.ListGoldMissingDates(ctx, api.ListGoldMissingDatesRequestObject{}); err != nil {
+			t.Fatalf("missing-dates: %v", err)
+		} else if _, ok := resp.(api.ListGoldMissingDates503JSONResponse); !ok {
+			t.Errorf("missing-dates response = %T, want 503", resp)
+		}
 	})
 }

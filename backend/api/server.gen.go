@@ -27,6 +27,18 @@ type AdminListUsersParams struct {
 	IncludeHidden *bool `form:"include_hidden,omitempty" json:"include_hidden,omitempty"`
 }
 
+// ListGoldPricesParams defines parameters for ListGoldPrices.
+type ListGoldPricesParams struct {
+	// From Inclusive lower bound; open when omitted
+	From *openapi_types.Date `form:"from,omitempty" json:"from,omitempty"`
+
+	// To Inclusive upper bound; open when omitted
+	To *openapi_types.Date `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// PutGoldPricesJSONBody defines parameters for PutGoldPrices.
+type PutGoldPricesJSONBody = []GoldPrice
+
 // ListHistoryParams defines parameters for ListHistory.
 type ListHistoryParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
@@ -80,6 +92,9 @@ type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
 
 // SignupJSONRequestBody defines body for Signup for application/json ContentType.
 type SignupJSONRequestBody = SignupRequest
+
+// PutGoldPricesJSONRequestBody defines body for PutGoldPrices for application/json ContentType.
+type PutGoldPricesJSONRequestBody = PutGoldPricesJSONBody
 
 // CreateGoldTransactionJSONRequestBody defines body for CreateGoldTransaction for application/json ContentType.
 type CreateGoldTransactionJSONRequestBody = GoldTransactionInput
@@ -194,6 +209,15 @@ type ServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx echo.Context) error
+	// Calendar days since the first purchase that lack a price row
+	// (GET /gold/missing-dates)
+	ListGoldMissingDates(ctx echo.Context) error
+	// The caller's daily price series, ascending
+	// (GET /gold/prices)
+	ListGoldPrices(ctx echo.Context, params ListGoldPricesParams) error
+	// Bulk upsert daily prices (the missing-day prompt saves all gaps in one call)
+	// (PUT /gold/prices)
+	PutGoldPrices(ctx echo.Context) error
 	// List the caller's gold purchases, newest first
 	// (GET /gold/transactions)
 	ListGoldTransactions(ctx echo.Context) error
@@ -698,6 +722,55 @@ func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
 	return err
 }
 
+// ListGoldMissingDates converts echo context to params.
+func (w *ServerInterfaceWrapper) ListGoldMissingDates(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListGoldMissingDates(ctx)
+	return err
+}
+
+// ListGoldPrices converts echo context to params.
+func (w *ServerInterfaceWrapper) ListGoldPrices(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListGoldPricesParams
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", ctx.QueryParams(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter from: %s", err))
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", ctx.QueryParams(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListGoldPrices(ctx, params)
+	return err
+}
+
+// PutGoldPrices converts echo context to params.
+func (w *ServerInterfaceWrapper) PutGoldPrices(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PutGoldPrices(ctx)
+	return err
+}
+
 // ListGoldTransactions converts echo context to params.
 func (w *ServerInterfaceWrapper) ListGoldTransactions(ctx echo.Context) error {
 	var err error
@@ -1142,6 +1215,9 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/auth/security-questions", wrapper.GetSecurityQuestionCatalogue, options.OperationMiddlewares["getSecurityQuestionCatalogue"]...)
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
+	router.GET(options.BaseURL+"/gold/missing-dates", wrapper.ListGoldMissingDates, options.OperationMiddlewares["listGoldMissingDates"]...)
+	router.GET(options.BaseURL+"/gold/prices", wrapper.ListGoldPrices, options.OperationMiddlewares["listGoldPrices"]...)
+	router.PUT(options.BaseURL+"/gold/prices", wrapper.PutGoldPrices, options.OperationMiddlewares["putGoldPrices"]...)
 	router.GET(options.BaseURL+"/gold/transactions", wrapper.ListGoldTransactions, options.OperationMiddlewares["listGoldTransactions"]...)
 	router.POST(options.BaseURL+"/gold/transactions", wrapper.CreateGoldTransaction, options.OperationMiddlewares["createGoldTransaction"]...)
 	router.DELETE(options.BaseURL+"/gold/transactions/:id", wrapper.DeleteGoldTransaction, options.OperationMiddlewares["deleteGoldTransaction"]...)
@@ -2420,6 +2496,177 @@ func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter)
 	return err
 }
 
+type ListGoldMissingDatesRequestObject struct {
+}
+
+type ListGoldMissingDatesResponseObject interface {
+	VisitListGoldMissingDatesResponse(w http.ResponseWriter) error
+}
+
+type ListGoldMissingDates200JSONResponse GoldMissingDates
+
+func (response ListGoldMissingDates200JSONResponse) VisitListGoldMissingDatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldMissingDates401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListGoldMissingDates401JSONResponse) VisitListGoldMissingDatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldMissingDates503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response ListGoldMissingDates503JSONResponse) VisitListGoldMissingDatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldPricesRequestObject struct {
+	Params ListGoldPricesParams
+}
+
+type ListGoldPricesResponseObject interface {
+	VisitListGoldPricesResponse(w http.ResponseWriter) error
+}
+
+type ListGoldPrices200JSONResponse []GoldPrice
+
+func (response ListGoldPrices200JSONResponse) VisitListGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldPrices400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListGoldPrices400JSONResponse) VisitListGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldPrices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListGoldPrices401JSONResponse) VisitListGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldPrices503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response ListGoldPrices503JSONResponse) VisitListGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGoldPricesRequestObject struct {
+	Body *PutGoldPricesJSONRequestBody
+}
+
+type PutGoldPricesResponseObject interface {
+	VisitPutGoldPricesResponse(w http.ResponseWriter) error
+}
+
+type PutGoldPrices204Response struct {
+}
+
+func (response PutGoldPrices204Response) VisitPutGoldPricesResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutGoldPrices400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PutGoldPrices400JSONResponse) VisitPutGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGoldPrices401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PutGoldPrices401JSONResponse) VisitPutGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGoldPrices503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response PutGoldPrices503JSONResponse) VisitPutGoldPricesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListGoldTransactionsRequestObject struct {
 }
 
@@ -3490,6 +3737,15 @@ type StrictServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
+	// Calendar days since the first purchase that lack a price row
+	// (GET /gold/missing-dates)
+	ListGoldMissingDates(ctx context.Context, request ListGoldMissingDatesRequestObject) (ListGoldMissingDatesResponseObject, error)
+	// The caller's daily price series, ascending
+	// (GET /gold/prices)
+	ListGoldPrices(ctx context.Context, request ListGoldPricesRequestObject) (ListGoldPricesResponseObject, error)
+	// Bulk upsert daily prices (the missing-day prompt saves all gaps in one call)
+	// (PUT /gold/prices)
+	PutGoldPrices(ctx context.Context, request PutGoldPricesRequestObject) (PutGoldPricesResponseObject, error)
 	// List the caller's gold purchases, newest first
 	// (GET /gold/transactions)
 	ListGoldTransactions(ctx context.Context, request ListGoldTransactionsRequestObject) (ListGoldTransactionsResponseObject, error)
@@ -4317,6 +4573,83 @@ func (sh *strictHandler) Signup(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(SignupResponseObject); ok {
 		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListGoldMissingDates operation middleware
+func (sh *strictHandler) ListGoldMissingDates(ctx echo.Context) error {
+	var request ListGoldMissingDatesRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListGoldMissingDates(ctx.Request().Context(), request.(ListGoldMissingDatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListGoldMissingDates")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListGoldMissingDatesResponseObject); ok {
+		return validResponse.VisitListGoldMissingDatesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListGoldPrices operation middleware
+func (sh *strictHandler) ListGoldPrices(ctx echo.Context, params ListGoldPricesParams) error {
+	var request ListGoldPricesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListGoldPrices(ctx.Request().Context(), request.(ListGoldPricesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListGoldPrices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListGoldPricesResponseObject); ok {
+		return validResponse.VisitListGoldPricesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PutGoldPrices operation middleware
+func (sh *strictHandler) PutGoldPrices(ctx echo.Context) error {
+	var request PutGoldPricesRequestObject
+
+	var body PutGoldPricesJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutGoldPrices(ctx.Request().Context(), request.(PutGoldPricesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutGoldPrices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PutGoldPricesResponseObject); ok {
+		return validResponse.VisitPutGoldPricesResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

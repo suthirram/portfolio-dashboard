@@ -47,6 +47,79 @@ transactions:
       "503":
         $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
 
+prices:
+  get:
+    tags: [Gold]
+    summary: The caller's daily price series, ascending
+    operationId: listGoldPrices
+    parameters:
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+        description: Inclusive lower bound; open when omitted
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+        description: Inclusive upper bound; open when omitted
+    responses:
+      "200":
+        description: Price rows in range, oldest first
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/GoldPrice"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
+  put:
+    tags: [Gold]
+    summary: Bulk upsert daily prices (the missing-day prompt saves all gaps in one call)
+    operationId: putGoldPrices
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: "../portfolio-api.yaml#/components/schemas/GoldPrice"
+    responses:
+      "204":
+        description: Prices stored (existing days overwritten)
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
+missing_dates:
+  get:
+    tags: [Gold]
+    summary: Calendar days since the first purchase that lack a price row
+    operationId: listGoldMissingDates
+    responses:
+      "200":
+        description: Gap list for the blocking prompt; empty when caught up
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/GoldMissingDates"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
 transactions_id:
   parameters:
     - name: id

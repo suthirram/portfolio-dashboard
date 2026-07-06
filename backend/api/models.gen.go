@@ -353,6 +353,20 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// GoldMissingDates Calendar days between the first gold purchase and today that have
+// no price row — the Gold page's blocking prompt (PRD-003 §7).
+type GoldMissingDates struct {
+	Missing []openapi_types.Date `json:"missing"`
+}
+
+// GoldPrice One user-entered daily per-gram gold price (PRD-003 §7).
+type GoldPrice struct {
+	Date openapi_types.Date `json:"date"`
+
+	// PricePerGram Per-gram rate for that calendar day (> 0)
+	PricePerGram float64 `json:"price_per_gram"`
+}
+
 // GoldToggleRequest defines model for GoldToggleRequest.
 type GoldToggleRequest struct {
 	// Enabled Turn gold tracking on or off for the account
