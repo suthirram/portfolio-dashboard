@@ -247,8 +247,17 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 		return nil, echo.NewHTTPError(http.StatusForbidden, "cannot delete own account")
 	}
 
-	// Holdings and their transactions first: if anything fails midway the
-	// account still exists and the delete can be retried.
+	// Data before account. No transaction spans Postgres and Mongo
+	// (dual-write, accepted — DD-003 §7): the invariant is ordering, the
+	// user row goes last. Any mid-sequence failure leaves the account
+	// present and the delete retryable (every step idempotent); gold rows
+	// can never be orphaned behind a vanished account.
+	if h.store.Gold != nil {
+		if err := h.store.Gold.DeleteAllByUser(ctx, target.ID.Hex()); err != nil {
+			h.reqLog(ctx).Error("delete user gold failed", zap.String("error", err.Error()))
+			return nil, err
+		}
+	}
 	if err := h.store.Holdings.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).Error("delete user holdings failed", zap.String("error", err.Error()))
 		return nil, err

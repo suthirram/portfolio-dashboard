@@ -204,6 +204,19 @@ DB-availability tests):
 
 * **Two databases** — accepted (owner decision, §1). Mitigation: gold
   routes degrade to 503 when Postgres is down; rest of app unaffected.
+* **Cross-store user delete is not transactional** (dual-write, accepted
+  2026-07-06). `AdminDeleteUser` purges Postgres gold rows, then Mongo
+  holdings/transactions/sessions, then the user row — there is no
+  transaction spanning both stores, so a mid-sequence failure leaves a
+  partially deleted account. The ordering bounds the damage: the user row
+  goes **last**, so every failure mode leaves the account present, the
+  request failing loudly (500), and the delete retryable (all steps
+  idempotent); gold data can never be orphaned behind a vanished account.
+  Known window: an abandoned half-failed delete leaves a login-able
+  account with partial data. Hardening options considered and deferred:
+  tombstone-first (hide user + kill sessions before purging) and a
+  background reaper for tombstoned users — revisit if deletes ever become
+  user-facing or frequent.
 * **Formula ambiguity** — resolved: all column formulas confirmed by the
   owner (PRD §9, 2026-07-04). `computeColumns` still isolates any future
   formula change to one function.

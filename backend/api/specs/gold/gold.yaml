@@ -1,0 +1,98 @@
+---
+# Gold tracking paths (PRD-003 / DD-003). Referenced from ../openapi.yaml.
+# Every route below sits behind the AuthGate gold rule: callers without
+# gold_enabled read 404 before any handler runs. 503 means Postgres (the
+# gold store) is not configured — the rest of the app keeps serving.
+
+transactions:
+  get:
+    tags: [Gold]
+    summary: List the caller's gold purchases, newest first
+    operationId: listGoldTransactions
+    responses:
+      "200":
+        description: Purchases with computed columns (date desc)
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/GoldTransaction"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
+  post:
+    tags: [Gold]
+    summary: Record a gold purchase
+    operationId: createGoldTransaction
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/GoldTransactionInput"
+    responses:
+      "201":
+        description: Stored purchase with computed columns
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/GoldTransaction"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
+transactions_id:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Gold transaction id
+
+  put:
+    tags: [Gold]
+    summary: Update a gold purchase
+    operationId: updateGoldTransaction
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/GoldTransactionInput"
+    responses:
+      "200":
+        description: Updated purchase with computed columns
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/GoldTransaction"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"
+
+  delete:
+    tags: [Gold]
+    summary: Delete a gold purchase
+    operationId: deleteGoldTransaction
+    responses:
+      "204":
+        description: Deleted
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "503":
+        $ref: "../portfolio-api.yaml#/components/responses/GoldUnavailable"

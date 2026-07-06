@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"portfolio-dashboard/internal/logging"
@@ -26,8 +27,20 @@ type Controller struct {
 	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
 	history      *services.HistoryService
+	gold         *services.GoldService // nil when Postgres is not configured (DD-003 §1) — gold routes answer 503
 	logger       *zap.Logger
 	cookieSecure bool
+}
+
+// AttachGold wires the Postgres-backed gold store and service onto the
+// controller. A nil pool is a no-op: the gold field stays nil and every
+// gold route answers 503 while the rest of the app serves normally.
+func (h *Controller) AttachGold(pool *pgxpool.Pool) {
+	if pool == nil {
+		return
+	}
+	h.store.AttachGold(pool)
+	h.gold = services.NewGoldService(h.store.Gold, h.log())
 }
 
 // New builds a Controller with the default PriceService. cookieSecure controls

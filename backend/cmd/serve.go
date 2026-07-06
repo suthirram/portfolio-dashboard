@@ -88,6 +88,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 
 	h := controllers.New(database, logger, cfg.CookieSecure)
+	h.AttachGold(pgPool)
 	e := httpserver.New(cfg, logger, database, h)
 
 	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {
