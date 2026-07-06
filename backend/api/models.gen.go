@@ -359,6 +359,68 @@ type GoldToggleRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+// GoldTransaction One gold purchase with the derived columns (PRD-003 §5).
+type GoldTransaction struct {
+	ActualPaid   float64            `json:"actual_paid"`
+	BillAmount   *float64           `json:"bill_amount,omitempty"`
+	BilledWeight *float64           `json:"billed_weight,omitempty"`
+	ChennaiRate  *float64           `json:"chennai_rate,omitempty"`
+	Date         openapi_types.Date `json:"date"`
+	GmPrice      float64            `json:"gm_price"`
+
+	// GoldCost gm_price × grams_bought
+	GoldCost    float64 `json:"gold_cost"`
+	GramsBought float64 `json:"grams_bought"`
+
+	// GstOnCost 3% of gold_cost
+	GstOnCost float64 `json:"gst_on_cost"`
+
+	// GstOnQuote 3% of quote_price; null when no quote recorded
+	GstOnQuote *float64 `json:"gst_on_quote,omitempty"`
+	Id         int64    `json:"id"`
+
+	// NettPerGram actual_paid ÷ grams_bought
+	NettPerGram float64 `json:"nett_per_gram"`
+
+	// NettReduction bill_amount − actual_paid; null when no bill recorded
+	NettReduction *float64 `json:"nett_reduction,omitempty"`
+
+	// NimmiLoss actual_paid − gold_cost (spreadsheet J − D)
+	NimmiLoss  float64  `json:"nimmi_loss"`
+	QuotePrice *float64 `json:"quote_price,omitempty"`
+
+	// TotalExpected gold_cost + gst_on_cost
+	TotalExpected float64 `json:"total_expected"`
+}
+
+// GoldTransactionInput Entered fields of one physical gold purchase (PRD-003 §5). Every
+// computed column is derived server-side; clients never send them.
+type GoldTransactionInput struct {
+	// ActualPaid Cash actually paid (>= 0)
+	ActualPaid float64 `json:"actual_paid"`
+
+	// BillAmount Amount printed on the bill
+	BillAmount *float64 `json:"bill_amount,omitempty"`
+
+	// BilledWeight Grams on the bill (can differ from actual)
+	BilledWeight *float64 `json:"billed_weight,omitempty"`
+
+	// ChennaiRate Market reference rate that day
+	ChennaiRate *float64 `json:"chennai_rate,omitempty"`
+
+	// Date Purchase date
+	Date openapi_types.Date `json:"date"`
+
+	// GmPrice Per-gram rate for this purchase (> 0)
+	GmPrice float64 `json:"gm_price"`
+
+	// GramsBought Grams actually bought (> 0)
+	GramsBought float64 `json:"grams_bought"`
+
+	// QuotePrice Per-gram rate the jeweler quoted
+	QuotePrice *float64 `json:"quote_price,omitempty"`
+}
+
 // HistoryConflictResponse defines model for HistoryConflictResponse.
 type HistoryConflictResponse struct {
 	Conflicts []struct {
@@ -822,6 +884,9 @@ type Conflict = Error
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
 
+// GoldUnavailable defines model for GoldUnavailable.
+type GoldUnavailable = Error
+
 // Locked defines model for Locked.
 type Locked = Error
 
@@ -838,6 +903,8 @@ type BadRequestJSONResponse Error
 type ConflictJSONResponse Error
 
 type ForbiddenJSONResponse Error
+
+type GoldUnavailableJSONResponse Error
 
 type LockedJSONResponse Error
 

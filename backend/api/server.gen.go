@@ -81,6 +81,12 @@ type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
 // SignupJSONRequestBody defines body for Signup for application/json ContentType.
 type SignupJSONRequestBody = SignupRequest
 
+// CreateGoldTransactionJSONRequestBody defines body for CreateGoldTransaction for application/json ContentType.
+type CreateGoldTransactionJSONRequestBody = GoldTransactionInput
+
+// UpdateGoldTransactionJSONRequestBody defines body for UpdateGoldTransaction for application/json ContentType.
+type UpdateGoldTransactionJSONRequestBody = GoldTransactionInput
+
 // AddHistoryRowJSONRequestBody defines body for AddHistoryRow for application/json ContentType.
 type AddHistoryRowJSONRequestBody = AddHistoryRowInput
 
@@ -188,6 +194,18 @@ type ServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx echo.Context) error
+	// List the caller's gold purchases, newest first
+	// (GET /gold/transactions)
+	ListGoldTransactions(ctx echo.Context) error
+	// Record a gold purchase
+	// (POST /gold/transactions)
+	CreateGoldTransaction(ctx echo.Context) error
+	// Delete a gold purchase
+	// (DELETE /gold/transactions/{id})
+	DeleteGoldTransaction(ctx echo.Context, id int64) error
+	// Update a gold purchase
+	// (PUT /gold/transactions/{id})
+	UpdateGoldTransaction(ctx echo.Context, id int64) error
 	// List historical snapshots in a date range
 	// (GET /history)
 	ListHistory(ctx echo.Context, params ListHistoryParams) error
@@ -680,6 +698,64 @@ func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
 	return err
 }
 
+// ListGoldTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListGoldTransactions(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListGoldTransactions(ctx)
+	return err
+}
+
+// CreateGoldTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateGoldTransaction(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.CreateGoldTransaction(ctx)
+	return err
+}
+
+// DeleteGoldTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteGoldTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteGoldTransaction(ctx, id)
+	return err
+}
+
+// UpdateGoldTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateGoldTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.UpdateGoldTransaction(ctx, id)
+	return err
+}
+
 // ListHistory converts echo context to params.
 func (w *ServerInterfaceWrapper) ListHistory(ctx echo.Context) error {
 	var err error
@@ -1066,6 +1142,10 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/auth/security-questions", wrapper.GetSecurityQuestionCatalogue, options.OperationMiddlewares["getSecurityQuestionCatalogue"]...)
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
+	router.GET(options.BaseURL+"/gold/transactions", wrapper.ListGoldTransactions, options.OperationMiddlewares["listGoldTransactions"]...)
+	router.POST(options.BaseURL+"/gold/transactions", wrapper.CreateGoldTransaction, options.OperationMiddlewares["createGoldTransaction"]...)
+	router.DELETE(options.BaseURL+"/gold/transactions/:id", wrapper.DeleteGoldTransaction, options.OperationMiddlewares["deleteGoldTransaction"]...)
+	router.PUT(options.BaseURL+"/gold/transactions/:id", wrapper.UpdateGoldTransaction, options.OperationMiddlewares["updateGoldTransaction"]...)
 	router.GET(options.BaseURL+"/history", wrapper.ListHistory, options.OperationMiddlewares["listHistory"]...)
 	router.POST(options.BaseURL+"/history", wrapper.AddHistoryRow, options.OperationMiddlewares["addHistoryRow"]...)
 	router.POST(options.BaseURL+"/history/paste", wrapper.PasteHistory, options.OperationMiddlewares["pasteHistory"]...)
@@ -2340,6 +2420,256 @@ func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter)
 	return err
 }
 
+type ListGoldTransactionsRequestObject struct {
+}
+
+type ListGoldTransactionsResponseObject interface {
+	VisitListGoldTransactionsResponse(w http.ResponseWriter) error
+}
+
+type ListGoldTransactions200JSONResponse []GoldTransaction
+
+func (response ListGoldTransactions200JSONResponse) VisitListGoldTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldTransactions401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListGoldTransactions401JSONResponse) VisitListGoldTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListGoldTransactions503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response ListGoldTransactions503JSONResponse) VisitListGoldTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGoldTransactionRequestObject struct {
+	Body *CreateGoldTransactionJSONRequestBody
+}
+
+type CreateGoldTransactionResponseObject interface {
+	VisitCreateGoldTransactionResponse(w http.ResponseWriter) error
+}
+
+type CreateGoldTransaction201JSONResponse GoldTransaction
+
+func (response CreateGoldTransaction201JSONResponse) VisitCreateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGoldTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response CreateGoldTransaction400JSONResponse) VisitCreateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGoldTransaction401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response CreateGoldTransaction401JSONResponse) VisitCreateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateGoldTransaction503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response CreateGoldTransaction503JSONResponse) VisitCreateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGoldTransactionRequestObject struct {
+	Id int64 `json:"id"`
+}
+
+type DeleteGoldTransactionResponseObject interface {
+	VisitDeleteGoldTransactionResponse(w http.ResponseWriter) error
+}
+
+type DeleteGoldTransaction204Response struct {
+}
+
+func (response DeleteGoldTransaction204Response) VisitDeleteGoldTransactionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteGoldTransaction401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response DeleteGoldTransaction401JSONResponse) VisitDeleteGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGoldTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteGoldTransaction404JSONResponse) VisitDeleteGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteGoldTransaction503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response DeleteGoldTransaction503JSONResponse) VisitDeleteGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGoldTransactionRequestObject struct {
+	Id   int64 `json:"id"`
+	Body *UpdateGoldTransactionJSONRequestBody
+}
+
+type UpdateGoldTransactionResponseObject interface {
+	VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error
+}
+
+type UpdateGoldTransaction200JSONResponse GoldTransaction
+
+func (response UpdateGoldTransaction200JSONResponse) VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGoldTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response UpdateGoldTransaction400JSONResponse) VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGoldTransaction401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response UpdateGoldTransaction401JSONResponse) VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGoldTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UpdateGoldTransaction404JSONResponse) VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateGoldTransaction503JSONResponse struct{ GoldUnavailableJSONResponse }
+
+func (response UpdateGoldTransaction503JSONResponse) VisitUpdateGoldTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListHistoryRequestObject struct {
 	Params ListHistoryParams
 }
@@ -3160,6 +3490,18 @@ type StrictServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
+	// List the caller's gold purchases, newest first
+	// (GET /gold/transactions)
+	ListGoldTransactions(ctx context.Context, request ListGoldTransactionsRequestObject) (ListGoldTransactionsResponseObject, error)
+	// Record a gold purchase
+	// (POST /gold/transactions)
+	CreateGoldTransaction(ctx context.Context, request CreateGoldTransactionRequestObject) (CreateGoldTransactionResponseObject, error)
+	// Delete a gold purchase
+	// (DELETE /gold/transactions/{id})
+	DeleteGoldTransaction(ctx context.Context, request DeleteGoldTransactionRequestObject) (DeleteGoldTransactionResponseObject, error)
+	// Update a gold purchase
+	// (PUT /gold/transactions/{id})
+	UpdateGoldTransaction(ctx context.Context, request UpdateGoldTransactionRequestObject) (UpdateGoldTransactionResponseObject, error)
 	// List historical snapshots in a date range
 	// (GET /history)
 	ListHistory(ctx context.Context, request ListHistoryRequestObject) (ListHistoryResponseObject, error)
@@ -3975,6 +4317,114 @@ func (sh *strictHandler) Signup(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(SignupResponseObject); ok {
 		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListGoldTransactions operation middleware
+func (sh *strictHandler) ListGoldTransactions(ctx echo.Context) error {
+	var request ListGoldTransactionsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListGoldTransactions(ctx.Request().Context(), request.(ListGoldTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListGoldTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListGoldTransactionsResponseObject); ok {
+		return validResponse.VisitListGoldTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateGoldTransaction operation middleware
+func (sh *strictHandler) CreateGoldTransaction(ctx echo.Context) error {
+	var request CreateGoldTransactionRequestObject
+
+	var body CreateGoldTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateGoldTransaction(ctx.Request().Context(), request.(CreateGoldTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateGoldTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateGoldTransactionResponseObject); ok {
+		return validResponse.VisitCreateGoldTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteGoldTransaction operation middleware
+func (sh *strictHandler) DeleteGoldTransaction(ctx echo.Context, id int64) error {
+	var request DeleteGoldTransactionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteGoldTransaction(ctx.Request().Context(), request.(DeleteGoldTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteGoldTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteGoldTransactionResponseObject); ok {
+		return validResponse.VisitDeleteGoldTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateGoldTransaction operation middleware
+func (sh *strictHandler) UpdateGoldTransaction(ctx echo.Context, id int64) error {
+	var request UpdateGoldTransactionRequestObject
+
+	request.Id = id
+
+	var body UpdateGoldTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateGoldTransaction(ctx.Request().Context(), request.(UpdateGoldTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateGoldTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateGoldTransactionResponseObject); ok {
+		return validResponse.VisitUpdateGoldTransactionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -197,9 +197,9 @@ func TestRoleGates(t *testing.T) {
 
 // TestGoldRouteGate pins the /api/gold/* access rule (DD-003 §2.1): a
 // session whose user lacks gold_enabled reads 404 (not 403 — the feature
-// must not be enumerable), an enabled user passes. The real server
-// registers no gold routes until PD-043 PR5, so the gate is exercised with
-// a stub route behind the same AuthGate middleware.
+// must not be enumerable), an enabled user passes. A stub route behind the
+// same AuthGate middleware keeps the test independent of the generated
+// route surface (and of Postgres, which the real gold handlers need).
 func TestGoldRouteGate(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 

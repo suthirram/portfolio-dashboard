@@ -25,6 +25,27 @@ type GoldTransaction struct {
 	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
 }
 
+// GoldComputed carries the derived columns of one gold purchase (PRD-003
+// §5, formulas locked in §9). Never stored — recomputed from the entered
+// fields on every read. Pointer fields mirror their optional inputs: no
+// quote → no GST-on-quote, no bill → no nett reduction.
+type GoldComputed struct {
+	GoldCost      float64  `json:"gold_cost"`      // GmPrice × GramsBought
+	GstOnCost     float64  `json:"gst_on_cost"`    // 3% of GoldCost
+	TotalExpected float64  `json:"total_expected"` // GoldCost + GstOnCost
+	GstOnQuote    *float64 `json:"gst_on_quote"`   // 3% of QuotePrice
+	NettPerGram   float64  `json:"nett_per_gram"`  // ActualPaid ÷ GramsBought
+	NettReduction *float64 `json:"nett_reduction"` // BillAmount − ActualPaid
+	NimmiLoss     float64  `json:"nimmi_loss"`     // ActualPaid − GoldCost (J − D)
+}
+
+// GoldTransactionView is one purchase with its derived columns — the shape
+// the Gold page renders (DD-003 §2).
+type GoldTransactionView struct {
+	GoldTransaction
+	GoldComputed
+}
+
 // GoldPrice is one user-entered daily per-gram price row (PRD-003 §7).
 // Every calendar day from the user's first gold transaction onward is
 // expected to have one; the Gold page prompts for gaps.
