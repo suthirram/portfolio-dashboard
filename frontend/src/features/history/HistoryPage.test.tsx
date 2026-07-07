@@ -21,6 +21,7 @@ import {
   fmtAxisAmount,
   perCurrencyChartData,
   goldChartData,
+  goldCurrentDirection,
   regionCurrentDirection,
 } from './HistoryPage'
 import type {
@@ -482,6 +483,57 @@ describe('HistoryTable cell tints', () => {
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
     expect(norm(investedCell('2026-06-17').style.background)).toBe(norm(GROUP_INR))
+  })
+})
+
+// ---- Gold column tints (mirror the currency tints) ----
+
+describe('goldCurrentDirection', () => {
+  const g = (invested: number, current: number) => ({ invested, current, volatility_pct: 0, pnl_pct: 0 })
+  it('is up/down/flat by the day-over-day gold value, null without a prior', () => {
+    expect(goldCurrentDirection(g(100, 220), g(100, 200))).toBe('up')
+    expect(goldCurrentDirection(g(100, 180), g(100, 200))).toBe('down')
+    expect(goldCurrentDirection(g(100, 200), g(100, 200))).toBe('flat')
+    expect(goldCurrentDirection(g(100, 200), undefined)).toBeNull()
+    expect(goldCurrentDirection(undefined, g(100, 200))).toBeNull()
+  })
+})
+
+describe('HistoryTable gold cell tints', () => {
+  const norm = (s: string) => s.replace(/\s/g, '')
+  // Layout: date(0), INR td[1-4], EUR td[5-8], gold td[9]=invested
+  // td[10]=value td[11]=vol td[12]=P/L%.
+  const goldCells = (date: string) => {
+    const tr = Array.from(document.querySelectorAll('tbody tr'))
+      .find(t => t.querySelector('td')?.textContent === date)!
+    return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
+  }
+  const GOLD_TINT = 'rgba(217,119,6,0.1)'
+  const gold = (invested: number, current: number, pnl: number) =>
+    ({ invested, current, volatility_pct: 0, pnl_pct: pnl })
+
+  it('P/L% cell tints green/red by the day-over-day gold value move', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
+      row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14400, 100) }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
+    ]} />)
+    expect(norm(goldCells('2026-06-17')[12].style.background)).toBe('rgba(34,197,94,0.18)') // up → green
+  })
+
+  it('gold invested cell is purple on a day gold invested rose', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
+      row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(14400, 20000, 38) }), // 14400 > 7200
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
+    ]} />)
+    expect(norm(goldCells('2026-06-17')[9].style.background)).toBe('rgba(168,85,247,0.18)') // purple
+  })
+
+  it('gold cells keep the plain gold tint when nothing changed / no prior', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
+    ]} />)
+    expect(norm(goldCells('2026-06-16')[9].style.background)).toBe(norm(GOLD_TINT)) // invested, no prior
+    expect(norm(goldCells('2026-06-16')[12].style.background)).toBe(norm(GOLD_TINT)) // P/L, no prior
   })
 })
 
