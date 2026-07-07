@@ -228,7 +228,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 </TD>
 
                 {/* Current value */}
-                <TD className="mono col-inr-amt">{h.current_value ? INR(h.current_value) : '—'}</TD>
+                <TD className="mono col-inr-amt" style={{ fontWeight: 700, fontSize: 14, color: h.current_value ? 'var(--blue)' : undefined }}>{h.current_value ? INR(h.current_value) : '—'}</TD>
                 <TD className="mono col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.current_value_eur ? EUR(h.current_value_eur) : '—'}</TD>
 
                 {/* Unrealised (money in making) */}
