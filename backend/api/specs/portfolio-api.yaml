@@ -308,6 +308,34 @@ components:
           nullable: true
           description: Annualized rate as a fraction (0.12 = 12%); null when non-convergent
 
+    GoldHistoryOverlay:
+      type: object
+      description: |
+        Physical-gold position as of a history row's date (PRD-003 §8) —
+        present only for gold-enabled users, only on dates on/after their
+        first purchase with a valuation price available. Computed on read
+        from the gold ledger + price series; never snapshotted. GOLDBEES
+        is excluded (already in the stock buckets).
+      required: [invested, current, volatility_pct]
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid of purchases dated on/before the row date
+        current:
+          type: number
+          format: double
+          description: grams held on/before the row date × that date's price (nearest earlier fallback)
+        volatility_pct:
+          type: number
+          format: double
+          description: "% change of current vs the previous row in the response window (0 on the first)"
+        pnl_pct:
+          type: number
+          format: double
+          nullable: true
+          description: (current − invested) ÷ invested × 100; null when nothing invested
+
     GoldTransactionInput:
       type: object
       description: |
@@ -817,6 +845,8 @@ components:
           description: Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
           items:
             $ref: "#/components/schemas/HistoryHolding"
+        gold:
+          $ref: "#/components/schemas/GoldHistoryOverlay"
 
     HistoryList:
       type: object

@@ -46,6 +46,16 @@ type GoldTransactionView struct {
 	GoldComputed
 }
 
+// GoldHistoryPoint is the physical-gold position as of one history-row
+// date (PRD-003 §8): derived on read from the ledger + price series,
+// never snapshotted.
+type GoldHistoryPoint struct {
+	Invested      float64  `json:"invested"`       // Σ ActualPaid of purchases ≤ date
+	Current       float64  `json:"current"`        // grams ≤ date × price as-of date
+	VolatilityPct float64  `json:"volatility_pct"` // % change of Current vs previous row in window
+	PnlPct        *float64 `json:"pnl_pct"`        // (Current − Invested) / Invested × 100; nil at 0 invested
+}
+
 // GoldPrice is one user-entered daily per-gram price row (PRD-003 §7).
 // Every calendar day from the user's first gold transaction onward is
 // expected to have one; the Gold page prompts for gaps.
