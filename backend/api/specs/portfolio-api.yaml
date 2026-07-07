@@ -375,10 +375,9 @@ components:
           nullable: true
           description: Grams on the bill (can differ from actual)
         chennai_rate:
-          type: number
-          format: double
+          type: string
           nullable: true
-          description: Market reference rate that day
+          description: Free-text remark (a rate, "Ditto", a note); not validated
 
     GoldTransaction:
       type: object
@@ -415,8 +414,7 @@ components:
           format: double
           nullable: true
         chennai_rate:
-          type: number
-          format: double
+          type: string
           nullable: true
         gold_cost:
           type: number

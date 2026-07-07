@@ -152,7 +152,7 @@ export default function GoldPage() {
                     <td style={{ ...td, ...computed, color: t.nimmi_loss > 0 ? 'var(--red)' : 'var(--green)' }}>
                       {fmt(t.nimmi_loss)}
                     </td>
-                    <td style={td}>{fmt(t.chennai_rate)}</td>
+                    <td style={td}>{t.chennai_rate || '—'}</td>
                     <td style={td}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
                         <button aria-label={`Edit ${t.date}`} disabled={busy === t.id}

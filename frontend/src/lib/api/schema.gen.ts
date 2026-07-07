@@ -1317,8 +1317,7 @@ export interface components {
             actual_paid: number;
             /** Format: double */
             billed_weight?: number | null;
-            /** Format: double */
-            chennai_rate?: number | null;
+            chennai_rate?: string | null;
             /**
              * Format: double
              * @description gm_price × grams_bought
@@ -1395,11 +1394,8 @@ export interface components {
              * @description Grams on the bill (can differ from actual)
              */
             billed_weight?: number | null;
-            /**
-             * Format: double
-             * @description Market reference rate that day
-             */
-            chennai_rate?: number | null;
+            /** @description Free-text remark (a rate, "Ditto", a note); not validated */
+            chennai_rate?: string | null;
         };
         /** @description One user-entered daily per-gram gold price (PRD-003 §7). */
         GoldPrice: {

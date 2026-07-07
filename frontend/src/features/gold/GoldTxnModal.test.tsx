@@ -99,6 +99,21 @@ describe('GoldTxnModal', () => {
     expect(api.createGoldTransaction).not.toHaveBeenCalled()
   })
 
+  it('sends chennai_rate as a free-text remark, not a number', async () => {
+    render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
+
+    fill('Date *', '2026-07-01')
+    fill(/Per-gram price/, '7275')
+    fill(/Weight \(g\)/, '8')
+    fill(/Actual amount paid/, '59500')
+    fill(/Chennai rate/, 'Ditto')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(api.createGoldTransaction).toHaveBeenCalledWith(expect.objectContaining({
+      chennai_rate: 'Ditto',
+    })))
+  })
+
   it('blocks save and shows the rule when a required field is invalid', async () => {
     render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
 
