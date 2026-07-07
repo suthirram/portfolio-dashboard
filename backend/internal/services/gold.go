@@ -127,11 +127,11 @@ func validateGoldInput(in api.GoldTransactionInput) error {
 	if in.ActualPaid < 0 {
 		return fmt.Errorf("%w: actual_paid must be >= 0", ErrInvalidGoldTransaction)
 	}
+	// chennai_rate is a free-text remark — never validated as a number.
 	for name, v := range map[string]*float64{
 		"quote_price":   in.QuotePrice,
 		"bill_amount":   in.BillAmount,
 		"billed_weight": in.BilledWeight,
-		"chennai_rate":  in.ChennaiRate,
 	} {
 		if v != nil && *v < 0 {
 			return fmt.Errorf("%w: %s must be >= 0", ErrInvalidGoldTransaction, name)

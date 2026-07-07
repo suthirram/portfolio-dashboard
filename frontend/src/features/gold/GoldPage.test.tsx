@@ -27,7 +27,7 @@ const row: GoldTransaction = {
   bill_amount: 61000,
   actual_paid: 59500,
   billed_weight: 8.2,
-  chennai_rate: 7400,
+  chennai_rate: 'Ditto',
   gold_cost: 58200,
   gst_on_cost: 1746,
   total_expected: 59946,

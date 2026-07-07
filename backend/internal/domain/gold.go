@@ -20,7 +20,7 @@ type GoldTransaction struct {
 	BillAmount   *float64  `db:"bill_amount"   json:"bill_amount"`   // amount printed on the bill
 	ActualPaid   float64   `db:"actual_paid"   json:"actual_paid"`   // cash actually paid
 	BilledWeight *float64  `db:"billed_weight" json:"billed_weight"` // grams on the bill
-	ChennaiRate  *float64  `db:"chennai_rate"  json:"chennai_rate"`  // market reference rate that day
+	ChennaiRate  *string   `db:"chennai_rate"  json:"chennai_rate"`  // free-text remark (a rate, "Ditto", a note) — not validated
 	CreatedAt    time.Time `db:"created_at"    json:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
 }

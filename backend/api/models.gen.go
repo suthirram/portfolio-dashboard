@@ -430,7 +430,7 @@ type GoldTransaction struct {
 	ActualPaid   float64            `json:"actual_paid"`
 	BillAmount   *float64           `json:"bill_amount,omitempty"`
 	BilledWeight *float64           `json:"billed_weight,omitempty"`
-	ChennaiRate  *float64           `json:"chennai_rate,omitempty"`
+	ChennaiRate  *string            `json:"chennai_rate,omitempty"`
 	Date         openapi_types.Date `json:"date"`
 	GmPrice      float64            `json:"gm_price"`
 
@@ -471,8 +471,8 @@ type GoldTransactionInput struct {
 	// BilledWeight Grams on the bill (can differ from actual)
 	BilledWeight *float64 `json:"billed_weight,omitempty"`
 
-	// ChennaiRate Market reference rate that day
-	ChennaiRate *float64 `json:"chennai_rate,omitempty"`
+	// ChennaiRate Free-text remark (a rate, "Ditto", a note); not validated
+	ChennaiRate *string `json:"chennai_rate,omitempty"`
 
 	// Date Purchase date
 	Date openapi_types.Date `json:"date"`

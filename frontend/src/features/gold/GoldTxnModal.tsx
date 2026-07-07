@@ -42,7 +42,7 @@ function initialForm(txn: GoldTransaction | null): FormState {
     bill_amount: num(txn.bill_amount),
     actual_paid: num(txn.actual_paid),
     billed_weight: num(txn.billed_weight),
-    chennai_rate: num(txn.chennai_rate),
+    chennai_rate: txn.chennai_rate ?? '', // free-text remark
   }
 }
 
@@ -65,7 +65,6 @@ export function validateGoldForm(f: FormState): string | null {
     ['Gold price in quote', f.quote_price, undefined],
     ['Amount according to bill', f.bill_amount, undefined],
     ['Billed weight', f.billed_weight, weight],
-    ['Chennai rate', f.chennai_rate, undefined],
   ] as const) {
     if (value.trim() !== '' && !Number.isFinite(parseDecimalInput(value, opts))) {
       return `${name} is not a number`
@@ -84,7 +83,8 @@ function toInput(f: FormState): GoldTransactionInput {
     quote_price: opt(f.quote_price),
     bill_amount: opt(f.bill_amount),
     billed_weight: opt(f.billed_weight, weight),
-    chennai_rate: opt(f.chennai_rate),
+    // Free-text remark ("Ditto", a rate, a note) — sent verbatim, blank → null.
+    chennai_rate: f.chennai_rate.trim() === '' ? null : f.chennai_rate.trim(),
   }
 }
 
@@ -159,7 +159,11 @@ export default function GoldTxnModal({ txn, onClose, onSaved }: Props) {
           {field('Gold price in quote', 'quote_price')}
           {field('Amount according to bill', 'bill_amount')}
           {field('Billed weight (g)', 'billed_weight')}
-          {field('Chennai rate', 'chennai_rate')}
+          <div>
+            <label style={label} htmlFor="gold-chennai_rate">Chennai rate (remark)</label>
+            <input id="gold-chennai_rate" type="text" style={input}
+              value={form.chennai_rate} onChange={e => set('chennai_rate')(e.target.value)} />
+          </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>

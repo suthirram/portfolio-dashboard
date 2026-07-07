@@ -133,7 +133,6 @@ func TestValidateGoldInput(t *testing.T) {
 		{"negative quote_price", func(in *api.GoldTransactionInput) { in.QuotePrice = f64(-1) }},
 		{"negative bill_amount", func(in *api.GoldTransactionInput) { in.BillAmount = f64(-1) }},
 		{"negative billed_weight", func(in *api.GoldTransactionInput) { in.BilledWeight = f64(-1) }},
-		{"negative chennai_rate", func(in *api.GoldTransactionInput) { in.ChennaiRate = f64(-1) }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
