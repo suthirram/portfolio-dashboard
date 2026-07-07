@@ -34,6 +34,7 @@ export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
 export type GoldTransaction = Schemas['GoldTransaction']
 export type GoldTransactionInput = Schemas['GoldTransactionInput']
+export type GoldPrice = Schemas['GoldPrice']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -154,6 +155,15 @@ export const api = {
   createGoldTransaction: (body: GoldTransactionInput) => request<GoldTransaction>('POST', '/gold/transactions', body),
   updateGoldTransaction: (id: number, body: GoldTransactionInput) => request<GoldTransaction>('PUT', `/gold/transactions/${id}`, body),
   deleteGoldTransaction: (id: number) => request<void>('DELETE', `/gold/transactions/${id}`),
+  listGoldPrices:        (from?: string, to?: string) => {
+    const q = new URLSearchParams()
+    if (from) q.set('from', from)
+    if (to) q.set('to', to)
+    const qs = q.toString()
+    return request<GoldPrice[]>('GET', `/gold/prices${qs ? `?${qs}` : ''}`)
+  },
+  putGoldPrices:         (prices: GoldPrice[]) => request<void>('PUT', '/gold/prices', prices),
+  listGoldMissingDates:  () => request<{ missing: string[] }>('GET', '/gold/missing-dates'),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 

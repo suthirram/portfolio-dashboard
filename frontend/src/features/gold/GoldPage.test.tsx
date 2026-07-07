@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, type GoldTransaction } from '../../lib/api/client'
@@ -11,6 +11,9 @@ vi.mock('../../lib/api/client', () => ({
     createGoldTransaction: vi.fn().mockResolvedValue({}),
     updateGoldTransaction: vi.fn().mockResolvedValue({}),
     deleteGoldTransaction: vi.fn().mockResolvedValue(undefined),
+    listGoldPrices: vi.fn().mockResolvedValue([]),
+    listGoldMissingDates: vi.fn().mockResolvedValue({ missing: [] }),
+    putGoldPrices: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -39,6 +42,42 @@ describe('GoldPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.listGoldTransactions).mockResolvedValue([])
+    vi.mocked(api.listGoldPrices).mockResolvedValue([])
+    vi.mocked(api.listGoldMissingDates).mockResolvedValue({ missing: [] })
+  })
+
+  it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {
+    vi.mocked(api.listGoldMissingDates)
+      .mockResolvedValueOnce({ missing: ['2026-07-05', '2026-07-06'] })
+      .mockResolvedValue({ missing: [] }) // after saving, the reload finds no gaps
+    renderPage()
+
+    expect(await screen.findByRole('dialog', { name: 'Fill missing gold prices' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('2026-07-05'), { target: { value: '7300' } })
+    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7350' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
+
+    await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([
+      { date: '2026-07-05', price_per_gram: 7300 },
+      { date: '2026-07-06', price_per_gram: 7350 },
+    ]))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Fill missing gold prices' })).toBeNull())
+  })
+
+  it('does not show the prompt when there are no gaps', async () => {
+    renderPage()
+    await screen.findByText(/No gold purchases yet/)
+    expect(screen.queryByRole('dialog', { name: 'Fill missing gold prices' })).toBeNull()
+  })
+
+  it('skipping the prompt dismisses it without saving', async () => {
+    vi.mocked(api.listGoldMissingDates).mockResolvedValue({ missing: ['2026-07-06'] })
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
+    fireEvent.click(screen.getByRole('button', { name: 'Skip for now' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Fill missing gold prices' })).toBeNull())
+    expect(api.putGoldPrices).not.toHaveBeenCalled()
   })
 
   it('shows the empty state when there are no purchases', async () => {
