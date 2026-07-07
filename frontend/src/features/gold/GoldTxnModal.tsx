@@ -57,8 +57,10 @@ export function validateGoldForm(f: FormState): string | null {
   if (!f.date) return 'Date is required'
   if (!(parseDecimalInput(f.gm_price) > 0)) return 'Per-gram price must be > 0'
   if (!(parseDecimalInput(f.grams_bought, weight) > 0)) return 'Weight must be > 0'
+  // Empty parses to 0, which would pass the >= 0 rule and submit a zero-
+  // rupee purchase; a required field must be explicitly present.
   const paid = parseDecimalInput(f.actual_paid)
-  if (!Number.isFinite(paid) || paid < 0) return 'Actual amount paid must be >= 0'
+  if (f.actual_paid.trim() === '' || !Number.isFinite(paid) || paid < 0) return 'Actual amount paid must be >= 0'
   for (const [name, value, opts] of [
     ['Gold price in quote', f.quote_price, undefined],
     ['Amount according to bill', f.bill_amount, undefined],

@@ -59,6 +59,19 @@ describe('GoldTxnModal', () => {
     })))
   })
 
+  it('rejects an empty required amount instead of submitting zero', async () => {
+    render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
+
+    fill('Date *', '2026-07-01')
+    fill(/Per-gram price/, '7275')
+    fill(/Weight \(g\)/, '8')
+    // actual_paid left blank — parseDecimalInput('') is 0, which would pass >= 0
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('Actual amount paid must be >= 0')).toBeTruthy()
+    expect(api.createGoldTransaction).not.toHaveBeenCalled()
+  })
+
   it('rejects malformed amounts instead of sending NaN', async () => {
     render(<GoldTxnModal txn={null} onClose={() => {}} onSaved={() => {}} />)
 
