@@ -186,12 +186,23 @@ export interface HistoryHolding {
   current?: number
 }
 
+// Physical-gold overlay on a history row (PRD-003 §8); present only for
+// gold-enabled users on dates on/after their first purchase with a price.
+export interface GoldHistoryOverlay {
+  invested: number
+  current: number
+  volatility_pct: number
+  pnl_pct: number | null
+}
+
 export interface HistoryRow {
   date: string
   regions: Record<string, RegionSnapshot>
   totals: HistoryTotals
   // Per-stock breakdown for cron rows; absent on manual-only rows.
   holdings?: HistoryHolding[]
+  // Gold position as-of the row date; absent for non-gold users / pre-purchase rows.
+  gold?: GoldHistoryOverlay
 }
 
 export interface HistoryList {

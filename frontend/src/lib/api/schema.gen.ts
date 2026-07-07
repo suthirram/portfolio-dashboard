@@ -1116,6 +1116,35 @@ export interface components {
              */
             current?: number;
         };
+        /**
+         * @description Physical-gold position as of a history row's date (PRD-003 §8) —
+         *     present only for gold-enabled users, only on dates on/after their
+         *     first purchase with a valuation price available. Computed on read
+         *     from the gold ledger + price series; never snapshotted. GOLDBEES
+         *     is excluded (already in the stock buckets).
+         */
+        GoldHistoryOverlay: {
+            /**
+             * Format: double
+             * @description Σ actual_paid of purchases dated on/before the row date
+             */
+            invested: number;
+            /**
+             * Format: double
+             * @description grams held on/before the row date × that date's price (nearest earlier fallback)
+             */
+            current: number;
+            /**
+             * Format: double
+             * @description % change of current vs the previous row in the response window (0 on the first)
+             */
+            volatility_pct: number;
+            /**
+             * Format: double
+             * @description (current − invested) ÷ invested × 100; null when nothing invested
+             */
+            pnl_pct?: number | null;
+        };
         HistoryRow: {
             /** Format: date */
             date: string;
@@ -1125,6 +1154,7 @@ export interface components {
             totals: components["schemas"]["HistoryTotals"];
             /** @description Per-stock breakdown for cron-sourced rows; absent on manual-only rows. */
             holdings?: components["schemas"]["HistoryHolding"][];
+            gold?: components["schemas"]["GoldHistoryOverlay"];
         };
         HistoryList: {
             currency: string;
