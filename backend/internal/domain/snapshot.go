@@ -29,12 +29,17 @@ func (s SnapshotSource) IsValid() bool {
 const (
 	CurrencyINR = "INR"
 	CurrencyEUR = "EUR"
+	// CurrencyUSD is retained only to recognise and fold legacy USD buckets
+	// in already-stored snapshots (the summary path folds them into INR).
+	// USD is no longer a tracked currency: it is absent from AllCurrencies,
+	// never produced by CurrencyOf, and rejected by history writes.
 	CurrencyUSD = "USD"
 )
 
 // AllCurrencies is the canonical iteration order for chart series and
-// zero-row initialisation (PRD-002 §6).
-var AllCurrencies = []string{CurrencyINR, CurrencyEUR, CurrencyUSD}
+// zero-row initialisation (PRD-002 §6). USD was dropped (2026-07-07) — no
+// USD positions were ever held; the History page tracks INR, EUR, and gold.
+var AllCurrencies = []string{CurrencyINR, CurrencyEUR}
 
 // RegionSnapshot is one region's contribution to a portfolio snapshot. Both
 // monetary fields are in the row's currency (PortfolioSnapshot.Currency).

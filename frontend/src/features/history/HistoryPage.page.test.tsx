@@ -76,8 +76,8 @@ describe('HistoryPage', () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
     expect(await screen.findByText('2026-06-16')).toBeInTheDocument()
-    // Header "Amount invested" appears once per currency group.
-    expect(screen.getAllByText('Amount invested').length).toBe(3)
+    // Header "Amount invested" appears once per currency group (INR, EUR).
+    expect(screen.getAllByText('Amount invested').length).toBe(2)
   })
 
   it('surfaces a fetch error', async () => {

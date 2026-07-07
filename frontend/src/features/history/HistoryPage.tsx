@@ -23,16 +23,15 @@ import { useAuthOptional } from '../auth/AuthContext'
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
 // holding falls into based on Exchange first, Currency fallback.
-export const REGIONS = ['INR', 'EUR', 'USD'] as const
+export const REGIONS = ['INR', 'EUR'] as const
 export type RegionKey = typeof REGIONS[number]
 
 export const REGION_LABELS: Record<RegionKey, string> = {
   INR: 'India (INR)',
   EUR: 'Europe (EUR)',
-  USD: 'US (USD)',
 }
 
-// PRD-002 §7.2 + PR7 design review: saffron (INR), blue (EUR), red (USD).
+// PRD-002 §7.2 + PR7 design review: saffron (INR), blue (EUR).
 // Palettes are theme-aware: brighter hues for dark backgrounds, darker
 // hues for light. The previous single palette was muddy on white and
 // faded on near-black.
@@ -41,12 +40,10 @@ export const REGION_COLOURS: Record<ThemeName, LinePalette> = {
   dark: {
     INR: { invested: '#fcd34d', current: '#f97316' }, // amber-300 / orange-500
     EUR: { invested: '#60a5fa', current: '#3b82f6' }, // blue-400 / 500
-    USD: { invested: '#f87171', current: '#ef4444' }, // red-400 / 500
   },
   light: {
     INR: { invested: '#d97706', current: '#9a3412' }, // amber-600 / orange-800
     EUR: { invested: '#2563eb', current: '#1e3a8a' }, // blue-600  / 900
-    USD: { invested: '#dc2626', current: '#7f1d1d' }, // red-600   / 900
   },
 }
 
@@ -67,12 +64,10 @@ const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string; cell: 
   light: {
     INR: { header: '#FFEDD5', cell: '#FFF7ED' }, // orange-100 / orange-50
     EUR: { header: '#DBEAFE', cell: '#EFF6FF' }, // blue-100   / blue-50
-    USD: { header: '#FEE2E2', cell: '#FEF2F2' }, // red-100    / red-50
   },
   dark: {
     INR: { header: 'rgba(251,146,60,0.22)', cell: 'rgba(251,146,60,0.10)' },
     EUR: { header: 'rgba(96,165,250,0.22)', cell: 'rgba(96,165,250,0.10)' },
-    USD: { header: 'rgba(248,113,113,0.22)', cell: 'rgba(248,113,113,0.10)' },
   },
 }
 
@@ -120,7 +115,6 @@ function emptyForm(): RegionFormState {
   return {
     INR: { invested: '', current: '' },
     EUR: { invested: '', current: '' },
-    USD: { invested: '', current: '' },
   }
 }
 
@@ -251,12 +245,15 @@ export default function HistoryPage() {
     return out
   }, [now])
 
-  // Three charts, one per currency. Compute series per bucket.
+  // One chart per currency. Compute series per bucket.
   const chartsByRegion = useMemo(() => ({
     INR: perCurrencyChartData(rows, 'INR'),
     EUR: perCurrencyChartData(rows, 'EUR'),
-    USD: perCurrencyChartData(rows, 'USD'),
   }), [rows])
+  // Gold gets its own panel (INR-denominated) from the per-row overlay,
+  // shown only when at least one row carries gold data.
+  const goldChart = useMemo(() => goldChartData(rows), [rows])
+  const hasGoldChart = useMemo(() => rows.some(r => r.gold), [rows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
     try {
@@ -417,6 +414,7 @@ export default function HistoryPage() {
             {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
               <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
             ))}
+            {hasGoldChart && <GoldChartPanel data={goldChart} theme={theme} />}
           </>
         )}
       </main>
@@ -454,16 +452,14 @@ export default function HistoryPage() {
 // CURRENCY_BY_REGION is now identity since bucket keys are currency
 // codes, but kept as a named export so callers can read the table
 // without assuming key == code.
-export const CURRENCY_BY_REGION: Record<RegionKey, 'INR' | 'EUR' | 'USD'> = {
+export const CURRENCY_BY_REGION: Record<RegionKey, 'INR' | 'EUR'> = {
   INR: 'INR',
   EUR: 'EUR',
-  USD: 'USD',
 }
 
-export const CURRENCY_SYMBOL: Record<'INR' | 'EUR' | 'USD', string> = {
+export const CURRENCY_SYMBOL: Record<'INR' | 'EUR', string> = {
   INR: '₹',
   EUR: '€',
-  USD: '$',
 }
 
 // fmtCurrency formats amount with the currency symbol and 2dp using Indian
@@ -479,105 +475,147 @@ export function fmtCurrency(amount: number, sym: string): string {
 
 // ---- Chart ----
 
-// CurrencyChartPanel renders three side-by-side mini-charts per currency:
-// invested vs current value, P/L %, and daily volatility %. Each surface
-// has its own y-axis range so it is read independently — P/L % and daily
-// volatility are not crushed by the amount axis.
-function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
-  const navigate = useNavigate()
-  const cur = CURRENCY_BY_REGION[region]
-  const sym = CURRENCY_SYMBOL[cur]
-  const palette = REGION_COLOURS[theme][region]
+// ChartTriptych renders the three side-by-side mini-charts shared by the
+// currency and gold panels: invested vs current value, P/L %, and daily
+// volatility %. Each surface has its own y-axis range so it is read
+// independently — P/L % and daily volatility are not crushed by the amount
+// axis. `sym` denominates the amount tooltips; `palette` colours the two
+// amount lines; `onExpand` (when set) makes the amount chart clickable.
+function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
+  data: any[]
+  sym: string
+  palette: { invested: string; current: string }
+  theme: ThemeName
+  onExpand?: () => void
+  expandLabel?: string
+}) {
   const pnlColour = PNL_LINE_COLOUR[theme]
   const volColour = VOL_LINE_COLOUR[theme]
-  // Recharts' default value-axis domain is [0, max], which flattens
-  // series that oscillate in a narrow band far above zero (invested vs
-  // current both ≈₹450k render as a near-flat line). Derive a padded
-  // domain from the actual data so the fluctuations fill the chart.
-  const amountDomain = useMemo(
-    () => niceDomain(data.flatMap(d => [d.invested, d.current])),
-    [data],
-  )
-  const pnlDomain = useMemo(
-    () => niceDomain(data.map(d => d.pnl_pct)),
-    [data],
-  )
+  // Recharts' default value-axis domain is [0, max], which flattens series
+  // that oscillate in a narrow band far above zero. Derive a padded domain
+  // from the actual data so the fluctuations fill the chart.
+  const amountDomain = useMemo(() => niceDomain(data.flatMap(d => [d.invested, d.current])), [data])
+  const pnlDomain = useMemo(() => niceDomain(data.map(d => d.pnl_pct)), [data])
   // Daily volatility swings both ways around 0, so centre the axis on zero.
-  const volDomain = useMemo(
-    () => symmetricDomain(data.map(d => d.daily_vol)),
-    [data],
-  )
+  const volDomain = useMemo(() => symmetricDomain(data.map(d => d.daily_vol)), [data])
+  const expandProps = onExpand
+    ? {
+        style: { height: 220, cursor: 'pointer' } as React.CSSProperties,
+        onClick: onExpand, role: 'button', tabIndex: 0,
+        'aria-label': expandLabel, title: 'Open full history (2000–today) with horizontal scroll',
+        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onExpand() } },
+      }
+    : { style: { height: 220 } as React.CSSProperties }
   return (
-    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: 16, marginBottom: 16 }}>
-      <h2 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)' }}>
-        {REGION_LABELS[region]} ({cur})
-      </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Invested vs Current</span>
-            <span style={{ fontSize: 10, color: 'var(--blue)' }}>click to expand →</span>
-          </div>
-          <div style={{ height: 220, cursor: 'pointer' }}
-            onClick={() => navigate(`/history/chart/${region}`)}
-            role="button" tabIndex={0}
-            aria-label={`Expand full ${REGION_LABELS[region]} invested vs current history`}
-            title="Open full history (2000–today) with horizontal scroll"
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/history/chart/${region}`) } }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
-                  tickFormatter={fmtAxisAmount} width={64} />
-                <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
-                <Line dataKey="current"  name={`Current (${cur})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Invested vs Current</span>
+          {onExpand && <span style={{ fontSize: 10, color: 'var(--blue)' }}>click to expand →</span>}
         </div>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
-            P/L %
-          </div>
-          <div style={{ height: 220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
-                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+        <div {...expandProps}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
+                tickFormatter={fmtAxisAmount} width={64} />
+              <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line dataKey="invested" name={`Invested (${sym})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
+              <Line dataKey="current"  name={`Current (${sym})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>
-            Daily volatility %
-          </div>
-          <div style={{ height: 220 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
-                <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
-                <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>P/L %</div>
+        <div style={{ height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
+              <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>Daily volatility %</div>
+        <div style={{ height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
+              <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
+              <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
   )
+}
+
+const panelStyle: React.CSSProperties = {
+  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+  borderRadius: 8, padding: 16, marginBottom: 16,
+}
+const panelTitle: React.CSSProperties = {
+  fontSize: 14, fontWeight: 600, margin: '0 0 12px 0', color: 'var(--text-secondary)',
+}
+
+// CurrencyChartPanel: the invested/current/P-L/volatility triptych for one
+// currency, with the amount chart expandable to the full-history page.
+function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: any[]; theme: ThemeName }) {
+  const navigate = useNavigate()
+  const cur = CURRENCY_BY_REGION[region]
+  return (
+    <div style={panelStyle}>
+      <h2 style={panelTitle}>{REGION_LABELS[region]} ({cur})</h2>
+      <ChartTriptych data={data} sym={CURRENCY_SYMBOL[cur]} palette={REGION_COLOURS[theme][region]}
+        theme={theme} onExpand={() => navigate(`/history/chart/${region}`)}
+        expandLabel={`Expand full ${REGION_LABELS[region]} invested vs current history`} />
+    </div>
+  )
+}
+
+// Physical gold is INR-denominated; a distinct amber/yellow palette keeps it
+// apart from INR's saffron. No expand target — gold has no full-history page.
+const GOLD_PALETTE: Record<ThemeName, { invested: string; current: string }> = {
+  dark:  { invested: '#fde047', current: '#eab308' }, // yellow-300 / 500
+  light: { invested: '#ca8a04', current: '#854d0e' }, // yellow-600 / 800
+}
+
+// GoldChartPanel: the same triptych fed by the per-row gold overlay (§8).
+function GoldChartPanel({ data, theme }: { data: any[]; theme: ThemeName }) {
+  return (
+    <div style={panelStyle}>
+      <h2 style={panelTitle}>Gold (₹)</h2>
+      <ChartTriptych data={data} sym="₹" palette={GOLD_PALETTE[theme]} theme={theme} />
+    </div>
+  )
+}
+
+// goldChartData shapes the per-row gold overlay into the chart series (same
+// shape as perCurrencyChartData). Rows without an overlay emit nulls so the
+// line bridges the gap rather than plunging to zero.
+export function goldChartData(rows: HistoryRow[]) {
+  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  return oldestFirst.map(r => ({
+    date: r.date.slice(5),
+    invested: r.gold ? r.gold.invested : null,
+    current: r.gold ? r.gold.current : null,
+    pnl_pct: r.gold ? r.gold.pnl_pct : null,
+    daily_vol: r.gold ? r.gold.volatility_pct : null,
+  }))
 }
 
 // perCurrencyChartData produces oldest-first chart series for one region.
@@ -983,7 +1021,8 @@ function GoldRowCells({ gold }: { gold?: GoldHistoryOverlay }) {
 // defaulting unknown/blank to INR (the Holding.Currency default).
 export function holdingRegion(h: HistoryHolding): RegionKey {
   const code = (h.currency || 'INR').toUpperCase()
-  return code === 'EUR' || code === 'USD' ? code : 'INR'
+  // Only INR and EUR are tracked; anything else (incl. legacy USD) → INR.
+  return code === 'EUR' ? 'EUR' : 'INR'
 }
 
 const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)' }
@@ -1108,7 +1147,7 @@ export function AddRowModal({ onSubmit, onCancel }: {
 // copy-paste yields. Expected columns in order:
 //
 //   Date | INR invested | INR current | EUR invested | EUR current
-//        | USD invested | USD current | [Daily vol] | [P/L %]
+//        | [Daily vol] | [P/L %]
 //
 // Trailing columns (Daily vol, P/L %) are ignored — they are derived
 // on read.
@@ -1157,7 +1196,7 @@ export function parsePasteText(text: string): { date: string; regions: Record<st
     const cells = line.split(/\t/).map(c => c.trim())
     const date = normaliseDate(cells[0] ?? '')
     if (!date) continue // skip header / malformed
-    const [, ii, ic, ei, ec, ui, uc] = cells
+    const [, ii, ic, ei, ec] = cells
     const regions: Record<string, { invested: number; current: number }> = {}
     const set = (key: string, inv: string | undefined, cur: string | undefined) => {
       const a = parseAmount(inv ?? '')
@@ -1168,7 +1207,6 @@ export function parsePasteText(text: string): { date: string; regions: Record<st
     }
     set('INR', ii, ic)
     set('EUR', ei, ec)
-    set('USD', ui, uc)
     out.push({ date, regions })
   }
   return out
@@ -1186,7 +1224,6 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   const initial: RegionFormState = {
     INR: { invested: groupedInitial(row.regions.INR?.invested), current: groupedInitial(row.regions.INR?.current) },
     EUR: { invested: groupedInitial(row.regions.EUR?.invested), current: groupedInitial(row.regions.EUR?.current) },
-    USD: { invested: groupedInitial(row.regions.USD?.invested), current: groupedInitial(row.regions.USD?.current) },
   }
   const [form, setForm] = useState<RegionFormState>(initial)
   const [busy, setBusy] = useState(false)
@@ -1298,8 +1335,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Paste tab-separated rows (Google Sheets / Excel). Columns:
           {' '}<code>Date</code> | <code>INR invested</code> | <code>INR current</code> |
-          {' '}<code>EUR invested</code> | <code>EUR current</code> |
-          {' '}<code>USD invested</code> | <code>USD current</code>.
+          {' '}<code>EUR invested</code> | <code>EUR current</code>.
           {' '}Extra trailing columns (Daily vol, P/L %) are ignored.
           {' '}Dates accept <code>YYYY-MM-DD</code> or <code>dd/mm/yyyy</code>.
           {' '}Currency symbols and thousands separators are stripped automatically.
@@ -1338,7 +1374,7 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
   onSkip: () => void
 }) {
   const [picks, setPicks] = useState<Record<RegionKey, boolean>>({
-    INR: false, EUR: false, USD: false,
+    INR: false, EUR: false,
   })
 
   const toggle = (r: RegionKey) => setPicks(p => ({ ...p, [r]: !p[r] }))

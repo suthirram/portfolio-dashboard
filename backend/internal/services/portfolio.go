@@ -227,9 +227,8 @@ func (s *PortfolioService) attachPreviousClose(
 	// today or had value at the previous close.
 	perCcy := make([]api.CurrencyChange, 0, len(domain.AllCurrencies))
 	for _, ccy := range domain.AllCurrencies {
-		if ccy == domain.CurrencyUSD {
-			continue // folded into INR above; the UI never holds native USD
-		}
+		// USD is not in AllCurrencies anymore; legacy USD buckets are still
+		// folded into INR by prevNative above, so nothing native is lost.
 		cur := nativeCurrent[ccy]
 		prev := prevNative(ccy)
 		if cur == 0 && prev == 0 {
