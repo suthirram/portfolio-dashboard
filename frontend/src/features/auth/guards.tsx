@@ -6,6 +6,7 @@ import {
   redirectIfAuthedDecision,
   requireAdminDecision,
   requireAuthDecision,
+  requireGoldDecision,
   requireSuperAdminDecision,
 } from './guardRules'
 
@@ -52,6 +53,11 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
 export function RequireSuperAdmin({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   return render(requireSuperAdminDecision({ user, loading }), children)
+}
+
+export function RequireGold({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  return render(requireGoldDecision({ user, loading }), children)
 }
 
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {

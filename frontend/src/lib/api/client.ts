@@ -32,6 +32,8 @@ export type UpdateSecurityQuestionsRequest = Schemas['UpdateSecurityQuestionsReq
 export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
+export type GoldTransaction = Schemas['GoldTransaction']
+export type GoldTransactionInput = Schemas['GoldTransactionInput']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -147,6 +149,11 @@ export const api = {
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
   adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
+
+  listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
+  createGoldTransaction: (body: GoldTransactionInput) => request<GoldTransaction>('POST', '/gold/transactions', body),
+  updateGoldTransaction: (id: number, body: GoldTransactionInput) => request<GoldTransaction>('PUT', `/gold/transactions/${id}`, body),
+  deleteGoldTransaction: (id: number) => request<void>('DELETE', `/gold/transactions/${id}`),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 
