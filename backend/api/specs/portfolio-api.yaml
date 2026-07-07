@@ -61,7 +61,7 @@ components:
 
     User:
       type: object
-      required: [id, username, name, role, region, disabled, locked, must_change_password]
+      required: [id, username, name, role, region, disabled, locked, gold_enabled, must_change_password]
       properties:
         id:
           type: string
@@ -83,6 +83,9 @@ components:
         locked:
           type: boolean
           description: Security-question recovery locked after three wrong attempts
+        gold_enabled:
+          type: boolean
+          description: Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
         must_change_password:
           type: boolean
           description: Forced onboarding pending (bootstrap super admin)
@@ -217,6 +220,232 @@ components:
         region:
           type: string
           description: One of the /regions catalogue ids
+
+    GoldToggleRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Turn gold tracking on or off for the account
+
+    GoldPrice:
+      type: object
+      description: One user-entered daily per-gram gold price (PRD-003 §7).
+      required: [date, price_per_gram]
+      properties:
+        date:
+          type: string
+          format: date
+        price_per_gram:
+          type: number
+          format: double
+          description: Per-gram rate for that calendar day (> 0)
+
+    GoldMissingDates:
+      type: object
+      description: |
+        Calendar days between the first gold purchase and today that have
+        no price row — the Gold page's blocking prompt (PRD-003 §7).
+      required: [missing]
+      properties:
+        missing:
+          type: array
+          items:
+            type: string
+            format: date
+
+    GoldMetrics:
+      type: object
+      description: |
+        The live metrics table (PRD-003 §6) — computed from the ledger,
+        the latest price on/before today, and the GOLDBEES holdings.
+        Nullable fields are unknowable in the current state (no price row
+        yet, empty ledger, or the live GOLDBEES quote unavailable).
+      required: [invested, grams]
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid over all purchases
+        grams:
+          type: number
+          format: double
+          description: Σ grams_bought (actual weight, PRD §9.4)
+        latest_price:
+          type: number
+          format: double
+          nullable: true
+          description: Most recent daily price on/before today — the valuation rate
+        current:
+          type: number
+          format: double
+          nullable: true
+          description: grams × latest_price
+        bees_pl:
+          type: number
+          format: double
+          nullable: true
+          description: GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+        nett_ex_bees:
+          type: number
+          format: double
+          nullable: true
+          description: current − invested
+        nett_in_bees:
+          type: number
+          format: double
+          nullable: true
+          description: nett_ex_bees + bees_pl
+        avg_per_gram:
+          type: number
+          format: double
+          nullable: true
+          description: invested ÷ grams
+        xirr:
+          type: number
+          format: double
+          nullable: true
+          description: Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+
+    GoldHistoryOverlay:
+      type: object
+      description: |
+        Physical-gold position as of a history row's date (PRD-003 §8) —
+        present only for gold-enabled users, only on dates on/after their
+        first purchase with a valuation price available. Computed on read
+        from the gold ledger + price series; never snapshotted. GOLDBEES
+        is excluded (already in the stock buckets).
+      required: [invested, current, volatility_pct]
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid of purchases dated on/before the row date
+        current:
+          type: number
+          format: double
+          description: grams held on/before the row date × that date's price (nearest earlier fallback)
+        volatility_pct:
+          type: number
+          format: double
+          description: "% change of current vs the previous row in the response window (0 on the first)"
+        pnl_pct:
+          type: number
+          format: double
+          nullable: true
+          description: (current − invested) ÷ invested × 100; null when nothing invested
+
+    GoldTransactionInput:
+      type: object
+      description: |
+        Entered fields of one physical gold purchase (PRD-003 §5). Every
+        computed column is derived server-side; clients never send them.
+      required: [date, gm_price, grams_bought, actual_paid]
+      properties:
+        date:
+          type: string
+          format: date
+          description: Purchase date
+        gm_price:
+          type: number
+          format: double
+          description: Per-gram rate for this purchase (> 0)
+        grams_bought:
+          type: number
+          format: double
+          description: Grams actually bought (> 0)
+        quote_price:
+          type: number
+          format: double
+          nullable: true
+          description: Per-gram rate the jeweler quoted
+        bill_amount:
+          type: number
+          format: double
+          nullable: true
+          description: Amount printed on the bill
+        actual_paid:
+          type: number
+          format: double
+          description: Cash actually paid (>= 0)
+        billed_weight:
+          type: number
+          format: double
+          nullable: true
+          description: Grams on the bill (can differ from actual)
+        chennai_rate:
+          type: string
+          nullable: true
+          description: Free-text remark (a rate, "Ditto", a note); not validated
+
+    GoldTransaction:
+      type: object
+      description: One gold purchase with the derived columns (PRD-003 §5).
+      required:
+        [id, date, gm_price, grams_bought, actual_paid, gold_cost,
+         gst_on_cost, total_expected, nett_per_gram, nimmi_loss]
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        gm_price:
+          type: number
+          format: double
+        grams_bought:
+          type: number
+          format: double
+        quote_price:
+          type: number
+          format: double
+          nullable: true
+        bill_amount:
+          type: number
+          format: double
+          nullable: true
+        actual_paid:
+          type: number
+          format: double
+        billed_weight:
+          type: number
+          format: double
+          nullable: true
+        chennai_rate:
+          type: string
+          nullable: true
+        gold_cost:
+          type: number
+          format: double
+          description: gm_price × grams_bought
+        gst_on_cost:
+          type: number
+          format: double
+          description: 3% of gold_cost
+        total_expected:
+          type: number
+          format: double
+          description: gold_cost + gst_on_cost
+        gst_on_quote:
+          type: number
+          format: double
+          nullable: true
+          description: 3% of quote_price; null when no quote recorded
+        nett_per_gram:
+          type: number
+          format: double
+          description: actual_paid ÷ grams_bought
+        nett_reduction:
+          type: number
+          format: double
+          nullable: true
+          description: bill_amount − actual_paid; null when no bill recorded
+        nimmi_loss:
+          type: number
+          format: double
+          description: actual_paid − gold_cost (spreadsheet J − D)
 
     Holding:
       type: object
@@ -614,6 +843,8 @@ components:
           description: Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
           items:
             $ref: "#/components/schemas/HistoryHolding"
+        gold:
+          $ref: "#/components/schemas/GoldHistoryOverlay"
 
     HistoryList:
       type: object
@@ -771,6 +1002,12 @@ components:
             $ref: "#/components/schemas/Error"
     BadGateway:
       description: Upstream (Yahoo Finance) error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    GoldUnavailable:
+      description: Gold storage (Postgres) is not configured or unreachable
       content:
         application/json:
           schema:

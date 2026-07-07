@@ -33,6 +33,8 @@ tags:
     description: Daily portfolio snapshots — read range, add/edit/delete manual rows, paste-from-sheet
   - name: Transactions
     description: Per-holding trade ledger; holdings' positions are derived from it
+  - name: Gold
+    description: Physical gold tracking — purchases, daily prices, metrics (gold-enabled users only)
 
 paths:
   /holdings:
@@ -106,6 +108,18 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_demote"
   /admin/users/{id}/region:
     $ref: "./admin/admin.yaml#/users_id_region"
+  /admin/users/{id}/gold:
+    $ref: "./admin/admin.yaml#/users_id_gold"
+  /gold/transactions:
+    $ref: "./gold/gold.yaml#/transactions"
+  /gold/transactions/{id}:
+    $ref: "./gold/gold.yaml#/transactions_id"
+  /gold/prices:
+    $ref: "./gold/gold.yaml#/prices"
+  /gold/missing-dates:
+    $ref: "./gold/gold.yaml#/missing_dates"
+  /gold/metrics:
+    $ref: "./gold/gold.yaml#/metrics"
   /admin/users/{id}/holdings:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:

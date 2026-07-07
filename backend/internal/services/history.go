@@ -41,6 +41,7 @@ type HistoryRow struct {
 	Regions  map[string]domain.RegionSnapshot `json:"regions"`
 	Totals   domain.SnapshotTotals            `json:"totals"`
 	Holdings []HistoryHolding                 `json:"holdings,omitempty"` // per-stock breakdown (cron rows only)
+	Gold     *domain.GoldHistoryPoint         `json:"gold,omitempty"`     // physical-gold overlay (gold-enabled users, PRD-003 §8)
 }
 
 // HistoryHolding is one stock's line within a history snapshot, surfaced so the

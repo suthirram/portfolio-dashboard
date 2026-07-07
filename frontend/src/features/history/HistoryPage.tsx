@@ -7,6 +7,7 @@ import {
 import {
   api,
   type DateConflict,
+  type GoldHistoryOverlay,
   type HistoryHolding,
   type HistoryRow,
   type PasteHistoryReport,
@@ -779,6 +780,10 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
     return m
   }, [byDateDesc])
   const display = sortAsc ? [...byDateDesc].reverse() : byDateDesc
+  // The gold column group appears only when the backend attached an overlay
+  // to at least one row — i.e. a gold-enabled user with a valued position
+  // (PRD-003 §8). Non-gold users never see it.
+  const hasGold = useMemo(() => rows.some(r => r.gold), [rows])
 
   return (
     <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)',
@@ -796,6 +801,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
             {REGIONS.map((r, idx) => (
               <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
+            {hasGold && <GoldHeaderGroup />}
             <th style={actionTh}></th>
           </tr>
         </thead>
@@ -819,6 +825,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                     onSelectRegion={onSelectRegion ? () => onSelectRegion(r, prev, region) : undefined}
                   />
                 ))}
+                {hasGold && <GoldRowCells gold={r.gold} />}
                 <td style={actionTd}>
                   <div style={actionCell}>
                     {onEdit && (
@@ -927,6 +934,47 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
       <td {...mouseProps} style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
+    </>
+  )
+}
+
+// Physical gold is tracked in INR and forms one column group (PRD-003 §8),
+// after the per-currency groups. A muted amber tint sets it apart without
+// competing with the saffron/blue/red currency tints.
+const GOLD_TINT = 'rgba(217,119,6,0.10)'
+
+function GoldHeaderGroup() {
+  const hdr: React.CSSProperties = { ...th, background: GOLD_TINT }
+  return (
+    <>
+      <th style={{ ...hdr, borderLeft: '2px solid var(--border)' }}>Gold invested</th>
+      <th style={hdr}>Gold value</th>
+      <th style={hdr}>Daily volatility</th>
+      <th style={hdr}>P/L%</th>
+    </>
+  )
+}
+
+function GoldRowCells({ gold }: { gold?: GoldHistoryOverlay }) {
+  const base: React.CSSProperties = { ...td, background: GOLD_TINT }
+  const first: React.CSSProperties = { ...base, borderLeft: '2px solid var(--border)' }
+  // Rows before the first purchase (or before any price existed) carry no
+  // overlay — the whole group reads em dashes rather than fake zeros.
+  if (!gold) {
+    return (
+      <>
+        <td style={first}>—</td><td style={base}>—</td><td style={base}>—</td><td style={base}>—</td>
+      </>
+    )
+  }
+  const volColor = gold.volatility_pct === 0 ? undefined
+    : gold.volatility_pct > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  return (
+    <>
+      <td style={first}>{fmtCurrency(gold.invested, '₹')}</td>
+      <td style={base}>{fmtCurrency(gold.current, '₹')}</td>
+      <td style={{ ...base, color: volColor }}>{gold.volatility_pct.toFixed(2)}</td>
+      <td style={base}>{gold.pnl_pct === null ? '—' : `${gold.pnl_pct.toFixed(2)}%`}</td>
     </>
   )
 }

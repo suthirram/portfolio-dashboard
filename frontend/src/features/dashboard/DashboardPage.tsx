@@ -12,7 +12,7 @@ import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import type { HoldingWithPrice } from '../../types'
 import {
-  ChartLineIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
+  ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
   UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
 } from '../../components/Icon'
 
@@ -160,6 +160,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           }}>
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
           </Link>
+          {!actAsUserId && user?.gold_enabled && (
+            <Link to="/gold" className="dash-nav-btn" style={{
+              background: 'var(--bg-card)', color: 'var(--text-secondary)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              padding: '6px 14px', fontSize: 13, textDecoration: 'none',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Gold</span>
+            </Link>
+          )}
           <button onClick={toggleTheme} className="dash-nav-btn"
             aria-label="Toggle theme"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

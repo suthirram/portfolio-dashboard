@@ -247,8 +247,17 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 		return nil, echo.NewHTTPError(http.StatusForbidden, "cannot delete own account")
 	}
 
-	// Holdings and their transactions first: if anything fails midway the
-	// account still exists and the delete can be retried.
+	// Data before account. No transaction spans Postgres and Mongo
+	// (dual-write, accepted — DD-003 §7): the invariant is ordering, the
+	// user row goes last. Any mid-sequence failure leaves the account
+	// present and the delete retryable (every step idempotent); gold rows
+	// can never be orphaned behind a vanished account.
+	if h.store.Gold != nil {
+		if err := h.store.Gold.DeleteAllByUser(ctx, target.ID.Hex()); err != nil {
+			h.reqLog(ctx).Error("delete user gold failed", zap.String("error", err.Error()))
+			return nil, err
+		}
+	}
 	if err := h.store.Holdings.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).Error("delete user holdings failed", zap.String("error", err.Error()))
 		return nil, err
@@ -383,6 +392,35 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 	h.reqLog(ctx).Info("account moved to region",
 		zap.String("target", target.ID.Hex()), zap.String("region", target.Region))
 	return api.AdminSetUserRegion200JSONResponse(services.UserToAPI(target, false)), nil
+}
+
+// AdminSetUserGold turns gold tracking on or off for an account. Super
+// admin only (PRD-003 §2.4); unlike role/region changes the super admin may
+// toggle their own account — the owner is the primary gold user. Toggling
+// off hides gold data but deletes nothing.
+func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetUserGoldRequestObject) (api.AdminSetUserGoldResponseObject, error) {
+	caller, ok := superAdminCaller(ctx)
+	if !ok {
+		return api.AdminSetUserGold403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminSetUserGold404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
+		"gold_enabled": request.Body.Enabled,
+		"updated_at":   time.Now(),
+	}); err != nil {
+		h.reqLog(ctx).Error("gold toggle failed", zap.String("error", err.Error()))
+		return nil, err
+	}
+	h.reqLog(ctx).Info("gold tracking toggled",
+		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
+	return api.AdminSetUserGold204Response{}, nil
 }
 
 // Act on a user's portfolio (region-scoped).

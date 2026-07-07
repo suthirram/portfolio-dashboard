@@ -72,4 +72,28 @@ func TestTierFor(t *testing.T) {
 	if got := tierFor("GET /nope/this/does/not/exist"); got != tierUser {
 		t.Errorf("unknown key tier = %v, want tierUser (default)", got)
 	}
+	if got := tierFor("PUT /api/admin/users/:id/gold"); got != tierSuperAdmin {
+		t.Errorf("PUT /api/admin/users/:id/gold tier = %v, want tierSuperAdmin", got)
+	}
+}
+
+// TestIsGoldRoute documents the prefix rule that scopes the gold_enabled
+// gate: everything under /api/gold is gold, nothing else is.
+func TestIsGoldRoute(t *testing.T) {
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{"/api/gold", true},
+		{"/api/gold/transactions", true},
+		{"/api/gold/prices", true},
+		{"/api/goldsmith", false},
+		{"/api/holdings", false},
+		{"/api/admin/users/:id/gold", false},
+	}
+	for _, tc := range cases {
+		if got := isGoldRoute(tc.path); got != tc.want {
+			t.Errorf("isGoldRoute(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
 }

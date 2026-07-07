@@ -32,6 +32,14 @@ export const ChartLineIcon = (p: IconProps) => (
   </Svg>
 )
 
+export const CoinsIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+    <path d="M7 6h1v4" />
+  </Svg>
+)
+
 export const ListIcon = (p: IconProps) => (
   <Svg {...p}>
     <line x1="8" y1="6" x2="21" y2="6" />

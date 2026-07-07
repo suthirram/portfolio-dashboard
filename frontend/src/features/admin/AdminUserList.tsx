@@ -208,6 +208,13 @@ export default function AdminUserList() {
                             Move region
                           </button>
                         )}
+                        {isSuper && (
+                          <button style={action} disabled={busy === u.id}
+                            onClick={() => runAction(u.id, () => api.adminSetUserGold(u.id, { enabled: !u.gold_enabled }),
+                              u.gold_enabled ? `Disable gold tracking for ${u.username}? Data is kept, only hidden.` : undefined)}>
+                            {u.gold_enabled ? 'Disable gold' : 'Enable gold'}
+                          </button>
+                        )}
                         {!isRowSuper && !isSelf && (
                           <button style={{ ...action, color: 'var(--red)' }} disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminDeleteUser(u.id), `Permanently delete ${u.username} and all their holdings? This cannot be undone.`)}>

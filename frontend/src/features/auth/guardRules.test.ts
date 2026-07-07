@@ -3,6 +3,7 @@ import {
   redirectIfAuthedDecision,
   requireAdminDecision,
   requireAuthDecision,
+  requireGoldDecision,
   requireSuperAdminDecision,
 } from './guardRules'
 import type { User } from '../../lib/api/client'
@@ -16,7 +17,30 @@ const baseUser = (over: Partial<User> = {}): User => ({
   must_change_password: false,
   disabled: false,
   locked: false,
+  gold_enabled: false,
   ...(over as object),
+})
+
+describe('requireGoldDecision', () => {
+  it('renders for gold-enabled users', () => {
+    expect(requireGoldDecision({ user: baseUser({ gold_enabled: true }), loading: false }))
+      .toEqual({ kind: 'render' })
+  })
+  it('redirects gold-disabled users to the dashboard', () => {
+    expect(requireGoldDecision({ user: baseUser(), loading: false }))
+      .toEqual({ kind: 'redirect', to: '/' })
+  })
+  it('redirects anonymous users to login', () => {
+    expect(requireGoldDecision({ user: null, loading: false }))
+      .toEqual({ kind: 'redirect', to: '/login' })
+  })
+  it('forces onboarding first', () => {
+    expect(requireGoldDecision({ user: baseUser({ gold_enabled: true, must_change_password: true }), loading: false }))
+      .toEqual({ kind: 'redirect', to: '/onboarding' })
+  })
+  it('waits while auth resolves', () => {
+    expect(requireGoldDecision({ user: null, loading: true })).toEqual({ kind: 'loading' })
+  })
 })
 
 describe('requireAuthDecision', () => {

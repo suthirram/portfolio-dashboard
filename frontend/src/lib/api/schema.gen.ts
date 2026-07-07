@@ -625,6 +625,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/gold": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable gold tracking for an account (super admin only)
+         * @description Super admin only — region admins cannot toggle gold (PRD-003 §2.4).
+         *     Toggling off hides gold data but deletes nothing. The super admin may
+         *     toggle their own account.
+         */
+        put: operations["adminSetUserGold"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gold/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's gold purchases, newest first */
+        get: operations["listGoldTransactions"];
+        put?: never;
+        /** Record a gold purchase */
+        post: operations["createGoldTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gold/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Gold transaction id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a gold purchase */
+        put: operations["updateGoldTransaction"];
+        post?: never;
+        /** Delete a gold purchase */
+        delete: operations["deleteGoldTransaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gold/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's daily price series, ascending */
+        get: operations["listGoldPrices"];
+        /** Bulk upsert daily prices (the missing-day prompt saves all gaps in one call) */
+        put: operations["putGoldPrices"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gold/missing-dates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Calendar days since the first purchase that lack a price row */
+        get: operations["listGoldMissingDates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gold/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The live gold metrics table incl. XIRR */
+        get: operations["getGoldMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/holdings": {
         parameters: {
             query?: never;
@@ -1003,6 +1116,35 @@ export interface components {
              */
             current?: number;
         };
+        /**
+         * @description Physical-gold position as of a history row's date (PRD-003 §8) —
+         *     present only for gold-enabled users, only on dates on/after their
+         *     first purchase with a valuation price available. Computed on read
+         *     from the gold ledger + price series; never snapshotted. GOLDBEES
+         *     is excluded (already in the stock buckets).
+         */
+        GoldHistoryOverlay: {
+            /**
+             * Format: double
+             * @description Σ actual_paid of purchases dated on/before the row date
+             */
+            invested: number;
+            /**
+             * Format: double
+             * @description grams held on/before the row date × that date's price (nearest earlier fallback)
+             */
+            current: number;
+            /**
+             * Format: double
+             * @description % change of current vs the previous row in the response window (0 on the first)
+             */
+            volatility_pct: number;
+            /**
+             * Format: double
+             * @description (current − invested) ÷ invested × 100; null when nothing invested
+             */
+            pnl_pct?: number | null;
+        };
         HistoryRow: {
             /** Format: date */
             date: string;
@@ -1012,6 +1154,7 @@ export interface components {
             totals: components["schemas"]["HistoryTotals"];
             /** @description Per-stock breakdown for cron-sourced rows; absent on manual-only rows. */
             holdings?: components["schemas"]["HistoryHolding"][];
+            gold?: components["schemas"]["GoldHistoryOverlay"];
         };
         HistoryList: {
             currency: string;
@@ -1107,6 +1250,8 @@ export interface components {
             disabled: boolean;
             /** @description Security-question recovery locked after three wrong attempts */
             locked: boolean;
+            /** @description Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4) */
+            gold_enabled: boolean;
             /** @description Forced onboarding pending (bootstrap super admin) */
             must_change_password: boolean;
             /** @description The catalogue keys of the account's chosen questions (own account only) */
@@ -1149,6 +1294,178 @@ export interface components {
         RegionUpdateRequest: {
             /** @description One of the /regions catalogue ids */
             region: string;
+        };
+        GoldToggleRequest: {
+            /** @description Turn gold tracking on or off for the account */
+            enabled: boolean;
+        };
+        /** @description One gold purchase with the derived columns (PRD-003 §5). */
+        GoldTransaction: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date */
+            date: string;
+            /** Format: double */
+            gm_price: number;
+            /** Format: double */
+            grams_bought: number;
+            /** Format: double */
+            quote_price?: number | null;
+            /** Format: double */
+            bill_amount?: number | null;
+            /** Format: double */
+            actual_paid: number;
+            /** Format: double */
+            billed_weight?: number | null;
+            chennai_rate?: string | null;
+            /**
+             * Format: double
+             * @description gm_price × grams_bought
+             */
+            gold_cost: number;
+            /**
+             * Format: double
+             * @description 3% of gold_cost
+             */
+            gst_on_cost: number;
+            /**
+             * Format: double
+             * @description gold_cost + gst_on_cost
+             */
+            total_expected: number;
+            /**
+             * Format: double
+             * @description 3% of quote_price; null when no quote recorded
+             */
+            gst_on_quote?: number | null;
+            /**
+             * Format: double
+             * @description actual_paid ÷ grams_bought
+             */
+            nett_per_gram: number;
+            /**
+             * Format: double
+             * @description bill_amount − actual_paid; null when no bill recorded
+             */
+            nett_reduction?: number | null;
+            /**
+             * Format: double
+             * @description actual_paid − gold_cost (spreadsheet J − D)
+             */
+            nimmi_loss: number;
+        };
+        /**
+         * @description Entered fields of one physical gold purchase (PRD-003 §5). Every
+         *     computed column is derived server-side; clients never send them.
+         */
+        GoldTransactionInput: {
+            /**
+             * Format: date
+             * @description Purchase date
+             */
+            date: string;
+            /**
+             * Format: double
+             * @description Per-gram rate for this purchase (> 0)
+             */
+            gm_price: number;
+            /**
+             * Format: double
+             * @description Grams actually bought (> 0)
+             */
+            grams_bought: number;
+            /**
+             * Format: double
+             * @description Per-gram rate the jeweler quoted
+             */
+            quote_price?: number | null;
+            /**
+             * Format: double
+             * @description Amount printed on the bill
+             */
+            bill_amount?: number | null;
+            /**
+             * Format: double
+             * @description Cash actually paid (>= 0)
+             */
+            actual_paid: number;
+            /**
+             * Format: double
+             * @description Grams on the bill (can differ from actual)
+             */
+            billed_weight?: number | null;
+            /** @description Free-text remark (a rate, "Ditto", a note); not validated */
+            chennai_rate?: string | null;
+        };
+        /** @description One user-entered daily per-gram gold price (PRD-003 §7). */
+        GoldPrice: {
+            /** Format: date */
+            date: string;
+            /**
+             * Format: double
+             * @description Per-gram rate for that calendar day (> 0)
+             */
+            price_per_gram: number;
+        };
+        /**
+         * @description Calendar days between the first gold purchase and today that have
+         *     no price row — the Gold page's blocking prompt (PRD-003 §7).
+         */
+        GoldMissingDates: {
+            missing: string[];
+        };
+        /**
+         * @description The live metrics table (PRD-003 §6) — computed from the ledger,
+         *     the latest price on/before today, and the GOLDBEES holdings.
+         *     Nullable fields are unknowable in the current state (no price row
+         *     yet, empty ledger, or the live GOLDBEES quote unavailable).
+         */
+        GoldMetrics: {
+            /**
+             * Format: double
+             * @description Σ actual_paid over all purchases
+             */
+            invested: number;
+            /**
+             * Format: double
+             * @description Σ grams_bought (actual weight, PRD §9.4)
+             */
+            grams: number;
+            /**
+             * Format: double
+             * @description Most recent daily price on/before today — the valuation rate
+             */
+            latest_price?: number | null;
+            /**
+             * Format: double
+             * @description grams × latest_price
+             */
+            current?: number | null;
+            /**
+             * Format: double
+             * @description GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+             */
+            bees_pl?: number | null;
+            /**
+             * Format: double
+             * @description current − invested
+             */
+            nett_ex_bees?: number | null;
+            /**
+             * Format: double
+             * @description nett_ex_bees + bees_pl
+             */
+            nett_in_bees?: number | null;
+            /**
+             * Format: double
+             * @description invested ÷ grams
+             */
+            avg_per_gram?: number | null;
+            /**
+             * Format: double
+             * @description Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+             */
+            xirr?: number | null;
         };
     };
     responses: {
@@ -1208,6 +1525,15 @@ export interface components {
         };
         /** @description Recovery locked after three wrong security-answer attempts */
         Locked: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Gold storage (Postgres) is not configured or unreachable */
+        GoldUnavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2231,6 +2557,234 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminSetUserGold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Gold access updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listGoldTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Purchases with computed columns (date desc) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldTransaction"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    createGoldTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldTransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Stored purchase with computed columns */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldTransaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    updateGoldTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Gold transaction id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldTransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Updated purchase with computed columns */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldTransaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    deleteGoldTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Gold transaction id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    listGoldPrices: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound; open when omitted */
+                from?: string;
+                /** @description Inclusive upper bound; open when omitted */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Price rows in range, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldPrice"][];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    putGoldPrices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoldPrice"][];
+            };
+        };
+        responses: {
+            /** @description Prices stored (existing days overwritten) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    listGoldMissingDates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Gap list for the blocking prompt; empty when caught up */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldMissingDates"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
+        };
+    };
+    getGoldMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metrics computed from the ledger + latest price + GOLDBEES */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoldMetrics"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            503: components["responses"]["GoldUnavailable"];
         };
     };
     adminListUserHoldings: {

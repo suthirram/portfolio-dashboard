@@ -361,6 +361,42 @@ describe('HistoryTable', () => {
     expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-17')
     expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-16')
   })
+
+  it('omits the gold column group when no row carries an overlay', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}}
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
+    expect(screen.queryByText('Gold invested')).toBeNull()
+    expect(screen.queryByText('Gold value')).toBeNull()
+  })
+
+  it('renders the gold column group with the overlay values (owner 72 g example)', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}}
+      rows={[row({
+        date: '2026-06-16',
+        regions: { INR: region(100, 198, 'cron') },
+        gold: { invested: 7200, current: 14400, volatility_pct: 0, pnl_pct: 100 },
+      })]} />)
+    expect(screen.getByText('Gold invested')).toBeInTheDocument()
+    expect(screen.getByText('₹7,200.00')).toBeInTheDocument()
+    expect(screen.getByText('₹14,400.00')).toBeInTheDocument()
+    expect(screen.getByText('0.00')).toBeInTheDocument()   // volatility
+    expect(screen.getByText('100.00%')).toBeInTheDocument() // P/L
+  })
+
+  it('renders em dashes in the gold group for a pre-purchase row while the group is shown', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: { INR: region(100, 198, 'cron') },
+        gold: { invested: 7200, current: 14400, volatility_pct: 0, pnl_pct: 100 } }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } }), // no overlay
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    // Layout: date(1) + 3 currency groups × 4 (12) + gold group (4) + action(1).
+    // The gold cells are indices 13–16; on a pre-purchase row all four are —.
+    const tr = Array.from(document.querySelectorAll('tbody tr'))
+      .find(t => t.querySelector('td')?.textContent === '2026-06-16')!
+    const cells = Array.from(tr.querySelectorAll('td'))
+    expect(cells.slice(13, 17).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+  })
 })
 
 // ---- HistoryTable cell tints ----

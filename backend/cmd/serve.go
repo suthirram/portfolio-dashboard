@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -21,11 +22,12 @@ import (
 )
 
 var (
-	flagPort      string
-	flagMongoURI  string
-	flagMongoDB   string
-	flagLogLevel  string
-	flagLogFormat string
+	flagPort        string
+	flagMongoURI    string
+	flagMongoDB     string
+	flagPostgresURI string
+	flagLogLevel    string
+	flagLogFormat   string
 )
 
 var serveCmd = &cobra.Command{
@@ -42,6 +44,7 @@ func init() {
 	serveCmd.Flags().StringVar(&flagPort, "port", defaults.Port, "HTTP listen port ($PORT)")
 	serveCmd.Flags().StringVar(&flagMongoURI, "mongo-uri", defaults.MongoURI, "MongoDB connection URI ($MONGODB_URI)")
 	serveCmd.Flags().StringVar(&flagMongoDB, "mongo-db", defaults.MongoDB, "MongoDB database name ($MONGODB_DATABASE)")
+	serveCmd.Flags().StringVar(&flagPostgresURI, "postgres-uri", defaults.PostgresURI, "Postgres connection URI for gold tracking; empty disables ($POSTGRES_URI)")
 	serveCmd.Flags().StringVar(&flagLogLevel, "log-level", defaults.LogLevel, "Log level: debug|info|warn|error ($LOG_LEVEL)")
 	serveCmd.Flags().StringVar(&flagLogFormat, "log-format", defaults.LogFormat, "Log format: json|text ($LOG_FORMAT)")
 }
@@ -75,7 +78,17 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	}
 	defer disconnect()
 
+	// Postgres backs gold tracking only (DD-003 §1.1). It is optional at
+	// boot: when absent the rest of the app must keep serving, so failures
+	// log and degrade instead of aborting startup. The pool is wired into
+	// the gold store in a later PD-043 slice.
+	pgPool := connectPostgres(ctx, cfg, logger)
+	if pgPool != nil {
+		defer pgPool.Close()
+	}
+
 	h := controllers.New(database, logger, cfg.CookieSecure)
+	h.AttachGold(pgPool)
 	e := httpserver.New(cfg, logger, database, h)
 
 	if err := httpserver.Run(ctx, e, cfg, logger); err != nil {
@@ -101,6 +114,9 @@ func buildConfig(cmd *cobra.Command) config.Config {
 	if cmd.Flags().Changed("mongo-db") {
 		cfg.MongoDB = flagMongoDB
 	}
+	if cmd.Flags().Changed("postgres-uri") {
+		cfg.PostgresURI = flagPostgresURI
+	}
 	if cmd.Flags().Changed("log-level") {
 		cfg.LogLevel = flagLogLevel
 	}
@@ -108,6 +124,29 @@ func buildConfig(cmd *cobra.Command) config.Config {
 		cfg.LogFormat = flagLogFormat
 	}
 	return cfg
+}
+
+// connectPostgres connects and migrates the gold database. Never fatal: any
+// failure returns nil (gold features off) and the server boots without it.
+func connectPostgres(ctx context.Context, cfg config.Config, logger *zap.Logger) *pgxpool.Pool {
+	if cfg.PostgresURI == "" {
+		logger.Info("postgres not configured; gold features disabled")
+		return nil
+	}
+	startCtx, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
+	defer cancel()
+
+	pool, err := db.ConnectPostgres(startCtx, cfg.PostgresURI, logger)
+	if err != nil {
+		logger.Warn("postgres unavailable; gold features disabled", zap.String("error", err.Error()))
+		return nil
+	}
+	if err := db.MigratePostgres(startCtx, pool, logger); err != nil {
+		logger.Error("postgres migration failed; gold features disabled", zap.String("error", err.Error()))
+		pool.Close()
+		return nil
+	}
+	return pool
 }
 
 func connectMongo(ctx context.Context, cfg config.Config, logger *zap.Logger) (*mongo.Database, func(), error) {

@@ -16,6 +16,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # Gold tracking data (PRD-003 / DD-003) lives in Postgres.
+  postgres:
+    image: postgres:16-alpine
+    container_name: portfolio_postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio
+      POSTGRES_DB: portfolio
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio -d portfolio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -25,9 +43,12 @@ services:
       - "8080:8080"
     environment:
       MONGODB_URI: mongodb://mongodb:27017/portfolio
+      POSTGRES_URI: postgres://portfolio:portfolio@postgres:5432/portfolio?sslmode=disable
       PORT: 8080
     depends_on:
       mongodb:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: unless-stopped
 
@@ -46,4 +67,6 @@ services:
 
 volumes:
   mongo_data:
+    driver: local
+  pg_data:
     driver: local

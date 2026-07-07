@@ -21,10 +21,11 @@ type User struct {
 	UsernameDisplay string             `bson:"username_display" json:"username_display"` // as typed, for the UI
 	Name            string             `bson:"name" json:"name"`
 	PasswordHash    string             `bson:"password_hash" json:"-"`
-	Role            string             `bson:"role" json:"role"`               // user | admin | superadmin
-	Region          string             `bson:"region,omitempty" json:"region"` // india|europe|us; "" for super admin (= all)
-	Disabled        bool               `bson:"disabled" json:"disabled"`       // hide / soft-delete flag
-	Locked          bool               `bson:"locked" json:"locked"`           // security_question_failures >= 3
+	Role            string             `bson:"role" json:"role"`                           // user | admin | superadmin
+	Region          string             `bson:"region,omitempty" json:"region"`             // india|europe|us; "" for super admin (= all)
+	Disabled        bool               `bson:"disabled" json:"disabled"`                   // hide / soft-delete flag
+	Locked          bool               `bson:"locked" json:"locked"`                       // security_question_failures >= 3
+	GoldEnabled     bool               `bson:"gold_enabled,omitempty" json:"gold_enabled"` // gold-tracking access (PRD-003 §2.4); super-admin toggled, omitted = false
 
 	LoginFailures            int  `bson:"login_failures" json:"-"`
 	SecurityQuestionFailures int  `bson:"security_question_failures" json:"-"`

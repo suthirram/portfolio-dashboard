@@ -31,6 +31,11 @@ export type UpdateProfileRequest = Schemas['UpdateProfileRequest']
 export type UpdateSecurityQuestionsRequest = Schemas['UpdateSecurityQuestionsRequest']
 export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
+export type GoldToggleRequest = Schemas['GoldToggleRequest']
+export type GoldTransaction = Schemas['GoldTransaction']
+export type GoldTransactionInput = Schemas['GoldTransactionInput']
+export type GoldPrice = Schemas['GoldPrice']
+export type GoldMetrics = Schemas['GoldMetrics']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -145,6 +150,22 @@ export const api = {
   adminPromoteUser:     (id: string) => request<User>('POST', `/admin/users/${id}/promote`, {}),
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
+  adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
+
+  listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
+  createGoldTransaction: (body: GoldTransactionInput) => request<GoldTransaction>('POST', '/gold/transactions', body),
+  updateGoldTransaction: (id: number, body: GoldTransactionInput) => request<GoldTransaction>('PUT', `/gold/transactions/${id}`, body),
+  deleteGoldTransaction: (id: number) => request<void>('DELETE', `/gold/transactions/${id}`),
+  listGoldPrices:        (from?: string, to?: string) => {
+    const q = new URLSearchParams()
+    if (from) q.set('from', from)
+    if (to) q.set('to', to)
+    const qs = q.toString()
+    return request<GoldPrice[]>('GET', `/gold/prices${qs ? `?${qs}` : ''}`)
+  },
+  putGoldPrices:         (prices: GoldPrice[]) => request<void>('PUT', '/gold/prices', prices),
+  listGoldMissingDates:  () => request<{ missing: string[] }>('GET', '/gold/missing-dates'),
+  getGoldMetrics:        () => request<GoldMetrics>('GET', '/gold/metrics'),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 
@@ -177,12 +198,23 @@ export interface HistoryHolding {
   current?: number
 }
 
+// Physical-gold overlay on a history row (PRD-003 §8); present only for
+// gold-enabled users on dates on/after their first purchase with a price.
+export interface GoldHistoryOverlay {
+  invested: number
+  current: number
+  volatility_pct: number
+  pnl_pct: number | null
+}
+
 export interface HistoryRow {
   date: string
   regions: Record<string, RegionSnapshot>
   totals: HistoryTotals
   // Per-stock breakdown for cron rows; absent on manual-only rows.
   holdings?: HistoryHolding[]
+  // Gold position as-of the row date; absent for non-gold users / pre-purchase rows.
+  gold?: GoldHistoryOverlay
 }
 
 export interface HistoryList {

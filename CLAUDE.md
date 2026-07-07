@@ -146,6 +146,7 @@ All prices are cached per-symbol in `PriceService.cache` (5-min TTL).
 **Backend** (defaults work for local dev):
 
 * `MONGODB_URI` — default `mongodb://localhost:27017/portfolio`
+* `POSTGRES_URI` — gold-tracking DB (DD-003); default `postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable`. Optional at boot: unreachable/empty ⇒ server runs with gold features disabled. Embedded migrations in `internal/db/migrations/` apply on connect.
 * `PORT` — default `8080`
 * `CORS_ALLOWED_ORIGINS` — comma-separated; **required in production** because credentialed CORS forbids `*`. Dev fallback is `http://localhost:3000,http://localhost:5173`.
 * `COOKIE_SECURE` — `true` in production, default `false`. Drives session-cookie `Secure` / `SameSite=None`; do not derive from `c.Scheme()`.

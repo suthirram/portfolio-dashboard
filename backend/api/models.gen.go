@@ -353,6 +353,140 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// GoldHistoryOverlay Physical-gold position as of a history row's date (PRD-003 §8) —
+// present only for gold-enabled users, only on dates on/after their
+// first purchase with a valuation price available. Computed on read
+// from the gold ledger + price series; never snapshotted. GOLDBEES
+// is excluded (already in the stock buckets).
+type GoldHistoryOverlay struct {
+	// Current grams held on/before the row date × that date's price (nearest earlier fallback)
+	Current float64 `json:"current"`
+
+	// Invested Σ actual_paid of purchases dated on/before the row date
+	Invested float64 `json:"invested"`
+
+	// PnlPct (current − invested) ÷ invested × 100; null when nothing invested
+	PnlPct *float64 `json:"pnl_pct,omitempty"`
+
+	// VolatilityPct % change of current vs the previous row in the response window (0 on the first)
+	VolatilityPct float64 `json:"volatility_pct"`
+}
+
+// GoldMetrics The live metrics table (PRD-003 §6) — computed from the ledger,
+// the latest price on/before today, and the GOLDBEES holdings.
+// Nullable fields are unknowable in the current state (no price row
+// yet, empty ledger, or the live GOLDBEES quote unavailable).
+type GoldMetrics struct {
+	// AvgPerGram invested ÷ grams
+	AvgPerGram *float64 `json:"avg_per_gram,omitempty"`
+
+	// BeesPl GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+	BeesPl *float64 `json:"bees_pl,omitempty"`
+
+	// Current grams × latest_price
+	Current *float64 `json:"current,omitempty"`
+
+	// Grams Σ grams_bought (actual weight, PRD §9.4)
+	Grams float64 `json:"grams"`
+
+	// Invested Σ actual_paid over all purchases
+	Invested float64 `json:"invested"`
+
+	// LatestPrice Most recent daily price on/before today — the valuation rate
+	LatestPrice *float64 `json:"latest_price,omitempty"`
+
+	// NettExBees current − invested
+	NettExBees *float64 `json:"nett_ex_bees,omitempty"`
+
+	// NettInBees nett_ex_bees + bees_pl
+	NettInBees *float64 `json:"nett_in_bees,omitempty"`
+
+	// Xirr Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+	Xirr *float64 `json:"xirr,omitempty"`
+}
+
+// GoldMissingDates Calendar days between the first gold purchase and today that have
+// no price row — the Gold page's blocking prompt (PRD-003 §7).
+type GoldMissingDates struct {
+	Missing []openapi_types.Date `json:"missing"`
+}
+
+// GoldPrice One user-entered daily per-gram gold price (PRD-003 §7).
+type GoldPrice struct {
+	Date openapi_types.Date `json:"date"`
+
+	// PricePerGram Per-gram rate for that calendar day (> 0)
+	PricePerGram float64 `json:"price_per_gram"`
+}
+
+// GoldToggleRequest defines model for GoldToggleRequest.
+type GoldToggleRequest struct {
+	// Enabled Turn gold tracking on or off for the account
+	Enabled bool `json:"enabled"`
+}
+
+// GoldTransaction One gold purchase with the derived columns (PRD-003 §5).
+type GoldTransaction struct {
+	ActualPaid   float64            `json:"actual_paid"`
+	BillAmount   *float64           `json:"bill_amount,omitempty"`
+	BilledWeight *float64           `json:"billed_weight,omitempty"`
+	ChennaiRate  *string            `json:"chennai_rate,omitempty"`
+	Date         openapi_types.Date `json:"date"`
+	GmPrice      float64            `json:"gm_price"`
+
+	// GoldCost gm_price × grams_bought
+	GoldCost    float64 `json:"gold_cost"`
+	GramsBought float64 `json:"grams_bought"`
+
+	// GstOnCost 3% of gold_cost
+	GstOnCost float64 `json:"gst_on_cost"`
+
+	// GstOnQuote 3% of quote_price; null when no quote recorded
+	GstOnQuote *float64 `json:"gst_on_quote,omitempty"`
+	Id         int64    `json:"id"`
+
+	// NettPerGram actual_paid ÷ grams_bought
+	NettPerGram float64 `json:"nett_per_gram"`
+
+	// NettReduction bill_amount − actual_paid; null when no bill recorded
+	NettReduction *float64 `json:"nett_reduction,omitempty"`
+
+	// NimmiLoss actual_paid − gold_cost (spreadsheet J − D)
+	NimmiLoss  float64  `json:"nimmi_loss"`
+	QuotePrice *float64 `json:"quote_price,omitempty"`
+
+	// TotalExpected gold_cost + gst_on_cost
+	TotalExpected float64 `json:"total_expected"`
+}
+
+// GoldTransactionInput Entered fields of one physical gold purchase (PRD-003 §5). Every
+// computed column is derived server-side; clients never send them.
+type GoldTransactionInput struct {
+	// ActualPaid Cash actually paid (>= 0)
+	ActualPaid float64 `json:"actual_paid"`
+
+	// BillAmount Amount printed on the bill
+	BillAmount *float64 `json:"bill_amount,omitempty"`
+
+	// BilledWeight Grams on the bill (can differ from actual)
+	BilledWeight *float64 `json:"billed_weight,omitempty"`
+
+	// ChennaiRate Free-text remark (a rate, "Ditto", a note); not validated
+	ChennaiRate *string `json:"chennai_rate,omitempty"`
+
+	// Date Purchase date
+	Date openapi_types.Date `json:"date"`
+
+	// GmPrice Per-gram rate for this purchase (> 0)
+	GmPrice float64 `json:"gm_price"`
+
+	// GramsBought Grams actually bought (> 0)
+	GramsBought float64 `json:"grams_bought"`
+
+	// QuotePrice Per-gram rate the jeweler quoted
+	QuotePrice *float64 `json:"quote_price,omitempty"`
+}
+
 // HistoryConflictResponse defines model for HistoryConflictResponse.
 type HistoryConflictResponse struct {
 	Conflicts []struct {
@@ -420,6 +554,13 @@ type HistoryRegionSnapshotSource string
 // HistoryRow defines model for HistoryRow.
 type HistoryRow struct {
 	Date openapi_types.Date `json:"date"`
+
+	// Gold Physical-gold position as of a history row's date (PRD-003 §8) —
+	// present only for gold-enabled users, only on dates on/after their
+	// first purchase with a valuation price available. Computed on read
+	// from the gold ledger + price series; never snapshotted. GOLDBEES
+	// is excluded (already in the stock buckets).
+	Gold *GoldHistoryOverlay `json:"gold,omitempty"`
 
 	// Holdings Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
 	Holdings *[]HistoryHolding                `json:"holdings,omitempty"`
@@ -773,6 +914,9 @@ type User struct {
 	// Disabled Hidden (reversibly blocked) by an admin
 	Disabled bool `json:"disabled"`
 
+	// GoldEnabled Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
+	GoldEnabled bool `json:"gold_enabled"`
+
 	// Id MongoDB ObjectID
 	Id          string     `json:"id"`
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
@@ -813,6 +957,9 @@ type Conflict = Error
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
 
+// GoldUnavailable defines model for GoldUnavailable.
+type GoldUnavailable = Error
+
 // Locked defines model for Locked.
 type Locked = Error
 
@@ -829,6 +976,8 @@ type BadRequestJSONResponse Error
 type ConflictJSONResponse Error
 
 type ForbiddenJSONResponse Error
+
+type GoldUnavailableJSONResponse Error
 
 type LockedJSONResponse Error
 

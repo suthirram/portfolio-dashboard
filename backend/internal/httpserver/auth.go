@@ -79,6 +79,7 @@ var routeTiers = map[string]routeTier{
 	"POST /api/admin/users/:id/promote": tierSuperAdmin,
 	"POST /api/admin/users/:id/demote":  tierSuperAdmin,
 	"PUT /api/admin/users/:id/region":   tierSuperAdmin,
+	"PUT /api/admin/users/:id/gold":     tierSuperAdmin,
 
 	// Admin or super-admin — every other /api/admin/... route.
 	"GET /api/admin/users":                            tierAdmin,
@@ -99,6 +100,13 @@ var routeTiers = map[string]routeTier{
 // tierUser when the key is not in the table.
 func tierFor(key string) routeTier {
 	return routeTiers[key]
+}
+
+// isGoldRoute matches the /api/gold/... tree. Every route under it requires
+// the caller's gold_enabled flag (DD-003 §2.1) on top of its tier; the
+// prefix rule means new gold endpoints are gated without editing a table.
+func isGoldRoute(path string) bool {
+	return path == "/api/gold" || strings.HasPrefix(path, "/api/gold/")
 }
 
 // userSatisfiesTier reports whether the caller meets the route's tier.
@@ -165,6 +173,11 @@ func AuthGate(st *persistence.Store, logger *zap.Logger, cookieSecure bool) echo
 				case tierAdmin:
 					return echo.NewHTTPError(http.StatusForbidden, "admin access required")
 				}
+			}
+			if isGoldRoute(c.Path()) && !user.GoldEnabled {
+				// 404, not 403 — a disabled account must not learn the
+				// feature exists (no-enumeration, DD-003 §2.1).
+				return echo.NewHTTPError(http.StatusNotFound, "not found")
 			}
 			return next(c)
 		}

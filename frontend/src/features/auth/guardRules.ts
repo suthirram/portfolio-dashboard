@@ -44,6 +44,15 @@ export function requireSuperAdminDecision({ user, loading }: AuthState): GuardDe
   return { kind: 'render' }
 }
 
+/** Gold-enabled users only (PRD-003 §2.4); everyone else silently lands on the dashboard. */
+export function requireGoldDecision({ user, loading }: AuthState): GuardDecision {
+  if (loading) return { kind: 'loading' }
+  if (!user) return { kind: 'redirect', to: '/login' }
+  if (user.must_change_password) return { kind: 'redirect', to: '/onboarding' }
+  if (!user.gold_enabled) return { kind: 'redirect', to: '/' }
+  return { kind: 'render' }
+}
+
 /** Keep already-logged-in users out of /login, /signup, /forgot. */
 export function redirectIfAuthedDecision({ user, loading }: AuthState): GuardDecision {
   if (loading) return { kind: 'loading' }
