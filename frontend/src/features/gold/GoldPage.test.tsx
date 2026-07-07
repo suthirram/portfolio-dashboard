@@ -66,6 +66,28 @@ describe('GoldPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Fill missing gold prices' })).toBeNull())
   })
 
+  it('saves only the filled days and re-asks for the ones left blank', async () => {
+    vi.mocked(api.listGoldMissingDates)
+      .mockResolvedValueOnce({ missing: ['2026-07-04', '2026-07-05', '2026-07-06'] })
+      .mockResolvedValue({ missing: ['2026-07-05', '2026-07-06'] }) // 04 filled, two remain
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
+    // Fill only one of the three days.
+    fireEvent.change(screen.getByLabelText('2026-07-04'), { target: { value: '7300' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
+
+    // Only the filled day is sent.
+    await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([
+      { date: '2026-07-04', price_per_gram: 7300 },
+    ]))
+    // The prompt stays open and now lists just the two still-blank days.
+    await waitFor(() => expect(screen.queryByLabelText('2026-07-04')).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Fill missing gold prices' })).toBeTruthy()
+    expect(screen.getByLabelText('2026-07-05')).toBeTruthy()
+    expect(screen.getByLabelText('2026-07-06')).toBeTruthy()
+  })
+
   it('does not show the prompt when there are no gaps', async () => {
     renderPage()
     await screen.findByText(/No gold purchases yet/)

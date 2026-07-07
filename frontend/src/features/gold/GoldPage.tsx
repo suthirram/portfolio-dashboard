@@ -24,29 +24,43 @@ export default function GoldPage() {
   const [metrics, setMetrics] = useState<GoldMetrics | null>(null)
   const [promptSkipped, setPromptSkipped] = useState(false)
 
+  // fetchAll refreshes every gold slice at once. The gap list drives the
+  // blocking prompt (PRD-003 §7), metrics is the live summary (§6).
+  const fetchAll = useCallback(async () => {
+    const [txns, priceRows, gaps, m] = await Promise.all([
+      api.listGoldTransactions(),
+      api.listGoldPrices(),
+      api.listGoldMissingDates(),
+      api.getGoldMetrics(),
+    ])
+    setRows(txns)
+    setPrices(priceRows)
+    setMissing(gaps.missing)
+    setMetrics(m)
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     setErr(null)
     try {
-      // Transactions, recent prices, the gap list, and metrics load
-      // together — the gap list drives the blocking prompt (PRD-003 §7),
-      // metrics is the live summary table (§6).
-      const [txns, priceRows, gaps, m] = await Promise.all([
-        api.listGoldTransactions(),
-        api.listGoldPrices(),
-        api.listGoldMissingDates(),
-        api.getGoldMetrics(),
-      ])
-      setRows(txns)
-      setPrices(priceRows)
-      setMissing(gaps.missing)
-      setMetrics(m)
+      await fetchAll()
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to load gold data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [fetchAll])
+
+  // refresh re-pulls data without the full-page spinner — used after a save
+  // so the missing-price prompt re-renders with the days still left blank
+  // instead of the whole page flashing to a loading state.
+  const refresh = useCallback(async () => {
+    try {
+      await fetchAll()
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : 'Failed to refresh gold data')
+    }
+  }, [fetchAll])
 
   useEffect(() => { void load() }, [load])
 
@@ -175,20 +189,23 @@ export default function GoldPage() {
         </div>
 
         {!loading && metrics && <GoldMetricsPanel metrics={metrics} />}
-        {!loading && <GoldPricesPanel prices={prices} onSaved={() => void load()} />}
+        {!loading && <GoldPricesPanel prices={prices} onSaved={() => void refresh()} />}
       </main>
 
       {modal.open && (
-        <GoldTxnModal txn={modal.txn} onClose={() => setModal({ open: false, txn: null })} onSaved={() => void load()} />
+        <GoldTxnModal txn={modal.txn} onClose={() => setModal({ open: false, txn: null })} onSaved={() => void refresh()} />
       )}
 
       {/* Blocking gap prompt (PRD-003 §7): only once the page has loaded, the
-          user hasn't dismissed it this visit, and gaps remain. */}
+          user hasn't dismissed it this visit, and gaps remain. Saving fills
+          only the days the user typed and refreshes — the prompt re-renders
+          with the days still blank, re-asking, until they are all filled or
+          the user skips. */}
       {!loading && !promptSkipped && missing.length > 0 && (
         <MissingPricesModal
           missing={missing}
           onSkip={() => setPromptSkipped(true)}
-          onSaved={() => { setPromptSkipped(true); void load() }}
+          onSaved={() => void refresh()}
         />
       )}
     </div>
