@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type GoldTransaction } from '../../lib/api/client'
+import { api, ApiError, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
 import { EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
 import GoldTxnModal from './GoldTxnModal'
+import GoldPricesPanel from './GoldPricesPanel'
+import MissingPricesModal from './MissingPricesModal'
 
 // The full PRD-003 §5 column set: entered fields interleaved with the
 // server-computed columns (shaded), in the owner's spreadsheet order.
@@ -16,14 +18,26 @@ export default function GoldPage() {
   const [err, setErr] = useState<string | null>(null)
   const [modal, setModal] = useState<{ open: boolean; txn: GoldTransaction | null }>({ open: false, txn: null })
   const [busy, setBusy] = useState<number | null>(null)
+  const [prices, setPrices] = useState<GoldPrice[]>([])
+  const [missing, setMissing] = useState<string[]>([])
+  const [promptSkipped, setPromptSkipped] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setErr(null)
     try {
-      setRows(await api.listGoldTransactions())
+      // Transactions, recent prices, and the gap list load together — the
+      // gap list drives the blocking prompt (PRD-003 §7).
+      const [txns, priceRows, gaps] = await Promise.all([
+        api.listGoldTransactions(),
+        api.listGoldPrices(),
+        api.listGoldMissingDates(),
+      ])
+      setRows(txns)
+      setPrices(priceRows)
+      setMissing(gaps.missing)
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to load gold transactions')
+      setErr(e instanceof ApiError ? e.message : 'Failed to load gold data')
     } finally {
       setLoading(false)
     }
@@ -154,10 +168,22 @@ export default function GoldPage() {
             </table>
           )}
         </div>
+
+        {!loading && <GoldPricesPanel prices={prices} onSaved={() => void load()} />}
       </main>
 
       {modal.open && (
         <GoldTxnModal txn={modal.txn} onClose={() => setModal({ open: false, txn: null })} onSaved={() => void load()} />
+      )}
+
+      {/* Blocking gap prompt (PRD-003 §7): only once the page has loaded, the
+          user hasn't dismissed it this visit, and gaps remain. */}
+      {!loading && !promptSkipped && missing.length > 0 && (
+        <MissingPricesModal
+          missing={missing}
+          onSkip={() => setPromptSkipped(true)}
+          onSaved={() => { setPromptSkipped(true); void load() }}
+        />
       )}
     </div>
   )
