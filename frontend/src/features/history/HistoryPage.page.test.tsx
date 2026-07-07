@@ -80,6 +80,13 @@ describe('HistoryPage', () => {
     expect(screen.getAllByText('Amount invested').length).toBe(2)
   })
 
+  it('uses the wide content container so the currency + gold columns fit', async () => {
+    mockApi.listHistory.mockResolvedValue(list([sampleRow]))
+    renderPage()
+    await screen.findByText('2026-06-16')
+    expect(screen.getByRole('main').style.maxWidth).toBe('1800px')
+  })
+
   it('surfaces a fetch error', async () => {
     mockApi.listHistory.mockRejectedValue(new Error('boom'))
     renderPage()
