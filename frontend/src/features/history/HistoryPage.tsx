@@ -863,7 +863,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                     onSelectRegion={onSelectRegion ? () => onSelectRegion(r, prev, region) : undefined}
                   />
                 ))}
-                {hasGold && <GoldRowCells gold={r.gold} />}
+                {hasGold && <GoldRowCells gold={r.gold} prevGold={prev?.gold} />}
                 <td style={actionTd}>
                   <div style={actionCell}>
                     {onEdit && (
@@ -993,7 +993,18 @@ function GoldHeaderGroup() {
   )
 }
 
-function GoldRowCells({ gold }: { gold?: GoldHistoryOverlay }) {
+// goldCurrentDirection mirrors regionCurrentDirection for the gold overlay:
+// 'up'/'down'/'flat' by the day-over-day change in gold value, null when
+// there is no prior gold point to compare against (keeps the plain tint).
+export function goldCurrentDirection(
+  gold?: GoldHistoryOverlay, prevGold?: GoldHistoryOverlay,
+): 'up' | 'down' | 'flat' | null {
+  if (!gold || !prevGold) return null
+  const delta = gold.current - prevGold.current
+  return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
+}
+
+function GoldRowCells({ gold, prevGold }: { gold?: GoldHistoryOverlay; prevGold?: GoldHistoryOverlay }) {
   const base: React.CSSProperties = { ...td, background: GOLD_TINT }
   const first: React.CSSProperties = { ...base, borderLeft: '2px solid var(--border)' }
   // Rows before the first purchase (or before any price existed) carry no
@@ -1007,12 +1018,23 @@ function GoldRowCells({ gold }: { gold?: GoldHistoryOverlay }) {
   }
   const volColor = gold.volatility_pct === 0 ? undefined
     : gold.volatility_pct > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  // Match the currency columns: a day the gold invested rose (a new
+  // purchase) gets the purple "new investment" tint; the P/L% cell tints
+  // by the day-over-day value move (green up / red down / blue flat).
+  const wentUp = !!prevGold && gold.invested > prevGold.invested
+  const dir = goldCurrentDirection(gold, prevGold)
+  const investedStyle: React.CSSProperties = {
+    ...first,
+    background: wentUp ? NEW_INVESTMENT_TINT : GOLD_TINT,
+    fontWeight: wentUp ? 600 : undefined,
+  }
+  const pnlStyle: React.CSSProperties = { ...base, background: dir ? PRICE_DIR_TINT[dir] : GOLD_TINT }
   return (
     <>
-      <td style={first}>{fmtCurrency(gold.invested, '₹')}</td>
+      <td style={investedStyle}>{fmtCurrency(gold.invested, '₹')}</td>
       <td style={base}>{fmtCurrency(gold.current, '₹')}</td>
       <td style={{ ...base, color: volColor }}>{gold.volatility_pct.toFixed(2)}</td>
-      <td style={base}>{gold.pnl_pct === null ? '—' : `${gold.pnl_pct.toFixed(2)}%`}</td>
+      <td style={pnlStyle}>{gold.pnl_pct === null ? '—' : `${gold.pnl_pct.toFixed(2)}%`}</td>
     </>
   )
 }
