@@ -20,6 +20,7 @@ import {
   changedRegions,
   fmtAxisAmount,
   perCurrencyChartData,
+  goldChartData,
   regionCurrentDirection,
 } from './HistoryPage'
 import type {
@@ -95,14 +96,13 @@ describe('groupIndian', () => {
 const blank = (): Parameters<typeof formToBody>[0] => ({
   INR: { invested: '', current: '' },
   EUR: { invested: '', current: '' },
-  USD: { invested: '', current: '' },
 })
 
 describe('formToBody', () => {
   it('includes a region with an explicit 0 so a value can be reset', () => {
     const f = blank()
-    f.USD = { invested: '0', current: '0' } // reset USD to zero
-    expect(formToBody(f)).toEqual({ USD: { invested: 0, current: 0 } })
+    f.EUR = { invested: '0', current: '0' } // reset EUR to zero
+    expect(formToBody(f)).toEqual({ EUR: { invested: 0, current: 0 } })
   })
   it('treats a blank field as 0 when the other is filled', () => {
     const f = blank()
@@ -118,11 +118,11 @@ describe('changedRegions', () => {
   it('keeps only regions that differ from the original row', () => {
     const original = {
       INR: region(100, 110, 'manual'),
-      USD: region(0, 1, 'manual'),
+      EUR: region(0, 1, 'manual'),
     }
-    const body = { INR: { invested: 100, current: 110 }, USD: { invested: 0, current: 0 } }
-    // INR unchanged → dropped; USD current 1→0 → kept.
-    expect(changedRegions(body, original)).toEqual({ USD: { invested: 0, current: 0 } })
+    const body = { INR: { invested: 100, current: 110 }, EUR: { invested: 0, current: 0 } }
+    // INR unchanged → dropped; EUR current 1→0 → kept.
+    expect(changedRegions(body, original)).toEqual({ EUR: { invested: 0, current: 0 } })
   })
   it('returns empty when nothing changed (no request)', () => {
     const original = { INR: region(5, 6, 'manual') }
@@ -158,6 +158,19 @@ describe('regionHasData', () => {
   })
 })
 
+describe('goldChartData', () => {
+  it('maps the per-row gold overlay to the chart series, oldest first', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-17', regions: {}, gold: { invested: 7200, current: 14400, volatility_pct: 5, pnl_pct: 100 } }),
+      row({ date: '2026-06-16', regions: {} }), // no overlay → nulls
+    ]
+    expect(goldChartData(rows)).toEqual([
+      { date: '06-16', invested: null, current: null, pnl_pct: null, daily_vol: null },
+      { date: '06-17', invested: 7200, current: 14400, pnl_pct: 100, daily_vol: 5 },
+    ])
+  })
+})
+
 // ---- monthRange (TDD §7.1 range derivation) ----
 
 describe('monthRange', () => {
@@ -177,11 +190,12 @@ describe('monthRange', () => {
 // ---- parsePasteText (TDD §7.6 parser) ----
 
 describe('parsePasteText', () => {
-  it('parses Google-Sheets TSV into the §4.6 body shape', () => {
-    const tsv = '2026-06-01\t100\t110\t50\t55\t0\t0\n2026-06-02\t200\t190\t0\t0\t10\t12'
+  it('parses Google-Sheets TSV into the §4.6 body shape (INR/EUR; extra cols ignored)', () => {
+    // Trailing columns beyond EUR (legacy USD, daily vol, P/L) are ignored.
+    const tsv = '2026-06-01\t100\t110\t50\t55\t0\t0\n2026-06-02\t200\t190\t60\t65\t10\t12'
     expect(parsePasteText(tsv)).toEqual([
       { date: '2026-06-01', regions: { INR: { invested: 100, current: 110 }, EUR: { invested: 50, current: 55 } } },
-      { date: '2026-06-02', regions: { INR: { invested: 200, current: 190 }, USD: { invested: 10, current: 12 } } },
+      { date: '2026-06-02', regions: { INR: { invested: 200, current: 190 }, EUR: { invested: 60, current: 65 } } },
     ])
   })
 
@@ -269,9 +283,9 @@ describe('HistoryTable', () => {
     // India cells show ₹-prefixed values.
     expect(screen.getByText('₹100.00')).toBeInTheDocument()
     expect(screen.getByText('₹198.00')).toBeInTheDocument()
-    // Absent Europe and US: invested + current both render as €0.00 / $0.00.
+    // Absent Europe: invested + current both render as €0.00. (USD dropped.)
     expect(screen.getAllByText('€0.00').length).toBe(2)
-    expect(screen.getAllByText('$0.00').length).toBe(2)
+    expect(screen.queryByText('$0.00')).toBeNull()
   })
 
   it('hides the delete control on a cron row', () => {
@@ -323,8 +337,8 @@ describe('HistoryTable', () => {
       }),
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
-    // One "Daily volatlity" header per currency group → 3 of them.
-    expect(screen.getAllByText('Daily volatlity').length).toBe(3)
+    // One "Daily volatlity" header per currency group (INR, EUR) → 2.
+    expect(screen.getAllByText('Daily volatlity').length).toBe(2)
     // 220 vs prior 200 → +10.00 in the India column.
     expect(screen.getByText('10.00')).toBeInTheDocument()
   })
@@ -390,12 +404,12 @@ describe('HistoryTable', () => {
       row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } }), // no overlay
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
-    // Layout: date(1) + 3 currency groups × 4 (12) + gold group (4) + action(1).
-    // The gold cells are indices 13–16; on a pre-purchase row all four are —.
+    // Layout: date(1) + 2 currency groups × 4 (8) + gold group (4) + action(1).
+    // The gold cells are indices 9–12; on a pre-purchase row all four are —.
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === '2026-06-16')!
     const cells = Array.from(tr.querySelectorAll('td'))
-    expect(cells.slice(13, 17).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+    expect(cells.slice(9, 13).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
   })
 })
 
@@ -802,9 +816,9 @@ describe('HistoryTable currency-cell click → onSelectRegion', () => {
 
   it('is not clickable for a currency with no positive holding', () => {
     const onSelectRegion = vi.fn()
-    // newer has no USD holding → USD cells not selectable.
-    render(<HistoryTable rows={[newer]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
-    expect(screen.queryByTitle('View USD holdings')).toBeNull()
+    // older holds only INR → its EUR cells are not selectable.
+    render(<HistoryTable rows={[older]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
+    expect(screen.queryByTitle('View EUR holdings')).toBeNull()
   })
 })
 

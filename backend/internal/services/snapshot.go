@@ -72,12 +72,12 @@ func (s *SnapshotService) log(ctx context.Context) *zap.Logger {
 // because Exchange beat Currency. Exchange is no longer consulted at all.
 //
 // Rules:
-//   - Holding.Currency = INR | EUR | USD → that bucket.
+//   - Holding.Currency = INR | EUR → that bucket.
 //   - Currency blank → INR (the Holding.Currency default).
-//   - Anything else → "unknown".
+//   - Anything else (incl. legacy USD) → "unknown", excluded and logged.
 func CurrencyOf(h domain.Holding) (string, bool) {
 	switch strings.ToUpper(h.Currency) {
-	case domain.CurrencyINR, domain.CurrencyEUR, domain.CurrencyUSD:
+	case domain.CurrencyINR, domain.CurrencyEUR:
 		return strings.ToUpper(h.Currency), true
 	case "":
 		return domain.CurrencyINR, true

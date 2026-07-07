@@ -142,6 +142,11 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		}
 		regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
 		for k, bucket := range snap.Buckets {
+			// Legacy stored rows may still carry a zero USD bucket; USD is no
+			// longer tracked (2026-07-07), so drop it from the response.
+			if k == domain.CurrencyUSD {
+				continue
+			}
 			bucket.Invested = round(bucket.Invested)
 			bucket.Current = round(bucket.Current)
 			regions[k] = bucket
@@ -402,7 +407,6 @@ func validateRegions(in map[string]domain.RegionSnapshot) error {
 	known := map[string]struct{}{
 		domain.CurrencyINR: {},
 		domain.CurrencyEUR: {},
-		domain.CurrencyUSD: {},
 	}
 	for k, r := range in {
 		if _, ok := known[k]; !ok {

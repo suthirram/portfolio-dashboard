@@ -24,10 +24,11 @@ func TestCurrencyOf(t *testing.T) {
 		// Currency is the sole decider; Exchange is never consulted.
 		{"INR currency over NYSE exchange", domain.Holding{Exchange: "NYSE", Currency: "INR"}, domain.CurrencyINR, true},
 		{"EUR currency over NASDAQ exchange", domain.Holding{Exchange: "NASDAQ", Currency: "EUR"}, domain.CurrencyEUR, true},
-		{"USD currency over NSE exchange", domain.Holding{Exchange: "NSE", Currency: "USD"}, domain.CurrencyUSD, true},
 		{"INR currency only", domain.Holding{Currency: "INR"}, domain.CurrencyINR, true},
 		{"EUR currency only", domain.Holding{Currency: "EUR"}, domain.CurrencyEUR, true},
-		{"USD currency only", domain.Holding{Currency: "USD"}, domain.CurrencyUSD, true},
+		// USD is no longer tracked (2026-07-07): excluded like any other
+		// unsupported currency.
+		{"USD currency excluded", domain.Holding{Currency: "USD"}, "unknown", false},
 		{"lowercase currency normalised", domain.Holding{Currency: "eur"}, domain.CurrencyEUR, true},
 		// Blank currency defaults to INR (Holding.Currency default),
 		// regardless of exchange.
@@ -104,9 +105,8 @@ func TestBuildSnapshot_GroupsByCurrencyAndUsesLivePrice(t *testing.T) {
 		if inr.Invested != 70000 || inr.Current != 80000 {
 			t.Errorf("INR = (%v, %v), want (70000, 80000)", inr.Invested, inr.Current)
 		}
-		usd := snap.Buckets[domain.CurrencyUSD]
-		if usd.Invested != 0 || usd.Current != 0 {
-			t.Errorf("USD = (%v, %v), want (0, 0) — UI cannot create USD-priced holdings", usd.Invested, usd.Current)
+		if _, ok := snap.Buckets[domain.CurrencyUSD]; ok {
+			t.Error("USD bucket present — USD is no longer tracked")
 		}
 		eur := snap.Buckets[domain.CurrencyEUR]
 		if eur.Invested != 100 || eur.Current != 120 {

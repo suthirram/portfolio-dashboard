@@ -69,7 +69,6 @@ func TestPortfolioSnapshotTotalsHappyPath(t *testing.T) {
 		Buckets: map[string]RegionSnapshot{
 			CurrencyINR: {Invested: 100, Current: 198, Source: SnapshotSourceCron},
 			CurrencyEUR: {Invested: 50, Current: 60, Source: SnapshotSourceCron},
-			CurrencyUSD: {Invested: 0, Current: 0, Source: SnapshotSourceCron},
 		},
 	}
 	got := p.Totals()
@@ -111,8 +110,8 @@ func TestPortfolioSnapshotTotalsNegativePnL(t *testing.T) {
 	}
 }
 
-func TestAllCurrenciesHasINREURUSD(t *testing.T) {
-	want := []string{"INR", "EUR", "USD"}
+func TestAllCurrenciesHasINREUR(t *testing.T) {
+	want := []string{"INR", "EUR"}
 	if len(AllCurrencies) != len(want) {
 		t.Fatalf("AllCurrencies = %v, want %v", AllCurrencies, want)
 	}
