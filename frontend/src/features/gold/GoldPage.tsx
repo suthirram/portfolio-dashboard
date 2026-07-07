@@ -53,8 +53,11 @@ export default function GoldPage() {
 
   // refresh re-pulls data without the full-page spinner — used after a save
   // so the missing-price prompt re-renders with the days still left blank
-  // instead of the whole page flashing to a loading state.
+  // instead of the whole page flashing to a loading state. Clears the error
+  // banner up front (like load) so a stale failure does not linger after a
+  // later refresh succeeds.
   const refresh = useCallback(async () => {
+    setErr(null)
     try {
       await fetchAll()
     } catch (e) {
