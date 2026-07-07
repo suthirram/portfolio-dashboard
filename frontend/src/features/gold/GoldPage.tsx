@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
+import { api, ApiError, type GoldMetrics, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
 import { EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
 import GoldTxnModal from './GoldTxnModal'
 import GoldPricesPanel from './GoldPricesPanel'
+import GoldMetricsPanel from './GoldMetricsPanel'
 import MissingPricesModal from './MissingPricesModal'
 
 // The full PRD-003 §5 column set: entered fields interleaved with the
@@ -20,22 +21,26 @@ export default function GoldPage() {
   const [busy, setBusy] = useState<number | null>(null)
   const [prices, setPrices] = useState<GoldPrice[]>([])
   const [missing, setMissing] = useState<string[]>([])
+  const [metrics, setMetrics] = useState<GoldMetrics | null>(null)
   const [promptSkipped, setPromptSkipped] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     setErr(null)
     try {
-      // Transactions, recent prices, and the gap list load together — the
-      // gap list drives the blocking prompt (PRD-003 §7).
-      const [txns, priceRows, gaps] = await Promise.all([
+      // Transactions, recent prices, the gap list, and metrics load
+      // together — the gap list drives the blocking prompt (PRD-003 §7),
+      // metrics is the live summary table (§6).
+      const [txns, priceRows, gaps, m] = await Promise.all([
         api.listGoldTransactions(),
         api.listGoldPrices(),
         api.listGoldMissingDates(),
+        api.getGoldMetrics(),
       ])
       setRows(txns)
       setPrices(priceRows)
       setMissing(gaps.missing)
+      setMetrics(m)
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : 'Failed to load gold data')
     } finally {
@@ -169,6 +174,7 @@ export default function GoldPage() {
           )}
         </div>
 
+        {!loading && metrics && <GoldMetricsPanel metrics={metrics} />}
         {!loading && <GoldPricesPanel prices={prices} onSaved={() => void load()} />}
       </main>
 

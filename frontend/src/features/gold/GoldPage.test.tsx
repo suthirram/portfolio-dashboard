@@ -14,6 +14,7 @@ vi.mock('../../lib/api/client', () => ({
     listGoldPrices: vi.fn().mockResolvedValue([]),
     listGoldMissingDates: vi.fn().mockResolvedValue({ missing: [] }),
     putGoldPrices: vi.fn().mockResolvedValue(undefined),
+    getGoldMetrics: vi.fn().mockResolvedValue({ invested: 0, grams: 0 }),
   },
 }))
 
@@ -44,6 +45,7 @@ describe('GoldPage', () => {
     vi.mocked(api.listGoldTransactions).mockResolvedValue([])
     vi.mocked(api.listGoldPrices).mockResolvedValue([])
     vi.mocked(api.listGoldMissingDates).mockResolvedValue({ missing: [] })
+    vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
   it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {
@@ -106,7 +108,10 @@ describe('GoldPage', () => {
     renderPage()
 
     await screen.findByText('2026-07-01')
-    expect(screen.getAllByText('—').length).toBe(6)
+    // Scope to the transactions table — the metrics panel has its own dashes.
+    const table = document.querySelector('table')!
+    const dashes = Array.from(table.querySelectorAll('td')).filter(td => td.textContent === '—')
+    expect(dashes.length).toBe(6)
   })
 
   it('opens the add modal from the header button', async () => {
