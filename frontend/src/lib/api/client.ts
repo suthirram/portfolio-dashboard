@@ -35,6 +35,7 @@ export type GoldToggleRequest = Schemas['GoldToggleRequest']
 export type GoldTransaction = Schemas['GoldTransaction']
 export type GoldTransactionInput = Schemas['GoldTransactionInput']
 export type GoldPrice = Schemas['GoldPrice']
+export type GoldMetrics = Schemas['GoldMetrics']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -164,6 +165,7 @@ export const api = {
   },
   putGoldPrices:         (prices: GoldPrice[]) => request<void>('PUT', '/gold/prices', prices),
   listGoldMissingDates:  () => request<{ missing: string[] }>('GET', '/gold/missing-dates'),
+  getGoldMetrics:        () => request<GoldMetrics>('GET', '/gold/metrics'),
   adminListAdmins:      () => request<User[]>('GET', '/admin/admins'),
 }
 
