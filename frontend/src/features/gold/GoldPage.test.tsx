@@ -66,6 +66,48 @@ describe('GoldPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Fill missing gold prices' })).toBeNull())
   })
 
+  it('saves only the filled days and re-asks for the ones left blank', async () => {
+    vi.mocked(api.listGoldMissingDates)
+      .mockResolvedValueOnce({ missing: ['2026-07-04', '2026-07-05', '2026-07-06'] })
+      .mockResolvedValue({ missing: ['2026-07-05', '2026-07-06'] }) // 04 filled, two remain
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
+    // Fill only one of the three days.
+    fireEvent.change(screen.getByLabelText('2026-07-04'), { target: { value: '7300' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
+
+    // Only the filled day is sent.
+    await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([
+      { date: '2026-07-04', price_per_gram: 7300 },
+    ]))
+    // The prompt stays open and now lists just the two still-blank days.
+    await waitFor(() => expect(screen.queryByLabelText('2026-07-04')).toBeNull())
+    expect(screen.getByRole('dialog', { name: 'Fill missing gold prices' })).toBeTruthy()
+    expect(screen.getByLabelText('2026-07-05')).toBeTruthy()
+    expect(screen.getByLabelText('2026-07-06')).toBeTruthy()
+  })
+
+  it('clears a stale refresh error once a later refresh succeeds', async () => {
+    vi.mocked(api.listGoldMissingDates).mockResolvedValue({ missing: ['2026-07-06'] })
+    // First save's refresh fails; the second succeeds.
+    vi.mocked(api.getGoldMetrics)
+      .mockResolvedValueOnce({ invested: 0, grams: 0 }) // initial load
+      .mockRejectedValueOnce(new Error('boom'))         // refresh after 1st save
+      .mockResolvedValue({ invested: 0, grams: 0 })     // refresh after 2nd save
+    renderPage()
+
+    await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
+    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7300' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
+    expect(await screen.findByText('Failed to refresh gold data')).toBeTruthy()
+
+    // Save again → this refresh succeeds → the stale banner clears.
+    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7350' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
+    await waitFor(() => expect(screen.queryByText('Failed to refresh gold data')).toBeNull())
+  })
+
   it('does not show the prompt when there are no gaps', async () => {
     renderPage()
     await screen.findByText(/No gold purchases yet/)
