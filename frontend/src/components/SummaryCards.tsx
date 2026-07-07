@@ -51,16 +51,20 @@ interface CardProps {
   positive?: boolean
   negative?: boolean
   highlight?: boolean
+  accent?: boolean
 }
 
-function Card({ label, inr, eur, positive, negative, highlight }: CardProps) {
+function Card({ label, inr, eur, positive, negative, highlight, accent }: CardProps) {
   const sign = inr < 0 ? '-' : ''
   const cls = positive ? 'pos' : negative ? 'neg' : ''
 
   return (
     <div style={cardStyle(highlight)}>
       <div style={cardLabelStyle}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} className={cls}>
+      <div style={{
+        fontSize: accent ? 28 : 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+        ...(accent ? { color: 'var(--blue)' } : {}),
+      }} className={cls}>
         {sign}{fmt(inr)}
       </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }} className={cls}>
@@ -194,7 +198,7 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight />
-        <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight />
+        <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent />
         <ChangeCard rows={changeRows} date={previous_close_date} />
         <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
           realInr={total_realized} realEur={total_realized_eur} />
