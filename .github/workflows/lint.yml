@@ -39,7 +39,7 @@ jobs:
       # services are needed on the runner.
       - name: go test
         working-directory: backend
-        run: go test ./...
+        run: go test -race ./...
 
   frontend:
     name: Frontend (tsc + vitest)
