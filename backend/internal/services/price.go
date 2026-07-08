@@ -69,8 +69,9 @@ type yahooChartResp struct {
 // For NSE stocks append ".NS" (e.g. "TCS.NS"), for BSE append ".BO".
 // US symbols are plain (e.g. "AAPL").
 func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, string, error) {
+	logger := s.log()
 	if c, ok := s.cacheGet(symbol); ok {
-		s.log().Debug("price cache hit",
+		logger.Debug("price cache hit",
 			zap.String("symbol", symbol),
 			zap.Float64("price", c.price),
 		)
@@ -79,7 +80,7 @@ func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, st
 
 	price, currency, err := s.fetch(ctx, symbol)
 	if err != nil {
-		s.log().Warn("price fetch failed",
+		logger.Warn("price fetch failed",
 			zap.String("symbol", symbol),
 			zap.String("error", err.Error()),
 		)
@@ -87,7 +88,7 @@ func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, st
 	}
 
 	s.cacheSet(symbol, price, currency)
-	s.log().Debug("price fetched",
+	logger.Debug("price fetched",
 		zap.String("symbol", symbol),
 		zap.Float64("price", price),
 		zap.String("currency", currency),

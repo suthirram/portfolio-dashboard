@@ -102,6 +102,10 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 
 All app-private packages live under `internal/` per idiomatic Go layout.
 
+#### Logging convention
+
+In service methods, bind the request logger to a local variable — `logger := s.log(ctx)` (or `s.log()` / `r.log()` for services without a ctx-aware logger) — and call `logger.Error(...)` / `logger.Info(...)` on it. A function that logs in several places binds it once up front; never chain `s.log(ctx).Error(...)` inline at a call site.
+
 ### Frontend (`frontend/src/`)
 
 React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folder organization: domain features under `features/`, cross-cutting utilities under `lib/`, shared dumb UI under `components/`.
@@ -111,8 +115,8 @@ React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folde
 * `features/auth/guards.tsx` — `RequireAuth`, `RequireAdmin`, `RequireSuperAdmin`, `RedirectIfAuthed`
 * `features/auth/LoginPage.tsx`, `SignupPage.tsx`, `ForgotPasswordPage.tsx`, `OnboardingPage.tsx`, `ProfilePage.tsx`, `AuthShell.tsx` — auth screens
 * `features/dashboard/DashboardPage.tsx` — main app shell; takes optional `actAsUserId`/`actAsLabel` for admin act-as. Shows a blocking **opening-date** prompt (own portfolio only) when a holding has an opening balance with no date set.
-* `features/history/HistoryPage.tsx` — the `/history` view: a sortable month table (with a gold column overlay) with add/paste/edit-override, and a `HoldingsModal` opened by clicking a currency cell (per-stock breakdown for that currency; positive positions only)
-* `features/history/HistoryChartPage.tsx` — the history charts view (per-currency + gold panels, Recharts)
+* `features/history/HistoryPage.tsx` — the `/history` view: per-currency charts + a gold chart panel (Recharts), a sortable month table with gold columns and add/paste/edit-override, and a `HoldingsModal` opened by clicking a currency cell (per-stock breakdown for that currency; positive positions only)
+* `features/history/HistoryChartPage.tsx` — `/history/chart/:region`: the full-history invested-vs-current chart for one currency, zoomable and horizontally scrollable; opened from the History page's mini-chart
 * `features/gold/GoldPage.tsx` — the `/gold` view (route gated by `RequireGold`): physical gold transactions table + `GoldTxnModal` (add/edit), `GoldPricesPanel` (monthly jeweler rates), `GoldMetricsPanel` (totals, GOLDBEES, XIRR), `MissingPricesModal` (prompts for missing price days)
 * `features/admin/AdminUserList.tsx` — region-scoped users with promote/demote/hide/reactivate/move-region/delete actions
 * `features/admin/AdminUserView.tsx` — renders `DashboardPage` in act-as mode for a target user

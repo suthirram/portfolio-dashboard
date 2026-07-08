@@ -79,7 +79,8 @@ func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.O
 		return // today or future: nothing earlier to heal
 	}
 	if err := s.recomputer.RecomputeFrom(ctx, uid, earliest); err != nil {
-		s.log(ctx).Warn("snapshot heal failed", zap.String("user_id", uid.Hex()), zap.Error(err))
+		logger := s.log(ctx)
+		logger.Warn("snapshot heal failed", zap.String("user_id", uid.Hex()), zap.Error(err))
 	}
 }
 
@@ -108,7 +109,8 @@ func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, 
 	}
 	list, err := s.txns.ListByHolding(ctx, uid, hid)
 	if err != nil {
-		s.log(ctx).Error("list transactions failed", zap.String("error", err.Error()))
+		logger := s.log(ctx)
+		logger.Error("list transactions failed", zap.String("error", err.Error()))
 		return nil, false, err
 	}
 	out := make([]api.Transaction, 0, len(list))
@@ -121,6 +123,7 @@ func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, 
 // Create appends a transaction to a holding and recomputes its position.
 // found=false ⇒ 404 (bad holding); a returned ErrValidation/ErrOversell ⇒ 400.
 func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID, holdingHex string, input api.TransactionInput) (api.Transaction, bool, error) {
+	logger := s.log(ctx)
 	hid, err := primitive.ObjectIDFromHex(holdingHex)
 	if err != nil {
 		return api.Transaction{}, false, nil
@@ -146,7 +149,7 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 	t.UpdatedAt = now
 
 	if err := s.txns.Insert(ctx, t); err != nil {
-		s.log(ctx).Error("insert transaction failed", zap.String("error", err.Error()))
+		logger.Error("insert transaction failed", zap.String("error", err.Error()))
 		return api.Transaction{}, true, err
 	}
 	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, hid); err != nil {
@@ -157,7 +160,7 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 		}
 		return api.Transaction{}, true, err
 	}
-	s.log(ctx).Info("transaction created",
+	logger.Info("transaction created",
 		zap.String("id", t.ID.Hex()), zap.String("holding", hid.Hex()), zap.String("type", string(t.Type)))
 	s.healSnapshots(ctx, uid, t.Date)
 	return TransactionToAPI(t), true, nil
@@ -216,7 +219,8 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 		s.restore(ctx, uid, prev)
 		return api.Transaction{}, true, err
 	}
-	s.log(ctx).Info("transaction updated", zap.String("id", idHex))
+	logger := s.log(ctx)
+	logger.Info("transaction updated", zap.String("id", idHex))
 	// Heal from the earliest of the old and new dates — moving a txn earlier
 	// or later both invalidate the range between them.
 	s.healSnapshots(ctx, uid, prev.Date, updated.Date)
@@ -227,6 +231,7 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 // leave a later sell oversold; in that case the transaction is re-inserted and
 // the delete rejected with ErrOversell.
 func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (bool, error) {
+	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return false, nil
@@ -250,15 +255,15 @@ func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID
 		// a failed rollback must still surface the original error, but leaves
 		// the ledger inconsistent, so log it loudly.
 		if insErr := s.txns.Insert(ctx, prev); insErr != nil {
-			s.log(ctx).Error("delete rollback: re-insert failed, ledger missing transaction",
+			logger.Error("delete rollback: re-insert failed, ledger missing transaction",
 				zap.String("transaction_id", idHex), zap.Error(insErr))
 		} else if _, rcErr := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); rcErr != nil {
-			s.log(ctx).Error("delete rollback: recompute failed, holding position stale",
+			logger.Error("delete rollback: recompute failed, holding position stale",
 				zap.String("transaction_id", idHex), zap.Error(rcErr))
 		}
 		return false, err
 	}
-	s.log(ctx).Info("transaction deleted", zap.String("id", idHex))
+	logger.Info("transaction deleted", zap.String("id", idHex))
 	s.healSnapshots(ctx, uid, prev.Date)
 	return true, nil
 }
@@ -266,6 +271,7 @@ func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID
 // restore rewrites prev's stored fields and re-derives its holding. Used to
 // undo an Update that left the ledger oversold.
 func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectID, prev domain.Transaction) {
+	logger := s.log(ctx)
 	set := bson.D{
 		{Key: "type", Value: string(prev.Type)},
 		{Key: "date", Value: prev.Date},
@@ -281,11 +287,11 @@ func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectI
 		{Key: "opening_date", Value: prev.OpeningDate},
 	}
 	if _, err := s.txns.UpdateScopedAndReturn(ctx, uid, prev.ID, set); err != nil {
-		s.log(ctx).Error("restore transaction failed", zap.String("error", err.Error()))
+		logger.Error("restore transaction failed", zap.String("error", err.Error()))
 		return
 	}
 	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
-		s.log(ctx).Error("restore rollback: recompute failed, holding position stale",
+		logger.Error("restore rollback: recompute failed, holding position stale",
 			zap.String("transaction_id", prev.ID.Hex()), zap.Error(err))
 	}
 }

@@ -45,14 +45,15 @@ func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
 
 // List returns the holdings owned by uid, mapped to API DTOs.
 func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]api.Holding, error) {
+	logger := s.log(ctx)
 	holdings, err := s.store.ListByUser(ctx, uid)
 	if err != nil {
-		s.log(ctx).Error("list holdings query failed", zap.String("error", err.Error()))
+		logger.Error("list holdings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	openings, err := s.txns.OpeningsByUser(ctx, uid)
 	if err != nil {
-		s.log(ctx).Error("list openings query failed", zap.String("error", err.Error()))
+		logger.Error("list openings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	out := make([]api.Holding, 0, len(holdings))
@@ -68,6 +69,7 @@ func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]a
 // invalid, missing, or owned by someone else (so callers respond 404 without
 // leaking ownership).
 func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex string) (api.Holding, bool, error) {
+	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return api.Holding{}, false, nil
@@ -77,7 +79,7 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Holding{}, false, nil
 		}
-		s.log(ctx).Error("get holding failed",
+		logger.Error("get holding failed",
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
@@ -94,6 +96,7 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 // derived: any opening stocks_owned/avg_cost_price/realized_pnl are recorded as
 // an `opening` ledger event and the holding is recomputed from it.
 func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, input api.HoldingInput) (api.Holding, error) {
+	logger := s.log(ctx)
 	holding := HoldingFromInput(input)
 	holding.ID = primitive.NewObjectID()
 	holding.UserID = uid
@@ -108,7 +111,7 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	holding.TotalDividends = 0
 
 	if err := s.store.Insert(ctx, holding); err != nil {
-		s.log(ctx).Error("create holding failed",
+		logger.Error("create holding failed",
 			zap.String("script", holding.Script), zap.String("error", err.Error()))
 		return api.Holding{}, err
 	}
@@ -128,17 +131,17 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 			UpdatedAt:    now,
 		}
 		if err := s.txns.Insert(ctx, opening); err != nil {
-			s.log(ctx).Error("create opening transaction failed", zap.String("error", err.Error()))
+			logger.Error("create opening transaction failed", zap.String("error", err.Error()))
 			return api.Holding{}, err
 		}
 		if updated, err := recomputeAndPersist(ctx, s.store, s.txns, uid, holding.ID); err != nil {
-			s.log(ctx).Error("recompute after create failed", zap.String("error", err.Error()))
+			logger.Error("recompute after create failed", zap.String("error", err.Error()))
 		} else {
 			holding = updated
 		}
 	}
 
-	s.log(ctx).Info("holding created",
+	logger.Info("holding created",
 		zap.String("id", holding.ID.Hex()),
 		zap.String("owner", uid.Hex()),
 		zap.String("script", holding.Script),
@@ -167,6 +170,7 @@ func openingFromInput(input api.HoldingInput) (qty, amount, seed float64, ok boo
 // Update applies input to the holding owned by uid. found=false when the id is
 // invalid, missing, or owned by someone else.
 func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.HoldingInput) (api.Holding, bool, error) {
+	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return api.Holding{}, false, nil
@@ -199,7 +203,7 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Holding{}, false, nil
 		}
-		s.log(ctx).Error("update holding failed",
+		logger.Error("update holding failed",
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
@@ -209,13 +213,13 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 	// re-derives the position. No-op when the holding has no opening event.
 	if input.OpeningDate != nil {
 		if err := s.setOpeningDate(ctx, uid, id, input.OpeningDate.Time); err != nil {
-			s.log(ctx).Error("set opening date failed",
+			logger.Error("set opening date failed",
 				zap.String("id", idHex), zap.String("error", err.Error()))
 			return api.Holding{}, false, err
 		}
 	}
 
-	s.log(ctx).Info("holding updated", zap.String("id", idHex))
+	logger.Info("holding updated", zap.String("id", idHex))
 	return HoldingToAPI(updated), true, nil
 }
 
@@ -246,13 +250,14 @@ func (s *HoldingsService) setOpeningDate(ctx context.Context, uid, holdingID pri
 // Delete removes the holding owned by uid. ok=false when the id is invalid,
 // missing, or owned by someone else.
 func (s *HoldingsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (bool, error) {
+	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return false, nil
 	}
 	deleted, err := s.store.DeleteScoped(ctx, uid, id)
 	if err != nil {
-		s.log(ctx).Error("delete holding failed",
+		logger.Error("delete holding failed",
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return false, err
 	}
@@ -261,10 +266,10 @@ func (s *HoldingsService) Delete(ctx context.Context, uid primitive.ObjectID, id
 	}
 	// Cascade: remove the holding's ledger so no orphan transactions linger.
 	if err := s.txns.DeleteByHolding(ctx, uid, id); err != nil {
-		s.log(ctx).Error("delete holding transactions failed",
+		logger.Error("delete holding transactions failed",
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return false, err
 	}
-	s.log(ctx).Info("holding deleted", zap.String("id", idHex))
+	logger.Info("holding deleted", zap.String("id", idHex))
 	return true, nil
 }

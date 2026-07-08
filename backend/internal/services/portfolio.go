@@ -69,7 +69,8 @@ func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (
 		if err == nil {
 			err = errors.New("EUR rate is zero")
 		}
-		s.log(ctx).Error("EUR rate fetch failed", zap.String("error", err.Error()))
+		logger := s.log(ctx)
+		logger.Error("EUR rate fetch failed", zap.String("error", err.Error()))
 		return nil, 0, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
@@ -91,7 +92,8 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 
 	eurRate, err := s.priceService.GetForexRate(ctx, "INR", "EUR")
 	if err != nil || eurRate == 0 {
-		s.log(ctx).Warn("EUR rate unavailable, using fallback",
+		logger := s.log(ctx)
+		logger.Warn("EUR rate unavailable, using fallback",
 			zap.Float64("fallback", fallbackEURRate))
 		eurRate = fallbackEURRate
 	}
@@ -181,7 +183,8 @@ func (s *PortfolioService) attachPreviousClose(
 	snap, err := s.snapshots.LatestBefore(ctx, uid, s.Now())
 	if err != nil {
 		if !errors.Is(err, persistence.ErrNotFound) {
-			s.log(ctx).Warn("previous-close lookup failed", zap.String("error", err.Error()))
+			logger := s.log(ctx)
+			logger.Warn("previous-close lookup failed", zap.String("error", err.Error()))
 		}
 		return
 	}
