@@ -9,7 +9,7 @@ snapshotted daily into a browsable **history** with per-stock detail and charts.
 
 * **Frontend**: React + Vite + Recharts + React Router
 * **Backend**: Go (echo router, cobra CLI) with an OpenAPI spec
-* **Database**: MongoDB (Docker)
+* **Database**: MongoDB (portfolio) + Postgres (gold tracking, optional; Docker)
 * **Auth**: username/password with server-side sessions (cookie `pd_session`)
 * **Prices**: Yahoo Finance v8 API (live, 5-min cache)
 * **Currencies**: INR and EUR holdings; live INR↔EUR forex rate. History
@@ -17,6 +17,12 @@ snapshotted daily into a browsable **history** with per-stock detail and charts.
 * **History**: a daily snapshot job (`snapshot` subcommand, run by cron) records
   per-currency totals **and** per-stock closes; the History page charts them and
   drills into a per-stock breakdown.
+* **Gold**: physical gold tracking
+  ([PRD-003](docs/prds/PRD-003-physical-gold-tracking.md) /
+  [DD-003](docs/designs/DD-003-physical-gold-tracking.md)) — purchases, monthly
+  prices, metrics (XIRR), and a gold overlay on the History page. Stored in
+  Postgres; the feature is optional — without `POSTGRES_URI` the server runs
+  with gold disabled.
 
 ## Accounts & roles
 
@@ -120,11 +126,13 @@ Use the **Test** button in the Add/Edit modal to verify a symbol before saving.
 
 ### Prerequisites
 
-* [Docker](https://docker.com) (for MongoDB)
+* [Docker](https://docker.com) (for MongoDB + Postgres)
 * [Go 1.25+](https://go.dev/dl/)
 * [Node.js 20+](https://nodejs.org)
 
-### 1. Start MongoDB
+### 1. Start the databases
+
+MongoDB (portfolio) and Postgres (gold tracking):
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
@@ -154,7 +162,7 @@ Open <http://localhost:3000>
 
 ## Full Stack (Docker)
 
-Builds and runs everything (MongoDB + backend + frontend) in Docker:
+Builds and runs everything (MongoDB + Postgres + backend + frontend) in Docker:
 
 ```bash
 docker compose up --build
@@ -240,6 +248,7 @@ Full spec: `/api/specs/openapi.yaml`
 |---|---|---|
 | `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
 | `MONGODB_DATABASE` / `--mongo-db` | `portfolio` | Database name |
+| `POSTGRES_URI` | `postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable` | Gold-tracking DB (DD-003). Optional at boot: unreachable/empty ⇒ the server runs with gold features disabled. Embedded migrations apply on connect. |
 | `PORT` / `--port` | `8080` | Server port |
 | `LOG_LEVEL` / `--log-level` | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `LOG_FORMAT` / `--log-format` | `json` | `json` \| `text` |

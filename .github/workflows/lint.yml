@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   go:
-    name: Go (gofmt + golangci-lint)
+    name: Go (gofmt + golangci-lint + go test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +34,12 @@ jobs:
           version: latest
           working-directory: backend
           args: --timeout=2m
+      # Unit tests use mongo-driver mtest mocks; Postgres-backed tests
+      # t.Skip themselves when no local Postgres is reachable, so no DB
+      # services are needed on the runner.
+      - name: go test
+        working-directory: backend
+        run: go test ./...
 
   frontend:
     name: Frontend (tsc + vitest)

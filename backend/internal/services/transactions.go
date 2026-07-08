@@ -246,9 +246,16 @@ func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID
 		return false, nil
 	}
 	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
-		// Re-insert and re-derive so the ledger stays consistent.
-		_ = s.txns.Insert(ctx, prev)
-		_, _ = recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID)
+		// Re-insert and re-derive so the ledger stays consistent. Best-effort:
+		// a failed rollback must still surface the original error, but leaves
+		// the ledger inconsistent, so log it loudly.
+		if insErr := s.txns.Insert(ctx, prev); insErr != nil {
+			s.log(ctx).Error("delete rollback: re-insert failed, ledger missing transaction",
+				zap.String("transaction_id", idHex), zap.Error(insErr))
+		} else if _, rcErr := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); rcErr != nil {
+			s.log(ctx).Error("delete rollback: recompute failed, holding position stale",
+				zap.String("transaction_id", idHex), zap.Error(rcErr))
+		}
 		return false, err
 	}
 	s.log(ctx).Info("transaction deleted", zap.String("id", idHex))
@@ -277,7 +284,10 @@ func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectI
 		s.log(ctx).Error("restore transaction failed", zap.String("error", err.Error()))
 		return
 	}
-	_, _ = recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID)
+	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
+		s.log(ctx).Error("restore rollback: recompute failed, holding position stale",
+			zap.String("transaction_id", prev.ID.Hex()), zap.Error(err))
+	}
 }
 
 // validateTxnInput enforces the shape required by each transaction type.
