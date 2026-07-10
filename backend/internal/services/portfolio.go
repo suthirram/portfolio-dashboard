@@ -124,7 +124,16 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 	// own units (no FX), keyed "INR"|"EUR"|"USD" — the basis for the
 	// per-currency change vs previous close.
 	nativeCurrent := map[string]float64{}
-	s.prefetchPrices(ctx, holdings)
+	// Prefetch only the symbols the loop below will actually price: a
+	// sold-out position (StocksOwned == 0) is skipped there, so warming its
+	// price would be a wasted Yahoo round-trip.
+	active := make([]domain.Holding, 0, len(holdings))
+	for _, hld := range holdings {
+		if hld.StocksOwned > 0 {
+			active = append(active, hld)
+		}
+	}
+	s.prefetchPrices(ctx, active)
 	for _, hld := range holdings {
 		isEUR := hld.Currency == "EUR"
 
