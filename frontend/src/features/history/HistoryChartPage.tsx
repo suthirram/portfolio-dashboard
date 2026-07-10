@@ -9,7 +9,7 @@ import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
   chartTooltipProps, fmtCurrency, fmtAxisAmount, niceDomain,
   type RegionKey,
-} from './HistoryPage'
+} from './historyShared'
 
 // Full-history chart: the entire dataset for one currency, invested vs
 // current, from 2000-01-01 to today. Rendered at a fixed pixel-per-point
