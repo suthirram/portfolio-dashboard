@@ -104,7 +104,7 @@ All app-private packages live under `internal/` per idiomatic Go layout.
 
 #### Logging convention
 
-In service methods, bind the request logger to a local variable — `logger := s.log(ctx)` (or `s.log()` / `r.log()` for services without a ctx-aware logger) — and call `logger.Error(...)` / `logger.Info(...)` on it. A function that logs in several places binds it once up front; never chain `s.log(ctx).Error(...)` inline at a call site.
+In service methods, bind the request logger to a local variable — `logger := s.log(ctx)` (or `s.log()` / `r.log()` for services without a ctx-aware logger) — and call `logger.Error(...)` / `logger.Info(...)` on it. A function that logs in several places binds it once up front; never chain `s.log(ctx).Error(...)` inline at a call site (CI greps for this). The ctx-aware `log(ctx)` helpers are one-line delegates to `logging.FromContextOr(ctx, s.logger)` — new services reuse that, not a copy of the resolution logic. Attach errors as `zap.Error(err)` in new code; many legacy sites use `zap.String("error", err.Error())` — migrate them opportunistically, don't sweep.
 
 ### Frontend (`frontend/src/`)
 

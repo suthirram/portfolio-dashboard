@@ -34,13 +34,7 @@ func NewHoldingsService(store *persistence.HoldingStore, txns *persistence.Trans
 }
 
 func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
-	if l, ok := logging.FromContext(ctx); ok {
-		return l
-	}
-	if s.logger != nil {
-		return s.logger
-	}
-	return zap.NewNop()
+	return logging.FromContextOr(ctx, s.logger)
 }
 
 // List returns the holdings owned by uid, mapped to API DTOs.

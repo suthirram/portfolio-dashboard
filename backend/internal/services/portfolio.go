@@ -46,13 +46,7 @@ func NewPortfolioService(store *persistence.HoldingStore, snapshots *persistence
 }
 
 func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
-	if l, ok := logging.FromContext(ctx); ok {
-		return l
-	}
-	if s.logger != nil {
-		return s.logger
-	}
-	return zap.NewNop()
+	return logging.FromContextOr(ctx, s.logger)
 }
 
 // Prices returns the holdings owned by uid enriched with live market data,

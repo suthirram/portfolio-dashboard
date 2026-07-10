@@ -40,6 +40,15 @@ jobs:
       - name: go test
         working-directory: backend
         run: go test -race ./...
+      # Logging convention (CLAUDE.md): bind `logger := s.log(ctx)` and call
+      # logger.Error(...) — never chain s.log(ctx).Error(...) inline.
+      - name: logging convention
+        working-directory: backend
+        run: |
+          if grep -rnE '\.log\((ctx)?\)\.' --include='*.go' . | grep -v _test.go; then
+            echo "Chained .log(ctx).X calls found — bind 'logger := s.log(ctx)' instead (see CLAUDE.md)."
+            exit 1
+          fi
 
   frontend:
     name: Frontend (tsc + vitest)
