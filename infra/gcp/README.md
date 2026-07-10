@@ -16,6 +16,12 @@ or updates two resources:
 The script is safe to re-run on every deploy — it patches in place
 rather than failing on duplicates.
 
+The job is deliberately **Mongo-only** — no `POSTGRES_URI`. Gold data
+(PRD-003 / DD-003) lives in Postgres and is not snapshotted: the History
+page's gold overlay is computed as-of each row date at read time from the
+gold ledger + price series. Only the web service needs the Postgres secret
+(see [PD-029](../../docs/plans/PD-029-cloud-run-deploy.md) §2).
+
 ## Prerequisites
 
 1. PD-029 finished — Cloud Run web service, Artifact Registry repo,
