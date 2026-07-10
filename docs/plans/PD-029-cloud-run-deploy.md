@@ -13,6 +13,10 @@ At ~5–10 family users this runs inside Cloud Run's monthly free tier — **$0*
 
 * A GCP project (free to create). Note its **project ID**.
 * A MongoDB Atlas M0 cluster + connection string (`MONGODB_URI`).
+* Optional — gold tracking (PRD-003 / DD-003): a Postgres database +
+  connection string (`POSTGRES_URI`), e.g. a Neon free-tier branch. Without
+  it the backend boots normally with gold features disabled (`/api/gold/*`
+  answers 503).
 * The frontend origin, e.g. `https://portfolio-dashboard.pages.dev`.
 
 ```bash
@@ -32,16 +36,23 @@ gcloud services enable \
   iamcredentials.googleapis.com
 ```
 
-## 2. Store the Mongo URI in Secret Manager
+## 2. Store the connection URIs in Secret Manager
 
-The URI is the one secret; everything else is non-sensitive config.
+The URIs are the only secrets; everything else is non-sensitive config.
 
 ```bash
 printf '%s' 'mongodb+srv://USER:PASS@cluster.mongodb.net/portfolio' \
   | gcloud secrets create MONGODB_URI --data-file=-
+
+# Optional — gold tracking. Both the CI workflow and deploy.sh probe for
+# this secret and attach it only when it exists; skip this step to deploy
+# without gold storage.
+printf '%s' 'postgres://USER:PASS@HOST/portfolio?sslmode=require' \
+  | gcloud secrets create POSTGRES_URI --data-file=-
 ```
 
-To rotate later: `gcloud secrets versions add MONGODB_URI --data-file=-`.
+To rotate later: `gcloud secrets versions add MONGODB_URI --data-file=-`
+(same for `POSTGRES_URI`).
 
 ## 3. First deploy (manual)
 
@@ -65,6 +76,7 @@ PROJECT_NUM=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumb
 gcloud secrets add-iam-policy-binding MONGODB_URI \
   --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
+# repeat for POSTGRES_URI if you created it
 ```
 
 Smoke test:
