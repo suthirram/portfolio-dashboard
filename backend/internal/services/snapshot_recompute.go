@@ -91,6 +91,7 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 		byHolding[t.HoldingID] = append(byHolding[t.HoldingID], t)
 	}
 
+	logger := r.log()
 	for _, snap := range snaps {
 		// Forward-only: only line-backed rows are recomputable. A pre-change
 		// total-only row (or a purely manual row) has a nil/absent `holdings`
@@ -101,7 +102,7 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 		// explicit empty array and IS recomputable (a backdated first buy must
 		// be able to populate it).
 		if snap.Lines == nil {
-			r.log().Debug("snapshot skipped: no stored lines (forward-only)",
+			logger.Debug("snapshot skipped: no stored lines (forward-only)",
 				zap.String("user_id", uid.Hex()),
 				zap.String("date", snap.Date.UTC().Format("2006-01-02")),
 			)
@@ -118,7 +119,7 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 		if err := r.snapshots.Upsert(ctx, rebuilt); err != nil {
 			return err
 		}
-		r.log().Info("snapshot recomputed",
+		logger.Info("snapshot recomputed",
 			zap.String("user_id", uid.Hex()),
 			zap.String("date", snap.Date.UTC().Format("2006-01-02")),
 			zap.Int("lines", len(lines)),
@@ -135,6 +136,7 @@ func (r *SnapshotRecomputer) linesAsOf(
 	byHolding map[primitive.ObjectID][]domain.Transaction,
 	existing domain.PortfolioSnapshot,
 ) []domain.HoldingSnapshot {
+	logger := r.log()
 	priorClose := make(map[string]domain.HoldingSnapshot, len(existing.Lines))
 	for _, ln := range existing.Lines {
 		priorClose[ln.Symbol] = ln
@@ -156,7 +158,7 @@ func (r *SnapshotRecomputer) linesAsOf(
 			// The live txn path rejects this, but the recompute write already
 			// happened — surface it rather than writing a silently-clamped
 			// line with no trace.
-			r.log().Warn("recompute: as-of ledger oversold; position clamped to 0",
+			logger.Warn("recompute: as-of ledger oversold; position clamped to 0",
 				zap.String("symbol", h.Symbol),
 				zap.String("date", existing.Date.UTC().Format("2006-01-02")),
 			)

@@ -7,6 +7,8 @@
 #   - GCP project with Cloud Run + Cloud Build + Artifact Registry + Secret
 #     Manager APIs enabled
 #   - Secret `MONGODB_URI` created in Secret Manager
+#   - Optional: secret `POSTGRES_URI` (gold tracking, DD-003) — wired in when
+#     present; absent ⇒ the service boots with gold features disabled
 #
 # Usage:
 #   GCP_PROJECT_ID=my-proj \
@@ -22,6 +24,15 @@ CORS="${CORS_ALLOWED_ORIGINS:?set CORS_ALLOWED_ORIGINS (the frontend origin, e.g
 
 echo ">> Deploying ${SERVICE} to ${REGION} in project ${PROJECT_ID}"
 
+# Mirror .github/workflows/deploy-cloudrun.yml: attach the gold-tracking
+# Postgres only when its secret exists.
+SECRETS="MONGODB_URI=MONGODB_URI:latest"
+if gcloud secrets describe POSTGRES_URI --project "${PROJECT_ID}" >/dev/null 2>&1; then
+  SECRETS="${SECRETS},POSTGRES_URI=POSTGRES_URI:latest"
+else
+  echo ">> POSTGRES_URI secret not found — deploying without gold storage"
+fi
+
 gcloud run deploy "${SERVICE}" \
   --project "${PROJECT_ID}" \
   --source backend \
@@ -35,7 +46,7 @@ gcloud run deploy "${SERVICE}" \
   --cpu 1 \
   --timeout 60s \
   --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=debug##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${CORS}" \
-  --set-secrets "MONGODB_URI=MONGODB_URI:latest"
+  --set-secrets "${SECRETS}"
 
 # pd-snapshot is a separate Cloud Run Job that runs the same binary as the
 # service. Pin it to the same image so the cron and the web app always run

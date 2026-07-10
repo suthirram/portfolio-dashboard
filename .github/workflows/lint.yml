@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   go:
-    name: Go (gofmt + golangci-lint)
+    name: Go (gofmt + golangci-lint + go test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +34,21 @@ jobs:
           version: latest
           working-directory: backend
           args: --timeout=2m
+      # Unit tests use mongo-driver mtest mocks; Postgres-backed tests
+      # t.Skip themselves when no local Postgres is reachable, so no DB
+      # services are needed on the runner.
+      - name: go test
+        working-directory: backend
+        run: go test -race ./...
+      # Logging convention (CLAUDE.md): bind `logger := s.log(ctx)` and call
+      # logger.Error(...) — never chain s.log(ctx).Error(...) inline.
+      - name: logging convention
+        working-directory: backend
+        run: |
+          if grep -rnE '\.log\((ctx)?\)\.' --include='*.go' . | grep -v _test.go; then
+            echo "Chained .log(ctx).X calls found — bind 'logger := s.log(ctx)' instead (see CLAUDE.md)."
+            exit 1
+          fi
 
   frontend:
     name: Frontend (tsc + vitest)

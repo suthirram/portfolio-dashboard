@@ -51,13 +51,7 @@ func NewSnapshotService(
 }
 
 func (s *SnapshotService) log(ctx context.Context) *zap.Logger {
-	if l, ok := logging.FromContext(ctx); ok {
-		return l
-	}
-	if s.logger != nil {
-		return s.logger
-	}
-	return zap.NewNop()
+	return logging.FromContextOr(ctx, s.logger)
 }
 
 // CurrencyOf maps a holding to its snapshot bucket key. Holding.Currency
@@ -283,6 +277,7 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 		return RunReport{Date: date}, err
 	}
 
+	logger := s.log(ctx)
 	report := RunReport{Date: date, Total: len(users), UserErrors: map[string]string{}}
 	for _, u := range users {
 		// Bail early on parent ctx cancellation rather than continue
@@ -294,7 +289,7 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 		snap, err := s.BuildSnapshot(ctx, u.ID, date)
 		if err != nil {
 			report.UserErrors[u.ID.Hex()] = err.Error()
-			s.log(ctx).Error("snapshot build failed",
+			logger.Error("snapshot build failed",
 				zap.String("user_id", u.ID.Hex()),
 				zap.Error(err),
 			)
@@ -306,7 +301,7 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 		}
 		if err := s.snapshots.Upsert(ctx, snap); err != nil {
 			report.UserErrors[u.ID.Hex()] = err.Error()
-			s.log(ctx).Error("snapshot upsert failed",
+			logger.Error("snapshot upsert failed",
 				zap.String("user_id", u.ID.Hex()),
 				zap.Error(err),
 			)

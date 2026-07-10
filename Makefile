@@ -1,6 +1,6 @@
-.PHONY: dev prod down backend frontend seed
+.PHONY: dev dev-db prod down backend frontend install tidy generate
 
-# Start MongoDB only (dev mode)
+# Start the dev databases only: MongoDB + Postgres (gold tracking)
 dev-db:
 	docker compose -f docker-compose.dev.yml up -d
 
@@ -33,9 +33,9 @@ tidy:
 generate:
 	cd backend && go generate ./...
 
-# Full local dev (start mongo, then open two tabs for backend + frontend)
+# Full local dev (start the DBs, then open two tabs for backend + frontend)
 dev: dev-db
 	@echo ""
-	@echo "MongoDB running. Now open two terminals:"
+	@echo "MongoDB + Postgres running. Now open two terminals:"
 	@echo "  Terminal 1: make backend"
 	@echo "  Terminal 2: make frontend"

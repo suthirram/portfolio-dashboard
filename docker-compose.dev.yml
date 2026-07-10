@@ -1,7 +1,7 @@
 version: '3.8'
 
 # Development mode: only the databases in Docker
-# Run backend with: cd backend && go run .
+# Run backend with: cd backend && go run . serve
 # Run frontend with: cd frontend && npm run dev
 
 services:

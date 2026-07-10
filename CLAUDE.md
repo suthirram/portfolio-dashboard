@@ -64,7 +64,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`. Wires `CSRFCheck` (refuses state-changing requests without `X-Requested-With: portfolio-dashboard`) and `AuthGate` (session lookup, role/region/onboarding gates).
 * `internal/httpserver/middleware.go` — zap-backed request logger (severity tracks status, propagates `request_id` to context)
 * `internal/httpserver/auth.go` — `CSRFCheck`, `AuthGate`, session loading + sliding expiry
-* `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`, `transactions.go`, `snapshots.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`/`TransactionStore`/`SnapshotStore`. All MongoDB reads/writes live here; callers (services, controllers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings/transactions methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`. `snapshots.go` upserts per (user, date) and merges manual overrides (`ErrCronProtected` guards cron rows on delete).
+* `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`, `transactions.go`, `snapshots.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`/`TransactionStore`/`SnapshotStore`. All MongoDB reads/writes live here; callers (services, controllers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings/transactions methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`. `snapshots.go` upserts per (user, date) and merges manual overrides (`ErrCronProtected` guards cron rows on delete). `gold.go` is the exception to "Mongo per collection": `GoldDao` owns the Postgres gold tables (DD-003), keyed on the Mongo user ObjectID hex so both engines share one identity space; every method pins the owner uid in the WHERE clause.
 * `internal/controllers/controllers.go` — `Controller` struct (owns `*persistence.Store`, the per-domain services, and `*zap.Logger`). `New(db, logger, cookieSecure)` wires the default services; `newWithDeps` is the test seam.
 * `internal/controllers/auth.go` — signup, login, logout, recover (two-step), me, change password, update profile, update security questions, onboarding. Still owns the auth flow end-to-end because it composes credential checks with cookie writes.
 * `internal/controllers/admin.go` — admin/super-admin endpoints: list users/admins, get/hide/reactivate/delete user, reset-lockout, promote, demote, set region, act-as holdings CRUD/prices/summary. Region scope enforced server-side on every target; act-as endpoints delegate to `holdings`/`portfolio` services.
@@ -73,6 +73,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/controllers/history.go` — strict-server bodies for `/history` (list/add/patch-regions/delete/paste); maps `services.HistoryRow`↔`api.HistoryRow` incl. the per-stock `holdings` breakdown.
 * `internal/controllers/market.go` — `GetPrices` delegates to `Controller.portfolio.Prices`; `GetMarketPrice` / `GetForexRate` thin-wrap `priceService`.
 * `internal/controllers/summary.go` — `GetSummary` delegates to `Controller.portfolio.Summary`.
+* `internal/controllers/gold.go` — `/gold/*` endpoints (transactions CRUD, prices, metrics, missing-price days) thin-wrapping `Controller.gold` (`services.GoldService`). httpserver's `goldGate` answers 503 on every gold operation when Postgres is not configured, so handlers can assume the service exists.
 * `internal/services/mapper.go` — DBO↔DTO conversion helpers (`HoldingFromInput`, `HoldingToAPI`, `HoldingWithPriceToAPI`, `UserToAPI`) and the `PriceFetcher` interface every service depends on.
 * `internal/services/holdings.go` — `HoldingsService`: owner-scoped CRUD on top of `*persistence.HoldingStore`; returns api DTOs (`(api.Holding, found, err)`) so controllers stay marshaller-free. Seeds the opening event on create, enriches list/get with opening status (`OpeningsByUser`), and `setOpeningDate` stamps the opening event's date.
 * `internal/services/transactions.go` — `TransactionsService`: owns the per-holding ledger CRUD; every mutating call recomputes the holding's position via `recomputeAndPersist` and heals affected snapshots (`healSnapshots`). Validates per-type shape; rejects oversell.
@@ -83,16 +84,27 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/services/history.go` — `HistoryService`: list/add/patch-regions/delete/paste over `SnapshotStore`; `HistoryRow` carries per-currency buckets, totals, and the per-stock `Holdings` lines.
 * `internal/services/portfolio.go` — `PortfolioService`: composes holdings + live prices + the INR↔EUR rate for `/prices` and `/summary` (own portfolio and admin act-as).
 * `internal/services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
+* `internal/services/gold.go` — `GoldService`: gold use cases (DD-003 §2) — owner-scoped transaction CRUD over the Postgres store with derived columns (GST 3%, nett per gram) computed at read time; constructed only when Postgres is up.
+* `internal/services/gold_prices.go` — daily gold price series (owner-entered jeweler rate); IST calendar bounds the missing-day window.
+* `internal/services/gold_metrics.go` — live metrics table: ledger totals, valuation at the latest price, GOLDBEES ETF P&L folded in from the stock holdings, XIRR of the physical flows.
+* `internal/services/gold_history.go` — `HistoryOverlay`: as-of gold position per history-row date for the History page's gold column/chart.
+* `internal/services/xirr.go` — spreadsheet-style XIRR (ACT/365, Newton–Raphson with bisection fallback) used by gold metrics.
 * `internal/domain/holding.go` — `Holding` struct (carries `user_id`; position fields are ledger-derived)
 * `internal/domain/transaction.go` — `Transaction` (ledger event; `TxnType` enum; nullable `OpeningDate` = user-set effective opening date)
 * `internal/domain/snapshot.go` — `PortfolioSnapshot` (per-currency `Buckets` + per-stock `Lines`/`HoldingSnapshot`), `BucketsFromLines`, `Totals`
 * `internal/domain/user.go` — `User` (with `Role`, `Region`, lockout counters, `IsAdmin`/`IsSuperAdmin`/`Oversees` helpers)
 * `internal/domain/session.go` — `Session` (opaque id, sliding 30-day expiry); `SessionTTL` constant
+* `internal/domain/gold.go` — `GoldTransaction` / gold price / metrics models (PRD-003); only user-entered fields are stored, derived columns computed in the service layer (same derive-don't-store rule as the stock ledger)
 * `internal/db/mongo.go` — MongoDB connection + index creation for `holdings`, `users`, `sessions`, `transactions`, and `portfolio_snapshots` (incl. TTL on `sessions.expires_at`)
-* `api/specs/openapi.yaml` — root spec; served live at `/api/specs/openapi.yaml`. Path surface is split by domain under per-domain folders: `api/specs/holdings/holdings.yaml`, `api/specs/transactions/transactions.yaml`, `api/specs/history/history.yaml`, `api/specs/market/market.yaml`, `api/specs/auth/auth.yaml`, `api/specs/admin/admin.yaml`. Every component (schemas, responses, parameters) lives inline in `api/specs/portfolio-api.yaml`; the path files reference it via `../portfolio-api.yaml#/components/...`. Every file under `api/specs/` is served at the matching URL by `httpserver.New`; the auth gate lets the whole `/api/specs/` GET tree through via `isPublicSpecRoute`, so adding a new sibling spec file does not require touching the public-routes table.
+* `internal/db/postgres.go` — Postgres pool + embedded schema migrations (`internal/db/migrations/*.sql`, applied on connect); optional at boot — a nil pool means "gold disabled"
+* `api/specs/openapi.yaml` — root spec; served live at `/api/specs/openapi.yaml`. Path surface is split by domain under per-domain folders: `api/specs/holdings/holdings.yaml`, `api/specs/transactions/transactions.yaml`, `api/specs/history/history.yaml`, `api/specs/market/market.yaml`, `api/specs/auth/auth.yaml`, `api/specs/admin/admin.yaml`, `api/specs/gold/gold.yaml`. Every component (schemas, responses, parameters) lives inline in `api/specs/portfolio-api.yaml`; the path files reference it via `../portfolio-api.yaml#/components/...`. Every file under `api/specs/` is served at the matching URL by `httpserver.New`; the auth gate lets the whole `/api/specs/` GET tree through via `isPublicSpecRoute`, so adding a new sibling spec file does not require touching the public-routes table.
 * `api/oapi-codegen-models.yaml` + `api/oapi-codegen-server.yaml` — split codegen configs. Models config reads `api/specs/portfolio-api.yaml` (paths-empty, `skip-prune` on) and emits `api/models.gen.go` with the component types and the strict-server response wrappers. Server config reads `api/specs/openapi.yaml`, uses `import-mapping: ../portfolio-api.yaml: "-"` so external refs resolve to the same Go package, and emits `api/server.gen.go` with the operation params, request bodies, and Echo/strict-server scaffolding. Regen both with `go generate -tags tools ./...` from `backend/`; frontend types live at `frontend/src/lib/api/schema.gen.ts` and regen with `npm run gen:api` (openapi-typescript follows external `$ref`s natively).
 
 All app-private packages live under `internal/` per idiomatic Go layout.
+
+#### Logging convention
+
+In service methods, bind the request logger to a local variable — `logger := s.log(ctx)` (or `s.log()` / `r.log()` for services without a ctx-aware logger) — and call `logger.Error(...)` / `logger.Info(...)` on it. A function that logs in several places binds it once up front; never chain `s.log(ctx).Error(...)` inline at a call site (CI greps for this). The ctx-aware `log(ctx)` helpers are one-line delegates to `logging.FromContextOr(ctx, s.logger)` — new services reuse that, not a copy of the resolution logic. Attach errors as `zap.Error(err)` in new code; many legacy sites use `zap.String("error", err.Error())` — migrate them opportunistically, don't sweep.
 
 ### Frontend (`frontend/src/`)
 
@@ -103,7 +115,9 @@ React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folde
 * `features/auth/guards.tsx` — `RequireAuth`, `RequireAdmin`, `RequireSuperAdmin`, `RedirectIfAuthed`
 * `features/auth/LoginPage.tsx`, `SignupPage.tsx`, `ForgotPasswordPage.tsx`, `OnboardingPage.tsx`, `ProfilePage.tsx`, `AuthShell.tsx` — auth screens
 * `features/dashboard/DashboardPage.tsx` — main app shell; takes optional `actAsUserId`/`actAsLabel` for admin act-as. Shows a blocking **opening-date** prompt (own portfolio only) when a holding has an opening balance with no date set.
-* `features/history/HistoryPage.tsx` — the `/history` view: per-currency charts (Recharts), a sortable month table with add/paste/edit-override, and a `HoldingsModal` opened by clicking a currency cell (per-stock breakdown for that currency; positive positions only)
+* `features/history/HistoryPage.tsx` — the `/history` view: per-currency charts + a gold chart panel (Recharts), a sortable month table with gold columns and add/paste/edit-override, and a `HoldingsModal` opened by clicking a currency cell (per-stock breakdown for that currency; positive positions only)
+* `features/history/HistoryChartPage.tsx` — `/history/chart/:region`: the full-history invested-vs-current chart for one currency, zoomable and horizontally scrollable; opened from the History page's mini-chart
+* `features/gold/GoldPage.tsx` — the `/gold` view (route gated by `RequireGold`): physical gold transactions table + `GoldTxnModal` (add/edit), `GoldPricesPanel` (monthly jeweler rates), `GoldMetricsPanel` (totals, GOLDBEES, XIRR), `MissingPricesModal` (prompts for missing price days)
 * `features/admin/AdminUserList.tsx` — region-scoped users with promote/demote/hide/reactivate/move-region/delete actions
 * `features/admin/AdminUserView.tsx` — renders `DashboardPage` in act-as mode for a target user
 * `features/admin/AdminManageAdmins.tsx` — super-admin only; demote/move-region across all admins
@@ -126,7 +140,8 @@ Frontend → /api/prices                      → backend fetches live Yahoo Fin
          → /api/market/price                → ad-hoc symbol lookup (modal Test button)
          → /api/market/forex                → INR→EUR rate
          → /api/holdings/:id/transactions   → per-holding ledger; position recomputes on write
-         → /api/history?from&to             → daily snapshot rows (per-currency totals + per-stock lines)
+         → /api/history?from&to             → daily snapshot rows (per-currency totals + per-stock lines + gold overlay)
+         → /api/gold/*                       → gold transactions/prices/metrics (Postgres; 503 when POSTGRES_URI unset)
 
 External cron → `snapshot` subcommand → writes one PortfolioSnapshot per user per day
 ```
