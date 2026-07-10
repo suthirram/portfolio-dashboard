@@ -77,9 +77,13 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 			zap.String("id", idHex), zap.String("error", err.Error()))
 		return api.Holding{}, false, err
 	}
-	openings, err := s.txns.OpeningsByUser(ctx, uid)
-	if err != nil {
+	openings := map[primitive.ObjectID]domain.Transaction{}
+	opening, err := s.txns.OpeningByHolding(ctx, uid, holding.ID)
+	if err != nil && !errors.Is(err, persistence.ErrNotFound) {
 		return api.Holding{}, false, err
+	}
+	if err == nil {
+		openings[holding.ID] = opening
 	}
 	h := HoldingToAPI(holding)
 	h.HasOpening, h.OpeningDate = openingStatus(openings, holding.ID)

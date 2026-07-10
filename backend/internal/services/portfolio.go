@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -49,6 +50,31 @@ func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
 	return logging.FromContextOr(ctx, s.logger)
 }
 
+// prefetchPrices warms the price cache for the holdings' unique symbols
+// concurrently, so the serial per-holding enrichment below hits the cache
+// instead of paying one Yahoo round-trip per symbol. Errors are ignored
+// here — the enrichment loops re-fetch and surface them per holding.
+func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain.Holding) {
+	seen := make(map[string]struct{}, len(holdings))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(8)
+	for _, hld := range holdings {
+		symbol := hld.Symbol
+		if symbol == "" {
+			continue
+		}
+		if _, ok := seen[symbol]; ok {
+			continue
+		}
+		seen[symbol] = struct{}{}
+		g.Go(func() error {
+			_, _, _ = s.priceService.GetPrice(gctx, symbol)
+			return nil
+		})
+	}
+	_ = g.Wait()
+}
+
 // Prices returns the holdings owned by uid enriched with live market data,
 // plus the live INR→EUR rate. Errors fetching the EUR rate fail the call;
 // per-symbol price failures are surfaced inline on each HoldingWithPrice.
@@ -68,6 +94,7 @@ func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (
 		return nil, 0, fmt.Errorf("fetching EUR rate: %w", err)
 	}
 
+	s.prefetchPrices(ctx, holdings)
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
 	for _, hld := range holdings {
 		results = append(results, HoldingWithPriceToAPI(ctx, hld, s.priceService, eurRate))
@@ -97,6 +124,7 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 	// own units (no FX), keyed "INR"|"EUR"|"USD" — the basis for the
 	// per-currency change vs previous close.
 	nativeCurrent := map[string]float64{}
+	s.prefetchPrices(ctx, holdings)
 	for _, hld := range holdings {
 		isEUR := hld.Currency == "EUR"
 

@@ -81,6 +81,24 @@ func (s *TransactionStore) OpeningsByUser(ctx context.Context, uid primitive.Obj
 	return out, nil
 }
 
+// OpeningByHolding returns the opening event of one holding owned by uid, or
+// ErrNotFound when the holding has none. Single-holding counterpart of
+// OpeningsByUser so a point read doesn't scan the user's whole ledger.
+func (s *TransactionStore) OpeningByHolding(ctx context.Context, uid, holdingID primitive.ObjectID) (domain.Transaction, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	var t domain.Transaction
+	err := s.col.FindOne(ctx, scopedFilter(uid, bson.M{
+		"type":       string(domain.TxnOpening),
+		"holding_id": holdingID,
+	})).Decode(&t)
+	if err != nil {
+		return domain.Transaction{}, translateFindErr(err)
+	}
+	return t, nil
+}
+
 // GetScoped returns the transaction owned by uid with the given id, or
 // ErrNotFound (also covering a transaction owned by someone else).
 func (s *TransactionStore) GetScoped(ctx context.Context, uid, id primitive.ObjectID) (domain.Transaction, error) {
