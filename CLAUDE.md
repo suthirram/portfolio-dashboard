@@ -115,7 +115,10 @@ React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folde
 * `features/auth/guards.tsx` — `RequireAuth`, `RequireAdmin`, `RequireSuperAdmin`, `RedirectIfAuthed`
 * `features/auth/LoginPage.tsx`, `SignupPage.tsx`, `ForgotPasswordPage.tsx`, `OnboardingPage.tsx`, `ProfilePage.tsx`, `AuthShell.tsx` — auth screens
 * `features/dashboard/DashboardPage.tsx` — main app shell; takes optional `actAsUserId`/`actAsLabel` for admin act-as. Shows a blocking **opening-date** prompt (own portfolio only) when a holding has an opening balance with no date set.
-* `features/history/HistoryPage.tsx` — the `/history` view: per-currency charts + a gold chart panel (Recharts), a sortable month table with gold columns and add/paste/edit-override, and a `HoldingsModal` opened by clicking a currency cell (per-stock breakdown for that currency; positive positions only)
+* `features/history/HistoryPage.tsx` — the `/history` view: month picker, per-currency charts + a gold chart panel (Recharts), and the modal wiring. Re-exports everything the module historically exported so tests and `HistoryChartPage` import unchanged. The rest of the feature is split alongside it:
+  * `features/history/historyShared.ts` — constants (regions, palettes, tints), pure helpers (chart data, row stats, form state, paste parsing), shared style objects; imports nothing local
+  * `features/history/HistoryTable.tsx` — the sortable month table: per-currency + gold column groups and the day-over-day cell tints
+  * `features/history/HistoryModals.tsx` — `AddRowModal`/`EditRowModal`/`PasteModal`/`ConflictDialog`/`HoldingsModal` (the per-stock breakdown opened by clicking a currency cell; positive positions only)
 * `features/history/HistoryChartPage.tsx` — `/history/chart/:region`: the full-history invested-vs-current chart for one currency, zoomable and horizontally scrollable; opened from the History page's mini-chart
 * `features/gold/GoldPage.tsx` — the `/gold` view (route gated by `RequireGold`): physical gold transactions table + `GoldTxnModal` (add/edit), `GoldPricesPanel` (monthly jeweler rates), `GoldMetricsPanel` (totals, GOLDBEES, XIRR), `MissingPricesModal` (prompts for missing price days)
 * `features/admin/AdminUserList.tsx` — region-scoped users with promote/demote/hide/reactivate/move-region/delete actions
