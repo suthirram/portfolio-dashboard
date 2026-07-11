@@ -41,6 +41,51 @@ owner's standing instructions; when in doubt, follow this file and
   pass all three gates: **no regression**, **adds value on its own**, and
   **ships with a test that would fail without the change**.
 
+## Authoring the docs (PRD / DD / PD / ADR)
+
+A substantial feature is specified by a linked trio — PRD (*what & why*) →
+DD (*how*) → PD (*rollout*) — plus ADRs for individual decisions worth a
+record. Land docs (or at least drafts) before or alongside the first
+implementation PR, via the normal branch → PR flow (doc-only PRs are fine,
+e.g. PD-043 PR1 shipped all four docs as a "doc review" slice).
+
+Every doc starts with a `# <ID>: <title>` heading followed by a metadata
+bullet list (`Status`, `Owner`, cross-links), then numbered `## N.`
+sections. Cross-link the companions with relative links both ways. Numbers
+are sequential per series — take the next free one.
+
+* **PRD** (`docs/prds/PRD-00x-<slug>.md`) — product requirements. Sections:
+  Problem, Goals, Non-goals, Who uses this, one section per user-facing
+  surface (tables, prompts, pages), Open questions, Success criteria.
+  Open questions get **resolved in place** — keep the section, mark it
+  `RESOLVED (owner, <date>)`, and record the answers; they become locked
+  requirements (e.g. PRD-003 §9 formulas). No implementation detail here.
+* **DD** (`docs/designs/DD-00x-<slug>.md`) — technical design implementing
+  a PRD (metadata: `Implements: PRD-00x`, `Rollout plan: PD-0xx`).
+  Sections: storage/schema (with migrations), backend layout (packages,
+  gates, API surface incl. the OpenAPI spec file), computation/algorithms,
+  frontend, Testing, Risks. Concrete enough that slices can be cut from it.
+* **PD** (`docs/plans/PD-0xx-<slug>.md`) — rollout/infra plan. For a
+  feature: branching model, a **PR sequence table** (branch, scope, test
+  anchor per slice — each row passing the task-breakdown gates),
+  environment changes, prod-rollout steps. For infra-only plans (e.g.
+  PD-044): goal, trigger semantics, stack shape, runbook, rollback. Plans
+  are living documents — update status/decisions as rollout proceeds.
+* **ADR** (`docs/adrs/ADR-000x-<slug>.md`) — one significant decision.
+  Metadata: `Status` (Draft/Accepted/Superseded), `Date`, `Deciders`,
+  `Related` links. Sections: Context (the concrete problem, with
+  evidence), Decision, consequences/alternatives. Never rewrite an
+  accepted ADR to change the decision — append a dated **Revision** block
+  at the top and strike through the superseded mechanism (see ADR-0003).
+* **Dependency manifest** (`docs/feature-deps/PD-0xx-<slug>.md`) — when a
+  feature introduces or widens libraries, images, or external services,
+  list every one (Go, npm, infrastructure) with why it's needed, so the
+  additions are auditable.
+
+Owner decisions recorded in these docs (storage choices, formulas,
+resolved questions) are binding — do not re-litigate them in code or
+reviews; propose a doc revision instead.
+
 ## PR descriptions
 
 * Hard cap **200 words**. Trim prose, not substance.
