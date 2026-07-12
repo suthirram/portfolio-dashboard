@@ -264,6 +264,11 @@ func (m *multiStub) GetForexRate(_ context.Context, _, _ string) (float64, error
 
 // -- Run/Report --
 
+// weekday is a fixed Tuesday for Run tests: the zero-value RunOptions.Date
+// falls back to the real clock, and on weekends BuildSnapshot takes the
+// prior-snapshot carry-forward path these mocks don't stub.
+var weekday = time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
+
 func TestRun_DryRunDoesNotPersist(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("dry run", func(mt *mtest.T) {
@@ -282,7 +287,7 @@ func TestRun_DryRunDoesNotPersist(t *testing.T) {
 		store := persistence.New(mt.DB)
 		svc := NewSnapshotService(store.Holdings, store.Snapshots, store.Users, &stubPriceFetcher{price: 200}, nil)
 
-		report, err := svc.Run(context.Background(), RunOptions{DryRun: true})
+		report, err := svc.Run(context.Background(), RunOptions{DryRun: true, Date: weekday})
 		if err != nil {
 			t.Fatalf("Run: %v", err)
 		}
@@ -315,7 +320,7 @@ func TestRun_RestrictToSingleUser(t *testing.T) {
 		store := persistence.New(mt.DB)
 		svc := NewSnapshotService(store.Holdings, store.Snapshots, store.Users, &stubPriceFetcher{}, nil)
 
-		report, err := svc.Run(context.Background(), RunOptions{UserID: uid, DryRun: true})
+		report, err := svc.Run(context.Background(), RunOptions{UserID: uid, DryRun: true, Date: weekday})
 		if err != nil {
 			t.Fatalf("Run: %v", err)
 		}
@@ -387,7 +392,7 @@ func TestRun_WritesUpsertWhenNotDryRun(t *testing.T) {
 
 		store := persistence.New(mt.DB)
 		svc := NewSnapshotService(store.Holdings, store.Snapshots, store.Users, &stubPriceFetcher{}, nil)
-		report, err := svc.Run(context.Background(), RunOptions{})
+		report, err := svc.Run(context.Background(), RunOptions{Date: weekday})
 		if err != nil {
 			t.Fatalf("Run: %v", err)
 		}
