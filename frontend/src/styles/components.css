@@ -612,21 +612,20 @@ a:hover .app-icon .icon-spark,
   text-shadow: 0 0 14px currentColor;
 }
 
-/* Dashboard entrance: glyphs pop in at their randomised delays. `scale`
- * and `translate` are standalone properties, so the keyframes compose
- * with each glyph's inline rotate() transform. Covered by the global
- * reduced-motion guard in base.css. */
-@keyframes sprinkle-in {
+/* Dashboard entrance: each glyph rains down from above the viewport to its
+ * resting spot and stops. `translate` is a standalone property, so the
+ * keyframe composes with each glyph's inline rotate() transform; `backwards`
+ * keeps a glyph parked off-screen until its randomised delay fires. Covered
+ * by the global reduced-motion guard in base.css. */
+@keyframes sprinkle-rain {
   from {
-    opacity: 0;
-    scale: 0.3;
-    translate: 0 14px;
+    translate: 0 -110vh;
   }
 }
 
 .sprinkle-animate span {
-  animation: sprinkle-in 0.7s var(--ease) backwards;
-  /* animation-delay comes inline per glyph */
+  /* Accelerating fall, soft landing. animation-delay comes inline per glyph. */
+  animation: sprinkle-rain 0.9s cubic-bezier(0.45, 0, 0.6, 1) backwards;
 }
 
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */
