@@ -36,16 +36,22 @@ export const REGION_COLOURS: Record<ThemeName, LinePalette> = {
     INR: { invested: '#d97706', current: '#9a3412' }, // amber-600 / orange-800
     EUR: { invested: '#2563eb', current: '#1e3a8a' }, // blue-600  / 900
   },
+  cyberpunk: {
+    INR: { invested: '#ffe600', current: '#ff9e00' }, // neon yellow / orange
+    EUR: { invested: '#00e5ff', current: '#2b7fff' }, // neon cyan / blue
+  },
 }
 
 export const PNL_LINE_COLOUR: Record<ThemeName, string> = {
   dark:  '#c084fc', // purple-400, pops on dark
   light: '#6d28d9', // purple-700, readable on white
+  cyberpunk: '#ff2bd6', // neon magenta
 }
 
 export const VOL_LINE_COLOUR: Record<ThemeName, string> = {
   dark:  '#2dd4bf', // teal-400, distinct from the amber/blue/red/purple lines
   light: '#0f766e', // teal-700, readable on white
+  cyberpunk: '#00ffa3', // neon mint
 }
 
 // Per-theme background tints for each currency group in the table.
@@ -59,6 +65,10 @@ export const REGION_TINTS: Record<ThemeName, Record<RegionKey, { header: string;
   dark: {
     INR: { header: 'rgba(251,146,60,0.22)', cell: 'rgba(251,146,60,0.10)' },
     EUR: { header: 'rgba(96,165,250,0.22)', cell: 'rgba(96,165,250,0.10)' },
+  },
+  cyberpunk: {
+    INR: { header: 'rgba(255,230,0,0.18)', cell: 'rgba(255,230,0,0.07)' },
+    EUR: { header: 'rgba(0,229,255,0.18)', cell: 'rgba(0,229,255,0.07)' },
   },
 }
 
@@ -86,6 +96,7 @@ export const GOLD_TINT = 'rgba(217,119,6,0.10)'
 export const GOLD_PALETTE: Record<ThemeName, { invested: string; current: string }> = {
   dark:  { invested: '#fde047', current: '#eab308' }, // yellow-300 / 500
   light: { invested: '#ca8a04', current: '#854d0e' }, // yellow-600 / 800
+  cyberpunk: { invested: '#ffe600', current: '#ffb300' }, // neon yellow / amber
 }
 
 // Year selector lower bound. Lets users browse back through 2020 even

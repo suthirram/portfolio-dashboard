@@ -4,7 +4,8 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { api, type HistoryRow } from '../../lib/api/client'
-import { useTheme } from '../../lib/useTheme'
+import { nextThemeLabel, useTheme } from '../../lib/useTheme'
+import { useAuthOptional } from '../auth/AuthContext'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
   chartTooltipProps, fmtCurrency, fmtAxisAmount, niceDomain,
@@ -74,7 +75,8 @@ const zoomBtnStyle: React.CSSProperties = {
 }
 
 export default function HistoryChartPage() {
-  const { theme, toggle: toggleTheme } = useTheme()
+  const auth = useAuthOptional()
+  const { theme, toggle: toggleTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const params = useParams<{ region: string }>()
   const region: RegionKey = isRegionKey(params.region) ? params.region : 'INR'
 
@@ -142,7 +144,7 @@ export default function HistoryChartPage() {
           border: '1px solid var(--border)', borderRadius: 6,
           padding: '6px 12px', cursor: 'pointer', fontSize: 13,
         }} aria-label="Toggle theme">
-          {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
+          {nextThemeLabel(theme, auth?.user?.premium)}
         </button>
       </header>
 

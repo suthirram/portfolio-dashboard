@@ -168,6 +168,27 @@
   background: var(--bg-card-hover);
 }
 
+/* --- Cyberpunk flair (premium theme, PD-046) --------------------------------- */
+
+[data-theme="cyberpunk"] .brand-tile {
+  box-shadow: 0 0 16px rgba(255, 43, 214, 0.55);
+}
+[data-theme="cyberpunk"] .btn-primary {
+  box-shadow: 0 2px 16px rgba(0, 229, 255, 0.35);
+}
+[data-theme="cyberpunk"] .btn-primary:hover {
+  box-shadow: 0 4px 22px rgba(255, 43, 214, 0.45);
+}
+[data-theme="cyberpunk"] .card:hover {
+  box-shadow: 0 0 18px rgba(122, 43, 217, 0.4);
+}
+[data-theme="cyberpunk"] .nav-glass {
+  box-shadow: 0 1px 18px rgba(255, 43, 214, 0.15);
+}
+[data-theme="cyberpunk"] .modal-card {
+  box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 229, 255, 0.15);
+}
+
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */
 
 @keyframes shimmer {
