@@ -48,6 +48,7 @@ describe('GoldPage', () => {
     vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
+  it('offers two-click theme selection in the header', async () => {
   it('opts into the gold background art shell', () => {
     const { container } = renderPage()
     expect(container.firstElementChild).toHaveClass('page-art', 'page-art-gold')

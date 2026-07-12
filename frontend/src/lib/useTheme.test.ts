@@ -1,8 +1,56 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { nextThemeLabel, useTheme } from './useTheme'
+import { __resetThemeChoiceForTests, nextThemeLabel, useTheme } from './useTheme'
+
+function installLocalStorage() {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value) },
+      removeItem: (key: string) => { values.delete(key) },
+      clear: () => { values.clear() },
+    },
+  })
+}
 
 describe('useTheme premium gating (PD-046)', () => {
+  beforeEach(() => {
+    installLocalStorage()
+    __resetThemeChoiceForTests()
+  })
+
+  it('premium accounts with no explicit theme choice default to cyberpunk', () => {
+    const { result } = renderHook(() => useTheme({ premium: true }))
+    expect(result.current.theme).toBe('cyberpunk')
+    expect(document.documentElement.dataset.theme).toBe('cyberpunk')
+  })
+
+  it('promotes a legacy stored light theme to cyberpunk for premium discovery', () => {
+    window.localStorage.setItem('pd_theme', 'light')
+    const { result } = renderHook(() => useTheme({ premium: true }))
+    expect(result.current.theme).toBe('cyberpunk')
+    expect(document.documentElement.dataset.theme).toBe('cyberpunk')
+    expect(window.localStorage.getItem('pd_theme_chosen')).toBeNull()
+  })
+
+  it('an explicit choice blocks the premium cyber default', () => {
+    // First session: the user picks dark…
+    const first = renderHook(() => useTheme({ premium: true }))
+    act(() => first.result.current.set('dark'))
+    expect(first.result.current.theme).toBe('dark')
+    first.unmount()
+    // …and a later mount respects it instead of re-defaulting.
+    const second = renderHook(() => useTheme({ premium: true }))
+    expect(second.result.current.theme).toBe('dark')
+  })
+
+  it('non-premium accounts are never defaulted to cyberpunk', () => {
+    const { result } = renderHook(() => useTheme({ premium: false }))
+    expect(result.current.theme).toBe('dark')
+  })
+
   it('premium accounts cycle dark → light → cyberpunk → dark', () => {
     const { result } = renderHook(() => useTheme({ premium: true }))
     act(() => result.current.set('dark'))

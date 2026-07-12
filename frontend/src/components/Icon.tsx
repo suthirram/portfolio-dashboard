@@ -110,8 +110,8 @@ export const RefreshIcon = (p: IconProps) => (
 
 export const PlusIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect className="icon-muted" x="4" y="4" width="16" height="16" rx="5" />
-    <path className="icon-success icon-motion" d="M12 8v8M8 12h8" />
+    <rect className="icon-spark " x="4" y="4" width="16" height="16" rx="5" />
+    <path className="icon-spark icon-motion" d="M12 8v8M8 12h8" />
   </Svg>
 )
 

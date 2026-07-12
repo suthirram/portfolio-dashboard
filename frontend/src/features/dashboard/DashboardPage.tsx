@@ -9,7 +9,8 @@ import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
-import { nextThemeLabel, useTheme } from '../../lib/useTheme'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
 import {
   ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
@@ -29,7 +30,7 @@ interface Props {
 
 export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const { user, logout } = useAuth()
-  const { theme, toggle: toggleTheme } = useTheme({ premium: user ? user.premium : undefined })
+  const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
   const {
     holdings,
     enriched,
@@ -154,12 +155,6 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Gold</span>
             </Link>
           )}
-          <button onClick={toggleTheme} className="btn dash-nav-btn"
-            aria-label="Toggle theme"
-            title={`Switch theme: ${nextThemeLabel(theme, user?.premium)}`}
-            style={{ padding: '6px 10px' }}>
-            {nextThemeLabel(theme, user?.premium).split(' ')[0]}
-          </button>
           {isAdmin && (
             <Link to="/admin" className="btn dash-nav-btn">
               <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
@@ -202,6 +197,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
                 }}>
                   <LogOutIcon size={14} /> Log out
                 </button>
+                <ThemePicker theme={theme} premium={user?.premium} onSelect={setTheme} />
               </div>
             )}
           </div>

@@ -172,8 +172,7 @@ export const api = {
 }
 
 // ---- History types ----
-// Shape mirrors backend/internal/services/history.go. When the strict-
-// server migration in PD-042 §3.6 happens, replace these with
+// Shape mirrors backend/internal/services/history.go. When the strict-server migration in PD-042 §3.6 happens, replace these with
 // Schemas['HistoryRow'] etc.
 
 export type SnapshotSource = 'cron' | 'manual'

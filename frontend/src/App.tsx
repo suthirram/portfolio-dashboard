@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import CurrencySprinkle from './components/CurrencySprinkle'
 import { AuthProvider } from './features/auth/AuthContext'
 import { RedirectIfAuthed, RequireAdmin, RequireAuth, RequireGold, RequireSuperAdmin } from './features/auth/guards'
 import LoginPage from './features/auth/LoginPage'
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <CurrencySprinkle />
         <Routes>
           <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
           <Route path="/signup" element={<RedirectIfAuthed><SignupPage /></RedirectIfAuthed>} />
