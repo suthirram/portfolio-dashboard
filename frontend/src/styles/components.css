@@ -34,6 +34,194 @@
   display: inline-block;
 }
 
+/* --- Icons ------------------------------------------------------------- */
+
+@keyframes icon-float {
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes icon-trace {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes icon-spin-once {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes icon-spark {
+  50% { opacity: 0.45; transform: scale(1.22); }
+}
+
+.app-icon {
+  --icon-gold: #fbbf24;
+  --icon-gold-soft: #d97706;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+.app-icon * {
+  transform-box: fill-box;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
+}
+
+.app-icon .icon-accent {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-up,
+.app-icon .icon-success {
+  color: var(--green);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-down,
+.app-icon .icon-danger {
+  color: var(--red);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-warn,
+.app-icon .icon-warning {
+  color: var(--yellow);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold {
+  color: var(--icon-gold);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  stroke: currentColor;
+}
+
+.app-icon .icon-admin {
+  color: var(--purple);
+  stroke: currentColor;
+}
+
+.app-icon .icon-user-tone {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-muted {
+  opacity: 0.68;
+}
+
+.app-icon .icon-trace {
+  stroke-dasharray: 18;
+}
+
+.app-icon .icon-spark {
+  opacity: 0.78;
+}
+
+button:hover .app-icon .icon-motion,
+a:hover .app-icon .icon-motion,
+.brand-tile:hover .app-icon .icon-motion {
+  animation: icon-float 0.75s var(--ease) both;
+}
+
+button:hover .app-icon .icon-trace,
+a:hover .app-icon .icon-trace,
+.brand-tile:hover .app-icon .icon-trace {
+  animation: icon-trace 0.72s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spin,
+a:hover .app-icon .icon-spin {
+  animation: icon-spin-once 0.85s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spark,
+a:hover .app-icon .icon-spark,
+.brand-tile:hover .app-icon .icon-spark {
+  animation: icon-spark 0.8s var(--ease) both;
+}
+
+[data-theme="light"] .app-icon .icon-accent {
+  color: var(--blue);
+}
+
+[data-theme="light"] .app-icon {
+  --icon-gold: #b7791f;
+  --icon-gold-soft: #d97706;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-accent {
+  color: #00e5ff;
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.45));
+}
+
+[data-theme="cyberpunk"] .app-icon {
+  --icon-gold: #ffe600;
+  --icon-gold-soft: #ffb800;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-spark {
+  color: #ff2bd6;
+  filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.5));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-up,
+[data-theme="cyberpunk"] .app-icon .icon-success {
+  color: var(--green);
+  filter: drop-shadow(0 0 5px rgba(0, 255, 163, 0.4));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-down,
+[data-theme="cyberpunk"] .app-icon .icon-danger {
+  color: var(--red);
+  filter: drop-shadow(0 0 5px rgba(255, 46, 108, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-warn,
+[data-theme="cyberpunk"] .app-icon .icon-warning {
+  color: var(--yellow);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold {
+  color: var(--icon-gold);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  filter: drop-shadow(0 0 5px rgba(255, 184, 0, 0.34));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-admin {
+  color: var(--purple);
+  filter: drop-shadow(0 0 5px rgba(194, 107, 255, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-user-tone {
+  color: var(--blue);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.38));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:hover .app-icon .icon-motion,
+  a:hover .app-icon .icon-motion,
+  .brand-tile:hover .app-icon .icon-motion,
+  button:hover .app-icon .icon-trace,
+  a:hover .app-icon .icon-trace,
+  .brand-tile:hover .app-icon .icon-trace,
+  button:hover .app-icon .icon-spin,
+  a:hover .app-icon .icon-spin,
+  button:hover .app-icon .icon-spark,
+  a:hover .app-icon .icon-spark,
+  .brand-tile:hover .app-icon .icon-spark {
+    animation: none;
+  }
+}
+
 /* --- Buttons ------------------------------------------------------------ */
 
 .btn {
