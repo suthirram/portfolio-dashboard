@@ -48,14 +48,17 @@ describe('GoldPage', () => {
     vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
-  it('offers direct theme selection in the header', async () => {
+  it('offers two-click theme selection in the header', async () => {
     renderPage()
     // Outside an AuthProvider premium is unknown → dark/light options only.
-    fireEvent.click(await screen.findByRole('button', { name: '☀ Light' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Theme: 🌙 Dark' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '☀ Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
-    fireEvent.click(screen.getByRole('button', { name: '🌙 Dark' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Theme: ☀ Light' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '🌙 Dark' }))
     expect(document.documentElement.dataset.theme).toBe('dark')
-    expect(screen.queryByRole('button', { name: '⚡ Cyber' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Theme: 🌙 Dark' }))
+    expect(screen.queryByRole('menuitemradio', { name: '⚡ Cyber' })).toBeNull()
   })
 
   it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {

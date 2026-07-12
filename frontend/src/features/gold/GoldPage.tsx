@@ -108,13 +108,14 @@ export default function GoldPage() {
           <h1 style={{ fontSize: 17, fontWeight: 700 }}>Gold</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
+
           <button onClick={() => setModal({ open: true, txn: null })} style={{
             background: 'var(--blue)', color: '#fff', padding: '6px 16px',
             fontWeight: 600, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6,
           }}>
             <PlusIcon size={14} /> Add purchase
           </button>
+          <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
         </div>
       </header>
 

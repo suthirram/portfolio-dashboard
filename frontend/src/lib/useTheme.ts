@@ -94,8 +94,10 @@ export function useTheme(opts: UseThemeOptions = {}): { theme: ThemeName; toggle
   }, [premium, theme])
 
   // Premium default: an account with the flag and no explicit theme choice
-  // lands on cyberpunk. Once the user picks any theme the marker blocks
-  // this permanently.
+  // lands on cyberpunk. Legacy pd_theme storage without CHOSEN_KEY is treated
+  // as passive persistence, not an opt-out, so upgraded users discover the
+  // premium theme once. After the user picks any theme, the marker blocks this
+  // permanently.
   useEffect(() => {
     if (premium && !themeChosen() && theme !== 'cyberpunk') setTheme('cyberpunk')
   }, [premium, theme])

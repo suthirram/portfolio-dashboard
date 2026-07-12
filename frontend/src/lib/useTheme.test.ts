@@ -2,8 +2,22 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { __resetThemeChoiceForTests, nextThemeLabel, useTheme } from './useTheme'
 
+function installLocalStorage() {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value) },
+      removeItem: (key: string) => { values.delete(key) },
+      clear: () => { values.clear() },
+    },
+  })
+}
+
 describe('useTheme premium gating (PD-046)', () => {
   beforeEach(() => {
+    installLocalStorage()
     __resetThemeChoiceForTests()
   })
 
@@ -11,6 +25,14 @@ describe('useTheme premium gating (PD-046)', () => {
     const { result } = renderHook(() => useTheme({ premium: true }))
     expect(result.current.theme).toBe('cyberpunk')
     expect(document.documentElement.dataset.theme).toBe('cyberpunk')
+  })
+
+  it('promotes a legacy stored light theme to cyberpunk for premium discovery', () => {
+    window.localStorage.setItem('pd_theme', 'light')
+    const { result } = renderHook(() => useTheme({ premium: true }))
+    expect(result.current.theme).toBe('cyberpunk')
+    expect(document.documentElement.dataset.theme).toBe('cyberpunk')
+    expect(window.localStorage.getItem('pd_theme_chosen')).toBeNull()
   })
 
   it('an explicit choice blocks the premium cyber default', () => {

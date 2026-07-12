@@ -23,4 +23,26 @@ describe('ThemePicker', () => {
     expect(screen.queryByRole('button', { name: '⚡ Cyber' })).toBeNull()
     expect(screen.getAllByRole('button').length).toBe(2)
   })
+
+  it('shows current theme first in page headers and selects with a second click', () => {
+    const onSelect = vi.fn()
+    render(<ThemePicker variant="inline" theme="light" premium onSelect={onSelect} />)
+
+    expect(screen.getByRole('button', { name: 'Theme: ☀ Light' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menuitemradio', { name: '⚡ Cyber' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Theme: ☀ Light' }))
+    expect(screen.getByRole('button', { name: 'Theme: ☀ Light' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '⚡ Cyber' }))
+    expect(onSelect).toHaveBeenCalledWith('cyberpunk')
+    expect(screen.queryByRole('menuitemradio', { name: '⚡ Cyber' })).toBeNull()
+  })
+
+  it('hides the Cyber option from non-premium page headers', () => {
+    render(<ThemePicker variant="inline" theme="dark" premium={false} onSelect={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Theme: 🌙 Dark' }))
+    expect(screen.queryByRole('menuitemradio', { name: '⚡ Cyber' })).toBeNull()
+    expect(screen.getAllByRole('menuitemradio').length).toBe(2)
+  })
 })
