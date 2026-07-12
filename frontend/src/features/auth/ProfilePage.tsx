@@ -129,7 +129,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
+    <div className="page-art page-art-profile" style={{ minHeight: '100dvh', padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <Link to="/" aria-label="Back to dashboard" title="Back to dashboard" style={{
           color: 'var(--text-secondary)', textDecoration: 'none',

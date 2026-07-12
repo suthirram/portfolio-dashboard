@@ -189,6 +189,128 @@
   box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 229, 255, 0.15);
 }
 
+/* --- Cyberpunk page art ------------------------------------------------------ */
+
+.page-art {
+  --page-art-image: url('../assets/neon-market-dashboard.svg');
+  --page-art-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-position: right -72px top 72px;
+  --page-art-secondary-position: left -260px bottom -220px;
+  --page-art-size: min(94vw, 1180px) auto;
+  --page-art-secondary-size: min(58vw, 720px) auto;
+  --page-art-opacity: 0.42;
+  --page-art-secondary-opacity: 0.22;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+.page-art::before,
+.page-art::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--speed-slow) var(--ease);
+}
+
+.page-art::before {
+  background-image:
+    radial-gradient(44rem 28rem at 78% 12%, rgba(0, 229, 255, 0.12), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, rgba(255, 43, 214, 0.10), transparent 62%),
+    var(--page-art-image);
+  background-repeat: no-repeat;
+  background-position:
+    right top,
+    left bottom,
+    var(--page-art-position);
+  background-size:
+    auto,
+    auto,
+    var(--page-art-size);
+  mix-blend-mode: screen;
+  filter: saturate(1.15);
+}
+
+.page-art::after {
+  background-image: var(--page-art-secondary);
+  background-repeat: no-repeat;
+  background-position: var(--page-art-secondary-position);
+  background-size: var(--page-art-secondary-size);
+  mix-blend-mode: screen;
+  filter: saturate(1.1);
+}
+
+.page-art > * {
+  position: relative;
+  z-index: 1;
+}
+
+[data-theme="cyberpunk"] .page-art::before {
+  opacity: var(--page-art-opacity);
+}
+
+[data-theme="cyberpunk"] .page-art::after {
+  opacity: var(--page-art-secondary-opacity);
+}
+
+.page-art-dashboard {
+  --page-art-image: url('../assets/neon-market-dashboard.svg');
+  --page-art-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-position: right -76px top 62px;
+  --page-art-secondary-position: left -300px bottom -240px;
+  --page-art-size: min(96vw, 1220px) auto;
+}
+
+.page-art-history {
+  --page-art-image: url('../assets/neon-history-timeline.svg');
+  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -90px top 84px;
+  --page-art-secondary-position: left -380px bottom -270px;
+  --page-art-size: min(92vw, 1120px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-opacity: 0.38;
+}
+
+.page-art-admin,
+.page-art-users {
+  --page-art-image: url('../assets/neon-users-network.svg');
+  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -92px top 72px;
+  --page-art-secondary-position: left -370px bottom -260px;
+  --page-art-size: min(88vw, 1060px) auto;
+  --page-art-secondary-size: min(62vw, 760px) auto;
+}
+
+.page-art-gold {
+  --page-art-image: url('../assets/neon-gold-vault.svg');
+  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -64px top 76px;
+  --page-art-secondary-position: left -360px bottom -260px;
+  --page-art-size: min(90vw, 1060px) auto;
+}
+
+.page-art-profile {
+  --page-art-image: url('../assets/neon-users-network.svg');
+  --page-art-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-position: right -110px top 42px;
+  --page-art-secondary-position: left -340px bottom -260px;
+  --page-art-size: min(84vw, 980px) auto;
+}
+
+@media (max-width: 768px) {
+  .page-art {
+    --page-art-position: right -280px top 84px;
+    --page-art-secondary-position: left -360px bottom -260px;
+    --page-art-size: 820px auto;
+    --page-art-secondary-size: 620px auto;
+    --page-art-opacity: 0.28;
+    --page-art-secondary-opacity: 0.16;
+  }
+}
+
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */
 
 @keyframes shimmer {

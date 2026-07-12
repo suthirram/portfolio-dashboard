@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" fill="none">
+  <defs>
+    <radialGradient id="node" cx=".35" cy=".3" r=".75">
+      <stop stop-color="#f2e9ff"/>
+      <stop offset=".34" stop-color="#00e5ff"/>
+      <stop offset="1" stop-color="#ff2bd6"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path d="M188 536L336 326l181 110 145-206 238 145M336 326l326-96M517 436l383-61M188 536l329-100M336 326l564 49" stroke="#45207a" stroke-width="3" opacity=".66"/>
+  <path d="M192 548c0-35 28-63 63-63s63 28 63 63" stroke="#00e5ff" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="255" cy="448" r="39" stroke="#00e5ff" stroke-width="6" filter="url(#glow)"/>
+  <path d="M267 316c0-38 31-69 69-69s69 31 69 69" stroke="#ff2bd6" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="336" cy="208" r="43" stroke="#ff2bd6" stroke-width="6" filter="url(#glow)"/>
+  <path d="M454 474c0-34 28-62 62-62s62 28 62 62" stroke="#00ffa3" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="516" cy="377" r="38" stroke="#00ffa3" stroke-width="6" filter="url(#glow)"/>
+  <path d="M597 256c0-36 29-65 65-65s65 29 65 65" stroke="#ffe600" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="662" cy="154" r="41" stroke="#ffe600" stroke-width="6" filter="url(#glow)"/>
+  <path d="M833 416c0-37 30-67 67-67s67 30 67 67" stroke="#2b7fff" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+  <circle cx="900" cy="311" r="42" stroke="#2b7fff" stroke-width="6" filter="url(#glow)"/>
+  <circle cx="188" cy="536" r="14" fill="url(#node)" filter="url(#glow)"/>
+  <circle cx="336" cy="326" r="14" fill="url(#node)" filter="url(#glow)"/>
+  <circle cx="517" cy="436" r="14" fill="url(#node)" filter="url(#glow)"/>
+  <circle cx="662" cy="230" r="14" fill="url(#node)" filter="url(#glow)"/>
+  <circle cx="900" cy="375" r="14" fill="url(#node)" filter="url(#glow)"/>
+  <path d="M93 612h934" stroke="#2e1354" stroke-width="3" stroke-linecap="round"/>
+  <path d="M112 118h222M112 158h144M786 112h220M856 152h150" stroke="#00e5ff" stroke-width="4" stroke-linecap="round" opacity=".42" filter="url(#glow)"/>
+</svg>

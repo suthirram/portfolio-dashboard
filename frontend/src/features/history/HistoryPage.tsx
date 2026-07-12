@@ -207,10 +207,10 @@ export default function HistoryPage() {
   const headConflict = conflictQueue[0]
 
   return (
-    <div style={{ minHeight: '100dvh' }}>
-      <header style={{
+    <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
+      <header className="nav-glass" style={{
         borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+        background: 'var(--bg-glass)',
         padding: '0 28px',
         height: 'var(--nav-height, 56px)',
         display: 'flex',

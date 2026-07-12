@@ -87,6 +87,11 @@ describe('HistoryPage', () => {
     expect(screen.getByRole('main').style.maxWidth).toBe('1800px')
   })
 
+  it('opts into the cyberpunk history background art shell', () => {
+    const { container } = renderPage()
+    expect(container.firstElementChild).toHaveClass('page-art-history')
+  })
+
   it('moves the charts above the table on toggle and persists the choice', async () => {
     // This jsdom has no localStorage (hence the `window.localStorage?.`
     // convention in app code) — install a minimal stub to observe persistence.
