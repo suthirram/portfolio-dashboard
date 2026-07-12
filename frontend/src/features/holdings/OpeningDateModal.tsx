@@ -71,15 +71,14 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
   }
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
-      backdropFilter: 'blur(4px)',
     }}>
-      <div style={{
+      <div className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: 28, width: '100%', maxWidth: 520,
-        maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)',
+        borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 520,
+        maxHeight: '90vh', overflowY: 'auto',
       }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Set opening dates</h2>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18 }}>

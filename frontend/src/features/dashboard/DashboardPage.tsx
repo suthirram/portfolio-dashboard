@@ -119,10 +119,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg-primary)' }}>
-      <header className="dash-nav" style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+    // Background comes from body (base.css) so the ambient glow shows through.
+    <div style={{ minHeight: '100dvh' }}>
+      <header className="dash-nav nav-glass" style={{
         padding: '0 28px',
         height: 'var(--nav-height)',
         display: 'flex',
@@ -134,11 +133,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       }}>
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
-            <div style={{
-              width: 32, height: 32, background: 'var(--blue)', color: '#fff',
-              borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}><ChartLineIcon size={18} /></div>
+            <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
           </Link>
           {roleBadge}
@@ -152,41 +147,22 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
         </div>
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link to="/history" className="dash-nav-btn" style={{
-            background: 'var(--bg-card)', color: 'var(--text-secondary)',
-            border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-            padding: '6px 14px', fontSize: 13, textDecoration: 'none',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
+          <Link to="/history" className="btn dash-nav-btn">
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
           </Link>
           {!actAsUserId && user?.gold_enabled && (
-            <Link to="/gold" className="dash-nav-btn" style={{
-              background: 'var(--bg-card)', color: 'var(--text-secondary)',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              padding: '6px 14px', fontSize: 13, textDecoration: 'none',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
+            <Link to="/gold" className="btn dash-nav-btn">
               <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Gold</span>
             </Link>
           )}
-          <button onClick={toggleTheme} className="dash-nav-btn"
+          <button onClick={toggleTheme} className="btn dash-nav-btn"
             aria-label="Toggle theme"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              background: 'var(--bg-card)', color: 'var(--text-secondary)',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              padding: '6px 10px', fontSize: 13, cursor: 'pointer',
-            }}>
+            style={{ padding: '6px 10px' }}>
             {theme === 'dark' ? '☀' : '🌙'}
           </button>
           {isAdmin && (
-            <Link to="/admin" className="dash-nav-btn" style={{
-              background: 'var(--bg-card)', color: 'var(--text-secondary)',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-              padding: '6px 14px', fontSize: 13, textDecoration: 'none',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
+            <Link to="/admin" className="btn dash-nav-btn">
               <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
             </Link>
           )}
@@ -195,32 +171,20 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               Updated {lastRefresh.toLocaleTimeString()}
             </span>
           )}
-          <button onClick={fetchPrices} disabled={loadingPrices} className="dash-nav-btn"
-            style={{
-              background: 'var(--bg-card)', color: 'var(--text-secondary)',
-              border: '1px solid var(--border)', padding: '6px 14px',
-              display: 'flex', alignItems: 'center', gap: 6, opacity: loadingPrices ? 0.6 : 1,
-            }}>
+          <button onClick={fetchPrices} disabled={loadingPrices} className="btn dash-nav-btn"
+            style={{ opacity: loadingPrices ? 0.6 : 1 }}>
             {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
           </button>
-          <button onClick={() => setModal('add')} className="dash-nav-btn"
-            style={{
-              background: 'var(--blue)', color: '#fff', padding: '6px 16px', fontWeight: 600,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
+          <button onClick={() => setModal('add')} className="btn-primary dash-nav-btn">
             <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setMenuOpen(o => !o)} className="dash-nav-btn"
-              style={{
-                background: 'var(--bg-card)', color: 'var(--text-primary)',
-                border: '1px solid var(--border)', padding: '6px 12px',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
+            <button onClick={() => setMenuOpen(o => !o)} className="btn dash-nav-btn"
+              style={{ padding: '6px 12px', color: 'var(--text-primary)' }}>
               <UserIcon size={14} /> <span className="dash-nav-label-sm">{user?.name || user?.username}</span>
             </button>
             {menuOpen && (
-              <div onMouseLeave={() => setMenuOpen(false)} style={{
+              <div className="menu-pop" onMouseLeave={() => setMenuOpen(false)} style={{
                 position: 'absolute', top: 'calc(100% + 6px)', right: 0,
                 background: 'var(--bg-card)', border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)', minWidth: 180, boxShadow: 'var(--shadow)', zIndex: 100,

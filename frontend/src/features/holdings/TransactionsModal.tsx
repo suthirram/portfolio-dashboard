@@ -168,15 +168,14 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
   const isOpening = form.type === 'opening'
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-      backdropFilter: 'blur(4px)',
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{
+      <div className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: 28, width: '100%', maxWidth: 720,
-        maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)',
+        borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 720,
+        maxHeight: '90vh', overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>Transactions — {holding.script}</h2>

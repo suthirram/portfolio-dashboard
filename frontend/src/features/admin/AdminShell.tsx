@@ -20,7 +20,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const isSuper = user?.role === 'superadmin'
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100vh' }}>
       <header style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',

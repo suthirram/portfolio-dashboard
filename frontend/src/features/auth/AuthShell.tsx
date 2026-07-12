@@ -13,25 +13,17 @@ export function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--bg-primary)',
       display: 'grid',
       placeItems: 'center',
       padding: '32px 16px',
     }}>
-      <div style={{
+      <div className="card-elevated" style={{
         width: '100%',
         maxWidth: 420,
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)',
         padding: 32,
-        boxShadow: 'var(--shadow)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-          <div style={{
-            width: 36, height: 36, background: 'var(--blue)', color: '#fff',
-            borderRadius: 8, display: 'grid', placeItems: 'center',
-          }}><ChartLineIcon size={20} /></div>
+          <div className="brand-tile" style={{ width: 36, height: 36 }}><ChartLineIcon size={20} /></div>
           <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}>Portfolio Dashboard</span>
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>{title}</h1>
@@ -83,14 +75,13 @@ export function PrimaryButton({ disabled, loading, children, type = 'submit', on
   return (
     <button
       type={type}
+      className="btn-primary"
       disabled={disabled || loading}
       onClick={onClick}
       style={{
         width: '100%',
-        background: 'var(--blue)',
-        color: '#fff',
+        justifyContent: 'center',
         padding: '10px 16px',
-        fontWeight: 600,
         fontSize: 14,
         opacity: disabled || loading ? 0.6 : 1,
         marginTop: 4,

@@ -194,7 +194,7 @@ export default function HistoryPage() {
   const headConflict = conflictQueue[0]
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100dvh' }}>
       <header style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
@@ -316,6 +316,10 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
   const pnlDomain = useMemo(() => niceDomain(data.map(d => d.pnl_pct)), [data])
   // Daily volatility swings both ways around 0, so centre the axis on zero.
   const volDomain = useMemo(() => symmetricDomain(data.map(d => d.daily_vol)), [data])
+  // Remount the charts whenever the plotted range changes (month switch) so
+  // the left-to-right line-draw animation re-runs instead of morphing the
+  // previous month's line into the new one.
+  const chartKey = data.length ? `${data[0].date}:${data.length}` : 'empty'
   const expandProps = onExpand
     ? {
         style: { height: 220, cursor: 'pointer' } as React.CSSProperties,
@@ -334,7 +338,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
         </div>
         <div {...expandProps}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data}>
+            <ComposedChart key={chartKey} data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
@@ -351,7 +355,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>P/L %</div>
         <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data}>
+            <ComposedChart key={chartKey} data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
@@ -366,7 +370,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 4 }}>Daily volatility %</div>
         <div style={{ height: 220 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data}>
+            <ComposedChart key={chartKey} data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />

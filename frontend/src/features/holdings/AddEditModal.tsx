@@ -136,15 +136,13 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
   }
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-      backdropFilter: 'blur(4px)',
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{
+      <div className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
-        borderRadius: 12, padding: 28, width: '100%', maxWidth: 520,
-        boxShadow: 'var(--shadow)',
+        borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 520,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>{isEdit ? 'Edit Holding' : 'Add Holding'}</h2>

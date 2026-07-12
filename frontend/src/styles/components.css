@@ -1,0 +1,182 @@
+/* Component classes (PD-045): shared building blocks adopted incrementally.
+ * Classes only add properties the adopting components don't set inline
+ * (animations, backdrop blur, hover elevation), so inline layout styles
+ * keep working next to them. */
+
+/* --- Motion ------------------------------------------------------------ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-brand);
+  color: #fff;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+}
+.btn-primary:hover { box-shadow: 0 4px 18px rgba(91, 147, 255, 0.4); }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-ghost:hover { background: var(--bg-card); color: var(--text-primary); }
+
+/* --- Brand tile (nav + auth logo mark) ---------------------------------- */
+
+.brand-tile {
+  background: var(--gradient-brand);
+  color: #fff;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease),
+    border-color var(--speed) var(--ease);
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-light);
+}
+
+.card-highlight {
+  background: var(--card-highlight-bg);
+  border-color: var(--card-highlight-border);
+}
+.card-highlight:hover { border-color: var(--card-highlight-border); }
+
+.card-elevated {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Glass nav ------------------------------------------------------------ */
+
+.nav-glass {
+  background: var(--bg-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- Dropdown menu --------------------------------------------------------- */
+
+.menu-pop {
+  animation: pop-in var(--speed) var(--ease);
+  transform-origin: top right;
+  overflow: hidden;
+}
+.menu-pop a:hover,
+.menu-pop button:hover {
+  background: var(--bg-card-hover) !important;
+  filter: none;
+}
+
+/* --- Modals ----------------------------------------------------------------- */
+
+.modal-overlay {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: fade-in var(--speed) var(--ease);
+}
+
+.modal-card {
+  animation: scale-in var(--speed-slow) var(--ease);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Tables -------------------------------------------------------------------- */
+
+.holdings-table-wrap tbody tr {
+  transition: background var(--speed) var(--ease);
+}
+.holdings-table-wrap tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+/* --- Skeleton (loading shimmer) ---------------------------------------------- */
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
