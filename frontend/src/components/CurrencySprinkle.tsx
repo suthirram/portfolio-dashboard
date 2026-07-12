@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 
 // CurrencySprinkle scatters faint currency glyphs across the viewport as a
 // decorative background layer behind every page. Rendered at runtime (not a
@@ -34,6 +35,7 @@ export interface SprinkleItem {
   rotate: number // deg
   opacity: number
   tone: string
+  delay: number  // s — entrance-animation stagger, random so glyphs pop in scattered order
 }
 
 // Exported for tests: the deterministic layout behind the component.
@@ -47,13 +49,23 @@ export function sprinkleLayout(count: number, seed: number): SprinkleItem[] {
     rotate: -32 + rnd() * 64,
     opacity: 0.12 + rnd() * 0.16,
     tone: TONES[Math.floor(rnd() * TONES.length)],
+    delay: rnd() * 0.9,
   }))
 }
 
 export default function CurrencySprinkle({ count = 28, seed = 46 }: { count?: number; seed?: number }) {
   const items = useMemo(() => sprinkleLayout(count, seed), [count, seed])
+  // Entrance animation on every dashboard visit: bumping the key remounts
+  // the layer, restarting the staggered pop-in. Other routes keep the last
+  // key, so navigating between non-dashboard pages doesn't re-animate.
+  const { pathname } = useLocation()
+  const [dashVisit, setDashVisit] = useState(0)
+  useEffect(() => {
+    if (pathname === '/') setDashVisit(v => v + 1)
+  }, [pathname])
+  const animate = pathname === '/'
   return (
-    <div className="currency-sprinkle" aria-hidden="true">
+    <div key={dashVisit} className={animate ? 'currency-sprinkle sprinkle-animate' : 'currency-sprinkle'} aria-hidden="true">
       {items.map((it, i) => (
         <span
           key={i}
@@ -64,6 +76,7 @@ export default function CurrencySprinkle({ count = 28, seed = 46 }: { count?: nu
             opacity: it.opacity,
             color: it.tone,
             transform: `rotate(${it.rotate}deg)`,
+            animationDelay: `${it.delay}s`,
           }}
         >
           {it.sym}

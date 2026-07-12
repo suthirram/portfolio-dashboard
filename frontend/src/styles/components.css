@@ -612,6 +612,23 @@ a:hover .app-icon .icon-spark,
   text-shadow: 0 0 14px currentColor;
 }
 
+/* Dashboard entrance: glyphs pop in at their randomised delays. `scale`
+ * and `translate` are standalone properties, so the keyframes compose
+ * with each glyph's inline rotate() transform. Covered by the global
+ * reduced-motion guard in base.css. */
+@keyframes sprinkle-in {
+  from {
+    opacity: 0;
+    scale: 0.3;
+    translate: 0 14px;
+  }
+}
+
+.sprinkle-animate span {
+  animation: sprinkle-in 0.7s var(--ease) backwards;
+  /* animation-delay comes inline per glyph */
+}
+
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */
 
 @keyframes shimmer {
