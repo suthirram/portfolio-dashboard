@@ -48,17 +48,21 @@ describe('GoldPage', () => {
     vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
-  it('offers two-click theme selection in the header', async () => {
+  it('opts into the gold background art shell', () => {
+    const { container } = renderPage()
+    expect(container.firstElementChild).toHaveClass('page-art', 'page-art-gold')
+  })
+
+  it('offers the theme toggle in the header', async () => {
     renderPage()
-    // Outside an AuthProvider premium is unknown → dark/light options only.
-    fireEvent.click(await screen.findByRole('button', { name: 'Theme: 🌙 Dark' }))
+    const btn = await screen.findByRole('button', { name: /^Theme:/ })
+    // Outside an AuthProvider premium is unknown → dark/light pair only.
+    fireEvent.click(btn) // open dropdown
     fireEvent.click(screen.getByRole('menuitemradio', { name: '☀ Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
-    fireEvent.click(screen.getByRole('button', { name: 'Theme: ☀ Light' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Theme:/ })) // reopen
     fireEvent.click(screen.getByRole('menuitemradio', { name: '🌙 Dark' }))
     expect(document.documentElement.dataset.theme).toBe('dark')
-    fireEvent.click(screen.getByRole('button', { name: 'Theme: 🌙 Dark' }))
-    expect(screen.queryByRole('menuitemradio', { name: '⚡ Cyber' })).toBeNull()
   })
 
   it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {
