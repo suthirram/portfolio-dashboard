@@ -20,10 +20,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const isSuper = user?.role === 'superadmin'
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      <header style={{
+    <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
+      <header className="nav-glass" style={{
         borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+        background: 'var(--bg-glass)',
         padding: '0 28px',
         height: 56,
         display: 'flex',
@@ -35,10 +35,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
-            <div style={{
-              width: 32, height: 32, background: 'var(--blue)', color: '#fff', borderRadius: 8,
-              display: 'grid', placeItems: 'center',
-            }}><ShieldIcon size={18} /></div>
+            <div className="brand-tile" style={{ width: 32, height: 32 }}><ShieldIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>Admin</span>
           </Link>
         </div>
@@ -55,8 +52,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div style={{
-        background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
+      <div className="nav-glass" style={{
+        background: 'var(--bg-glass)', borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link to="/" aria-label="My portfolio" title="My portfolio" style={{

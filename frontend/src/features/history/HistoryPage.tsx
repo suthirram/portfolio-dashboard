@@ -16,7 +16,7 @@ import {
   type PasteHistoryReport,
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
-import { useTheme, type ThemeName } from '../../lib/useTheme'
+import { nextThemeLabel, useTheme, type ThemeName } from '../../lib/useTheme'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
@@ -51,8 +51,8 @@ export {
 const CHARTS_ON_TOP_KEY = 'pd_history_charts_top'
 
 export default function HistoryPage() {
-  const { theme, toggle: toggleTheme } = useTheme()
   const auth = useAuthOptional()
+  const { theme, toggle: toggleTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
@@ -207,10 +207,10 @@ export default function HistoryPage() {
   const headConflict = conflictQueue[0]
 
   return (
-    <div style={{ minHeight: '100dvh' }}>
-      <header style={{
+    <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
+      <header className="nav-glass" style={{
         borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
+        background: 'var(--bg-glass)',
         padding: '0 28px',
         height: 'var(--nav-height, 56px)',
         display: 'flex',
@@ -229,7 +229,7 @@ export default function HistoryPage() {
           border: '1px solid var(--border)', borderRadius: 6,
           padding: '6px 12px', cursor: 'pointer', fontSize: 13,
         }} aria-label="Toggle theme">
-          {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
+          {nextThemeLabel(theme, auth?.user?.premium)}
         </button>
       </header>
 

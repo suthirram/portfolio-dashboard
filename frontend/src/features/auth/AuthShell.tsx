@@ -11,7 +11,7 @@ interface Props {
 
 export function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
-    <div style={{
+    <div className="page-art page-art-dashboard" style={{
       minHeight: '100vh',
       display: 'grid',
       placeItems: 'center',

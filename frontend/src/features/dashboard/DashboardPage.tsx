@@ -9,7 +9,7 @@ import Charts from '../../components/Charts'
 import { useHoldings } from '../holdings/useHoldings'
 import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
-import { useTheme } from '../../lib/useTheme'
+import { nextThemeLabel, useTheme } from '../../lib/useTheme'
 import type { HoldingWithPrice } from '../../types'
 import {
   ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
@@ -29,7 +29,7 @@ interface Props {
 
 export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const { user, logout } = useAuth()
-  const { theme, toggle: toggleTheme } = useTheme()
+  const { theme, toggle: toggleTheme } = useTheme({ premium: user ? user.premium : undefined })
   const {
     holdings,
     enriched,
@@ -119,8 +119,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   return (
-    // Background comes from body (base.css) so the ambient glow shows through.
-    <div style={{ minHeight: '100dvh' }}>
+    <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
       <header className="dash-nav nav-glass" style={{
         padding: '0 28px',
         height: 'var(--nav-height)',
@@ -157,9 +156,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
           <button onClick={toggleTheme} className="btn dash-nav-btn"
             aria-label="Toggle theme"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={`Switch theme: ${nextThemeLabel(theme, user?.premium)}`}
             style={{ padding: '6px 10px' }}>
-            {theme === 'dark' ? '☀' : '🌙'}
+            {nextThemeLabel(theme, user?.premium).split(' ')[0]}
           </button>
           {isAdmin && (
             <Link to="/admin" className="btn dash-nav-btn">

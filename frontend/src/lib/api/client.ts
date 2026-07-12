@@ -32,6 +32,7 @@ export type UpdateSecurityQuestionsRequest = Schemas['UpdateSecurityQuestionsReq
 export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
+export type PremiumToggleRequest = Schemas['PremiumToggleRequest']
 export type GoldTransaction = Schemas['GoldTransaction']
 export type GoldTransactionInput = Schemas['GoldTransactionInput']
 export type GoldPrice = Schemas['GoldPrice']
@@ -151,6 +152,7 @@ export const api = {
   adminDemoteUser:      (id: string) => request<User>('POST', `/admin/users/${id}/demote`, {}),
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
   adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
+  adminSetUserPremium:  (id: string, body: PremiumToggleRequest) => request<void>('PUT', `/admin/users/${id}/premium`, body),
 
   listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
   createGoldTransaction: (body: GoldTransactionInput) => request<GoldTransaction>('POST', '/gold/transactions', body),

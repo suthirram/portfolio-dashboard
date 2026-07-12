@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="220" x2="900" y1="586" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9e00"/>
+      <stop offset=".5" stop-color="#ffe600"/>
+      <stop offset="1" stop-color="#00e5ff"/>
+    </linearGradient>
+    <filter id="glow" x="-25%" y="-35%" width="150%" height="170%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path d="M116 610h888" stroke="#45207a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M215 520h222l42 74H173l42-74ZM474 520h222l42 74H432l42-74ZM733 520h222l42 74H691l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M314 408h222l42 74H272l42-74ZM573 408h222l42 74H531l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round" opacity=".86" filter="url(#glow)"/>
+  <path d="M444 296h222l42 74H402l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round" opacity=".74" filter="url(#glow)"/>
+  <circle cx="813" cy="226" r="98" stroke="#ffe600" stroke-width="8" filter="url(#glow)"/>
+  <circle cx="813" cy="226" r="62" stroke="#ff2bd6" stroke-width="5" opacity=".72" filter="url(#glow)"/>
+  <path d="M779 226h68M813 192v68" stroke="#00e5ff" stroke-width="7" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M118 170h208l84 92h142M118 218h156l88 96h128M118 266h118l88 96h116" stroke="#00e5ff" stroke-width="4" stroke-linecap="round" opacity=".52" filter="url(#glow)"/>
+  <circle cx="326" cy="170" r="9" fill="#00e5ff" filter="url(#glow)"/>
+  <circle cx="552" cy="262" r="9" fill="#ff2bd6" filter="url(#glow)"/>
+  <circle cx="490" cy="314" r="9" fill="#ffe600" filter="url(#glow)"/>
+  <circle cx="440" cy="362" r="9" fill="#00ffa3" filter="url(#glow)"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3" filter="url(#glow)">
+    <text x="140" y="128" fill="#00e5ff" opacity=".46">&#8377;</text>
+    <text x="336" y="212" fill="#ff2bd6" opacity=".42">$</text>
+    <text x="658" y="116" fill="#ffe600" opacity=".48">&#8364;</text>
+  </g>
+</svg>
