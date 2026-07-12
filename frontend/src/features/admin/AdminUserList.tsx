@@ -215,6 +215,13 @@ export default function AdminUserList() {
                             {u.gold_enabled ? 'Disable gold' : 'Enable gold'}
                           </button>
                         )}
+                        {isSuper && (
+                          <button style={action} disabled={busy === u.id}
+                            onClick={() => runAction(u.id, () => api.adminSetUserPremium(u.id, { enabled: !u.premium }),
+                              u.premium ? `Disable premium for ${u.username}? Their theme falls back to dark.` : undefined)}>
+                            {u.premium ? 'Disable premium' : 'Enable premium'}
+                          </button>
+                        )}
                         {!isRowSuper && !isSelf && (
                           <button style={{ ...action, color: 'var(--red)' }} disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminDeleteUser(u.id), `Permanently delete ${u.username} and all their holdings? This cannot be undone.`)}>

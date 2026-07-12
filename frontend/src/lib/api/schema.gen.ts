@@ -647,6 +647,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/premium": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable premium features for an account (super admin only)
+         * @description Super admin only — region admins cannot toggle premium (PD-046).
+         *     Premium currently gates the cyberpunk theme; the flag is generic so
+         *     future premium features reuse it. The super admin may toggle their
+         *     own account. Toggling off revokes eligibility but deletes nothing.
+         */
+        put: operations["adminSetUserPremium"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gold/transactions": {
         parameters: {
             query?: never;
@@ -1252,6 +1275,8 @@ export interface components {
             locked: boolean;
             /** @description Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4) */
             gold_enabled: boolean;
+            /** @description Premium features enabled (super-admin toggled, PD-046 — cyberpunk theme) */
+            premium: boolean;
             /** @description Forced onboarding pending (bootstrap super admin) */
             must_change_password: boolean;
             /** @description The catalogue keys of the account's chosen questions (own account only) */
@@ -1297,6 +1322,10 @@ export interface components {
         };
         GoldToggleRequest: {
             /** @description Turn gold tracking on or off for the account */
+            enabled: boolean;
+        };
+        PremiumToggleRequest: {
+            /** @description Turn premium features on or off for the account */
             enabled: boolean;
         };
         /** @description One gold purchase with the derived columns (PRD-003 §5). */
@@ -2576,6 +2605,33 @@ export interface operations {
         };
         responses: {
             /** @description Gold access updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminSetUserPremium: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PremiumToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Premium access updated */
             204: {
                 headers: {
                     [name: string]: unknown;
