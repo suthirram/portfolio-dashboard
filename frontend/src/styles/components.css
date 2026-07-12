@@ -618,9 +618,15 @@ a:hover .app-icon .icon-spark,
  * keeps a glyph parked off-screen until its randomised delay fires. Covered
  * by the global reduced-motion guard in base.css. */
 @keyframes sprinkle-rain {
-  from {
+  0% {
     translate: 0 -110vh;
+    opacity: 1;
   }
+  85% {
+    opacity: 1;
+  }
+  /* 100% is implicit: the glyph's resting spot and its faint inline opacity —
+   * the drop falls fully visible, then fades back as it settles. */
 }
 
 .sprinkle-animate span {

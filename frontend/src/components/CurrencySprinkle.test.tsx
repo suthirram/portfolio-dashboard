@@ -53,4 +53,12 @@ describe('CurrencySprinkle', () => {
       expect(it.delay).toBeLessThan(0.9)
     }
   })
+
+  it('stratified placement covers every quadrant of the viewport', () => {
+    const items = sprinkleLayout(28, 46)
+    const quadrant = (it: { left: number; top: number }) =>
+      (it.left < 48 ? 0 : 1) + (it.top < 47 ? 0 : 2)
+    const seen = new Set(items.map(quadrant))
+    expect(seen).toEqual(new Set([0, 1, 2, 3]))
+  })
 })

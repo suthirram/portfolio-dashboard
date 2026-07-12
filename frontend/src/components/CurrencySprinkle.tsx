@@ -39,12 +39,20 @@ export interface SprinkleItem {
 }
 
 // Exported for tests: the deterministic layout behind the component.
+// Placement is stratified: the viewport is divided into a grid and each
+// glyph lands jittered inside its own cell, so the scatter stays random
+// but no region of the screen ends up empty (fully uniform sampling left
+// whole quadrants bare).
 export function sprinkleLayout(count: number, seed: number): SprinkleItem[] {
   const rnd = mulberry32(seed)
-  return Array.from({ length: count }, () => ({
+  const cols = Math.ceil(Math.sqrt(count * 1.6)) // ~16:10 cell aspect
+  const rows = Math.ceil(count / cols)
+  const cellW = 96 / cols
+  const cellH = 94 / rows
+  return Array.from({ length: count }, (_, i) => ({
     sym: SYMBOLS[Math.floor(rnd() * SYMBOLS.length)],
-    left: rnd() * 96,
-    top: rnd() * 94,
+    left: ((i % cols) + rnd()) * cellW,
+    top: (Math.floor(i / cols) + rnd()) * cellH,
     size: 20 + rnd() * 44,
     rotate: -32 + rnd() * 64,
     opacity: 0.12 + rnd() * 0.16,
