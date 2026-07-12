@@ -565,9 +565,7 @@ a:hover .app-icon .icon-spark,
 
 [data-theme="light"] .page-art-dashboard {
   --page-art-secondary-opacity: 0.14;
-  /* Owner request: the bull/bear photo at full strength in light mode. The
-   * light veils above the photo keep the UI readable. */
-  --page-art-opacity: 1;
+  --page-art-opacity: 0.62;
 }
 
 [data-theme="cyberpunk"] .page-art-dashboard {
