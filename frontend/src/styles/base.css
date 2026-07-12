@@ -1,0 +1,109 @@
+/* Base layer (PD-045): reset, body backdrop, typography, focus, scrollbar. */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Ambient depth: two fixed radial glows behind every page. Painted on a
+ * pseudo-element so page backgrounds using var(--bg-primary) stay valid. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(48rem 32rem at 8% -8%, var(--glow-a), transparent 60%),
+    radial-gradient(44rem 30rem at 104% 112%, var(--glow-b), transparent 60%);
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  background: var(--blue-dim);
+  color: var(--text-primary);
+}
+
+/* Visible keyboard-focus ring; box-shadow is never set inline on inputs or
+ * buttons, so this applies app-wide without component edits. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; border: 2px solid var(--bg-primary); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Utility */
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.neutral { color: var(--text-secondary); }
+.mono { font-variant-numeric: tabular-nums; }
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  transition: filter var(--speed) var(--ease), transform var(--speed) var(--ease),
+    box-shadow var(--speed) var(--ease), background var(--speed) var(--ease),
+    border-color var(--speed) var(--ease), color var(--speed) var(--ease),
+    opacity var(--speed) var(--ease);
+}
+
+/* Hover/active feedback via filter + transform — properties never set by the
+ * app's inline styles, so this upgrades every button (incl. inline-styled). */
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.98); }
+button:disabled { cursor: default; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+}
+
+input:focus, select:focus, textarea:focus {
+  box-shadow: var(--ring);
+}
+
+a {
+  transition: color var(--speed) var(--ease), filter var(--speed) var(--ease),
+    box-shadow var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+a:hover { filter: brightness(1.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}

@@ -1,0 +1,85 @@
+/* Design tokens (PD-045). Every pre-existing variable name is preserved —
+ * inline style={{}} objects across the app reference them — only values
+ * change. New tokens are additive and suffixed below the legacy block. */
+
+:root {
+  --bg-primary: #0a0c16;
+  --bg-secondary: #121524;
+  --bg-card: #171b2e;
+  --bg-card-hover: #1d2238;
+  --bg-input: #0d101f;
+  --border: #232842;
+  --border-light: #2e3453;
+
+  --text-primary: #eef1f8;
+  --text-secondary: #939dbb;
+  --text-muted: #545d85;
+
+  --green: #00d69f;
+  --green-dim: rgba(0, 214, 159, 0.12);
+  --red: #ff5c7a;
+  --red-dim: rgba(255, 92, 122, 0.12);
+  --blue: #5b93ff;
+  --blue-dim: rgba(91, 147, 255, 0.12);
+  --yellow: #fbbf24;
+  --purple: #a78bfa;
+
+  --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-height: 56px;
+
+  /* SummaryCards highlight panels (Total Invested, Current Value). */
+  --card-highlight-bg: linear-gradient(135deg, #1d2a4f 0%, #171b2e 60%);
+  --card-highlight-border: #33518f;
+
+  /* New tokens (PD-045) — additive. */
+  --radius-lg: 16px;
+  --shadow-sm: 0 2px 8px rgba(2, 4, 12, 0.35);
+  --shadow-lg: 0 24px 64px rgba(2, 4, 12, 0.6);
+  --ring: 0 0 0 3px rgba(91, 147, 255, 0.35);
+  --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+  --bg-glass: rgba(14, 17, 31, 0.72);
+  --glow-a: rgba(59, 92, 199, 0.16);
+  --glow-b: rgba(124, 77, 232, 0.12);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --speed: 0.18s;
+  --speed-slow: 0.32s;
+}
+
+/* Light theme — opt-in via <html data-theme="light"> (PD-042 PR7). */
+:root[data-theme="light"] {
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f3fa;
+  --bg-input: #ffffff;
+  --border: #dfe4ef;
+  --border-light: #cbd3e4;
+
+  --text-primary: #0f1526;
+  --text-secondary: #4b5670;
+  --text-muted: #7a849e;
+
+  --green: #0b9e6c;
+  --green-dim: rgba(11, 158, 108, 0.10);
+  --red: #dc2649;
+  --red-dim: rgba(220, 38, 73, 0.10);
+  --blue: #2f6bdb;
+  --blue-dim: rgba(47, 107, 219, 0.10);
+  --yellow: #d97706;
+  --purple: #7c3aed;
+
+  --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+
+  --card-highlight-bg: linear-gradient(135deg, #eef4ff 0%, #e3ecff 100%);
+  --card-highlight-border: #a8c3f5;
+
+  --shadow-sm: 0 2px 6px rgba(23, 32, 66, 0.07);
+  --shadow-lg: 0 24px 56px rgba(23, 32, 66, 0.16);
+  --ring: 0 0 0 3px rgba(47, 107, 219, 0.25);
+  --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+  --bg-glass: rgba(255, 255, 255, 0.78);
+  --glow-a: rgba(47, 107, 219, 0.08);
+  --glow-b: rgba(109, 77, 224, 0.06);
+}

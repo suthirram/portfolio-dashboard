@@ -530,20 +530,21 @@ export const chartTooltipProps = {
   itemStyle: { color: 'var(--text-primary)' } as CSSProperties,
 }
 export const modalBackdrop: CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
 }
 export const modalCard: CSSProperties = {
-  background: 'var(--bg-secondary)', borderRadius: 8, padding: 20,
+  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)', padding: 24,
   width: '90%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
 }
 export const btnPrimaryStyle: CSSProperties = {
-  padding: '6px 14px', background: 'var(--blue)', color: '#fff',
-  border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600,
+  padding: '6px 14px', background: 'var(--gradient-brand)', color: '#fff',
+  border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
 }
 export const btnSecondaryStyle: CSSProperties = {
   padding: '6px 14px', background: 'transparent', color: 'var(--text-primary)',
-  border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer',
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
 }
 export const iconBtnBlueStyle: CSSProperties = {
   background: 'transparent', border: 'none', color: 'var(--blue, #2563eb)',

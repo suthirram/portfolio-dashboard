@@ -41,8 +41,8 @@ export function AddRowModal({ onSubmit, onCancel }: {
   }
 
   return (
-    <div style={modalBackdrop}>
-      <div style={modalCard}>
+    <div className="modal-overlay" style={modalBackdrop}>
+      <div className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Add manual row</h2>
         <label style={{ display: 'block', marginBottom: 12 }}>
           Date
@@ -115,8 +115,8 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   }
 
   return (
-    <div style={modalBackdrop}>
-      <div style={modalCard}>
+    <div className="modal-overlay" style={modalBackdrop}>
+      <div className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving overrides any cron-written value with the manual value below.
@@ -197,8 +197,8 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
   }
 
   return (
-    <div style={modalBackdrop}>
-      <div style={modalCard}>
+    <div className="modal-overlay" style={modalBackdrop}>
+      <div className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Paste month — {monthLabel}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Paste tab-separated rows (Google Sheets / Excel). Columns:
@@ -258,8 +258,8 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
   }
 
   return (
-    <div style={modalBackdrop}>
-      <div style={modalCard}>
+    <div className="modal-overlay" style={modalBackdrop}>
+      <div className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {conflict.date}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           For each region, tick to keep the incoming value (override). Leave unticked to keep what's already there.
@@ -320,8 +320,8 @@ export function HoldingsModal({ row, prev, region, onClose }: {
   const priceFmt = (n: number) => fmtCurrency(n, sym)
 
   return (
-    <div style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
+    <div className="modal-overlay" style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.date} · {region}</span>

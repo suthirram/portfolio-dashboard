@@ -59,7 +59,7 @@ function Card({ label, inr, eur, positive, negative, highlight, accent }: CardPr
   const cls = positive ? 'pos' : negative ? 'neg' : ''
 
   return (
-    <div style={cardStyle(highlight)}>
+    <div className={cardClass(highlight)} style={cardStyle}>
       <div style={cardLabelStyle}>{label}</div>
       <div style={{
         fontSize: accent ? 28 : 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
@@ -80,7 +80,7 @@ function Card({ label, inr, eur, positive, negative, highlight, accent }: CardPr
 // user actually holds — at a fixed card width regardless of line count.
 function ChangeCard({ rows, date }: { rows: ChangeRow[]; date?: string }) {
   return (
-    <div style={cardStyle(false)}>
+    <div className="card" style={cardStyle}>
       <div style={cardLabelStyle}>Change vs Prev Close</div>
       {rows.length === 0 ? (
         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-muted)', marginTop: 4 }}>—</div>
@@ -122,7 +122,7 @@ function PnLCard({ unrealInr, unrealEur, realInr, realEur }: {
   unrealInr: number; unrealEur: number; realInr: number; realEur: number
 }) {
   return (
-    <div style={cardStyle(false)}>
+    <div className="card" style={cardStyle}>
       <div style={cardLabelStyle}>Profit &amp; Loss</div>
       <PnLRow label="Unrealised" inr={unrealInr} eur={unrealEur} />
       <PnLRow label="Realised" inr={realInr} eur={realEur} />
@@ -130,15 +130,16 @@ function PnLCard({ unrealInr, unrealEur, realInr, realEur }: {
   )
 }
 
-const cardStyle = (highlight?: boolean): React.CSSProperties => ({
-  background: highlight ? 'var(--card-highlight-bg)' : 'var(--bg-card)',
-  border: `1px solid ${highlight ? 'var(--card-highlight-border)' : 'var(--border)'}`,
-  borderRadius: 'var(--radius)',
+// Card chrome (background, border, radius, hover elevation) comes from the
+// .card / .card-highlight classes; only layout stays inline.
+const cardClass = (highlight?: boolean) => (highlight ? 'card card-highlight' : 'card')
+
+const cardStyle: React.CSSProperties = {
   padding: '16px 20px',
   flex: '1 1 200px',
   minWidth: 180,
   overflow: 'hidden',
-})
+}
 
 const cardLabelStyle: React.CSSProperties = {
   color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,

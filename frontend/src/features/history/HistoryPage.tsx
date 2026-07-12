@@ -194,7 +194,7 @@ export default function HistoryPage() {
   const headConflict = conflictQueue[0]
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100dvh' }}>
       <header style={{
         borderBottom: '1px solid var(--border)',
         background: 'var(--bg-secondary)',
