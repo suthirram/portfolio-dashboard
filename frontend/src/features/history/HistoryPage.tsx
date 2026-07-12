@@ -48,6 +48,8 @@ export {
   AddRowModal, EditRowModal, PasteModal, ConflictDialog, HoldingsModal,
 } from './HistoryModals'
 
+const CHARTS_ON_TOP_KEY = 'pd_history_charts_top'
+
 export default function HistoryPage() {
   const { theme, toggle: toggleTheme } = useTheme()
   const auth = useAuthOptional()
@@ -67,6 +69,17 @@ export default function HistoryPage() {
   const [holdingsView, setHoldingsView] = useState<{ row: HistoryRow; prev: HistoryRow | null; region: RegionKey } | null>(null)
   // Sequential conflict queue: head opens as a modal.
   const [conflictQueue, setConflictQueue] = useState<DateConflict[]>([])
+  // Layout preference: charts above the table. Persisted per browser.
+  const [chartsOnTop, setChartsOnTop] = useState(() => {
+    try { return window.localStorage?.getItem(CHARTS_ON_TOP_KEY) === '1' } catch { return false }
+  })
+  const toggleChartsOnTop = () => {
+    setChartsOnTop(v => {
+      const next = !v
+      try { window.localStorage?.setItem(CHARTS_ON_TOP_KEY, next ? '1' : '0') } catch { /* private mode */ }
+      return next
+    })
+  }
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -235,6 +248,14 @@ export default function HistoryPage() {
             </select>
           </label>
           <span style={{ flex: 1 }} />
+          <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop}
+            title={chartsOnTop ? 'Show the table first' : 'Show the charts first'}
+            style={{
+              ...btnSecondaryStyle,
+              ...(chartsOnTop ? { color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-dim)' } : {}),
+            }}>
+            {chartsOnTop ? '↓ Charts below' : '↑ Charts on top'}
+          </button>
           <button onClick={() => setAddOpen(true)} style={btnPrimaryStyle}>+ Add row</button>
           <button onClick={() => setPasteOpen(true)} style={btnSecondaryStyle}>Paste month</button>
         </section>
@@ -252,19 +273,25 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {rows.length > 0 && (
-          <>
+        {rows.length > 0 && (() => {
+          const table = (
             <HistoryTable rows={rows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
-            <div style={{ height: 16 }} />
-            {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
-              <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
-            ))}
-            {hasGoldChart && <GoldChartPanel data={goldChart} theme={theme} />}
-          </>
-        )}
+          )
+          const charts = (
+            <>
+              {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
+                <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
+              ))}
+              {hasGoldChart && <GoldChartPanel data={goldChart} theme={theme} />}
+            </>
+          )
+          return chartsOnTop
+            ? <>{charts}<div style={{ height: 16 }} />{table}</>
+            : <>{table}<div style={{ height: 16 }} />{charts}</>
+        })()}
       </main>
 
       {addOpen && <AddRowModal onSubmit={handleAddSaved} onCancel={() => setAddOpen(false)} />}
