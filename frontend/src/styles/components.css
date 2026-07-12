@@ -629,7 +629,9 @@ a:hover .app-icon .icon-spark,
    * the drop falls fully visible, then fades back as it settles. */
 }
 
-.sprinkle-animate span {
+/* Cyberpunk-only: the rain entrance is part of the premium theme's motion
+ * language; dark/light render the sprinkle statically. */
+[data-theme="cyberpunk"] .sprinkle-animate span {
   /* Accelerating fall, soft landing. animation-delay comes inline per glyph. */
   animation: sprinkle-rain 0.9s cubic-bezier(0.45, 0, 0.6, 1) backwards;
 }
