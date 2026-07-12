@@ -525,6 +525,21 @@ a:hover .app-icon .icon-spark,
   --page-art-veil: 1;
 }
 
+.page-art-gold {
+  --page-art-day-image: url('../assets/day-history-timeline.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-history-timeline.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-history-timeline.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -90px top 84px;
+  --page-art-secondary-position: left -380px bottom -270px;
+  --page-art-size: min(92vw, 1120px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-photo: url('../assets/gold-vault.webp');
+  --page-art-veil: 1;
+}
+
 .page-art-admin,
 .page-art-users {
   --page-art-day-image: url('../assets/day-users-network.svg');
