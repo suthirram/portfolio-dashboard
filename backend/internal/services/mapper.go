@@ -233,6 +233,7 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 		Disabled:           u.Disabled,
 		Locked:             u.Locked,
 		GoldEnabled:        u.GoldEnabled,
+		Premium:            u.Premium,
 		MustChangePassword: u.MustChangePassword,
 	}
 	if out.Username == "" {

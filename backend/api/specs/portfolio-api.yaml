@@ -61,7 +61,7 @@ components:
 
     User:
       type: object
-      required: [id, username, name, role, region, disabled, locked, gold_enabled, must_change_password]
+      required: [id, username, name, role, region, disabled, locked, gold_enabled, premium, must_change_password]
       properties:
         id:
           type: string
@@ -86,6 +86,9 @@ components:
         gold_enabled:
           type: boolean
           description: Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
+        premium:
+          type: boolean
+          description: Premium features enabled (super-admin toggled, PD-046 — cyberpunk theme)
         must_change_password:
           type: boolean
           description: Forced onboarding pending (bootstrap super admin)
@@ -228,6 +231,14 @@ components:
         enabled:
           type: boolean
           description: Turn gold tracking on or off for the account
+
+    PremiumToggleRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Turn premium features on or off for the account
 
     GoldPrice:
       type: object

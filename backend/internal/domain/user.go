@@ -26,6 +26,7 @@ type User struct {
 	Disabled        bool               `bson:"disabled" json:"disabled"`                   // hide / soft-delete flag
 	Locked          bool               `bson:"locked" json:"locked"`                       // security_question_failures >= 3
 	GoldEnabled     bool               `bson:"gold_enabled,omitempty" json:"gold_enabled"` // gold-tracking access (PRD-003 §2.4); super-admin toggled, omitted = false
+	Premium         bool               `bson:"premium,omitempty" json:"premium"`           // premium features (PD-046, cyberpunk theme); super-admin toggled, omitted = false
 
 	LoginFailures            int  `bson:"login_failures" json:"-"`
 	SecurityQuestionFailures int  `bson:"security_question_failures" json:"-"`

@@ -75,6 +75,9 @@ func TestTierFor(t *testing.T) {
 	if got := tierFor("PUT /api/admin/users/:id/gold"); got != tierSuperAdmin {
 		t.Errorf("PUT /api/admin/users/:id/gold tier = %v, want tierSuperAdmin", got)
 	}
+	if got := tierFor("PUT /api/admin/users/:id/premium"); got != tierSuperAdmin {
+		t.Errorf("PUT /api/admin/users/:id/premium tier = %v, want tierSuperAdmin", got)
+	}
 }
 
 // TestIsGoldRoute documents the prefix rule that scopes the gold_enabled

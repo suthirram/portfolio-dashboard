@@ -206,6 +206,32 @@ users_id_gold:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_premium:
+  put:
+    tags: [Admin]
+    summary: Enable or disable premium features for an account (super admin only)
+    description: |
+      Super admin only — region admins cannot toggle premium (PD-046).
+      Premium currently gates the cyberpunk theme; the flag is generic so
+      future premium features reuse it. The super admin may toggle their
+      own account. Toggling off revokes eligibility but deletes nothing.
+    operationId: adminSetUserPremium
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/PremiumToggleRequest"
+    responses:
+      "204":
+        description: Premium access updated
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_holdings:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"

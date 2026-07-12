@@ -747,6 +747,12 @@ type PatchHistoryRegionsInput struct {
 	Regions map[string]HistoryRegionInput `json:"regions"`
 }
 
+// PremiumToggleRequest defines model for PremiumToggleRequest.
+type PremiumToggleRequest struct {
+	// Enabled Turn premium features on or off for the account
+	Enabled bool `json:"enabled"`
+}
+
 // PricesResponse defines model for PricesResponse.
 type PricesResponse struct {
 	// EurRate Live INR→EUR rate used for conversions
@@ -927,6 +933,9 @@ type User struct {
 	// MustChangePassword Forced onboarding pending (bootstrap super admin)
 	MustChangePassword bool   `json:"must_change_password"`
 	Name               string `json:"name"`
+
+	// Premium Premium features enabled (super-admin toggled, PD-046 — cyberpunk theme)
+	Premium bool `json:"premium"`
 
 	// Region Oversight region (india, europe, us); empty for the super admin
 	Region string   `json:"region"`

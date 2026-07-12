@@ -66,6 +66,9 @@ type AdminCreateUserHoldingJSONRequestBody = HoldingInput
 // AdminUpdateUserHoldingJSONRequestBody defines body for AdminUpdateUserHolding for application/json ContentType.
 type AdminUpdateUserHoldingJSONRequestBody = HoldingInput
 
+// AdminSetUserPremiumJSONRequestBody defines body for AdminSetUserPremium for application/json ContentType.
+type AdminSetUserPremiumJSONRequestBody = PremiumToggleRequest
+
 // AdminSetUserRegionJSONRequestBody defines body for AdminSetUserRegion for application/json ContentType.
 type AdminSetUserRegionJSONRequestBody = RegionUpdateRequest
 
@@ -158,6 +161,9 @@ type ServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx echo.Context, id UserID, holdingId string) error
+	// Enable or disable premium features for an account (super admin only)
+	// (PUT /admin/users/{id}/premium)
+	AdminSetUserPremium(ctx echo.Context, id UserID) error
 	// A user's holdings enriched with live prices
 	// (GET /admin/users/{id}/prices)
 	AdminGetUserPrices(ctx echo.Context, id UserID) error
@@ -503,6 +509,24 @@ func (w *ServerInterfaceWrapper) AdminUpdateUserHolding(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminUpdateUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// AdminSetUserPremium converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminSetUserPremium(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminSetUserPremium(ctx, id)
 	return err
 }
 
@@ -1212,6 +1236,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminCreateUserHolding, options.OperationMiddlewares["adminCreateUserHolding"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminDeleteUserHolding, options.OperationMiddlewares["adminDeleteUserHolding"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminUpdateUserHolding, options.OperationMiddlewares["adminUpdateUserHolding"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/premium", wrapper.AdminSetUserPremium, options.OperationMiddlewares["adminSetUserPremium"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/prices", wrapper.AdminGetUserPrices, options.OperationMiddlewares["adminGetUserPrices"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/promote", wrapper.AdminPromoteUser, options.OperationMiddlewares["adminPromoteUser"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/reactivate", wrapper.AdminReactivateUser, options.OperationMiddlewares["adminReactivateUser"]...)
@@ -1716,6 +1741,51 @@ func (response AdminUpdateUserHolding200JSONResponse) VisitAdminUpdateUserHoldin
 type AdminUpdateUserHolding404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminUpdateUserHolding404JSONResponse) VisitAdminUpdateUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserPremiumRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminSetUserPremiumJSONRequestBody
+}
+
+type AdminSetUserPremiumResponseObject interface {
+	VisitAdminSetUserPremiumResponse(w http.ResponseWriter) error
+}
+
+type AdminSetUserPremium204Response struct {
+}
+
+func (response AdminSetUserPremium204Response) VisitAdminSetUserPremiumResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminSetUserPremium403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AdminSetUserPremium403JSONResponse) VisitAdminSetUserPremiumResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserPremium404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminSetUserPremium404JSONResponse) VisitAdminSetUserPremiumResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -3750,6 +3820,9 @@ type StrictServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx context.Context, request AdminUpdateUserHoldingRequestObject) (AdminUpdateUserHoldingResponseObject, error)
+	// Enable or disable premium features for an account (super admin only)
+	// (PUT /admin/users/{id}/premium)
+	AdminSetUserPremium(ctx context.Context, request AdminSetUserPremiumRequestObject) (AdminSetUserPremiumResponseObject, error)
 	// A user's holdings enriched with live prices
 	// (GET /admin/users/{id}/prices)
 	AdminGetUserPrices(ctx context.Context, request AdminGetUserPricesRequestObject) (AdminGetUserPricesResponseObject, error)
@@ -4183,6 +4256,37 @@ func (sh *strictHandler) AdminUpdateUserHolding(ctx echo.Context, id UserID, hol
 		return err
 	} else if validResponse, ok := response.(AdminUpdateUserHoldingResponseObject); ok {
 		return validResponse.VisitAdminUpdateUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminSetUserPremium operation middleware
+func (sh *strictHandler) AdminSetUserPremium(ctx echo.Context, id UserID) error {
+	var request AdminSetUserPremiumRequestObject
+
+	request.Id = id
+
+	var body AdminSetUserPremiumJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminSetUserPremium(ctx.Request().Context(), request.(AdminSetUserPremiumRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminSetUserPremium")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminSetUserPremiumResponseObject); ok {
+		return validResponse.VisitAdminSetUserPremiumResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
