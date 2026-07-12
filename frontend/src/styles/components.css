@@ -588,6 +588,29 @@ a:hover .app-icon .icon-spark,
   }
 }
 
+/* --- Currency sprinkle (background glyph scatter) ----------------------------- */
+
+.currency-sprinkle {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.currency-sprinkle span {
+  position: absolute;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: normal;
+}
+
+/* Neon boost under cyberpunk: glyphs glow in their own colour. */
+[data-theme="cyberpunk"] .currency-sprinkle span {
+  text-shadow: 0 0 14px currentColor;
+}
+
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */
 
 @keyframes shimmer {
