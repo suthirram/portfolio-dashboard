@@ -565,6 +565,7 @@ a:hover .app-icon .icon-spark,
 
 [data-theme="light"] .page-art-dashboard {
   --page-art-secondary-opacity: 0.14;
+  --page-art-opacity: 0.62;
 }
 
 [data-theme="cyberpunk"] .page-art-dashboard {
@@ -586,6 +587,53 @@ a:hover .app-icon .icon-spark,
     --page-art-secondary-position: left -260px bottom -130px;
     --page-art-secondary-size: 640px auto;
   }
+}
+
+/* --- Currency sprinkle (background glyph scatter) ----------------------------- */
+
+.currency-sprinkle {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.currency-sprinkle span {
+  position: absolute;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: normal;
+}
+
+/* Neon boost under cyberpunk: glyphs glow in their own colour. */
+[data-theme="cyberpunk"] .currency-sprinkle span {
+  text-shadow: 0 0 14px currentColor;
+}
+
+/* Dashboard entrance: each glyph rains down from above the viewport to its
+ * resting spot and stops. `translate` is a standalone property, so the
+ * keyframe composes with each glyph's inline rotate() transform; `backwards`
+ * keeps a glyph parked off-screen until its randomised delay fires. Covered
+ * by the global reduced-motion guard in base.css. */
+@keyframes sprinkle-rain {
+  0% {
+    translate: 0 -110vh;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  /* 100% is implicit: the glyph's resting spot and its faint inline opacity —
+   * the drop falls fully visible, then fades back as it settles. */
+}
+
+/* Cyberpunk-only: the rain entrance is part of the premium theme's motion
+ * language; dark/light render the sprinkle statically. */
+[data-theme="cyberpunk"] .sprinkle-animate span {
+  /* Accelerating fall, soft landing. animation-delay comes inline per glyph. */
+  animation: sprinkle-rain 0.9s cubic-bezier(0.45, 0, 0.6, 1) backwards;
 }
 
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */

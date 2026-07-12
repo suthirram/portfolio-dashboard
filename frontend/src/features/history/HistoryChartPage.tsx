@@ -4,7 +4,8 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import { api, type HistoryRow } from '../../lib/api/client'
-import { nextThemeLabel, useTheme } from '../../lib/useTheme'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
@@ -76,7 +77,7 @@ const zoomBtnStyle: React.CSSProperties = {
 
 export default function HistoryChartPage() {
   const auth = useAuthOptional()
-  const { theme, toggle: toggleTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
+  const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const params = useParams<{ region: string }>()
   const region: RegionKey = isRegionKey(params.region) ? params.region : 'INR'
 
@@ -139,13 +140,7 @@ export default function HistoryChartPage() {
         <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
           {REGION_LABELS[region]} — Invested vs Current
         </h1>
-        <button onClick={toggleTheme} style={{
-          background: 'var(--bg-card)', color: 'var(--text-primary)',
-          border: '1px solid var(--border)', borderRadius: 6,
-          padding: '6px 12px', cursor: 'pointer', fontSize: 13,
-        }} aria-label="Toggle theme">
-          {nextThemeLabel(theme, auth?.user?.premium)}
-        </button>
+        <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
       <main style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>

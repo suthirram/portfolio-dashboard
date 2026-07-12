@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type GoldMetrics, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
-import { nextThemeLabel, useTheme } from '../../lib/useTheme'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
 import { EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
 import GoldTxnModal from './GoldTxnModal'
@@ -17,7 +18,7 @@ const fmt = (v: number | null | undefined, digits = 2) =>
 
 export default function GoldPage() {
   const auth = useAuthOptional()
-  const { theme, toggle: toggleTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
+  const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const [rows, setRows] = useState<GoldTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -107,16 +108,14 @@ export default function GoldPage() {
           <h1 style={{ fontSize: 17, fontWeight: 700 }}>Gold</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={toggleTheme} className="btn" aria-label="Toggle theme"
-            title={`Switch theme: ${nextThemeLabel(theme, auth?.user?.premium)}`}>
-            {nextThemeLabel(theme, auth?.user?.premium)}
-          </button>
+
           <button onClick={() => setModal({ open: true, txn: null })} style={{
             background: 'var(--blue)', color: '#fff', padding: '6px 16px',
             fontWeight: 600, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6,
           }}>
             <PlusIcon size={14} /> Add purchase
           </button>
+          <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
         </div>
       </header>
 
