@@ -46,7 +46,7 @@ describe('CurrencySprinkle', () => {
       expect(it.left).toBeGreaterThanOrEqual(0)
       expect(it.left).toBeLessThanOrEqual(96)
       expect(it.top).toBeGreaterThanOrEqual(0)
-      expect(it.top).toBeLessThanOrEqual(94)
+      expect(it.top).toBeLessThanOrEqual(97)
       expect(it.opacity).toBeGreaterThanOrEqual(0.12)
       expect(it.opacity).toBeLessThan(0.29)
       expect(it.delay).toBeGreaterThanOrEqual(0)

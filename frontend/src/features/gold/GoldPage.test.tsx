@@ -48,14 +48,14 @@ describe('GoldPage', () => {
     vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
-  it('offers the theme toggle in the header', async () => {
+  it('offers direct theme selection in the header', async () => {
     renderPage()
-    const btn = await screen.findByRole('button', { name: 'Toggle theme' })
-    // Outside an AuthProvider premium is unknown → dark/light pair only.
-    fireEvent.click(btn) // dark → light
+    // Outside an AuthProvider premium is unknown → dark/light options only.
+    fireEvent.click(await screen.findByRole('button', { name: '☀ Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
-    fireEvent.click(btn) // light → dark (no cyberpunk without premium)
+    fireEvent.click(screen.getByRole('button', { name: '🌙 Dark' }))
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(screen.queryByRole('button', { name: '⚡ Cyber' })).toBeNull()
   })
 
   it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {

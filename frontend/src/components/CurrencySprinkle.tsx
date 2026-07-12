@@ -48,7 +48,7 @@ export function sprinkleLayout(count: number, seed: number): SprinkleItem[] {
   const cols = Math.ceil(Math.sqrt(count * 1.6)) // ~16:10 cell aspect
   const rows = Math.ceil(count / cols)
   const cellW = 96 / cols
-  const cellH = 94 / rows
+  const cellH = 97 / rows // reach the viewport bottom; glyphs are top-anchored
   return Array.from({ length: count }, (_, i) => ({
     sym: SYMBOLS[Math.floor(rnd() * SYMBOLS.length)],
     left: ((i % cols) + rnd()) * cellW,
@@ -61,8 +61,16 @@ export function sprinkleLayout(count: number, seed: number): SprinkleItem[] {
   }))
 }
 
-export default function CurrencySprinkle({ count = 28, seed = 46 }: { count?: number; seed?: number }) {
-  const items = useMemo(() => sprinkleLayout(count, seed), [count, seed])
+// Default glyph count scales with viewport area so large screens are
+// covered edge to edge instead of showing the laptop-sized scatter.
+function defaultCount(): number {
+  if (typeof window === 'undefined') return 28
+  return Math.max(24, Math.min(60, Math.round((window.innerWidth * window.innerHeight) / 42000)))
+}
+
+export default function CurrencySprinkle({ count, seed = 46 }: { count?: number; seed?: number }) {
+  const resolvedCount = useMemo(() => count ?? defaultCount(), [count])
+  const items = useMemo(() => sprinkleLayout(resolvedCount, seed), [resolvedCount, seed])
   // Entrance animation on every dashboard visit: bumping the key remounts
   // the layer, restarting the staggered pop-in. Other routes keep the last
   // key, so navigating between non-dashboard pages doesn't re-animate.

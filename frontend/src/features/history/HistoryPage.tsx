@@ -16,7 +16,8 @@ import {
   type PasteHistoryReport,
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
-import { nextThemeLabel, useTheme, type ThemeName } from '../../lib/useTheme'
+import { useTheme, type ThemeName } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
@@ -52,7 +53,7 @@ const CHARTS_ON_TOP_KEY = 'pd_history_charts_top'
 
 export default function HistoryPage() {
   const auth = useAuthOptional()
-  const { theme, toggle: toggleTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
+  const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
   const [year, setYear] = useState(now.getUTCFullYear())
@@ -224,13 +225,7 @@ export default function HistoryPage() {
           ← Portfolio
         </Link>
         <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Historical data</h1>
-        <button onClick={toggleTheme} style={{
-          background: 'var(--bg-card)', color: 'var(--text-primary)',
-          border: '1px solid var(--border)', borderRadius: 6,
-          padding: '6px 12px', cursor: 'pointer', fontSize: 13,
-        }} aria-label="Toggle theme">
-          {nextThemeLabel(theme, auth?.user?.premium)}
-        </button>
+        <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
       <main style={{ width: "100%", maxWidth: "1800px", margin: '0 auto', padding: '24px 28px' }}>
