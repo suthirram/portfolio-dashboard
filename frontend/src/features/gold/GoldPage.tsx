@@ -92,9 +92,9 @@ export default function GoldPage() {
   const computed: CSSProperties = { background: 'var(--bg-card)' }
 
   return (
-    <div style={{ minHeight: '100dvh' }}>
-      <header style={{
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
+    <div className="page-art page-art-gold" style={{ minHeight: '100dvh' }}>
+      <header className="nav-glass" style={{
+        borderBottom: '1px solid var(--border)', background: 'var(--bg-glass)',
         padding: '0 28px', height: 'var(--nav-height)', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50,
       }}>

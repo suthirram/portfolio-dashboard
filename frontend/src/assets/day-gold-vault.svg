@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="220" x2="900" y1="586" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d97706"/>
+      <stop offset=".52" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <path d="M116 610h888" stroke="#9aaad0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M215 520h222l42 74H173l42-74ZM474 520h222l42 74H432l42-74ZM733 520h222l42 74H691l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M314 408h222l42 74H272l42-74ZM573 408h222l42 74H531l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round" opacity=".82"/>
+  <path d="M444 296h222l42 74H402l42-74Z" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round" opacity=".72"/>
+  <circle cx="813" cy="226" r="98" stroke="#d97706" stroke-width="8"/>
+  <circle cx="813" cy="226" r="62" stroke="#7c3aed" stroke-width="5" opacity=".62"/>
+  <path d="M779 226h68M813 192v68" stroke="#2563eb" stroke-width="7" stroke-linecap="round"/>
+  <path d="M118 170h208l84 92h142M118 218h156l88 96h128M118 266h118l88 96h116" stroke="#2563eb" stroke-width="4" stroke-linecap="round" opacity=".48"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3" opacity=".34">
+    <text x="140" y="128" fill="#2563eb">&#8377;</text>
+    <text x="336" y="212" fill="#7c3aed">$</text>
+    <text x="658" y="116" fill="#d97706">&#8364;</text>
+  </g>
+</svg>

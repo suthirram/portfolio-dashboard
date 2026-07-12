@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Portfolio Dashboard">
+  <defs>
+    <linearGradient id="mark" x1="8" x2="56" y1="54" y2="10" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00e5ff"/>
+      <stop offset=".52" stop-color="#ff2bd6"/>
+      <stop offset="1" stop-color="#ffe600"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#06010f"/>
+  <path d="M13 48h39" stroke="#2e1354" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 44l9-11 8 6 14-21" fill="none" stroke="url(#mark)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <circle cx="16" cy="44" r="3" fill="#00e5ff"/>
+  <circle cx="25" cy="33" r="3" fill="#ffe600"/>
+  <circle cx="33" cy="39" r="3" fill="#ff2bd6"/>
+  <circle cx="47" cy="18" r="3" fill="#00ffa3"/>
+</svg>

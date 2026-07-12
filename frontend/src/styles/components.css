@@ -34,6 +34,202 @@
   display: inline-block;
 }
 
+/* --- Icons ------------------------------------------------------------- */
+
+@keyframes icon-float {
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes icon-trace {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes icon-spin-once {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes icon-spark {
+  50% { opacity: 0.45; transform: scale(1.22); }
+}
+
+.app-icon {
+  --icon-gold: #fbbf24;
+  --icon-gold-soft: #d97706;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+/* Strokes must scale with the icon: non-scaling-stroke would keep them at
+ * 2 physical px, merging tightly-spaced marks (ChartLineIcon bars sit 4
+ * viewBox units apart — ~2.3px at nav size) into a blob. */
+.app-icon * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.app-icon .icon-accent {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-up,
+.app-icon .icon-success {
+  color: var(--green);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-down,
+.app-icon .icon-danger {
+  color: var(--red);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-warn,
+.app-icon .icon-warning {
+  color: var(--yellow);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold {
+  color: var(--icon-gold);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  stroke: currentColor;
+}
+
+.app-icon .icon-admin {
+  color: var(--purple);
+  stroke: currentColor;
+}
+
+.app-icon .icon-user-tone {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-muted {
+  opacity: 0.68;
+}
+
+.app-icon .icon-trace {
+  stroke-dasharray: 18;
+}
+
+.app-icon .icon-spark {
+  opacity: 0.78;
+}
+
+button:hover .app-icon .icon-motion,
+a:hover .app-icon .icon-motion,
+.brand-tile:hover .app-icon .icon-motion {
+  animation: icon-float 0.75s var(--ease) both;
+}
+
+button:hover .app-icon .icon-trace,
+a:hover .app-icon .icon-trace,
+.brand-tile:hover .app-icon .icon-trace {
+  animation: icon-trace 0.72s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spin,
+a:hover .app-icon .icon-spin {
+  animation: icon-spin-once 0.85s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spark,
+a:hover .app-icon .icon-spark,
+.brand-tile:hover .app-icon .icon-spark {
+  animation: icon-spark 0.8s var(--ease) both;
+}
+
+[data-theme="light"] .app-icon {
+  --icon-gold: #b7791f;
+  --icon-gold-soft: #d97706;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-accent {
+  color: var(--blue);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.45));
+}
+
+[data-theme="cyberpunk"] .app-icon {
+  --icon-gold: #ffe600;
+  --icon-gold-soft: #ffb800;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-spark {
+  color: #ff2bd6;
+  filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.5));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-up,
+[data-theme="cyberpunk"] .app-icon .icon-success {
+  color: var(--green);
+  filter: drop-shadow(0 0 5px rgba(0, 255, 163, 0.4));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-down,
+[data-theme="cyberpunk"] .app-icon .icon-danger {
+  color: var(--red);
+  filter: drop-shadow(0 0 5px rgba(255, 46, 108, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-warn,
+[data-theme="cyberpunk"] .app-icon .icon-warning {
+  color: var(--yellow);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold {
+  color: var(--icon-gold);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  filter: drop-shadow(0 0 5px rgba(255, 184, 0, 0.34));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-admin {
+  color: var(--purple);
+  filter: drop-shadow(0 0 5px rgba(194, 107, 255, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-user-tone {
+  color: var(--blue);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.38));
+}
+
+/* Inside gradient primary buttons and the brand tile, icons stay
+ * monochrome (the button's white text colour): multi-colour parts have
+ * poor contrast on the gradient. Placed last in the icon section so it
+ * out-orders the equal-specificity theme rules above. */
+.btn-primary .app-icon [class*="icon-"],
+.brand-tile .app-icon [class*="icon-"] {
+  color: inherit;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:hover .app-icon .icon-motion,
+  a:hover .app-icon .icon-motion,
+  .brand-tile:hover .app-icon .icon-motion,
+  button:hover .app-icon .icon-trace,
+  a:hover .app-icon .icon-trace,
+  .brand-tile:hover .app-icon .icon-trace,
+  button:hover .app-icon .icon-spin,
+  a:hover .app-icon .icon-spin,
+  button:hover .app-icon .icon-spark,
+  a:hover .app-icon .icon-spark,
+  .brand-tile:hover .app-icon .icon-spark {
+    animation: none;
+  }
+}
+
 /* --- Buttons ------------------------------------------------------------ */
 
 .btn {
@@ -187,6 +383,209 @@
 }
 [data-theme="cyberpunk"] .modal-card {
   box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 229, 255, 0.15);
+}
+
+/* --- Theme page art ---------------------------------------------------------- */
+
+.page-art {
+  --page-art-image: var(--page-art-night-image);
+  --page-art-secondary: var(--page-art-night-secondary);
+  --page-art-position: right -72px top 72px;
+  --page-art-secondary-position: left -260px bottom -220px;
+  --page-art-size: min(94vw, 1180px) auto;
+  --page-art-secondary-size: min(58vw, 720px) auto;
+  --page-art-opacity: 0.24;
+  --page-art-secondary-opacity: 0.12;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.08);
+  --page-art-glow-a: rgba(91, 147, 255, 0.10);
+  --page-art-glow-b: rgba(167, 139, 250, 0.08);
+  /* Optional full-bleed photo layer + readability veils. --page-art-veil is
+   * a 0/1 switch multiplied into the veil alphas; --page-art-veil-rgb tracks
+   * the theme background so light mode gets light veils, not black smears. */
+  --page-art-photo: none;
+  --page-art-veil: 0;
+  --page-art-veil-rgb: 10, 12, 22;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+.page-art::before,
+.page-art::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--page-art-opacity);
+  transition: opacity var(--speed-slow) var(--ease);
+}
+
+.page-art::before {
+  background-image:
+    var(--page-art-image),
+    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+    linear-gradient(90deg,
+      rgba(var(--page-art-veil-rgb), calc(0.66 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.24 * var(--page-art-veil))) 60%,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil)))),
+    linear-gradient(180deg,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.14 * var(--page-art-veil))) 52%,
+      rgba(var(--page-art-veil-rgb), calc(0.78 * var(--page-art-veil)))),
+    var(--page-art-photo);
+  background-repeat: no-repeat;
+  background-position:
+    var(--page-art-position),
+    right top,
+    left bottom,
+    center,
+    center,
+    center;
+  background-size:
+    var(--page-art-size),
+    auto,
+    auto,
+    auto,
+    auto,
+    cover;
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
+}
+
+.page-art::after {
+  background-image: var(--page-art-secondary);
+  background-repeat: no-repeat;
+  background-position: var(--page-art-secondary-position);
+  background-size: var(--page-art-secondary-size);
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
+  opacity: var(--page-art-secondary-opacity);
+}
+
+.page-art > * {
+  position: relative;
+  z-index: 1;
+}
+
+[data-theme="light"] .page-art {
+  --page-art-image: var(--page-art-day-image);
+  --page-art-secondary: var(--page-art-day-secondary);
+  --page-art-opacity: 0.2;
+  --page-art-secondary-opacity: 0.1;
+  --page-art-blend: multiply;
+  --page-art-filter: saturate(1.02);
+  --page-art-glow-a: rgba(47, 107, 219, 0.08);
+  --page-art-glow-b: rgba(124, 58, 237, 0.06);
+  --page-art-veil-rgb: 245, 247, 251;
+}
+
+[data-theme="cyberpunk"] .page-art {
+  --page-art-image: var(--page-art-neon-image);
+  --page-art-secondary: var(--page-art-neon-secondary);
+  --page-art-opacity: 0.42;
+  --page-art-secondary-opacity: 0.22;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.15);
+  --page-art-glow-a: rgba(0, 229, 255, 0.12);
+  --page-art-glow-b: rgba(255, 43, 214, 0.10);
+  --page-art-veil-rgb: 6, 1, 15;
+}
+
+.page-art-dashboard {
+  --page-art-day-image: url('../assets/day-market-dashboard.svg');
+  --page-art-day-secondary: url('../assets/day-candles.svg');
+  --page-art-night-image: url('../assets/night-market-dashboard.svg');
+  --page-art-night-secondary: url('../assets/night-candles.svg');
+  --page-art-neon-image: url('../assets/neon-market-dashboard.svg');
+  --page-art-neon-secondary: url('../assets/neon-candles.svg');
+  --page-art-position: right -120px top 82px;
+  --page-art-secondary-position: left 18px bottom -120px;
+  --page-art-size: min(96vw, 1220px) auto;
+  --page-art-secondary-size: min(44vw, 540px) auto;
+  --page-art-secondary-opacity: 0.16;
+  --page-art-photo: url('../assets/market-bull-bear.webp');
+  --page-art-veil: 1;
+}
+
+.page-art-history {
+  --page-art-day-image: url('../assets/day-history-timeline.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-history-timeline.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-history-timeline.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -90px top 84px;
+  --page-art-secondary-position: left -380px bottom -270px;
+  --page-art-size: min(92vw, 1120px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-photo: url('../assets/bse-building.webp');
+  --page-art-veil: 1;
+}
+
+.page-art-admin,
+.page-art-users {
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -92px top 72px;
+  --page-art-secondary-position: left -370px bottom -260px;
+  --page-art-size: min(88vw, 1060px) auto;
+  --page-art-secondary-size: min(62vw, 760px) auto;
+}
+
+.page-art-gold {
+  --page-art-day-image: url('../assets/day-gold-vault.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-gold-vault.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-gold-vault.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -64px top 76px;
+  --page-art-secondary-position: left -360px bottom -260px;
+  --page-art-size: min(90vw, 1060px) auto;
+}
+
+.page-art-profile {
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-history-timeline.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-history-timeline.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-position: right -110px top 42px;
+  --page-art-secondary-position: left -340px bottom -260px;
+  --page-art-size: min(84vw, 980px) auto;
+}
+
+[data-theme="light"] .page-art-dashboard {
+  --page-art-secondary-opacity: 0.14;
+}
+
+[data-theme="cyberpunk"] .page-art-dashboard {
+  --page-art-secondary-opacity: 0.28;
+}
+
+@media (max-width: 768px) {
+  .page-art {
+    --page-art-position: right -280px top 84px;
+    --page-art-secondary-position: left -360px bottom -260px;
+    --page-art-size: 820px auto;
+    --page-art-secondary-size: 620px auto;
+    --page-art-opacity: 0.28;
+    --page-art-secondary-opacity: 0.16;
+  }
+
+  .page-art-dashboard {
+    --page-art-position: right -430px top 104px;
+    --page-art-secondary-position: left -260px bottom -130px;
+    --page-art-secondary-size: 640px auto;
+  }
 }
 
 /* --- Skeleton (loading shimmer) ---------------------------------------------- */

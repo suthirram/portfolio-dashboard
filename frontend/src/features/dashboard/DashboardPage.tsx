@@ -119,8 +119,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
   return (
-    // Background comes from body (base.css) so the ambient glow shows through.
-    <div style={{ minHeight: '100dvh' }}>
+    <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
       <header className="dash-nav nav-glass" style={{
         padding: '0 28px',
         height: 'var(--nav-height)',

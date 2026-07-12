@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 720" fill="none">
+  <defs>
+    <linearGradient id="history" x1="90" x2="1010" y1="560" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5b93ff"/>
+      <stop offset=".5" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-30%" width="140%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M82 560h960M82 440h960M82 320h960M82 200h960" stroke="#2e3453" stroke-width="2" opacity=".62"/>
+  <path d="M156 628V92M312 628V92M468 628V92M624 628V92M780 628V92M936 628V92" stroke="#232842" stroke-width="2" opacity=".56"/>
+  <path d="M110 572c86-116 148-99 210-132 72-38 67-125 154-137 88-11 114 83 199 68 98-17 112-159 208-179 57-12 103 19 151 72" stroke="url(#history)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" filter="url(#soft)"/>
+  <path d="M117 492c91 4 118-95 188-88 75 8 74 129 153 144 87 16 122-111 210-98 80 12 86 123 171 130 69 6 111-56 172-122" stroke="#00d69f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".58" filter="url(#soft)"/>
+  <circle cx="110" cy="572" r="12" fill="#5b93ff" filter="url(#soft)"/>
+  <circle cx="474" cy="303" r="12" fill="#a78bfa" filter="url(#soft)"/>
+  <circle cx="881" cy="192" r="12" fill="#fbbf24" filter="url(#soft)"/>
+  <circle cx="1011" cy="458" r="10" fill="#00d69f" filter="url(#soft)"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3" opacity=".3" filter="url(#soft)">
+    <text x="116" y="142" fill="#5b93ff">$</text>
+    <text x="364" y="616" fill="#a78bfa">&#8377;</text>
+    <text x="600" y="132" fill="#fbbf24">&#8364;</text>
+  </g>
+</svg>
