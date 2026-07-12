@@ -55,11 +55,13 @@ describe('GoldPage', () => {
 
   it('offers the theme toggle in the header', async () => {
     renderPage()
-    const btn = await screen.findByRole('button', { name: 'Toggle theme' })
+    const btn = await screen.findByRole('button', { name: /^Theme:/ })
     // Outside an AuthProvider premium is unknown → dark/light pair only.
-    fireEvent.click(btn) // dark → light
+    fireEvent.click(btn) // open dropdown
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '☀ Light' }))
     expect(document.documentElement.dataset.theme).toBe('light')
-    fireEvent.click(btn) // light → dark (no cyberpunk without premium)
+    fireEvent.click(screen.getByRole('button', { name: /^Theme:/ })) // reopen
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '🌙 Dark' }))
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
