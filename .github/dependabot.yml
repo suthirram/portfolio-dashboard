@@ -1,0 +1,98 @@
+---
+version: 2
+
+registries:
+  github:
+    type: git
+    url: https://github.com
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    labels:
+      - "github dependency"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    cooldown:
+      default-days: 7
+    groups:
+      gha-workflows:
+        patterns:
+          - 'Staffbase/gha-workflows*'
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    labels:
+      - "go dependency"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    registries:
+      - github
+    groups:
+      openapi:
+        patterns:
+          - '*openapi*'
+          - '*oapi-codegen*'
+          - '*oasdiff*'
+      otel:
+        patterns:
+          - 'go.opentelemetry.io/*'
+      temporal:
+        patterns:
+          - 'go.temporal.io/*'
+      azure:
+        patterns:
+          - 'github.com/Azure/*'
+      golang-x:
+        patterns:
+          - 'golang.org/x/*'
+      grpc-protobuf:
+        patterns:
+          - 'google.golang.org/*'
+          - 'github.com/grpc-ecosystem/*'
+      container-libs:
+        patterns:
+          - 'github.com/moby/*'
+          - 'github.com/docker/*'
+          - 'github.com/containerd/*'
+          - 'github.com/opencontainers/*'
+      lestrrat:
+        patterns:
+          - 'github.com/lestrrat-go/*'
+      samber:
+        patterns:
+          - 'github.com/samber/*'
+      nats:
+        patterns:
+          - 'github.com/nats-io/*'
+      prometheus:
+        patterns:
+          - 'github.com/prometheus/*'
+      tidwall:
+        patterns:
+          - 'github.com/tidwall/*'
+      go-playground:
+        patterns:
+          - 'github.com/go-playground/*'
+      xdg-go:
+        patterns:
+          - 'github.com/xdg-go/*'
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    labels:
+      - "docker dependency"
