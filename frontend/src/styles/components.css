@@ -473,7 +473,7 @@ a:hover .app-icon .icon-spark,
 [data-theme="light"] .page-art {
   --page-art-image: var(--page-art-day-image);
   --page-art-secondary: var(--page-art-day-secondary);
-  --page-art-opacity: 1;
+  --page-art-opacity: 0.78;
   --page-art-secondary-opacity: 0.1;
   --page-art-blend: multiply;
   --page-art-filter: saturate(1.02);
