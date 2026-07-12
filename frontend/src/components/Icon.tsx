@@ -34,7 +34,7 @@ export const ChartLineIcon = (p: IconProps) => (
     <path className="icon-market-down icon-motion" d="M10 16V5" />
     <path className="icon-market-warn icon-motion" d="M14 16v-6" />
     <path className="icon-market-up icon-motion" d="M18 16V7" />
-    <path className="icon-market-up icon-trace" d="M5 14l4-4 4 2 6-7" />
+    <path className="icon-market-up icon-trace" pathLength={18} d="M5 14l4-4 4 2 6-7" />
   </Svg>
 )
 
@@ -51,7 +51,7 @@ export const CoinsIcon = (p: IconProps) => (
 export const ListIcon = (p: IconProps) => (
   <Svg {...p}>
     <path className="icon-muted" d="M5 4h14v16H5z" />
-    <path className="icon-market-up icon-trace" d="M8 8h8" />
+    <path className="icon-market-up icon-trace" pathLength={18} d="M8 8h8" />
     <path d="M8 12h8" />
     <path d="M8 16h5" />
     <path className="icon-success icon-motion" d="M16 16l2 2 3-5" />
@@ -61,7 +61,7 @@ export const ListIcon = (p: IconProps) => (
 export const ShieldIcon = (p: IconProps) => (
   <Svg {...p}>
     <path className="icon-muted" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    <path className="icon-admin icon-trace" d="M9 12l2 2 4-5" />
+    <path className="icon-admin icon-trace" pathLength={18} d="M9 12l2 2 4-5" />
     <path className="icon-admin icon-motion" d="M12 6v2" />
   </Svg>
 )
@@ -72,7 +72,7 @@ export const UsersIcon = (p: IconProps) => (
     <circle className="icon-admin icon-motion" cx="17" cy="9" r="2.5" />
     <path className="icon-muted" d="M3 20a5 5 0 0 1 10 0" />
     <path className="icon-muted" d="M13 20a4 4 0 0 1 8 0" />
-    <path className="icon-user-tone icon-trace" d="M10.5 8.5l4 1" />
+    <path className="icon-user-tone icon-trace" pathLength={18} d="M10.5 8.5l4 1" />
   </Svg>
 )
 
@@ -88,7 +88,7 @@ export const UserCheckIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle className="icon-user-tone icon-motion" cx="9" cy="8" r="3.5" />
     <path className="icon-muted" d="M3 21a6 6 0 0 1 12 0" />
-    <path className="icon-success icon-trace" d="M16 12l2 2 4-5" />
+    <path className="icon-success icon-trace" pathLength={18} d="M16 12l2 2 4-5" />
   </Svg>
 )
 
@@ -134,7 +134,7 @@ export const TrashIcon = (p: IconProps) => (
 
 export const CheckIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path className="icon-success icon-trace" d="M20 6L9 17l-5-5" />
+    <path className="icon-success icon-trace" pathLength={18} d="M20 6L9 17l-5-5" />
   </Svg>
 )
 

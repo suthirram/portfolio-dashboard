@@ -60,10 +60,12 @@
   flex-shrink: 0;
 }
 
+/* Strokes must scale with the icon: non-scaling-stroke would keep them at
+ * 2 physical px, merging tightly-spaced marks (ChartLineIcon bars sit 4
+ * viewBox units apart — ~2.3px at nav size) into a blob. */
 .app-icon * {
   transform-box: fill-box;
   transform-origin: center;
-  vector-effect: non-scaling-stroke;
 }
 
 .app-icon .icon-accent {
@@ -144,17 +146,13 @@ a:hover .app-icon .icon-spark,
   animation: icon-spark 0.8s var(--ease) both;
 }
 
-[data-theme="light"] .app-icon .icon-accent {
-  color: var(--blue);
-}
-
 [data-theme="light"] .app-icon {
   --icon-gold: #b7791f;
   --icon-gold-soft: #d97706;
 }
 
 [data-theme="cyberpunk"] .app-icon .icon-accent {
-  color: #00e5ff;
+  color: var(--blue);
   filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.45));
 }
 
@@ -204,6 +202,16 @@ a:hover .app-icon .icon-spark,
 [data-theme="cyberpunk"] .app-icon .icon-user-tone {
   color: var(--blue);
   filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.38));
+}
+
+/* Inside gradient primary buttons and the brand tile, icons stay
+ * monochrome (the button's white text colour): multi-colour parts have
+ * poor contrast on the gradient. Placed last in the icon section so it
+ * out-orders the equal-specificity theme rules above. */
+.btn-primary .app-icon [class*="icon-"],
+.brand-tile .app-icon [class*="icon-"] {
+  color: inherit;
+  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -392,6 +400,12 @@ a:hover .app-icon .icon-spark,
   --page-art-filter: saturate(1.08);
   --page-art-glow-a: rgba(91, 147, 255, 0.10);
   --page-art-glow-b: rgba(167, 139, 250, 0.08);
+  /* Optional full-bleed photo layer + readability veils. --page-art-veil is
+   * a 0/1 switch multiplied into the veil alphas; --page-art-veil-rgb tracks
+   * the theme background so light mode gets light veils, not black smears. */
+  --page-art-photo: none;
+  --page-art-veil: 0;
+  --page-art-veil-rgb: 10, 12, 22;
   min-height: 100dvh;
   position: relative;
   isolation: isolate;
@@ -412,16 +426,31 @@ a:hover .app-icon .icon-spark,
   background-image:
     var(--page-art-image),
     radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
-    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%);
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+    linear-gradient(90deg,
+      rgba(var(--page-art-veil-rgb), calc(0.66 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.24 * var(--page-art-veil))) 60%,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil)))),
+    linear-gradient(180deg,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.14 * var(--page-art-veil))) 52%,
+      rgba(var(--page-art-veil-rgb), calc(0.78 * var(--page-art-veil)))),
+    var(--page-art-photo);
   background-repeat: no-repeat;
   background-position:
     var(--page-art-position),
     right top,
-    left bottom;
+    left bottom,
+    center,
+    center,
+    center;
   background-size:
     var(--page-art-size),
     auto,
-    auto;
+    auto,
+    auto,
+    auto,
+    cover;
   mix-blend-mode: var(--page-art-blend);
   filter: var(--page-art-filter);
 }
@@ -450,6 +479,7 @@ a:hover .app-icon .icon-spark,
   --page-art-filter: saturate(1.02);
   --page-art-glow-a: rgba(47, 107, 219, 0.08);
   --page-art-glow-b: rgba(124, 58, 237, 0.06);
+  --page-art-veil-rgb: 245, 247, 251;
 }
 
 [data-theme="cyberpunk"] .page-art {
@@ -461,6 +491,7 @@ a:hover .app-icon .icon-spark,
   --page-art-filter: saturate(1.15);
   --page-art-glow-a: rgba(0, 229, 255, 0.12);
   --page-art-glow-b: rgba(255, 43, 214, 0.10);
+  --page-art-veil-rgb: 6, 1, 15;
 }
 
 .page-art-dashboard {
@@ -475,6 +506,8 @@ a:hover .app-icon .icon-spark,
   --page-art-size: min(96vw, 1220px) auto;
   --page-art-secondary-size: min(44vw, 540px) auto;
   --page-art-secondary-opacity: 0.16;
+  --page-art-photo: url('../assets/market-bull-bear.webp');
+  --page-art-veil: 1;
 }
 
 .page-art-history {
@@ -488,6 +521,8 @@ a:hover .app-icon .icon-spark,
   --page-art-secondary-position: left -380px bottom -270px;
   --page-art-size: min(92vw, 1120px) auto;
   --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-photo: url('../assets/bse-building.webp');
+  --page-art-veil: 1;
 }
 
 .page-art-admin,
@@ -536,26 +571,6 @@ a:hover .app-icon .icon-spark,
   --page-art-secondary-opacity: 0.28;
 }
 
-.page-art-dashboard::before {
-  background:
-    var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
-    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
-    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
-    linear-gradient(90deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.24) 72%, rgba(10, 12, 22, 0.6)),
-    linear-gradient(180deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.1) 72%, rgba(10, 12, 22, 0.74)),
-    url('../assets/market-bull-bear.webp') center center / 100% 100% no-repeat;
-}
-
-.page-art-history::before {
-  background:
-    var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
-    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
-    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
-    linear-gradient(90deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.26) 48%, rgba(10, 12, 22, 0.68)),
-    linear-gradient(180deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.18) 42%, rgba(10, 12, 22, 0.82)),
-    url('../assets/bse-building.png') center center / 100% 100% no-repeat;
-}
-
 @media (max-width: 768px) {
   .page-art {
     --page-art-position: right -280px top 84px;
@@ -570,26 +585,6 @@ a:hover .app-icon .icon-spark,
     --page-art-position: right -430px top 104px;
     --page-art-secondary-position: left -260px bottom -130px;
     --page-art-secondary-size: 640px auto;
-  }
-
-  .page-art-dashboard::before {
-    background:
-      var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
-      radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
-      radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
-      linear-gradient(90deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.24) 48%, rgba(10, 12, 22, 0.6)),
-      linear-gradient(180deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.1) 42%, rgba(10, 12, 22, 0.74)),
-      url('../assets/market-bull-bear.webp') center center / 100% 100% no-repeat;
-  }
-
-  .page-art-history::before {
-    background:
-      var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
-      radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
-      radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
-      linear-gradient(90deg, rgba(10, 12, 22, 0.68), rgba(10, 12, 22, 0.26) 48%, rgba(10, 12, 22, 0.68)),
-      linear-gradient(180deg, rgba(10, 12, 22, 0.72), rgba(10, 12, 22, 0.18) 42%, rgba(10, 12, 22, 0.82)),
-      url('../assets/bse-building.png') center center / 100% 100% no-repeat;
   }
 }
 
