@@ -100,7 +100,13 @@ a {
 a:hover { filter: brightness(1.12); }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  /* Kill UI-chrome motion only. Recharts (react-smooth) draws chart lines by
+   * setting an inline `transition` on SVG nodes; a blanket * rule with
+   * !important overrides inline styles and erases the line-draw animation
+   * entirely, so the chart subtree is exempted. */
+  *:not(.recharts-wrapper):not(.recharts-wrapper *),
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
