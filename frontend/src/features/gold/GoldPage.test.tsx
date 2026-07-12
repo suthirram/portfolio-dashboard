@@ -48,6 +48,16 @@ describe('GoldPage', () => {
     vi.mocked(api.getGoldMetrics).mockResolvedValue({ invested: 0, grams: 0 })
   })
 
+  it('offers the theme toggle in the header', async () => {
+    renderPage()
+    const btn = await screen.findByRole('button', { name: 'Toggle theme' })
+    // Outside an AuthProvider premium is unknown → dark/light pair only.
+    fireEvent.click(btn) // dark → light
+    expect(document.documentElement.dataset.theme).toBe('light')
+    fireEvent.click(btn) // light → dark (no cyberpunk without premium)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
   it('shows the blocking missing-prices prompt when there are gaps, and clears it on save', async () => {
     vi.mocked(api.listGoldMissingDates)
       .mockResolvedValueOnce({ missing: ['2026-07-05', '2026-07-06'] })
