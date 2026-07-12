@@ -444,6 +444,78 @@ func TestAdminSetUserGold(t *testing.T) {
 	})
 }
 
+func TestAdminSetUserPremium(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("super admin enables premium on any account", func(mt *mtest.T) {
+		target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+			mtest.CreateSuccessResponse(),
+		)
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserPremium(userCtx(superAdmin()), api.AdminSetUserPremiumRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.PremiumToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserPremium: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserPremium204Response); !ok {
+			t.Fatalf("response = %T, want 204", resp)
+		}
+	})
+
+	mt.Run("super admin may toggle its own account", func(mt *mtest.T) {
+		caller := superAdmin()
+		self := userDocument(t, caller.ID, "admin", "irrelevant1", domain.RoleSuperAdmin, "", nil)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, self),
+			mtest.CreateSuccessResponse(),
+		)
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserPremium(userCtx(caller), api.AdminSetUserPremiumRequestObject{
+			Id:   caller.ID.Hex(),
+			Body: &api.PremiumToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserPremium: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserPremium204Response); !ok {
+			t.Fatalf("response = %T, want 204 (self-toggle allowed)", resp)
+		}
+	})
+
+	mt.Run("regional admins cannot toggle premium", func(mt *mtest.T) {
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserPremium(userCtx(regionalAdmin("india")), api.AdminSetUserPremiumRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.PremiumToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserPremium: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserPremium403JSONResponse); !ok {
+			t.Fatalf("response = %T, want 403", resp)
+		}
+	})
+
+	mt.Run("unknown target is a 404", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch))
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserPremium(userCtx(superAdmin()), api.AdminSetUserPremiumRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.PremiumToggleRequest{Enabled: false},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserPremium: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserPremium404JSONResponse); !ok {
+			t.Fatalf("response = %T, want 404", resp)
+		}
+	})
+}
+
 func TestAdminSetUserRegion(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 

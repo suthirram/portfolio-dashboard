@@ -110,6 +110,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_region"
   /admin/users/{id}/gold:
     $ref: "./admin/admin.yaml#/users_id_gold"
+  /admin/users/{id}/premium:
+    $ref: "./admin/admin.yaml#/users_id_premium"
   /gold/transactions:
     $ref: "./gold/gold.yaml#/transactions"
   /gold/transactions/{id}:

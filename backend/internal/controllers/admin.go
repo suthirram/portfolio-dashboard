@@ -423,6 +423,36 @@ func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetU
 	return api.AdminSetUserGold204Response{}, nil
 }
 
+// AdminSetUserPremium turns premium features on or off for an account
+// (PD-046 — currently gates the cyberpunk theme). Super admin only; like
+// the gold toggle, the super admin may toggle their own account. Toggling
+// off revokes eligibility but deletes nothing.
+func (h *Controller) AdminSetUserPremium(ctx context.Context, request api.AdminSetUserPremiumRequestObject) (api.AdminSetUserPremiumResponseObject, error) {
+	caller, ok := superAdminCaller(ctx)
+	if !ok {
+		return api.AdminSetUserPremium403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminSetUserPremium404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+
+	logger := h.reqLog(ctx)
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{
+		"premium":    request.Body.Enabled,
+		"updated_at": time.Now(),
+	}); err != nil {
+		logger.Error("premium toggle failed", zap.Error(err))
+		return nil, err
+	}
+	logger.Info("premium toggled",
+		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
+	return api.AdminSetUserPremium204Response{}, nil
+}
+
 // Act on a user's portfolio (region-scoped).
 
 func (h *Controller) AdminListUserHoldings(ctx context.Context, request api.AdminListUserHoldingsRequestObject) (api.AdminListUserHoldingsResponseObject, error) {

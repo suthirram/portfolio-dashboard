@@ -80,6 +80,7 @@ var routeTiers = map[string]routeTier{
 	"POST /api/admin/users/:id/demote":  tierSuperAdmin,
 	"PUT /api/admin/users/:id/region":   tierSuperAdmin,
 	"PUT /api/admin/users/:id/gold":     tierSuperAdmin,
+	"PUT /api/admin/users/:id/premium":  tierSuperAdmin,
 
 	// Admin or super-admin — every other /api/admin/... route.
 	"GET /api/admin/users":                            tierAdmin,
