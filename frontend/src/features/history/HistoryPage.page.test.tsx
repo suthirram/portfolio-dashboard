@@ -87,6 +87,43 @@ describe('HistoryPage', () => {
     expect(screen.getByRole('main').style.maxWidth).toBe('1800px')
   })
 
+  it('moves the charts above the table on toggle and persists the choice', async () => {
+    // This jsdom has no localStorage (hence the `window.localStorage?.`
+    // convention in app code) — install a minimal stub to observe persistence.
+    const store = new Map<string, string>()
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => { store.set(k, v) },
+        removeItem: (k: string) => { store.delete(k) },
+      },
+    })
+    mockApi.listHistory.mockResolvedValue(list([sampleRow]))
+    renderPage()
+    await screen.findByText('2026-06-16')
+
+    const domOrder = () => {
+      const table = document.querySelector('table')!
+      const chartHeading = screen.getByRole('heading', { name: /India \(INR\)/ })
+      // FOLLOWING = the table comes after the chart heading in document order.
+      return chartHeading.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING
+    }
+
+    // Default: table first.
+    expect(domOrder()).toBe(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /Charts on top/ }))
+    expect(domOrder()).not.toBe(0)
+    expect(window.localStorage.getItem('pd_history_charts_top')).toBe('1')
+    expect(screen.getByRole('button', { name: /Charts below/ })).toHaveAttribute('aria-pressed', 'true')
+
+    // Toggle back: table first again.
+    fireEvent.click(screen.getByRole('button', { name: /Charts below/ }))
+    expect(domOrder()).toBe(0)
+    expect(window.localStorage.getItem('pd_history_charts_top')).toBe('0')
+  })
+
   it('surfaces a fetch error', async () => {
     mockApi.listHistory.mockRejectedValue(new Error('boom'))
     renderPage()
