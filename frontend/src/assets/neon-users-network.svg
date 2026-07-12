@@ -31,4 +31,9 @@
   <circle cx="900" cy="375" r="14" fill="url(#node)" filter="url(#glow)"/>
   <path d="M93 612h934" stroke="#2e1354" stroke-width="3" stroke-linecap="round"/>
   <path d="M112 118h222M112 158h144M786 112h220M856 152h150" stroke="#00e5ff" stroke-width="4" stroke-linecap="round" opacity=".42" filter="url(#glow)"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="29" font-weight="800" letter-spacing="3" filter="url(#glow)">
+    <text x="118" y="108" fill="#00e5ff" opacity=".5">&#8364;</text>
+    <text x="418" y="214" fill="#ff2bd6" opacity=".46">&#8377;</text>
+    <text x="698" y="112" fill="#ffe600" opacity=".5">$</text>
+  </g>
 </svg>

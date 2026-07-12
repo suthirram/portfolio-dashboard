@@ -33,4 +33,9 @@
   <path d="M703 199c71-35 137-32 198 10 52 35 81 85 87 149l91 46-84 35c-22 57-67 98-137 123l-52 82-21-76c-65 0-119-18-161-54" stroke="url(#bear)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".58" filter="url(#glow)"/>
   <path d="M205 301l118-64 145 30 118-102 119 42 123-130" stroke="#ff2bd6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".78" filter="url(#glow)"/>
   <circle cx="828" cy="77" r="9" fill="#ffe600" filter="url(#glow)"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="3" filter="url(#glow)">
+    <text x="122" y="154" fill="#00e5ff" opacity=".58">&#8377;</text>
+    <text x="392" y="122" fill="#ff2bd6" opacity=".52">&#8364;</text>
+    <text x="666" y="628" fill="#00ffa3" opacity=".54">$</text>
+  </g>
 </svg>

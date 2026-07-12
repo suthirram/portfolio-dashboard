@@ -25,4 +25,9 @@
   <circle cx="552" cy="262" r="9" fill="#ff2bd6" filter="url(#glow)"/>
   <circle cx="490" cy="314" r="9" fill="#ffe600" filter="url(#glow)"/>
   <circle cx="440" cy="362" r="9" fill="#00ffa3" filter="url(#glow)"/>
+  <g font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="3" filter="url(#glow)">
+    <text x="140" y="128" fill="#00e5ff" opacity=".46">&#8377;</text>
+    <text x="336" y="212" fill="#ff2bd6" opacity=".42">$</text>
+    <text x="658" y="116" fill="#ffe600" opacity=".48">&#8364;</text>
+  </g>
 </svg>

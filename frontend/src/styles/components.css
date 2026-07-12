@@ -189,17 +189,21 @@
   box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 229, 255, 0.15);
 }
 
-/* --- Cyberpunk page art ------------------------------------------------------ */
+/* --- Theme page art ---------------------------------------------------------- */
 
 .page-art {
-  --page-art-image: url('../assets/neon-market-dashboard.svg');
-  --page-art-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-image: var(--page-art-night-image);
+  --page-art-secondary: var(--page-art-night-secondary);
   --page-art-position: right -72px top 72px;
   --page-art-secondary-position: left -260px bottom -220px;
   --page-art-size: min(94vw, 1180px) auto;
   --page-art-secondary-size: min(58vw, 720px) auto;
-  --page-art-opacity: 0.42;
-  --page-art-secondary-opacity: 0.22;
+  --page-art-opacity: 0.24;
+  --page-art-secondary-opacity: 0.12;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.08);
+  --page-art-glow-a: rgba(91, 147, 255, 0.10);
+  --page-art-glow-b: rgba(167, 139, 250, 0.08);
   min-height: 100dvh;
   position: relative;
   isolation: isolate;
@@ -212,26 +216,26 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0;
+  opacity: var(--page-art-opacity);
   transition: opacity var(--speed-slow) var(--ease);
 }
 
 .page-art::before {
   background-image:
-    radial-gradient(44rem 28rem at 78% 12%, rgba(0, 229, 255, 0.12), transparent 62%),
-    radial-gradient(38rem 26rem at 18% 88%, rgba(255, 43, 214, 0.10), transparent 62%),
-    var(--page-art-image);
+    var(--page-art-image),
+    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%);
   background-repeat: no-repeat;
   background-position:
+    var(--page-art-position),
     right top,
-    left bottom,
-    var(--page-art-position);
+    left bottom;
   background-size:
+    var(--page-art-size),
     auto,
-    auto,
-    var(--page-art-size);
-  mix-blend-mode: screen;
-  filter: saturate(1.15);
+    auto;
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
 }
 
 .page-art::after {
@@ -239,8 +243,9 @@
   background-repeat: no-repeat;
   background-position: var(--page-art-secondary-position);
   background-size: var(--page-art-secondary-size);
-  mix-blend-mode: screen;
-  filter: saturate(1.1);
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
+  opacity: var(--page-art-secondary-opacity);
 }
 
 .page-art > * {
@@ -248,36 +253,63 @@
   z-index: 1;
 }
 
-[data-theme="cyberpunk"] .page-art::before {
-  opacity: var(--page-art-opacity);
+[data-theme="light"] .page-art {
+  --page-art-image: var(--page-art-day-image);
+  --page-art-secondary: var(--page-art-day-secondary);
+  --page-art-opacity: 0.2;
+  --page-art-secondary-opacity: 0.1;
+  --page-art-blend: multiply;
+  --page-art-filter: saturate(1.02);
+  --page-art-glow-a: rgba(47, 107, 219, 0.08);
+  --page-art-glow-b: rgba(124, 58, 237, 0.06);
 }
 
-[data-theme="cyberpunk"] .page-art::after {
-  opacity: var(--page-art-secondary-opacity);
+[data-theme="cyberpunk"] .page-art {
+  --page-art-image: var(--page-art-neon-image);
+  --page-art-secondary: var(--page-art-neon-secondary);
+  --page-art-opacity: 0.42;
+  --page-art-secondary-opacity: 0.22;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.15);
+  --page-art-glow-a: rgba(0, 229, 255, 0.12);
+  --page-art-glow-b: rgba(255, 43, 214, 0.10);
 }
 
 .page-art-dashboard {
-  --page-art-image: url('../assets/neon-market-dashboard.svg');
-  --page-art-secondary: url('../assets/neon-history-timeline.svg');
-  --page-art-position: right -76px top 62px;
-  --page-art-secondary-position: left -300px bottom -240px;
+  --page-art-day-image: url('../assets/day-market-dashboard.svg');
+  --page-art-day-secondary: url('../assets/day-candles.svg');
+  --page-art-night-image: url('../assets/night-market-dashboard.svg');
+  --page-art-night-secondary: url('../assets/night-candles.svg');
+  --page-art-neon-image: url('../assets/neon-market-dashboard.svg');
+  --page-art-neon-secondary: url('../assets/neon-candles.svg');
+  --page-art-position: right -120px top 82px;
+  --page-art-secondary-position: left 18px bottom -120px;
   --page-art-size: min(96vw, 1220px) auto;
+  --page-art-secondary-size: min(44vw, 540px) auto;
+  --page-art-secondary-opacity: 0.16;
 }
 
 .page-art-history {
-  --page-art-image: url('../assets/neon-history-timeline.svg');
-  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-day-image: url('../assets/day-history-timeline.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-history-timeline.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-history-timeline.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
   --page-art-position: right -90px top 84px;
   --page-art-secondary-position: left -380px bottom -270px;
   --page-art-size: min(92vw, 1120px) auto;
   --page-art-secondary-size: min(64vw, 780px) auto;
-  --page-art-opacity: 0.38;
 }
 
 .page-art-admin,
 .page-art-users {
-  --page-art-image: url('../assets/neon-users-network.svg');
-  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
   --page-art-position: right -92px top 72px;
   --page-art-secondary-position: left -370px bottom -260px;
   --page-art-size: min(88vw, 1060px) auto;
@@ -285,19 +317,55 @@
 }
 
 .page-art-gold {
-  --page-art-image: url('../assets/neon-gold-vault.svg');
-  --page-art-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-day-image: url('../assets/day-gold-vault.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-gold-vault.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-gold-vault.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
   --page-art-position: right -64px top 76px;
   --page-art-secondary-position: left -360px bottom -260px;
   --page-art-size: min(90vw, 1060px) auto;
 }
 
 .page-art-profile {
-  --page-art-image: url('../assets/neon-users-network.svg');
-  --page-art-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-history-timeline.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-history-timeline.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-history-timeline.svg');
   --page-art-position: right -110px top 42px;
   --page-art-secondary-position: left -340px bottom -260px;
   --page-art-size: min(84vw, 980px) auto;
+}
+
+[data-theme="light"] .page-art-dashboard {
+  --page-art-secondary-opacity: 0.14;
+}
+
+[data-theme="cyberpunk"] .page-art-dashboard {
+  --page-art-secondary-opacity: 0.28;
+}
+
+.page-art-dashboard::before {
+  background:
+    var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
+    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+    linear-gradient(90deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.24) 72%, rgba(10, 12, 22, 0.6)),
+    linear-gradient(180deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.1) 72%, rgba(10, 12, 22, 0.74)),
+    url('../assets/market-bull-bear.webp') center center / 100% 100% no-repeat;
+}
+
+.page-art-history::before {
+  background:
+    var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
+    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+    linear-gradient(90deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.26) 48%, rgba(10, 12, 22, 0.68)),
+    linear-gradient(180deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.18) 42%, rgba(10, 12, 22, 0.82)),
+    url('../assets/bse-building.png') center center / 100% 100% no-repeat;
 }
 
 @media (max-width: 768px) {
@@ -308,6 +376,32 @@
     --page-art-secondary-size: 620px auto;
     --page-art-opacity: 0.28;
     --page-art-secondary-opacity: 0.16;
+  }
+
+  .page-art-dashboard {
+    --page-art-position: right -430px top 104px;
+    --page-art-secondary-position: left -260px bottom -130px;
+    --page-art-secondary-size: 640px auto;
+  }
+
+  .page-art-dashboard::before {
+    background:
+      var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
+      radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+      radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+      linear-gradient(90deg, rgba(10, 12, 22, 0.66), rgba(10, 12, 22, 0.24) 48%, rgba(10, 12, 22, 0.6)),
+      linear-gradient(180deg, rgba(10, 12, 22, 0.62), rgba(10, 12, 22, 0.1) 42%, rgba(10, 12, 22, 0.74)),
+      url('../assets/market-bull-bear.webp') center center / 100% 100% no-repeat;
+  }
+
+  .page-art-history::before {
+    background:
+      var(--page-art-image) var(--page-art-position) / var(--page-art-size) no-repeat,
+      radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+      radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+      linear-gradient(90deg, rgba(10, 12, 22, 0.68), rgba(10, 12, 22, 0.26) 48%, rgba(10, 12, 22, 0.68)),
+      linear-gradient(180deg, rgba(10, 12, 22, 0.72), rgba(10, 12, 22, 0.18) 42%, rgba(10, 12, 22, 0.82)),
+      url('../assets/bse-building.png') center center / 100% 100% no-repeat;
   }
 }
 
