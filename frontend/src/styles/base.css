@@ -13,7 +13,7 @@ html {
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--brand-font-family);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

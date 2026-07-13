@@ -4,6 +4,7 @@
 
 :root {
   --bg-primary: #0a0c16;
+  --brand-font-family: Roboto, Arial, sans-serif;
   --bg-secondary: #121524;
   --bg-card: #171b2e;
   --bg-card-hover: #1d2238;

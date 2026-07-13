@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
-import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
+import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon, SettingsIcon } from '../../components/Icon'
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
@@ -49,6 +49,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
           {isSuper && (
             <NavLink to="/admin/admins" className="btn">
               <ShieldIcon size={14} /> Admins
+            </NavLink>
+          )}
+          {isSuper && (
+            <NavLink to="/admin/branding" className="btn">
+              <SettingsIcon size={14} /> Branding
             </NavLink>
           )}
         </div>
