@@ -512,6 +512,12 @@ a:hover .app-icon .icon-spark,
   background: var(--bg-card-hover) !important;
   filter: none;
 }
+/* The theme picker marks the current theme with a blue-dim tint (inline);
+ * without this, the generic hover grey above erases the selected indicator
+ * the moment the pointer is over it. */
+.menu-pop button[aria-pressed="true"]:hover {
+  background: var(--blue-dim) !important;
+}
 
 /* --- Modals ----------------------------------------------------------------- */
 
@@ -835,4 +841,18 @@ a:hover .app-icon .icon-spark,
   background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease infinite;
+}
+
+/* --- Focus visibility ---------------------------------------------------- */
+
+/* Button classes that set their own box-shadow (or whose theme overrides
+ * do) would otherwise bury the global :focus-visible ring from base.css —
+ * equal specificity, later stylesheet. Declared last so keyboard focus
+ * always wins. */
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-icon:focus-visible,
+.btn-row:focus-visible,
+.seg-btn:focus-visible {
+  box-shadow: var(--ring);
 }
