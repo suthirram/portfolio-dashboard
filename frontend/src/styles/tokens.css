@@ -4,6 +4,7 @@
 
 :root {
   --bg-primary: #0a0c16;
+  --brand-font-family: Roboto, Arial, sans-serif;
   --bg-secondary: #121524;
   --bg-card: #171b2e;
   --bg-card-hover: #1d2238;
@@ -50,6 +51,14 @@
   --breakdown-inr-bg: rgba(255, 153, 51, 0.13);
   --breakdown-eur-bg: rgba(0, 102, 204, 0.12);
   --breakdown-gold-bg: rgba(218, 165, 32, 0.15);
+}
+
+:root[data-brand-font="roboto"] {
+  --brand-font-family: Roboto, Arial, sans-serif;
+}
+
+:root[data-brand-font="jetbrains_mono"] {
+  --brand-font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* Cyberpunk theme — premium-only (PD-046), opt-in via

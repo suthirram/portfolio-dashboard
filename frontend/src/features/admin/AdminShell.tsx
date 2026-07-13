@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
+import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon, SettingsIcon } from '../../components/Icon'
 
 const navStyle = (active: boolean): React.CSSProperties => ({
   display: 'inline-block',
@@ -74,6 +74,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
               ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
             })}>
               <ShieldIcon size={14} /> Admins
+            </NavLink>
+          )}
+          {isSuper && (
+            <NavLink to="/admin/branding" style={({ isActive }) => ({
+              ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
+            })}>
+              <SettingsIcon size={14} /> Branding
             </NavLink>
           )}
         </div>

@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get app branding settings
+         * @description Public read used by the frontend before authentication so login and
+         *     signup can render with the active deployment font.
+         */
+        get: operations["getBranding"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/holdings": {
         parameters: {
             query?: never;
@@ -670,6 +691,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update app font branding (super admin only)
+         * @description Super admin only. The selected font is deployment-wide and must be
+         *     one of the allowed branding fonts.
+         */
+        put: operations["adminUpdateBranding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gold/transactions": {
         parameters: {
             query?: never;
@@ -843,6 +885,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Deployment-wide app font choice.
+         * @enum {string}
+         */
+        BrandingFont: "roboto" | "jetbrains_mono";
+        BrandingFontOption: {
+            id: components["schemas"]["BrandingFont"];
+            /** @description Human-readable font name. */
+            label: string;
+            /** @description CSS font-family stack for applying the font. */
+            css_family: string;
+        };
+        BrandingSettings: {
+            font: components["schemas"]["BrandingFont"];
+            /** @description Fonts the super admin may choose from. */
+            allowed_fonts: components["schemas"]["BrandingFontOption"][];
+        };
         Holding: {
             /** @description MongoDB ObjectID */
             id?: string;
@@ -1328,6 +1387,9 @@ export interface components {
             /** @description Turn premium features on or off for the account */
             enabled: boolean;
         };
+        BrandingUpdateRequest: {
+            font: components["schemas"]["BrandingFont"];
+        };
         /** @description One gold purchase with the derived columns (PRD-003 §5). */
         GoldTransaction: {
             /** Format: int64 */
@@ -1581,6 +1643,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getBranding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active branding settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingSettings"];
+                };
+            };
+        };
+    };
     listHoldings: {
         parameters: {
             query?: never;
@@ -2640,6 +2722,32 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminUpdateBranding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandingUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated branding settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listGoldTransactions: {

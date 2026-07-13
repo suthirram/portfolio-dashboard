@@ -33,6 +33,9 @@ export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
 export type PremiumToggleRequest = Schemas['PremiumToggleRequest']
+export type BrandingFont = Schemas['BrandingFont']
+export type BrandingSettings = Schemas['BrandingSettings']
+export type BrandingUpdateRequest = Schemas['BrandingUpdateRequest']
 export type GoldTransaction = Schemas['GoldTransaction']
 export type GoldTransactionInput = Schemas['GoldTransactionInput']
 export type GoldPrice = Schemas['GoldPrice']
@@ -95,6 +98,7 @@ export const api = {
   login:                (body: LoginRequest)  => request<User>('POST', '/auth/login', body),
   recoverQuestions:     (body: RecoverQuestionsRequest) => request<SecurityQuestion[]>('POST', '/auth/recover/questions', body),
   recoverPassword:      (body: RecoverRequest)  => request<void>('POST', '/auth/recover', body),
+  getBranding:          () => request<BrandingSettings>('GET', '/branding'),
 
   // Auth — session.
   me:                   () => request<User>('GET', '/auth/me'),
@@ -153,6 +157,7 @@ export const api = {
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
   adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
   adminSetUserPremium:  (id: string, body: PremiumToggleRequest) => request<void>('PUT', `/admin/users/${id}/premium`, body),
+  adminUpdateBranding:  (body: BrandingUpdateRequest) => request<BrandingSettings>('PUT', '/admin/branding', body),
 
   listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
   createGoldTransaction: (body: GoldTransactionInput) => request<GoldTransaction>('POST', '/gold/transactions', body),
