@@ -25,6 +25,17 @@ describe('TransactionsModal numeric input', () => {
     vi.mocked(api.listTransactions).mockResolvedValue([])
   })
 
+  // Theme contract: row actions use the shared tinted classes whose borders
+  // track --blue/--red per theme, not hardcoded rgba colours.
+  it('renders ledger row actions with the shared btn-row classes', async () => {
+    vi.mocked(api.listTransactions).mockResolvedValue([
+      { id: 't1', type: 'buy', date: '2026-01-05', quantity: 1, amount: 100 },
+    ])
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
+    expect((await screen.findByTitle('Edit')).className).toBe('btn-row btn-row-accent')
+    expect(screen.getByTitle('Delete').className).toBe('btn-row btn-row-danger')
+  })
+
   it('submits comma decimal transaction values as numbers', async () => {
     const onChanged = vi.fn()
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={onChanged} />)
