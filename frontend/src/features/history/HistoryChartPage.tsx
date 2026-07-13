@@ -141,7 +141,7 @@ export default function HistoryChartPage() {
           Scroll horizontally to see every plotted day.
         </p>
 
-        {error && <div style={{ color: 'var(--red)', marginBottom: 12 }}>Error: {error}</div>}
+        {error && <div className="alert-danger">Error: {error}</div>}
         {loading && <div style={{ color: 'var(--text-secondary)' }}>Loading full history…</div>}
 
         {!loading && !error && !hasData && (

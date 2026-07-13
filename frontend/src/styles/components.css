@@ -347,6 +347,18 @@ a:hover .app-icon .icon-spark,
   border-color: var(--blue);
 }
 
+/* --- Alerts ------------------------------------------------------------- */
+
+.alert-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 55%, transparent);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
 /* Segmented control: bordered pill group; the active segment is a tinted
  * blue pill (state carried on aria-pressed). The tint — rather than a
  * bg-card pill or solid blue — stays visible in light mode (where bg-card

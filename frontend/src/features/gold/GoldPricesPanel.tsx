@@ -66,10 +66,7 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
       </p>
 
       {err && (
-        <div style={{
-          background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-          padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 12, fontSize: 13,
-        }}>{err}</div>
+        <div className="alert-danger">{err}</div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
