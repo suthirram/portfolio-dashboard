@@ -119,7 +119,8 @@ export default function GoldPage() {
         </div>
       </header>
 
-      <main style={{ padding: 28, maxWidth: 1600, margin: '0 auto' }}>
+      <main style={{ padding: 28, maxWidth: 2000, margin: '0 auto' }}>
+        <GoldMetricsPanel metrics={metrics} />
         {err && (
           <div style={{
             background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
@@ -129,7 +130,7 @@ export default function GoldPage() {
 
         <div style={{
           background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)', overflowX: 'auto',
+          borderRadius: 'var(--radius)', overflowX: 'auto', marginTop: 24,
         }}>
           {loading ? (
             <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
@@ -200,7 +201,6 @@ export default function GoldPage() {
           )}
         </div>
 
-        {!loading && metrics && <GoldMetricsPanel metrics={metrics} />}
         {!loading && <GoldPricesPanel prices={prices} onSaved={() => void refresh()} />}
       </main>
 
