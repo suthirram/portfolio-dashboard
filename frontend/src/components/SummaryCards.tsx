@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type React from 'react'
 import type { Summary } from '../types'
 
@@ -80,7 +80,7 @@ interface BreakdownRow { name: string; symbol: string; value: number; signed?: n
 
 function BreakdownLine({ row }: { row: BreakdownRow }) {
   const val = row.symbol === '€' ? fmtEur(row.value) : fmt(row.value, row.symbol)
-  const cls = row.signed == null ? '' : row.signed >= 0 ? 'pos' : 'neg'
+  const cls = row.signed == null || row.signed === 0 ? '' : row.signed > 0 ? 'pos' : 'neg'
   const sign = row.signed != null && row.signed < 0 ? '-' : ''
   return (
     <div style={{
@@ -206,6 +206,27 @@ function PnLBreakdownCard({ stocksInr, stocksEur, goldNettPL, onClick }: {
   )
 }
 
+// FlipCard wraps a toggleable card: rotates out (0→90°), swaps content at the
+// midpoint, then rotates in (−90→0°), giving a realistic single-axis flip.
+function FlipCard({ onFlip, children }: { onFlip: () => void; children: React.ReactNode }) {
+  const [phase, setPhase] = useState<'idle' | 'out' | 'in'>('idle')
+  const busy = useRef(false)
+
+  const handleClick = () => {
+    if (busy.current) return
+    busy.current = true
+    setPhase('out')
+    setTimeout(() => {
+      onFlip()
+      setPhase('in')
+      setTimeout(() => { setPhase('idle'); busy.current = false }, 180)
+    }, 180)
+  }
+
+  const cls = phase === 'out' ? 'card-flipping-out' : phase === 'in' ? 'card-flipping-in' : ''
+  return <div className={cls} style={{ flex: '1 1 200px', minWidth: 180 }} onClick={handleClick}>{children}</div>
+}
+
 // Card chrome (background, border, radius, hover elevation) comes from the
 // .card / .card-highlight classes; only layout stays inline.
 const cardClass = (highlight?: boolean) => (highlight ? 'card card-highlight' : 'card')
@@ -216,6 +237,7 @@ const cardStyle: React.CSSProperties = {
   minWidth: 180,
   overflow: 'hidden',
 }
+
 
 const cardLabelStyle: React.CSSProperties = {
   color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500,
@@ -285,36 +307,41 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
         {loading && <div className="spinner" style={{ width: 14, height: 14 }} />}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {showInvestedBreakdown ? (
-          <InvestedBreakdownCard
-            stocksInr={stocksInvestedInr} stocksEur={stocksInvestedEur}
-            goldInvestedInr={goldInvestedInr}
-            onClick={() => setShowInvestedBreakdown(false)}
-          />
-        ) : (
-          <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight onClick={() => setShowInvestedBreakdown(true)} />
-        )}
-        {showCurrentBreakdown ? (
-          <CurrentBreakdownCard
-            perCurrency={per_currency}
-            goldCurrentInr={goldCurrentInr}
-            onClick={() => setShowCurrentBreakdown(false)}
-          />
-        ) : (
-          <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent onClick={() => setShowCurrentBreakdown(true)} />
-        )}
+        <FlipCard onFlip={() => setShowInvestedBreakdown(v => !v)}>
+          {showInvestedBreakdown ? (
+            <InvestedBreakdownCard
+              stocksInr={stocksInvestedInr} stocksEur={stocksInvestedEur}
+              goldInvestedInr={goldInvestedInr}
+              onClick={() => {}}
+            />
+          ) : (
+            <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight />
+          )}
+        </FlipCard>
+        <FlipCard onFlip={() => setShowCurrentBreakdown(v => !v)}>
+          {showCurrentBreakdown ? (
+            <CurrentBreakdownCard
+              perCurrency={per_currency}
+              goldCurrentInr={goldCurrentInr}
+              onClick={() => {}}
+            />
+          ) : (
+            <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent />
+          )}
+        </FlipCard>
         <ChangeCard rows={changeRows} date={previous_close_date} />
-        {showPnLBreakdown ? (
-          <PnLBreakdownCard
-            stocksInr={stocksUnrealisedInr} stocksEur={stocksUnrealisedEur}
-            goldNettPL={goldNettPL}
-            onClick={() => setShowPnLBreakdown(false)}
-          />
-        ) : (
-          <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
-            realInr={total_realized} realEur={total_realized_eur}
-            onClick={() => setShowPnLBreakdown(true)} />
-        )}
+        <FlipCard onFlip={() => setShowPnLBreakdown(v => !v)}>
+          {showPnLBreakdown ? (
+            <PnLBreakdownCard
+              stocksInr={stocksUnrealisedInr} stocksEur={stocksUnrealisedEur}
+              goldNettPL={goldNettPL}
+              onClick={() => {}}
+            />
+          ) : (
+            <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
+              realInr={total_realized} realEur={total_realized_eur} />
+          )}
+        </FlipCard>
         <Card label="Total P&L" inr={totalPnL} eur={totalPnLEur}
           positive={totalPnL >= 0} negative={totalPnL < 0} />
       </div>
