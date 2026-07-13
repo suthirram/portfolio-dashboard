@@ -190,12 +190,12 @@ function PnLCard({ unrealInr, unrealEur, realInr, realEur, onClick }: {
   )
 }
 
-function PnLBreakdownCard({ unrealInr, unrealEur, goldNettPL, onClick }: {
-  unrealInr: number; unrealEur: number; goldNettPL?: number | null; onClick: () => void
+function PnLBreakdownCard({ stocksInr, stocksEur, goldNettPL, onClick }: {
+  stocksInr?: number; stocksEur?: number; goldNettPL?: number | null; onClick: () => void
 }) {
   const rows: BreakdownRow[] = [
-    { name: 'Stocks', symbol: '₹', value: unrealInr, signed: unrealInr },
-    { name: 'Stocks', symbol: '€', value: unrealEur, signed: unrealEur },
+    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr, signed: stocksInr }] : []),
+    ...(stocksEur != null ? [{ name: 'EUR', symbol: '€', value: stocksEur, signed: stocksEur }] : []),
     ...(goldNettPL != null ? [{ name: 'Gold', symbol: '₹', value: goldNettPL, signed: goldNettPL }] : []),
   ]
   return (
@@ -230,9 +230,11 @@ interface SummaryCardsProps {
   goldNettPL?: number | null
   stocksInvestedInr?: number
   stocksInvestedEur?: number
+  stocksUnrealisedInr?: number
+  stocksUnrealisedEur?: number
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur, stocksUnrealisedInr, stocksUnrealisedEur }: SummaryCardsProps) {
   const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
   const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
   const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
@@ -304,7 +306,7 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
         <ChangeCard rows={changeRows} date={previous_close_date} />
         {showPnLBreakdown ? (
           <PnLBreakdownCard
-            unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
+            stocksInr={stocksUnrealisedInr} stocksEur={stocksUnrealisedEur}
             goldNettPL={goldNettPL}
             onClick={() => setShowPnLBreakdown(false)}
           />
