@@ -74,12 +74,7 @@ export default function Charts({ holdings }: ChartsProps) {
   const exchangeData = Object.entries(byExchange).map(([name, value]) => ({ name, value }))
 
   const BTN = (k: ChartView, label: string) => (
-    <button key={k} onClick={() => setView(k)} style={{
-      background: view === k ? 'var(--blue)' : 'var(--bg-input)',
-      color: view === k ? '#fff' : 'var(--text-secondary)',
-      border: `1px solid ${view === k ? 'var(--blue)' : 'var(--border)'}`,
-      padding: '5px 14px', fontWeight: view === k ? 600 : 400,
-    }}>
+    <button key={k} className="seg-btn" aria-pressed={view === k} onClick={() => setView(k)}>
       {label}
     </button>
   )
@@ -88,7 +83,7 @@ export default function Charts({ holdings }: ChartsProps) {
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600 }}>Charts</h3>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="seg-group">
           {BTN('allocation', 'Allocation')}
           {BTN('pnl', 'P&L')}
           {BTN('exchange', 'By Exchange')}

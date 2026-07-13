@@ -46,4 +46,15 @@ describe('DashboardPage nav grouping', () => {
     // Navigation lives on the left only — no stray links among the actions.
     expect((sides[1] as HTMLElement).querySelector('a')).toBeNull()
   })
+
+  it('renders the Holdings/Charts switch as one segmented control', () => {
+    const { getByRole } = render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    const holdings = getByRole('button', { name: 'Holdings' })
+    const charts = getByRole('button', { name: 'Charts' })
+    expect(holdings.className).toBe('seg-btn')
+    expect(charts.className).toBe('seg-btn')
+    expect(holdings.getAttribute('aria-pressed')).toBe('true')
+    expect(charts.getAttribute('aria-pressed')).toBe('false')
+    expect(holdings.closest('.seg-group')).not.toBeNull()
+  })
 })

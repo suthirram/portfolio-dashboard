@@ -169,13 +169,10 @@ export default function HistoryChartPage() {
           }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center',
               flexWrap: 'wrap', marginBottom: 12 }}>
-              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+              <div className="seg-group">
                 {(['week', 'day'] as Granularity[]).map(g => (
-                  <button key={g} onClick={() => setGranularity(g)} style={{
-                    padding: '5px 12px', fontSize: 12, cursor: 'pointer', border: 'none',
-                    background: granularity === g ? 'var(--blue)' : 'transparent',
-                    color: granularity === g ? '#fff' : 'var(--text-primary)',
-                  }} aria-pressed={granularity === g}>
+                  <button key={g} className="seg-btn" onClick={() => setGranularity(g)}
+                    aria-pressed={granularity === g}>
                     {g === 'week' ? 'Weekly' : 'Daily'}
                   </button>
                 ))}
