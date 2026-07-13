@@ -9,6 +9,13 @@
  * whole bar reflow on narrow viewports instead of overflowing horizontally. */
 .dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
 
+/* With the page links sharing the left cluster with the brand and badges,
+ * the bar gets tight on mid-size viewports before the 768px wrap kicks in —
+ * collapse the link labels to icons early. */
+@media (max-width: 1150px) {
+  .dash-nav-label-sm { display: none; }
+}
+
 @media (max-width: 768px) {
   .dash-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
   .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }

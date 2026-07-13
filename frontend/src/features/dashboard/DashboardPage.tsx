@@ -152,8 +152,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
             }}><PinIcon size={12} /> {regionLabel}</span>
           )}
-        </div>
-        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span aria-hidden style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
           <Link to="/history" className="btn dash-nav-btn">
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
           </Link>
@@ -167,6 +166,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
             </Link>
           )}
+        </div>
+        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {lastRefresh && (
             <span className="dash-nav-hide-sm" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               Updated {lastRefresh.toLocaleTimeString()}
