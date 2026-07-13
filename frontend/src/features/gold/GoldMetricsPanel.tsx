@@ -42,7 +42,7 @@ export default function GoldMetricsPanel({ metrics: m }: Props) {
       marginTop: 24, background: 'var(--bg-secondary)', border: '1px solid var(--border)',
       borderRadius: 'var(--radius)', padding: 20,
     }}>
-      <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Metrics</h2>
+      <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14, textAlign: 'center' }}>Metrics</h2>
       <table id={"metricsTable"} style={{ width: '100%', margin: '0 auto', borderCollapse: 'collapse', maxWidth: 520 }}>
         <tbody>
           {rows.map(r => (
