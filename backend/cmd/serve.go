@@ -141,7 +141,12 @@ func connectPostgres(ctx context.Context, cfg config.Config, logger *zap.Logger)
 		logger.Warn("postgres unavailable; gold features disabled", zap.String("error", err.Error()))
 		return nil
 	}
-	if err := db.MigratePostgres(startCtx, pool, logger); err != nil {
+	// Migration uses a separate 60-second context so the advisory-lock wait
+	// (serialising concurrent Cloud Run boots) does not race against the
+	// shorter startup ping timeout.
+	migrCtx, migrCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer migrCancel()
+	if err := db.MigratePostgres(migrCtx, pool, logger); err != nil {
 		logger.Error("postgres migration failed; gold features disabled", zap.String("error", err.Error()))
 		pool.Close()
 		return nil
