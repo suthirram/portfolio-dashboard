@@ -6,12 +6,19 @@
 @import './styles/components.css';
 
 /* Dashboard top nav: prevent button labels from wrapping mid-word and let the
- * whole bar reflow on narrow viewports instead of overflowing horizontally. */
+ * whole bar reflow on narrow viewports instead of overflowing horizontally.
+ * .page-nav/.page-main extend the same responsive treatment to the other
+ * page shells (History, Gold, Admin, Profile). */
 .dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
 
+/* Wide tables scroll sideways inside their card instead of squishing or
+ * clipping columns (the wrapper keeps the rounded border). */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 @media (max-width: 768px) {
-  .dash-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
+  .dash-nav, .page-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
   .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
+  .page-main { padding: 16px 14px !important; }
   .dash-nav-hide-sm { display: none !important; }
   .dash-nav-label-sm { display: none; }
   .back-btn-label { display: none; }

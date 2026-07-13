@@ -73,14 +73,14 @@ export default function AdminManageAdmins() {
         }}>{err}</div>
       )}
 
-      <div style={{
+      <div className="table-scroll" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', overflow: 'hidden',
+        borderRadius: 'var(--radius)',
       }}>
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={th}>Username</th>

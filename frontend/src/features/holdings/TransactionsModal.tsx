@@ -285,8 +285,8 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
         {err && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 12 }}>{err}</div>}
 
         {/* Ledger list */}
-        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div className="table-scroll" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+          <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
                 <Th style={{ textAlign: 'left' }}>Date</Th>

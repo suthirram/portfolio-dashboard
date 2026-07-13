@@ -98,8 +98,7 @@ export default function GoldPage() {
 
   return (
     <div className="page-art page-art-gold" style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass" style={{
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-glass)',
+      <header className="nav-glass page-nav" style={{
         padding: '0 28px', height: 'var(--nav-height)', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50,
       }}>
@@ -118,7 +117,7 @@ export default function GoldPage() {
         </div>
       </header>
 
-      <main style={{ padding: '24px 28px', maxWidth: 2000, margin: '0 auto' }}>
+      <main className="page-main" style={{ padding: '24px 28px', maxWidth: 2000, margin: '0 auto' }}>
         <GoldMetricsPanel metrics={metrics} />
         {err && (
           <div style={{

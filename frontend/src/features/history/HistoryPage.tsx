@@ -210,9 +210,7 @@ export default function HistoryPage() {
 
   return (
     <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass" style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-glass)',
+      <header className="nav-glass page-nav" style={{
         padding: '0 28px',
         height: 'var(--nav-height, 56px)',
         display: 'flex',
@@ -231,8 +229,8 @@ export default function HistoryPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main style={{ width: "100%", maxWidth: "1800px", margin: '0 auto', padding: '24px 28px' }}>
-        <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
+      <main className="page-main" style={{ width: "100%", maxWidth: "1800px", margin: '0 auto', padding: '24px 28px' }}>
+        <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
             <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>

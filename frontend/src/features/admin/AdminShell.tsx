@@ -23,7 +23,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
-      <header className="nav-glass" style={{
+      <header className="nav-glass page-nav" style={{
         padding: '0 28px',
         height: 'var(--nav-height)',
         display: 'flex',
@@ -67,7 +67,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <main style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
+      <main className="page-main" style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
         {children}
       </main>
     </div>

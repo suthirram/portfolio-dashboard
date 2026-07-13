@@ -44,4 +44,12 @@ describe('AdminUserList action buttons', () => {
     const del = screen.getByRole('button', { name: 'Delete' })
     expect(del.className).toBe('btn btn-sm btn-danger')
   })
+
+  it('lets the wide user table scroll sideways on narrow screens', async () => {
+    const { container } = render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    await screen.findByRole('link', { name: 'Open' })
+    const wrap = container.querySelector('.table-scroll')
+    expect(wrap).not.toBeNull()
+    expect(wrap!.querySelector('table')).not.toBeNull()
+  })
 })
