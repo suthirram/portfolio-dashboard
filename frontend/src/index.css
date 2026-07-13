@@ -38,6 +38,12 @@
   .dash-nav-hide-sm { display: none !important; }
   .back-btn-label { display: none; }
   .page-main { padding: 16px 14px; }
+  /* Summary cards: one card per row on phones. Two-up left each card ~195px,
+   * too narrow for the large ₹ totals (28px) which then overflowed the card
+   * on ~430px-wide screens (iPhone Pro Max). Full-width dodges it entirely.
+   * !important overrides the inline flex sizing on FlipCard/plain cards. */
+  .summary-grid > * { flex: 1 1 100% !important; min-width: 0 !important; }
+
   /* Hide low-priority columns (avg-cost, realised) on narrow screens. */
   .col-hide-sm { display: none !important; }
   /* When the remaining columns still overflow (very narrow viewport), the

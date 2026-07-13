@@ -318,7 +318,7 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
         )}
         {loading && <div className="spinner" style={{ width: 14, height: 14 }} />}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      <div className="summary-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         <FlipCard onFlip={() => setShowInvestedBreakdown(v => !v)}>
           {showInvestedBreakdown ? (
             <InvestedBreakdownCard
