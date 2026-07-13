@@ -55,8 +55,7 @@ describe('GoldPage', () => {
 
   it('uses the app-standard content gutter', () => {
     const { container } = renderPage()
-    const main = container.querySelector('main')!
-    expect(main.style.padding).toBe('24px 28px')
+    expect(container.querySelector('main')).toHaveClass('page-main')
   })
 
   it('offers the theme toggle in the header', async () => {

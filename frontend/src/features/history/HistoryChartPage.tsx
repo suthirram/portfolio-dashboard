@@ -123,16 +123,7 @@ export default function HistoryChartPage() {
 
   return (
     <div style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass page-nav" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height, 56px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Link to="/history" className="btn-icon" aria-label="Back to historical data" title="Back to historical data">
             <ArrowLeftIcon size={14} />
@@ -144,7 +135,7 @@ export default function HistoryChartPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <main className="page-main" style={{ maxWidth: 1400 }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>
           Full dataset {firstDate && lastDate ? `(${firstDate} → ${lastDate})` : '(2000 → today)'}.
           Scroll horizontally to see every plotted day.

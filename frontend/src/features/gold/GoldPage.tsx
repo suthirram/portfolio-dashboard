@@ -98,10 +98,7 @@ export default function GoldPage() {
 
   return (
     <div className="page-art page-art-gold" style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass page-nav" style={{
-        padding: '0 28px', height: 'var(--nav-height)', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
             <ArrowLeftIcon size={14} />
@@ -117,7 +114,7 @@ export default function GoldPage() {
         </div>
       </header>
 
-      <main className="page-main" style={{ padding: '24px 28px', maxWidth: 2000, margin: '0 auto' }}>
+      <main className="page-main" style={{ maxWidth: 2000 }}>
         <GoldMetricsPanel metrics={metrics} />
         {err && (
           <div className="alert-danger">{err}</div>

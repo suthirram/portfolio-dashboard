@@ -210,16 +210,7 @@ export default function HistoryPage() {
 
   return (
     <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass page-nav" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height, 56px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
             <ArrowLeftIcon size={14} />
@@ -229,7 +220,7 @@ export default function HistoryPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main className="page-main" style={{ width: "100%", maxWidth: "1800px", margin: '0 auto', padding: '24px 28px' }}>
+      <main className="page-main" style={{ width: '100%', maxWidth: 1800 }}>
         <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>

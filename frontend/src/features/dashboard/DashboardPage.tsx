@@ -116,16 +116,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   return (
     <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
-      <header className="dash-nav nav-glass" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
@@ -200,7 +191,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </div>
       </header>
 
-      <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
+      <main className="page-main" style={{ maxWidth: 1600 }}>
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
