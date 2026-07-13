@@ -102,9 +102,9 @@ function InvestedBreakdownCard({ stocksInr, stocksEur, goldInvestedInr, onClick 
   stocksInr?: number; stocksEur?: number; goldInvestedInr?: number | null; onClick: () => void
 }) {
   const rows: BreakdownRow[] = [
-    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr, bg: 'rgba(255,153,51,0.13)' }] : []),
-    ...(stocksEur != null && stocksEur > 0 ? [{ name: 'EUR', symbol: '€', value: stocksEur, bg: 'rgba(0,102,204,0.12)' }] : []),
-    ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr, bg: 'rgba(218,165,32,0.15)' }] : []),
+    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr, bg: 'var(--breakdown-inr-bg)' }] : []),
+    ...(stocksEur != null && stocksEur > 0 ? [{ name: 'EUR', symbol: '€', value: stocksEur, bg: 'var(--breakdown-eur-bg)' }] : []),
+    ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr, bg: 'var(--breakdown-gold-bg)' }] : []),
   ]
   return (
     <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
@@ -121,10 +121,10 @@ function CurrentBreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
 }) {
   const rows: BreakdownRow[] = []
   const inr = perCurrency?.find(x => x.currency === 'INR')
-  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current, bg: 'rgba(255,153,51,0.13)' })
+  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current, bg: 'var(--breakdown-inr-bg)' })
   const eur = perCurrency?.find(x => x.currency === 'EUR')
-  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current, bg: 'rgba(0,102,204,0.12)' })
-  if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr, bg: 'rgba(218,165,32,0.15)' })
+  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current, bg: 'var(--breakdown-eur-bg)' })
+  if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr, bg: 'var(--breakdown-gold-bg)' })
 
   return (
     <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
