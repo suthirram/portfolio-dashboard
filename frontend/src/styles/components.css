@@ -702,22 +702,6 @@ a:hover .app-icon .icon-spark,
   --page-art-veil: 1;
 }
 
-.page-art-gold {
-  --page-art-day-image: url('../assets/day-history-timeline.svg');
-  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
-  --page-art-night-image: url('../assets/night-history-timeline.svg');
-  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
-  --page-art-neon-image: url('../assets/neon-history-timeline.svg');
-  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
-  --page-art-position: right -90px top 84px;
-  --page-art-secondary-position: left -380px bottom -270px;
-  --page-art-size: min(92vw, 1120px) auto;
-  --page-art-secondary-size: min(64vw, 780px) auto;
-  --page-art-photo: url('../assets/gold-vault.webp');
-  --page-art-veil: 1;
-  --page-art-opacity: 0.168;
-}
-
 .page-art-admin,
 .page-art-users {
   --page-art-day-image: url('../assets/day-users-network.svg');
@@ -732,6 +716,10 @@ a:hover .app-icon .icon-spark,
   --page-art-secondary-size: min(62vw, 760px) auto;
 }
 
+/* Single source for the gold page art. An earlier duplicate block used to
+ * shadow parts of this one (opacity/veil/secondary-size lived there); the
+ * surviving values are merged here so the effective style is readable in
+ * one place. */
 .page-art-gold {
   --page-art-day-image: url('../assets/day-gold-vault.svg');
   --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
@@ -742,7 +730,10 @@ a:hover .app-icon .icon-spark,
   --page-art-position: right -64px top 76px;
   --page-art-secondary-position: left -360px bottom -260px;
   --page-art-size: min(90vw, 1060px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
   --page-art-photo: url('../assets/gold-vault.webp');
+  --page-art-veil: 1;
+  --page-art-opacity: 0.168;
 }
 
 .page-art-profile {
