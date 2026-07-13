@@ -34,15 +34,15 @@ describe('AdminUserList action buttons', () => {
     // All plain actions share the same class set (uniform size/colour).
     for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium']) {
       const el = await screen.findByRole('button', { name })
-      expect(el.className, `${name} button`).toBe('btn btn-sm')
+      expect(el, `${name} button`).toHaveClass('btn', 'btn-sm')
     }
 
     // The Open link renders as the same button idiom.
-    expect(screen.getByRole('link', { name: 'Open' }).className).toBe('btn btn-sm')
+    expect(screen.getByRole('link', { name: 'Open' })).toHaveClass('btn', 'btn-sm')
 
     // Destructive action carries the danger variant on top of the same base.
     const del = screen.getByRole('button', { name: 'Delete' })
-    expect(del.className).toBe('btn btn-sm btn-danger')
+    expect(del).toHaveClass('btn', 'btn-sm', 'btn-danger')
   })
 
   it('lets the wide user table scroll sideways on narrow screens', async () => {

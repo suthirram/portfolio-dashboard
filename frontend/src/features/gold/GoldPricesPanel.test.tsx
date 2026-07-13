@@ -44,7 +44,7 @@ describe('GoldPricesPanel', () => {
 
     const banner = await screen.findByText('Price must be a number > 0')
     // Errors surface through the shared alert idiom, not ad-hoc inline styles.
-    expect(banner.className).toBe('alert-danger')
+    expect(banner).toHaveClass('alert-danger')
     expect(api.putGoldPrices).not.toHaveBeenCalled()
   })
 })

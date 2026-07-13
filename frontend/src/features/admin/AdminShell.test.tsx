@@ -13,7 +13,7 @@ vi.mock('../auth/AuthContext', () => ({
 describe('AdminShell chrome', () => {
   it('uses the shared .btn class for the logout action', () => {
     render(<MemoryRouter initialEntries={['/admin']}><AdminShell>content</AdminShell></MemoryRouter>)
-    expect(screen.getByRole('button', { name: /Log out/ }).className).toBe('btn')
+    expect(screen.getByRole('button', { name: /Log out/ })).toHaveClass('btn')
   })
 
   it('offers the theme picker in the header like the other page shells', () => {

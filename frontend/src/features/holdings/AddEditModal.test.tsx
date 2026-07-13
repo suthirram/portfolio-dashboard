@@ -48,8 +48,8 @@ describe('AddEditModal numeric input', () => {
   // which loses contrast on the cyberpunk palette's cyan --blue.
   it('renders footer actions with the shared btn classes', () => {
     render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
-    expect(screen.getByRole('button', { name: 'Add Holding' }).className).toBe('btn-primary btn-lg')
-    expect(screen.getByRole('button', { name: 'Cancel' }).className).toBe('btn btn-lg')
+    expect(screen.getByRole('button', { name: 'Add Holding' })).toHaveClass('btn-primary', 'btn-lg')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('btn', 'btn-lg')
   })
 
   it('rejects malformed cost text instead of coercing it', async () => {

@@ -32,8 +32,8 @@ describe('TransactionsModal numeric input', () => {
       { id: 't1', type: 'buy', date: '2026-01-05', quantity: 1, amount: 100 },
     ])
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
-    expect((await screen.findByTitle('Edit')).className).toBe('btn-row btn-row-accent')
-    expect(screen.getByTitle('Delete').className).toBe('btn-row btn-row-danger')
+    expect(await screen.findByTitle('Edit')).toHaveClass('btn-row', 'btn-row-accent')
+    expect(screen.getByTitle('Delete')).toHaveClass('btn-row', 'btn-row-danger')
   })
 
   it('submits comma decimal transaction values as numbers', async () => {
