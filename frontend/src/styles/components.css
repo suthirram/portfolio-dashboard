@@ -292,6 +292,43 @@ a:hover .app-icon .icon-spark,
 }
 .btn-ghost:hover { background: var(--bg-card); color: var(--text-primary); }
 
+/* Size / intent modifiers — compose with .btn (e.g. "btn btn-sm btn-danger").
+ * Declared after the base hover rules so the equal-specificity overrides win. */
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.btn-lg {
+  padding: 8px 18px;
+}
+
+/* Tinted danger for destructive row/table actions; the border derives from
+ * the live --red so it tracks every theme. */
+.btn-danger {
+  color: var(--red);
+  background: var(--red-dim);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
+.btn-danger:hover {
+  color: var(--red);
+  background: var(--red-dim);
+  border-color: var(--red);
+}
+
+/* Solid high-emphasis danger for the point-of-no-return confirm step. */
+.btn-danger-solid {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+.btn-danger-solid:hover {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
 /* --- Brand tile (nav + auth logo mark) ---------------------------------- */
 
 .brand-tile {
