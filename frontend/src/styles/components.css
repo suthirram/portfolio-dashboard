@@ -647,11 +647,12 @@ a:hover .app-icon .icon-spark,
   z-index: 1;
 }
 
-/* .page-nav declares z-index: 50, but the child-lifting rule above is later
- * in the file and would flatten it to 1 — dropping the sticky header (and
- * any dropdown inside it, e.g. the theme picker) behind the page content.
- * Re-assert the nav's layer at higher specificity. */
+/* .page-nav declares position: sticky and z-index: 50, but the child-lifting
+ * rule above is later in the file and would flatten both (position: relative,
+ * z-index: 1) — the header stops sticking and its dropdowns (theme picker,
+ * user menu) drop behind the page content. Re-assert at higher specificity. */
 .page-art > .page-nav {
+  position: sticky;
   z-index: 50;
 }
 
