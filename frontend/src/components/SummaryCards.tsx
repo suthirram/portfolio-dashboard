@@ -114,16 +114,15 @@ function InvestedBreakdownCard({ stocksInr, stocksEur, goldInvestedInr, onClick 
   )
 }
 
-function CurrentBreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
-  perCurrency?: { currency?: string; current?: number }[]
+function CurrentBreakdownCard({ stocksInr, stocksEur, goldCurrentInr, onClick }: {
+  stocksInr?: number
+  stocksEur?: number
   goldCurrentInr?: number | null
   onClick: () => void
 }) {
   const rows: BreakdownRow[] = []
-  const inr = perCurrency?.find(x => x.currency === 'INR')
-  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current, bg: 'var(--breakdown-inr-bg)' })
-  const eur = perCurrency?.find(x => x.currency === 'EUR')
-  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current, bg: 'var(--breakdown-eur-bg)' })
+  if (stocksInr != null) rows.push({ name: 'INR', symbol: '₹', value: stocksInr, bg: 'var(--breakdown-inr-bg)' })
+  if (stocksEur != null && stocksEur > 0) rows.push({ name: 'EUR', symbol: '€', value: stocksEur, bg: 'var(--breakdown-eur-bg)' })
   if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr, bg: 'var(--breakdown-gold-bg)' })
 
   return (
@@ -256,11 +255,13 @@ interface SummaryCardsProps {
   goldNettPL?: number | null
   stocksInvestedInr?: number
   stocksInvestedEur?: number
+  stocksCurrentInr?: number
+  stocksCurrentEur?: number
   stocksUnrealisedInr?: number
   stocksUnrealisedEur?: number
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur, stocksUnrealisedInr, stocksUnrealisedEur }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur, stocksCurrentInr, stocksCurrentEur, stocksUnrealisedInr, stocksUnrealisedEur }: SummaryCardsProps) {
   const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
   const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
   const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
@@ -325,7 +326,8 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
         <FlipCard onFlip={() => setShowCurrentBreakdown(v => !v)}>
           {showCurrentBreakdown ? (
             <CurrentBreakdownCard
-              perCurrency={per_currency}
+              stocksInr={stocksCurrentInr}
+              stocksEur={stocksCurrentEur}
               goldCurrentInr={goldCurrentInr}
               onClick={() => {}}
             />
