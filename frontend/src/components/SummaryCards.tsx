@@ -98,12 +98,12 @@ function BreakdownLine({ row }: { row: BreakdownRow }) {
   )
 }
 
-function InvestedBreakdownCard({ costInr, costEur, goldInvestedInr, onClick }: {
-  costInr: number; costEur: number; goldInvestedInr?: number | null; onClick: () => void
+function InvestedBreakdownCard({ stocksInr, stocksEur, goldInvestedInr, onClick }: {
+  stocksInr?: number; stocksEur?: number; goldInvestedInr?: number | null; onClick: () => void
 }) {
   const rows: BreakdownRow[] = [
-    { name: 'Stocks', symbol: '₹', value: costInr },
-    { name: 'Stocks', symbol: '€', value: costEur },
+    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr }] : []),
+    ...(stocksEur != null && stocksEur > 0 ? [{ name: 'EUR', symbol: '€', value: stocksEur }] : []),
     ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr }] : []),
   ]
   return (
@@ -228,9 +228,11 @@ interface SummaryCardsProps {
   goldCurrentInr?: number | null
   goldInvestedInr?: number | null
   goldNettPL?: number | null
+  stocksInvestedInr?: number
+  stocksInvestedEur?: number
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur }: SummaryCardsProps) {
   const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
   const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
   const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
@@ -283,7 +285,7 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {showInvestedBreakdown ? (
           <InvestedBreakdownCard
-            costInr={total_cost} costEur={total_cost_eur}
+            stocksInr={stocksInvestedInr} stocksEur={stocksInvestedEur}
             goldInvestedInr={goldInvestedInr}
             onClick={() => setShowInvestedBreakdown(false)}
           />

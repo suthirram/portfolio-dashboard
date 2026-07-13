@@ -234,7 +234,15 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           </div>
         )}
 
-        <SummaryCards summary={summary} loading={loadingPrices} goldCurrentInr={goldMetrics?.current ?? null} goldInvestedInr={goldMetrics?.invested ?? null} goldNettPL={goldMetrics?.nett_in_bees ?? null} />
+        <SummaryCards
+          summary={summary}
+          loading={loadingPrices}
+          goldCurrentInr={goldMetrics?.current ?? null}
+          goldInvestedInr={goldMetrics?.invested ?? null}
+          goldNettPL={goldMetrics?.nett_in_bees ?? null}
+          stocksInvestedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+          stocksInvestedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+        />
 
         <div style={{ height: 24 }} />
 
