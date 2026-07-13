@@ -221,7 +221,7 @@ export default function HistoryPage() {
       </header>
 
       <main className="page-main" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto' }}>
-        <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
+        <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
             <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>

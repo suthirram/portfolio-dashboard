@@ -43,4 +43,12 @@ describe('AdminUserList action buttons', () => {
     // Destructive action carries the danger variant on top of the same base.
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('btn', 'btn-sm', 'btn-danger')
   })
+
+  it('lets the wide user table scroll sideways on narrow screens', async () => {
+    const { container } = render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    await screen.findByRole('link', { name: 'Open' })
+    const wrap = container.querySelector('.table-scroll')
+    expect(wrap).not.toBeNull()
+    expect(wrap!.querySelector('table')).not.toBeNull()
+  })
 })
