@@ -768,3 +768,19 @@ a:hover .app-icon .icon-spark,
   background-size: 200% 100%;
   animation: shimmer 1.4s ease infinite;
 }
+
+/* --- Focus restoration (keep last) -------------------------------------------
+ * These classes set their own box-shadow, which would otherwise out-cascade
+ * the base :focus-visible ring in base.css and leave keyboard users with no
+ * visible focus indicator. Declared at the end of the file so they also beat
+ * the equal-specificity cyberpunk .btn-primary shadow overrides above. */
+.btn-primary:focus-visible,
+.seg-btn:focus-visible {
+  box-shadow: var(--ring);
+}
+
+/* The generic .menu-pop hover repaint (!important, above) must not erase the
+ * selected-state highlight on the theme options inside the dropdown. */
+.menu-pop button[aria-pressed="true"]:hover {
+  background: var(--blue-dim) !important;
+}
