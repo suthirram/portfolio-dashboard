@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { useRef, useState } from 'react'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { HoldingWithPrice } from '../../types'
 import { EditIcon, TrashIcon, AlertTriangleIcon, ListIcon } from '../../components/Icon'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
@@ -83,6 +83,21 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
     else { setSortKey(key); setSortDir(1) }
   }
 
+  // Column hover highlight: tint every cell sharing the hovered cell's column
+  // index (CSS can't do column-from-cell hover). Delegated on the table so it
+  // works across header/body without per-cell wiring.
+  const tableRef = useRef<HTMLTableElement>(null)
+  const clearCol = () => tableRef.current?.querySelectorAll('.col-hl').forEach(c => c.classList.remove('col-hl'))
+  const highlightCol = (e: ReactMouseEvent) => {
+    const cell = (e.target as HTMLElement).closest('td, th') as HTMLTableCellElement | null
+    const table = tableRef.current
+    if (!table || !cell || !table.contains(cell)) return
+    const idx = cell.cellIndex
+    clearCol()
+    if (idx < 0) return
+    table.querySelectorAll(`tr > *:nth-child(${idx + 1})`).forEach(c => c.classList.add('col-hl'))
+  }
+
   const counts = viewCounts(holdings)
   const visible = filterByView(holdings, view)
 
@@ -145,7 +160,8 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
       </div>
     )}
     <div className="holdings-table-wrap" style={{ borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <table ref={tableRef} onMouseOver={highlightCol} onMouseLeave={clearCol}
+        style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-secondary)' }}>
             <TH style={{ textAlign: 'left', width: 160 }}>Script</TH>
