@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
+import { type GoldMetrics } from '../../lib/api/client'
 import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
 import AddEditModal from '../holdings/AddEditModal'
 import TransactionsModal from '../holdings/TransactionsModal'
@@ -45,6 +46,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   const [modal, setModal] = useState<ModalState>(null)
   const [txnModal, setTxnModal] = useState<HoldingWithPrice | null>(null)
+  const [goldMetrics, setGoldMetrics] = useState<GoldMetrics | null>(null)
   const [tab, setTab] = useState<Tab>('table')
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -56,6 +58,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // enriched with opening status).
   const needsOpeningDate = actAsUserId ? [] : holdings.filter(h => h.has_opening && !h.opening_date)
   const showOpeningPrompt = needsOpeningDate.length > 0 && !openingPromptSkipped && !loadingHoldings
+
+  useEffect(() => {
+    if (!user?.gold_enabled || actAsUserId) return
+    void api.getGoldMetrics().then(setGoldMetrics).catch(() => null)
+  }, [user?.gold_enabled, actAsUserId])
 
   // Look up the friendly region label for the badge.
   useEffect(() => {
@@ -227,7 +234,19 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           </div>
         )}
 
-        <SummaryCards summary={summary} loading={loadingPrices} />
+        <SummaryCards
+          summary={summary}
+          loading={loadingPrices}
+          goldCurrentInr={goldMetrics?.current ?? null}
+          goldInvestedInr={goldMetrics?.invested ?? null}
+          goldNettPL={goldMetrics?.nett_in_bees ?? null}
+          stocksInvestedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+          stocksInvestedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0), 0)}
+          stocksCurrentInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0) + (h.unrealized_pnl ?? 0), 0)}
+          stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}
+          stocksUnrealisedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.unrealized_pnl ?? 0), 0)}
+          stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
+        />
 
         <div style={{ height: 24 }} />
 

@@ -45,6 +45,11 @@
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --speed: 0.18s;
   --speed-slow: 0.32s;
+
+  /* Breakdown row tints (SummaryCards) */
+  --breakdown-inr-bg: rgba(255, 153, 51, 0.13);
+  --breakdown-eur-bg: rgba(0, 102, 204, 0.12);
+  --breakdown-gold-bg: rgba(218, 165, 32, 0.15);
 }
 
 /* Cyberpunk theme — premium-only (PD-046), opt-in via
@@ -82,6 +87,11 @@
   --bg-glass: rgba(10, 4, 22, 0.72);
   --glow-a: rgba(255, 43, 214, 0.14);
   --glow-b: rgba(0, 229, 255, 0.12);
+
+  /* Breakdown row tints — neon variants */
+  --breakdown-inr-bg: rgba(255, 120, 0, 0.32);
+  --breakdown-eur-bg: rgba(0, 229, 255, 0.22);
+  --breakdown-gold-bg: rgba(255, 214, 0, 0.26);
 }
 
 /* Light theme — opt-in via <html data-theme="light"> (PD-042 PR7). */
@@ -119,4 +129,9 @@
   --bg-glass: rgba(255, 255, 255, 0.78);
   --glow-a: rgba(47, 107, 219, 0.08);
   --glow-b: rgba(109, 77, 224, 0.06);
+
+  /* Breakdown row tints */
+  --breakdown-inr-bg: rgba(200, 100, 10, 0.10);
+  --breakdown-eur-bg: rgba(30, 80, 180, 0.10);
+  --breakdown-gold-bg: rgba(160, 120, 0, 0.12);
 }
