@@ -43,6 +43,15 @@ describe('AddEditModal numeric input', () => {
     expect(overlay!.querySelector('.modal-card')).not.toBeNull()
   })
 
+  // Theme contract: the footer uses the shared button classes (gradient
+  // brand primary + neutral secondary) instead of flat --blue + white text,
+  // which loses contrast on the cyberpunk palette's cyan --blue.
+  it('renders footer actions with the shared btn classes', () => {
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Add Holding' })).toHaveClass('btn-primary', 'btn-lg')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('btn', 'btn-lg')
+  })
+
   it('rejects malformed cost text instead of coercing it', async () => {
     render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
 

@@ -246,12 +246,11 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
           {err && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 10 }}>{err}</div>}
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22 }}>
-            <button type="button" onClick={onClose}
-              style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '8px 18px', border: '1px solid var(--border)' }}>
+            <button type="button" onClick={onClose} className="btn btn-lg">
               Cancel
             </button>
-            <button type="submit" disabled={loading}
-              style={{ background: 'var(--blue)', color: '#fff', padding: '8px 22px', fontWeight: 600, opacity: loading ? 0.7 : 1 }}>
+            <button type="submit" disabled={loading} className="btn-primary btn-lg"
+              style={{ opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Saving…' : isEdit ? 'Update' : 'Add Holding'}
             </button>
           </div>

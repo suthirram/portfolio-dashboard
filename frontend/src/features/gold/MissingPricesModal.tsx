@@ -82,10 +82,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
         </p>
 
         {err && (
-          <div style={{
-            background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-            padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 12, fontSize: 13,
-          }}>{err}</div>
+          <div className="alert-danger">{err}</div>
         )}
 
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
@@ -99,14 +96,13 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onSkip} disabled={saving} style={{
-            background: 'var(--bg-card)', color: 'var(--text-primary)',
-            border: '1px solid var(--border)', padding: '8px 16px', fontSize: 13,
-          }}>Skip for now</button>
-          <button onClick={save} disabled={saving} style={{
-            background: 'var(--blue)', color: '#fff', padding: '8px 16px',
-            fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
-          }}>{saving ? 'Saving…' : 'Save all'}</button>
+          <button onClick={onSkip} disabled={saving} className="btn btn-lg">
+            Skip for now
+          </button>
+          <button onClick={save} disabled={saving} className="btn-primary btn-lg"
+            style={{ opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving…' : 'Save all'}
+          </button>
         </div>
       </div>
     </div>

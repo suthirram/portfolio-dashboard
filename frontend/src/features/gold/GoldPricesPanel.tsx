@@ -66,10 +66,7 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
       </p>
 
       {err && (
-        <div style={{
-          background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-          padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 12, fontSize: 13,
-        }}>{err}</div>
+        <div className="alert-danger">{err}</div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -83,10 +80,10 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
           <DecimalInput style={input} value={price} onValueChange={setPrice}
             placeholder="₹ / gram" aria-label="Price per gram" />
         </label>
-        <button onClick={save} disabled={saving} style={{
-          background: 'var(--blue)', color: '#fff', padding: '8px 16px',
-          fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
-        }}>{saving ? 'Saving…' : 'Save price'}</button>
+        <button onClick={save} disabled={saving} className="btn-primary btn-lg"
+          style={{ opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Saving…' : 'Save price'}
+        </button>
       </div>
 
       {recent.length === 0 ? (

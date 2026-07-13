@@ -56,11 +56,6 @@ export default function AdminManageAdmins() {
     borderBottom: '1px solid var(--border)',
   }
   const td: React.CSSProperties = { padding: '12px', borderBottom: '1px solid var(--border)', fontSize: 13 }
-  const action: React.CSSProperties = {
-    background: 'var(--bg-card)', color: 'var(--text-primary)',
-    border: '1px solid var(--border)', padding: '4px 10px', fontSize: 12,
-  }
-
   return (
     <AdminShell>
       <div style={{ marginBottom: 16 }}>
@@ -71,20 +66,17 @@ export default function AdminManageAdmins() {
       </div>
 
       {err && (
-        <div style={{
-          background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-          padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 14, fontSize: 13,
-        }}>{err}</div>
+        <div className="alert-danger">{err}</div>
       )}
 
-      <div style={{
+      <div className="table-scroll" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', overflow: 'hidden',
+        borderRadius: 'var(--radius)',
       }}>
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={th}>Username</th>
@@ -113,13 +105,13 @@ export default function AdminManageAdmins() {
                     <td style={{ ...td, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                         {!isRowSuper && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminDemoteUser(u.id), `Demote ${u.username} back to user?`)}>
                             Demote
                           </button>
                         )}
                         {!isRowSuper && !isSelf && (
-                          <button style={action} disabled={busy === u.id} onClick={() => setRegionFor(u)}>
+                          <button className="btn btn-sm" disabled={busy === u.id} onClick={() => setRegionFor(u)}>
                             Move region
                           </button>
                         )}

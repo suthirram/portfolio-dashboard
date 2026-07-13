@@ -11,7 +11,7 @@ import type {
 import { DecimalInput } from '../../components/DecimalInput'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
-  btnPrimaryStyle, btnSecondaryStyle, changedRegions, emptyForm, fmt,
+  changedRegions, emptyForm, fmt,
   fmtCurrency, formError, formToBody, groupedInitial, holdingRegion,
   modalBackdrop, modalCard, parsePasteText, regroupHandler, td, th,
   type RegionFormState, type RegionKey,
@@ -72,8 +72,8 @@ export function AddRowModal({ onSubmit, onCancel }: {
         ))}
         {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
-          <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
+          <button onClick={onCancel} disabled={busy} className="btn">Cancel</button>
+          <button onClick={submit} disabled={busy} className="btn-primary">{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     </div>
@@ -149,8 +149,8 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
         ))}
         {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Cancel</button>
-          <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Saving…' : 'Save'}</button>
+          <button onClick={onCancel} disabled={busy} className="btn">Cancel</button>
+          <button onClick={submit} disabled={busy} className="btn-primary">{busy ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
     </div>
@@ -228,8 +228,8 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onCancel} disabled={busy} style={btnSecondaryStyle}>Close</button>
-          <button onClick={submit} disabled={busy} style={btnPrimaryStyle}>{busy ? 'Processing…' : 'Submit'}</button>
+          <button onClick={onCancel} disabled={busy} className="btn">Close</button>
+          <button onClick={submit} disabled={busy} className="btn-primary">{busy ? 'Processing…' : 'Submit'}</button>
         </div>
       </div>
     </div>
@@ -287,8 +287,8 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
           </tbody>
         </table>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onSkip} style={btnSecondaryStyle}>Skip</button>
-          <button onClick={submit} style={btnPrimaryStyle}>Confirm</button>
+          <button onClick={onSkip} className="btn">Skip</button>
+          <button onClick={submit} className="btn-primary">Confirm</button>
         </div>
       </div>
     </div>
@@ -370,7 +370,7 @@ export function HoldingsModal({ row, prev, region, onClose }: {
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <button onClick={onClose} style={btnSecondaryStyle}>Close</button>
+          <button onClick={onClose} className="btn">Close</button>
         </div>
       </div>
     </div>

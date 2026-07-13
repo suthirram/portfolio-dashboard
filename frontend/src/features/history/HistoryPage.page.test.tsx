@@ -72,6 +72,15 @@ describe('HistoryPage', () => {
     expect(screen.getByRole('button', { name: /Add row/ })).toBeInTheDocument()
   })
 
+  it('uses the shared header idiom: icon back-link left, toolbar on btn classes', async () => {
+    renderPage()
+    const back = screen.getByRole('link', { name: 'Back to dashboard' })
+    expect(back).toHaveClass('btn-icon')
+    expect(back.getAttribute('href')).toBe('/')
+    expect(screen.getByRole('button', { name: /Add row/ })).toHaveClass('btn-primary')
+    expect(screen.getByRole('button', { name: /Paste month/ })).toHaveClass('btn')
+  })
+
   it('renders the table when rows are present', async () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
