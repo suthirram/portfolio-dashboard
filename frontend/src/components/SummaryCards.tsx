@@ -227,8 +227,11 @@ function FlipCard({ onFlip, children }: { onFlip: () => void; children: React.Re
   }
 
   const cls = phase === 'out' ? 'card-flipping-out' : phase === 'in' ? 'card-flipping-in' : ''
+  // Match the plain-card flex sizing (flex/minWidth in cardStyle) so flip and
+  // non-flip cards wrap identically. A smaller minWidth here let the row pack
+  // more FlipCards than fit — the inner card (minWidth 180) then overflowed.
   return (
-    <div className={cls} style={{ flex: '1 1 200px', minWidth: 120, minHeight: 174, display: 'flex', flexDirection: 'column' }} onClick={handleClick}>
+    <div className={cls} style={{ flex: '1 1 174px', minWidth: 180, minHeight: 174, display: 'flex', flexDirection: 'column' }} onClick={handleClick}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
     </div>
   )
