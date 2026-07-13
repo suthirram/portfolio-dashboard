@@ -5,6 +5,26 @@
 @import './styles/base.css';
 @import './styles/components.css';
 
+/* Shared page chrome. .page-nav is the sticky glass header every page shell
+ * uses (pair with .nav-glass); .page-main is the content container. The
+ * layout lives here once — pages only add page-specific bits (maxWidth)
+ * inline. */
+.page-nav {
+  padding: 0 28px;
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.page-main {
+  padding: 24px 28px;
+  margin: 0 auto;
+}
+
 /* Dashboard top nav: prevent button labels from wrapping mid-word and let the
  * whole bar reflow on narrow viewports instead of overflowing horizontally. */
 .dash-nav-btn { white-space: nowrap; flex-shrink: 0; }

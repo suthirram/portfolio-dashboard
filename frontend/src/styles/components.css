@@ -260,6 +260,18 @@ a:hover .app-icon .icon-spark,
 }
 .btn:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
 
+/* Declarative pressed/current state for .btn toggles and nav pills: blue
+ * tint + blue text stays readable in all three themes (solid --blue behind
+ * white text fails on cyberpunk's cyan). Placed after .btn:hover so the
+ * active look survives hover. */
+.btn[aria-pressed="true"],
+.btn[aria-current="page"] {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  font-weight: 600;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

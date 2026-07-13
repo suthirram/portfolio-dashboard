@@ -12,16 +12,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
-      <header className="nav-glass" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ShieldIcon size={18} /></div>
@@ -42,7 +34,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Link to="/" className="btn-icon" aria-label="My portfolio" title="My portfolio">
             <ArrowLeftIcon size={14} />
           </Link>
-          {/* Active state comes from .btn[aria-current="page"] (NavLink sets it). */}
+          {/* NavLink stamps aria-current="page" when active; the shared
+              .btn[aria-current="page"] rule paints the pill. */}
           <NavLink to="/admin" end className="btn">
             <UsersIcon size={14} /> Users
           </NavLink>
