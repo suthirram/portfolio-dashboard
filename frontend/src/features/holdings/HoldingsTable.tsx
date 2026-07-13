@@ -160,9 +160,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             {colHead('Share Price', 'current_price')}
             <TH className="col-inr-amt">Current Value</TH>
             <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH className="col-inr-amt">Money in Making</TH>
+            <TH className="col-inr-amt">Unrealised Profit</TH>
             <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH className="col-hide-sm">Money Made</TH>
+            <TH className="col-hide-sm">Realised Profit</TH>
             <TH className="col-hide-sm" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
           </tr>
