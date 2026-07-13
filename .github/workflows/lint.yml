@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  go:
-    name: Go (gofmt + golangci-lint + go test)
+  go-lint:
+    name: Go lint (gofmt + golangci-lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,12 +34,6 @@ jobs:
           version: latest
           working-directory: backend
           args: --timeout=2m
-      # Unit tests use mongo-driver mtest mocks; Postgres-backed tests
-      # t.Skip themselves when no local Postgres is reachable, so no DB
-      # services are needed on the runner.
-      - name: go test
-        working-directory: backend
-        run: go test -race ./...
       # Logging convention (CLAUDE.md): bind `logger := s.log(ctx)` and call
       # logger.Error(...) — never chain s.log(ctx).Error(...) inline.
       - name: logging convention
@@ -49,6 +43,25 @@ jobs:
             echo "Chained .log(ctx).X calls found — bind 'logger := s.log(ctx)' instead (see CLAUDE.md)."
             exit 1
           fi
+
+  go-test:
+    name: Go test (race)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+      # Unit tests use mongo-driver mtest mocks; Postgres-backed tests
+      # t.Skip themselves when no local Postgres is reachable, so no DB
+      # services are needed on the runner. -race guards the concurrent paths
+      # (PriceService cache mutex, migration lock under concurrent boots).
+      # -v prints each test name (RUN/PASS/SKIP) so the CI log is a readable
+      # per-test list, not just a per-package summary.
+      - name: go test
+        working-directory: backend
+        run: go test -race -v ./...
 
   frontend:
     name: Frontend (tsc + vitest)
