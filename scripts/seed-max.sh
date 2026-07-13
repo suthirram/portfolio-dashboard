@@ -9,20 +9,38 @@
 # the gold-enable flag straight into Mongo (there is no self-serve API for
 # either). Idempotent: it deletes any existing Max before re-seeding.
 #
-# Prerequisites (local dev stack):
-#   - backend on :8080            (cd backend && go run . serve)
-#   - MongoDB dev container        (make dev-db)  — name: portfolio_mongo_dev
-#   - Postgres reachable           (gold is skipped with a warning if it's 503)
+# Works against local, dev, or prod — point API at the backend and MONGO_URI
+# at that environment's MongoDB. Only the Mongo writes need direct DB access;
+# everything else goes through the API. Gold is fully API-driven (the backend
+# talks to its own Postgres), so no direct Postgres access is needed.
+#
+# Prerequisites:
+#   - jq, and (for remote envs) a local mongosh on PATH
+#   - LOCAL: backend on :8080 + the MongoDB dev container (make dev-db)
+#   - DEV/PROD: reachable backend URL + a MongoDB connection URI whose network
+#     allowlist admits this host (Atlas IP access list)
 #
 # Usage:
+#   # local (defaults: localhost API + docker container Mongo)
 #   ./scripts/seed-max.sh
 #
+#   # dev / prod (API not on localhost ⇒ CONFIRM=yes required)
+#   API=https://api.dev.example.com \
+#   MONGO_URI='mongodb+srv://user:pass@cluster/portfolio' \
+#   CONFIRM=yes ./scripts/seed-max.sh
+#
 # Env overrides:
-#   API=http://localhost:8080   MONGO_CONTAINER=portfolio_mongo_dev
-#   MONGO_DB=portfolio          HISTORY_DAYS=90
+#   API=http://localhost:8080            backend base URL
+#   MONGO_URI=<connection string>        direct Mongo access for remote envs;
+#                                        when unset, uses the docker container
+#   MONGO_CONTAINER=portfolio_mongo_dev  local container name (MONGO_URI unset)
+#   MONGO_DB=portfolio                   database name
+#   HISTORY_DAYS=90                      snapshot backfill length
+#   CONFIRM=yes                          required when API is not localhost
 set -euo pipefail
 
 API="${API:-http://localhost:8080}"
+MONGO_URI="${MONGO_URI:-}"
 MONGO_CONTAINER="${MONGO_CONTAINER:-portfolio_mongo_dev}"
 MONGO_DB="${MONGO_DB:-portfolio}"
 HISTORY_DAYS="${HISTORY_DAYS:-90}"
@@ -39,7 +57,16 @@ trap 'rm -f "$JAR"' EXIT
 say() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
-mongo_eval() { docker exec -i "$MONGO_CONTAINER" mongosh "$MONGO_DB" --quiet --eval "$1"; }
+# Run a mongosh script: against the given URI for remote envs, else the local
+# docker container.
+mongo_eval() {
+  if [ -n "$MONGO_URI" ]; then
+    command -v mongosh >/dev/null || die "mongosh is required when MONGO_URI is set"
+    mongosh "$MONGO_URI" --quiet --eval "$1"
+  else
+    docker exec -i "$MONGO_CONTAINER" mongosh "$MONGO_DB" --quiet --eval "$1"
+  fi
+}
 
 # POST/PUT helpers: $1 method, $2 path, $3 body. Echo the response body.
 req() {
@@ -47,6 +74,17 @@ req() {
 }
 
 command -v jq >/dev/null || die "jq is required"
+
+# Guard: writing a demo user into a non-local environment is a real DB write
+# against dev/prod — require an explicit CONFIRM=yes.
+case "$API" in
+  *localhost*|*127.0.0.1*) : ;;
+  *)
+    [ "${CONFIRM:-}" = "yes" ] || die "API is not localhost ($API). Re-run with CONFIRM=yes to seed this environment."
+    say "Seeding NON-LOCAL environment: $API"
+    ;;
+esac
+
 curl -sf -o /dev/null "$API/api/specs/openapi.yaml" || die "backend not reachable at $API"
 
 # ---------------------------------------------------------------------------
