@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type React from 'react'
 import type { Summary } from '../types'
 
@@ -52,14 +53,15 @@ interface CardProps {
   negative?: boolean
   highlight?: boolean
   accent?: boolean
+  onClick?: () => void
 }
 
-function Card({ label, inr, eur, positive, negative, highlight, accent }: CardProps) {
+function Card({ label, inr, eur, positive, negative, highlight, accent, onClick }: CardProps) {
   const sign = inr < 0 ? '-' : ''
   const cls = positive ? 'pos' : negative ? 'neg' : ''
 
   return (
-    <div className={cardClass(highlight)} style={cardStyle}>
+    <div className={cardClass(highlight)} style={{ ...cardStyle, ...(onClick ? { cursor: 'pointer' } : {}) }} onClick={onClick}>
       <div style={cardLabelStyle}>{label}</div>
       <div style={{
         fontSize: accent ? 28 : 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
@@ -70,6 +72,45 @@ function Card({ label, inr, eur, positive, negative, highlight, accent }: CardPr
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, fontVariantNumeric: 'tabular-nums' }} className={cls}>
         {sign}{fmtEur(eur)}
       </div>
+    </div>
+  )
+}
+
+interface BreakdownRow { name: string; symbol: string; value: number }
+
+function BreakdownLine({ row }: { row: BreakdownRow }) {
+  const val = row.symbol === '€' ? fmtEur(row.value) : fmt(row.value, row.symbol)
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)',
+      background: 'var(--bg-card)', fontVariantNumeric: 'tabular-nums', minWidth: 0,
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.symbol}</span>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
+      </span>
+      <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{val}</span>
+    </div>
+  )
+}
+
+function BreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
+  perCurrency?: { currency?: string; current?: number }[]
+  goldCurrentInr?: number | null
+  onClick: () => void
+}) {
+  const rows: BreakdownRow[] = []
+  const inr = perCurrency?.find(x => x.currency === 'INR')
+  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current })
+  const eur = perCurrency?.find(x => x.currency === 'EUR')
+  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current })
+  if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr })
+
+  return (
+    <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
+      <div style={cardLabelStyle}>Current Value</div>
+      {rows.map(r => <BreakdownLine key={r.name} row={r} />)}
     </div>
   )
 }
@@ -149,9 +190,12 @@ const cardLabelStyle: React.CSSProperties = {
 interface SummaryCardsProps {
   summary: Summary | null
   loading: boolean
+  goldCurrentInr?: number | null
 }
 
-export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr }: SummaryCardsProps) {
+  const [showBreakdown, setShowBreakdown] = useState(false)
+
   if (!summary) return null
   const {
     total_cost = 0,
@@ -198,8 +242,18 @@ export default function SummaryCards({ summary, loading }: SummaryCardsProps) {
         {loading && <div className="spinner" style={{ width: 14, height: 14 }} />}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight />
-        <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent />
+        {showBreakdown ? (
+          <BreakdownCard
+            perCurrency={per_currency}
+            goldCurrentInr={goldCurrentInr}
+            onClick={() => setShowBreakdown(false)}
+          />
+        ) : (
+          <>
+            <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight onClick={() => setShowBreakdown(true)} />
+            <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent onClick={() => setShowBreakdown(true)} />
+          </>
+        )}
         <ChangeCard rows={changeRows} date={previous_close_date} />
         <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
           realInr={total_realized} realEur={total_realized_eur} />
