@@ -247,6 +247,18 @@ a:hover .app-icon .icon-spark,
 }
 .btn:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
 
+/* Declarative pressed/current state for .btn toggles and nav pills: blue
+ * tint + blue text stays readable in all three themes (solid --blue behind
+ * white text fails on cyberpunk's cyan). Placed after .btn:hover so the
+ * active look survives hover. */
+.btn[aria-pressed="true"],
+.btn[aria-current="page"] {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  font-weight: 600;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -336,11 +348,13 @@ a:hover .app-icon .icon-spark,
   cursor: pointer;
   white-space: nowrap;
 }
+/* Blue tint rather than a raised bg-card pill: in the light theme bg-card
+ * and bg-secondary are both white, which left the active segment marked by
+ * nothing but a faint shadow. */
 .seg-btn[aria-pressed="true"] {
-  background: var(--bg-card);
-  color: var(--text-primary);
+  background: var(--blue-dim);
+  color: var(--blue);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 /* Row-level icon actions in tables. Tinted accent/danger surfaces whose

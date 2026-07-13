@@ -21,12 +21,13 @@ describe('AdminShell chrome', () => {
     expect(screen.getByRole('button', { name: /^Theme:/ })).toBeInTheDocument()
   })
 
-  it('marks the active nav pill with the tinted blue style, not solid blue + white', () => {
+  it('marks the active nav pill declaratively via aria-current on the shared .btn', () => {
     render(<MemoryRouter initialEntries={['/admin']}><AdminShell>content</AdminShell></MemoryRouter>)
     const users = screen.getByRole('link', { name: /Users/ })
-    expect(users.style.background).toBe('var(--blue-dim)')
-    expect(users.style.color).toBe('var(--blue)')
+    expect(users).toHaveClass('btn')
+    expect(users.getAttribute('aria-current')).toBe('page')
     const admins = screen.getByRole('link', { name: /Admins/ })
-    expect(admins.style.background).toBe('transparent')
+    expect(admins).toHaveClass('btn')
+    expect(admins.getAttribute('aria-current')).toBeNull()
   })
 })

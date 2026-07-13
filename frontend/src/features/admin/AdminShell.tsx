@@ -5,20 +5,6 @@ import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
 
-/* Active pill = blue-dim surface + blue text: keeps AA contrast in every
- * theme (solid --blue behind white text fails on cyberpunk's cyan). */
-const navStyle = (active: boolean): React.CSSProperties => ({
-  display: 'inline-block',
-  padding: '6px 14px',
-  borderRadius: 'var(--radius-sm)',
-  border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
-  background: active ? 'var(--blue-dim)' : 'transparent',
-  color: active ? 'var(--blue)' : 'var(--text-secondary)',
-  textDecoration: 'none',
-  fontSize: 13,
-  fontWeight: active ? 600 : 400,
-})
-
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
@@ -56,15 +42,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <Link to="/" className="btn-icon" aria-label="My portfolio" title="My portfolio">
             <ArrowLeftIcon size={14} />
           </Link>
-          <NavLink to="/admin" end style={({ isActive }) => ({
-            ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
-          })}>
+          {/* NavLink stamps aria-current="page" when active; the shared
+              .btn[aria-current="page"] rule paints the pill. */}
+          <NavLink to="/admin" end className="btn">
             <UsersIcon size={14} /> Users
           </NavLink>
           {isSuper && (
-            <NavLink to="/admin/admins" style={({ isActive }) => ({
-              ...navStyle(isActive), display: 'inline-flex', alignItems: 'center', gap: 6,
-            })}>
+            <NavLink to="/admin/admins" className="btn">
               <ShieldIcon size={14} /> Admins
             </NavLink>
           )}

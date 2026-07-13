@@ -245,8 +245,7 @@ export default function HistoryPage() {
           </label>
           <span style={{ flex: 1 }} />
           <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop} className="btn"
-            title={chartsOnTop ? 'Show the table first' : 'Show the charts first'}
-            style={chartsOnTop ? { color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-dim)' } : undefined}>
+            title={chartsOnTop ? 'Show the table first' : 'Show the charts first'}>
             {chartsOnTop ? '↓ Charts below' : '↑ Charts on top'}
           </button>
           <button onClick={() => setAddOpen(true)} className="btn-primary">+ Add row</button>
