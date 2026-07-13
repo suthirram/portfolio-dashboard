@@ -76,21 +76,24 @@ function Card({ label, inr, eur, positive, negative, highlight, accent, onClick 
   )
 }
 
-interface BreakdownRow { name: string; symbol: string; value: number }
+interface BreakdownRow { name: string; symbol: string; value: number; signed?: number | null }
 
 function BreakdownLine({ row }: { row: BreakdownRow }) {
   const val = row.symbol === '€' ? fmtEur(row.value) : fmt(row.value, row.symbol)
+  const cls = row.signed == null ? '' : row.signed >= 0 ? 'pos' : 'neg'
+  const sign = row.signed != null && row.signed < 0 ? '-' : ''
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
       padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)',
-      background: 'var(--bg-card)', fontVariantNumeric: 'tabular-nums', minWidth: 0,
+      background: cls === 'pos' ? 'rgba(34,197,94,0.10)' : cls === 'neg' ? 'rgba(239,68,68,0.10)' : 'var(--bg-card)',
+      fontVariantNumeric: 'tabular-nums', minWidth: 0,
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.symbol}</span>
         <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
       </span>
-      <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{val}</span>
+      <span className={cls} style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{sign}{val}</span>
     </div>
   )
 }
@@ -159,14 +162,30 @@ function PnLRow({ label, inr, eur }: { label: string; inr: number; eur: number }
 
 // PnLCard groups realised and unrealised P&L into a single card, mirroring
 // the change card's row layout.
-function PnLCard({ unrealInr, unrealEur, realInr, realEur }: {
-  unrealInr: number; unrealEur: number; realInr: number; realEur: number
+function PnLCard({ unrealInr, unrealEur, realInr, realEur, onClick }: {
+  unrealInr: number; unrealEur: number; realInr: number; realEur: number; onClick?: () => void
 }) {
   return (
-    <div className="card" style={cardStyle}>
+    <div className="card" style={{ ...cardStyle, ...(onClick ? { cursor: 'pointer' } : {}) }} onClick={onClick}>
       <div style={cardLabelStyle}>Profit &amp; Loss</div>
       <PnLRow label="Unrealised" inr={unrealInr} eur={unrealEur} />
       <PnLRow label="Realised" inr={realInr} eur={realEur} />
+    </div>
+  )
+}
+
+function PnLBreakdownCard({ unrealInr, unrealEur, goldNettPL, onClick }: {
+  unrealInr: number; unrealEur: number; goldNettPL?: number | null; onClick: () => void
+}) {
+  const rows: BreakdownRow[] = [
+    { name: 'Stocks', symbol: '₹', value: unrealInr, signed: unrealInr },
+    { name: 'Stocks', symbol: '€', value: unrealEur, signed: unrealEur },
+    ...(goldNettPL != null ? [{ name: 'Gold', symbol: '₹', value: goldNettPL, signed: goldNettPL }] : []),
+  ]
+  return (
+    <div className="card" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
+      <div style={cardLabelStyle}>Unrealised P/L</div>
+      {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r} />)}
     </div>
   )
 }
@@ -191,10 +210,12 @@ interface SummaryCardsProps {
   summary: Summary | null
   loading: boolean
   goldCurrentInr?: number | null
+  goldNettPL?: number | null
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldNettPL }: SummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false)
+  const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
 
   if (!summary) return null
   const {
@@ -255,8 +276,17 @@ export default function SummaryCards({ summary, loading, goldCurrentInr }: Summa
           </>
         )}
         <ChangeCard rows={changeRows} date={previous_close_date} />
-        <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
-          realInr={total_realized} realEur={total_realized_eur} />
+        {showPnLBreakdown ? (
+          <PnLBreakdownCard
+            unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
+            goldNettPL={goldNettPL}
+            onClick={() => setShowPnLBreakdown(false)}
+          />
+        ) : (
+          <PnLCard unrealInr={total_unrealized} unrealEur={total_unrealized_eur}
+            realInr={total_realized} realEur={total_realized_eur}
+            onClick={() => setShowPnLBreakdown(true)} />
+        )}
         <Card label="Total P&L" inr={totalPnL} eur={totalPnLEur}
           positive={totalPnL >= 0} negative={totalPnL < 0} />
       </div>
