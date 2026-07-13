@@ -329,6 +329,24 @@ a:hover .app-icon .icon-spark,
   border-color: var(--red);
 }
 
+/* One "active pill" idiom for toggles and nav links carrying .btn: tinted
+ * blue-dim surface + blue text keeps AA contrast in every theme (solid
+ * --blue behind white text fails on cyberpunk's cyan). NavLink sets
+ * aria-current="page"; toggle buttons set aria-pressed. */
+.btn[aria-current="page"],
+.btn[aria-pressed="true"] {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
+  font-weight: 600;
+}
+.btn[aria-current="page"]:hover,
+.btn[aria-pressed="true"]:hover {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
 /* --- Brand tile (nav + auth logo mark) ---------------------------------- */
 
 .brand-tile {
