@@ -319,7 +319,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                   <Td style={{ textAlign: 'center' }}>
                     {confirm === t.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => t.id && remove(t.id)} className="btn btn-sm btn-danger">Yes</button>
+                        <button onClick={() => t.id && remove(t.id)} className="btn btn-sm btn-danger-solid">Yes</button>
                         <button onClick={() => setConfirm(null)} className="btn btn-sm">No</button>
                       </span>
                     ) : (

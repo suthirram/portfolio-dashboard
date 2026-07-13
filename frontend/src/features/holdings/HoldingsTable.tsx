@@ -237,7 +237,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                   {h.id && confirm === h.id ? (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                       <button onClick={() => { onDelete(h.id!); setConfirm(null) }}
-                        className="btn btn-sm btn-danger">
+                        className="btn btn-sm btn-danger-solid">
                         Yes
                       </button>
                       <button onClick={() => setConfirm(null)} className="btn btn-sm">

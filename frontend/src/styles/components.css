@@ -314,6 +314,15 @@ a:hover .app-icon .icon-spark,
   border-color: var(--red);
 }
 
+/* Solid fill for the final point-of-no-return confirm ("Yes, delete"):
+ * the destructive choice must not share visual weight with its Cancel. */
+.btn-danger-solid,
+.btn-danger-solid:hover {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
 /* --- Alerts ------------------------------------------------------------- */
 
 .alert-danger {
