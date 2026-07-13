@@ -3,13 +3,15 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
 
+/* Active pill = blue-dim surface + blue text: keeps AA contrast in every
+ * theme (solid --blue behind white text fails on cyberpunk's cyan). */
 const navStyle = (active: boolean): React.CSSProperties => ({
   display: 'inline-block',
   padding: '6px 14px',
   borderRadius: 'var(--radius-sm)',
   border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
-  background: active ? 'var(--blue)' : 'transparent',
-  color: active ? '#fff' : 'var(--text-secondary)',
+  background: active ? 'var(--blue-dim)' : 'transparent',
+  color: active ? 'var(--blue)' : 'var(--text-secondary)',
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: active ? 600 : 400,
@@ -22,10 +24,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
       <header className="nav-glass" style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-glass)',
         padding: '0 28px',
-        height: 56,
+        height: 'var(--nav-height)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -41,20 +41,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user?.name || user?.username}</span>
-          <button onClick={logout}
-            style={{
-              background: 'var(--bg-card)', color: 'var(--text-primary)',
-              border: '1px solid var(--border)', padding: '6px 12px',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
+          <button onClick={logout} className="btn">
             <LogOutIcon size={14} /> Log out
           </button>
         </div>
       </header>
 
-      <div className="nav-glass" style={{
-        background: 'var(--bg-glass)', borderBottom: '1px solid var(--border)',
-      }}>
+      <div className="nav-glass">
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link to="/" aria-label="My portfolio" title="My portfolio" style={{
             color: 'var(--text-secondary)', textDecoration: 'none',
