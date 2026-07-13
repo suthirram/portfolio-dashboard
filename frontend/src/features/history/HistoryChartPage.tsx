@@ -6,6 +6,7 @@ import {
 import { api, type HistoryRow } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
+import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
@@ -122,24 +123,15 @@ export default function HistoryChartPage() {
 
   return (
     <div style={{ minHeight: '100dvh' }}>
-      <header style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
-        padding: '0 28px',
-        height: 'var(--nav-height, 56px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
-        <Link to="/history" style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}>
-          ← Historical data
-        </Link>
-        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
-          {REGION_LABELS[region]} — Invested vs Current
-        </h1>
+      <header className="nav-glass page-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/history" className="btn-icon" aria-label="Back to historical data" title="Back to historical data">
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
+            {REGION_LABELS[region]} — Invested vs Current
+          </h1>
+        </div>
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 

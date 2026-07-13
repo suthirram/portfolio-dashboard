@@ -5,7 +5,7 @@ import { api, ApiError, type GoldMetrics, type GoldPrice, type GoldTransaction }
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
-import { EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
+import { ArrowLeftIcon, EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
 import GoldTxnModal from './GoldTxnModal'
 import GoldPricesPanel from './GoldPricesPanel'
 import GoldMetricsPanel from './GoldMetricsPanel'
@@ -98,13 +98,11 @@ export default function GoldPage() {
 
   return (
     <div className="page-art page-art-gold" style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass" style={{
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-glass)',
-        padding: '0 28px', height: 'var(--nav-height)', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50,
-      }}>
+      <header className="nav-glass page-nav">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: 13 }}>← Dashboard</Link>
+          <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
+            <ArrowLeftIcon size={14} />
+          </Link>
           <h1 style={{ fontSize: 17, fontWeight: 700 }}>Gold</h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

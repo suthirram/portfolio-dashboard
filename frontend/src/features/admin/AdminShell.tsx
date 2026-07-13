@@ -35,12 +35,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div className="nav-glass">
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link to="/" aria-label="My portfolio" title="My portfolio" style={{
-            color: 'var(--text-secondary)', textDecoration: 'none',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: 'var(--bg-card)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', width: 32, height: 32,
-          }}>
+          <Link to="/" className="btn-icon" aria-label="My portfolio" title="My portfolio">
             <ArrowLeftIcon size={14} />
           </Link>
           {/* Active state comes from .btn[aria-current="page"] (NavLink sets it). */}

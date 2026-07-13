@@ -347,6 +347,38 @@ a:hover .app-icon .icon-spark,
   border-color: var(--blue);
 }
 
+/* Square icon-only button (back links, toolbar icons). */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+}
+.btn-icon:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
+
+/* --- Page header bar ------------------------------------------------------ */
+
+/* One sticky header layout for every page shell; pages combine it with
+ * .nav-glass and only supply their content. Owning the layout here (rather
+ * than inline per page) keeps height/stickiness/gutter in one place. */
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: var(--nav-height);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
 /* --- Brand tile (nav + auth logo mark) ---------------------------------- */
 
 .brand-tile {

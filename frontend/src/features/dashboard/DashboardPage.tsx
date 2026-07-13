@@ -128,16 +128,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   return (
     <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
-      <header className="dash-nav nav-glass" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="dash-nav page-nav nav-glass">
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
