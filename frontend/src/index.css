@@ -29,14 +29,8 @@
   .dash-nav-hide-sm { display: none !important; }
   .back-btn-label { display: none; }
   .page-main { padding: 16px 14px; }
-  /* Hide low-priority columns on narrow screens. Avg-cost and realised
-   * always drop; native vs foreign money columns are picked per section
-   * based on the wrapper's `native-eur` modifier so each section only
-   * shows the currency it was bought in. */
+  /* Hide low-priority columns (avg-cost, realised) on narrow screens. */
   .col-hide-sm { display: none !important; }
-  .holdings-table-wrap .col-eur-amt { display: none !important; }
-  .holdings-table-wrap.native-eur .col-eur-amt { display: table-cell !important; }
-  .holdings-table-wrap.native-eur .col-inr-amt { display: none !important; }
   /* When the remaining columns still overflow (very narrow viewport), the
    * wrapper scrolls horizontally. Sticky table headers are disabled in this
    * mode because overflow-x:auto forces overflow-y:auto, which would clip
