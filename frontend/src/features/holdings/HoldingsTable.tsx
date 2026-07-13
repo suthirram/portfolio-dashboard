@@ -122,42 +122,27 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
     </TH>
   )
 
-  const segBtn = (key: HoldingView, label: string, count: number) => {
-    const active = view === key
-    return (
-      <button
-        key={key}
-        type="button"
-        onClick={() => setView(key)}
-        style={{
-          background: active ? 'var(--bg-card)' : 'transparent',
-          color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-          border: 'none',
-          padding: '6px 14px', fontSize: 12, fontWeight: active ? 600 : 500,
-          borderRadius: 'var(--radius-sm)',
-          cursor: 'pointer',
-          boxShadow: active ? '0 1px 2px rgba(0,0,0,0.15)' : 'none',
-          transition: 'background 0.15s ease',
-        }}>
-        {label}
-        <span style={{
-          marginLeft: 6, fontSize: 11, fontWeight: 500,
-          color: 'var(--text-muted)', opacity: 0.8,
-        }}>
-          {count}
-        </span>
-      </button>
-    )
-  }
+  const segBtn = (key: HoldingView, label: string, count: number) => (
+    <button
+      key={key}
+      type="button"
+      className="seg-btn"
+      aria-pressed={view === key}
+      onClick={() => setView(key)}>
+      {label}
+      <span style={{
+        marginLeft: 6, fontSize: 11, fontWeight: 500,
+        color: 'var(--text-muted)', opacity: 0.8,
+      }}>
+        {count}
+      </span>
+    </button>
+  )
 
   return (
     <>
     {!controlled && (
-      <div style={{
-        display: 'inline-flex', gap: 2, padding: 3, marginBottom: 10,
-        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)',
-      }}>
+      <div className="seg-group" style={{ marginBottom: 10 }}>
         {segBtn('active', 'Holdings', counts.active)}
         {segBtn('all', 'All', counts.all)}
         {segBtn('nil', 'Nil', counts.nil)}

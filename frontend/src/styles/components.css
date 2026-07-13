@@ -347,6 +347,36 @@ a:hover .app-icon .icon-spark,
   border-color: var(--blue);
 }
 
+/* Segmented control: bordered pill group; the active segment is a tinted
+ * blue pill (state carried on aria-pressed). The tint — rather than a
+ * bg-card pill or solid blue — stays visible in light mode (where bg-card
+ * on bg-secondary is white-on-white) and keeps text contrast on cyberpunk
+ * (where solid --blue is cyan behind white text). */
+.seg-group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.seg-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg-btn[aria-pressed="true"] {
+  background: var(--blue-dim);
+  color: var(--blue);
+  font-weight: 600;
+}
+
 /* Row-level icon actions in tables. Tinted accent/danger surfaces whose
  * borders track the theme's --blue/--red instead of hardcoded rgba values. */
 .btn-row {

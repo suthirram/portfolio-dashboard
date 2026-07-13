@@ -101,14 +101,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   )
 
   const TAB = (key: Tab, label: string) => (
-    <button onClick={() => setTab(key)} style={{
-      background: tab === key ? 'var(--blue)' : 'transparent',
-      color: tab === key ? '#fff' : 'var(--text-secondary)',
-      padding: '6px 16px',
-      borderRadius: 'var(--radius-sm)',
-      border: `1px solid ${tab === key ? 'var(--blue)' : 'var(--border)'}`,
-      fontWeight: tab === key ? 600 : 400,
-    }}>{label}</button>
+    <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
+      {label}
+    </button>
   )
 
   const roleBadge = user && (() => {
@@ -243,7 +238,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         <div style={{ height: 24 }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="seg-group">
             {TAB('table', 'Holdings')}
             {TAB('charts', 'Charts')}
           </div>
