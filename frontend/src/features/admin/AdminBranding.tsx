@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ApiError, type BrandingFont } from '../../lib/api/client'
-import { useBranding } from '../../lib/useBranding'
+import { FONT_CATALOG, useBranding } from '../../lib/useBranding'
 import { AdminShell } from './AdminShell'
 
 export default function AdminBranding() {
@@ -8,10 +8,7 @@ export default function AdminBranding() {
   const [saving, setSaving] = useState<BrandingFont | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const options = settings?.allowed_fonts ?? [
-    { id: 'roboto' as BrandingFont, label: 'Roboto', css_family: 'Roboto, Arial, sans-serif' },
-    { id: 'jetbrains_mono' as BrandingFont, label: 'JetBrains Mono', css_family: '"JetBrains Mono", monospace' },
-  ]
+  const options = settings?.allowed_fonts ?? FONT_CATALOG
 
   const choose = async (next: BrandingFont) => {
     if (next === font || saving) return

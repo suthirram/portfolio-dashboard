@@ -4,13 +4,17 @@ import { api, type BrandingFont, type BrandingSettings } from './api/client'
 const STORAGE_KEY = 'pd_brand_font'
 const DEFAULT_FONT: BrandingFont = 'roboto'
 
-const FONT_STACKS: Record<BrandingFont, string> = {
-  roboto: 'Roboto, Arial, sans-serif',
-  jetbrains_mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-}
+// Client-side fallback catalog, used until /branding responds (first paint,
+// load errors). The server's allowed_fonts is the source of truth once loaded.
+export const FONT_CATALOG: { id: BrandingFont; label: string; css_family: string }[] = [
+  { id: 'roboto', label: 'Roboto', css_family: 'Roboto, Arial, sans-serif' },
+  { id: 'jetbrains_mono', label: 'JetBrains Mono', css_family: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+]
+
+const FONT_STACKS = Object.fromEntries(FONT_CATALOG.map(f => [f.id, f.css_family])) as Record<BrandingFont, string>
 
 function normaliseFont(raw: unknown): BrandingFont {
-  return raw === 'jetbrains_mono' || raw === 'roboto' ? raw : DEFAULT_FONT
+  return FONT_CATALOG.some(f => f.id === raw) ? (raw as BrandingFont) : DEFAULT_FONT
 }
 
 function readStoredFont(): BrandingFont {

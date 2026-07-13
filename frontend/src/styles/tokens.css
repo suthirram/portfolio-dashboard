@@ -53,14 +53,6 @@
   --breakdown-gold-bg: rgba(218, 165, 32, 0.15);
 }
 
-:root[data-brand-font="roboto"] {
-  --brand-font-family: Roboto, Arial, sans-serif;
-}
-
-:root[data-brand-font="jetbrains_mono"] {
-  --brand-font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
 /* Cyberpunk theme — premium-only (PD-046), opt-in via
  * <html data-theme="cyberpunk">. Neon magenta/cyan on violet-black. */
 :root[data-theme="cyberpunk"] {
