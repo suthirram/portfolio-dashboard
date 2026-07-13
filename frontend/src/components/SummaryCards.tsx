@@ -224,7 +224,11 @@ function FlipCard({ onFlip, children }: { onFlip: () => void; children: React.Re
   }
 
   const cls = phase === 'out' ? 'card-flipping-out' : phase === 'in' ? 'card-flipping-in' : ''
-  return <div className={cls} style={{ flex: '1 1 200px', minWidth: 180 }} onClick={handleClick}>{children}</div>
+  return (
+    <div className={cls} style={{ flex: '1 1 200px', minWidth: 180, display: 'flex', flexDirection: 'column' }} onClick={handleClick}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
+    </div>
+  )
 }
 
 // Card chrome (background, border, radius, hover elevation) comes from the
@@ -236,6 +240,8 @@ const cardStyle: React.CSSProperties = {
   flex: '1 1 200px',
   minWidth: 180,
   overflow: 'hidden',
+  height: '100%',
+  boxSizing: 'border-box',
 }
 
 
