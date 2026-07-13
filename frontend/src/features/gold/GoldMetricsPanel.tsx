@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import type { GoldMetrics } from '../../lib/api/client'
 
 interface Props {
-  metrics: GoldMetrics
+  metrics: GoldMetrics | null
 }
 
 const rupee = (v: number | null | undefined) => {
@@ -21,14 +21,14 @@ const pct = (v: number | null | undefined) =>
 // GOLDBEES. Null (unknowable) values render "—", never fake zeros.
 export default function GoldMetricsPanel({ metrics: m }: Props) {
   const rows: Array<{ label: string; value: string; signed?: number | null }> = [
-    { label: 'Total amount invested', value: rupee(m.invested) },
-    { label: 'Current value', value: rupee(m.current) },
-    { label: 'Total gold', value: grams(m.grams) },
-    { label: 'Avg cost per gram', value: rupee(m.avg_per_gram) },
-    { label: 'P/L from GOLDBEES (excl. tax)', value: rupee(m.bees_pl), signed: m.bees_pl },
-    { label: 'Nett P/L excluding bees', value: rupee(m.nett_ex_bees), signed: m.nett_ex_bees },
-    { label: 'Nett P/L including bees', value: rupee(m.nett_in_bees), signed: m.nett_in_bees },
-    { label: 'XIRR of physical', value: pct(m.xirr), signed: m.xirr },
+    { label: 'Total amount invested', value: rupee(m?.invested) },
+    { label: 'Current value', value: rupee(m?.current) },
+    { label: 'Total gold', value: grams(m?.grams) },
+    { label: 'Avg cost per gram', value: rupee(m?.avg_per_gram) },
+    { label: 'P/L from GOLDBEES (excl. tax)', value: rupee(m?.bees_pl), signed: m?.bees_pl },
+    { label: 'Nett P/L excluding bees', value: rupee(m?.nett_ex_bees), signed: m?.nett_ex_bees },
+    { label: 'Nett P/L including bees', value: rupee(m?.nett_in_bees), signed: m?.nett_in_bees },
+    { label: 'XIRR of physical', value: pct(m?.xirr), signed: m?.xirr },
   ]
 
   const cell: CSSProperties = { padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 14 }
@@ -43,7 +43,7 @@ export default function GoldMetricsPanel({ metrics: m }: Props) {
       borderRadius: 'var(--radius)', padding: 20,
     }}>
       <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Metrics</h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse', maxWidth: 520 }}>
+      <table id={"metricsTable"} style={{ width: '100%', margin: '0 auto', borderCollapse: 'collapse', maxWidth: 520 }}>
         <tbody>
           {rows.map(r => (
             <tr key={r.label}>
