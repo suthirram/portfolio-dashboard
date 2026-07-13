@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
 
 /* Active pill = blue-dim surface + blue text: keeps AA contrast in every
@@ -19,6 +21,7 @@ const navStyle = (active: boolean): React.CSSProperties => ({
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
+  const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
   const isSuper = user?.role === 'superadmin'
 
   return (
@@ -41,6 +44,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{user?.name || user?.username}</span>
+          <ThemePicker variant="inline" theme={theme} premium={user?.premium} onSelect={setTheme} />
           <button onClick={logout} className="btn">
             <LogOutIcon size={14} /> Log out
           </button>

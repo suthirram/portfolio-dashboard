@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type SecurityQuestion } from '../../lib/api/client'
 import { useAuth } from './AuthContext'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 
 interface QAState { questionId: string; answer: string }
 
 export default function ProfilePage() {
   const { user, refresh } = useAuth()
+  const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
 
   const [name, setName] = useState(user?.name ?? '')
   const [username, setUsername] = useState(user?.username ?? '')
@@ -126,14 +129,22 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="page-art page-art-profile" style={{ minHeight: '100dvh', padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
-          <ArrowLeftIcon size={14} />
-        </Link>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Account settings</h1>
-      </div>
+    <div className="page-art page-art-profile" style={{ minHeight: '100dvh' }}>
+      <header className="nav-glass page-nav" style={{
+        padding: '0 28px', height: 'var(--nav-height)', display: 'flex',
+        alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 50,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Account settings</h1>
+        </div>
+        <ThemePicker variant="inline" theme={theme} premium={user?.premium} onSelect={setTheme} />
+      </header>
 
+      <main className="page-main" style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
       <section style={card}>
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Profile</h2>
         <form onSubmit={saveProfile}>
@@ -208,6 +219,7 @@ export default function ProfilePage() {
           {message(sqMsg)}
         </form>
       </section>
+      </main>
     </div>
   )
 }
