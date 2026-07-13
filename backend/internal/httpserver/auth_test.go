@@ -96,6 +96,16 @@ func TestPublicEndpointsNeedNoLogin(t *testing.T) {
 			}
 		}
 	})
+
+	mt.Run("branding is public", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".app_branding", mtest.FirstBatch))
+
+		srv := newTestServer(mt)
+		rec := doRequest(t, srv, http.MethodGet, "/api/branding", nil)
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET /api/branding = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+	})
 }
 
 func TestProtectedEndpointsRequireLogin(t *testing.T) {

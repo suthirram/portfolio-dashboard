@@ -45,6 +45,32 @@ admins:
       "403":
         $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
 
+branding:
+  put:
+    tags: [Admin, Branding]
+    summary: Update app font branding (super admin only)
+    description: |
+      Super admin only. The selected font is deployment-wide and must be
+      one of the allowed branding fonts.
+    operationId: adminUpdateBranding
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/BrandingUpdateRequest"
+    responses:
+      "200":
+        description: Updated branding settings
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/BrandingSettings"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+
 users_id:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"

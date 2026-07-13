@@ -35,8 +35,13 @@ tags:
     description: Per-holding trade ledger; holdings' positions are derived from it
   - name: Gold
     description: Physical gold tracking — purchases, daily prices, metrics (gold-enabled users only)
+  - name: Branding
+    description: Deployment-wide visual branding settings
 
 paths:
+  /branding:
+    $ref: "./branding/branding.yaml#/branding"
+
   /holdings:
     $ref: "./holdings/holdings.yaml#/holdings"
   /holdings/{id}:
@@ -112,6 +117,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_gold"
   /admin/users/{id}/premium:
     $ref: "./admin/admin.yaml#/users_id_premium"
+  /admin/branding:
+    $ref: "./admin/admin.yaml#/branding"
   /gold/transactions:
     $ref: "./gold/gold.yaml#/transactions"
   /gold/transactions/{id}:

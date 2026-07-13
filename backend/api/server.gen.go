@@ -57,6 +57,9 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// AdminUpdateBrandingJSONRequestBody defines body for AdminUpdateBranding for application/json ContentType.
+type AdminUpdateBrandingJSONRequestBody = BrandingUpdateRequest
+
 // AdminSetUserGoldJSONRequestBody defines body for AdminSetUserGold for application/json ContentType.
 type AdminSetUserGoldJSONRequestBody = GoldToggleRequest
 
@@ -131,6 +134,9 @@ type ServerInterface interface {
 	// List admins and the super admin (super admin only)
 	// (GET /admin/admins)
 	AdminListAdmins(ctx echo.Context) error
+	// Update app font branding (super admin only)
+	// (PUT /admin/branding)
+	AdminUpdateBranding(ctx echo.Context) error
 	// List users the caller oversees
 	// (GET /admin/users)
 	AdminListUsers(ctx echo.Context, params AdminListUsersParams) error
@@ -215,6 +221,9 @@ type ServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx echo.Context) error
+	// Get app branding settings
+	// (GET /branding)
+	GetBranding(ctx echo.Context) error
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx echo.Context) error
@@ -311,6 +320,17 @@ func (w *ServerInterfaceWrapper) AdminListAdmins(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminListAdmins(ctx)
+	return err
+}
+
+// AdminUpdateBranding converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminUpdateBranding(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminUpdateBranding(ctx)
 	return err
 }
 
@@ -746,6 +766,15 @@ func (w *ServerInterfaceWrapper) Signup(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.Signup(ctx)
+	return err
+}
+
+// GetBranding converts echo context to params.
+func (w *ServerInterfaceWrapper) GetBranding(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetBranding(ctx)
 	return err
 }
 
@@ -1226,6 +1255,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	}
 
 	router.GET(options.BaseURL+"/admin/admins", wrapper.AdminListAdmins, options.OperationMiddlewares["adminListAdmins"]...)
+	router.PUT(options.BaseURL+"/admin/branding", wrapper.AdminUpdateBranding, options.OperationMiddlewares["adminUpdateBranding"]...)
 	router.GET(options.BaseURL+"/admin/users", wrapper.AdminListUsers, options.OperationMiddlewares["adminListUsers"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.AdminDeleteUser, options.OperationMiddlewares["adminDeleteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
@@ -1254,6 +1284,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/auth/security-questions", wrapper.GetSecurityQuestionCatalogue, options.OperationMiddlewares["getSecurityQuestionCatalogue"]...)
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
+	router.GET(options.BaseURL+"/branding", wrapper.GetBranding, options.OperationMiddlewares["getBranding"]...)
 	router.GET(options.BaseURL+"/gold/metrics", wrapper.GetGoldMetrics, options.OperationMiddlewares["getGoldMetrics"]...)
 	router.GET(options.BaseURL+"/gold/missing-dates", wrapper.ListGoldMissingDates, options.OperationMiddlewares["listGoldMissingDates"]...)
 	router.GET(options.BaseURL+"/gold/prices", wrapper.ListGoldPrices, options.OperationMiddlewares["listGoldPrices"]...)
@@ -1322,6 +1353,56 @@ func (response AdminListAdmins401JSONResponse) VisitAdminListAdminsResponse(w ht
 type AdminListAdmins403JSONResponse struct{ ForbiddenJSONResponse }
 
 func (response AdminListAdmins403JSONResponse) VisitAdminListAdminsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateBrandingRequestObject struct {
+	Body *AdminUpdateBrandingJSONRequestBody
+}
+
+type AdminUpdateBrandingResponseObject interface {
+	VisitAdminUpdateBrandingResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateBranding200JSONResponse BrandingSettings
+
+func (response AdminUpdateBranding200JSONResponse) VisitAdminUpdateBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateBranding400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminUpdateBranding400JSONResponse) VisitAdminUpdateBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateBranding403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AdminUpdateBranding403JSONResponse) VisitAdminUpdateBrandingResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2581,6 +2662,27 @@ func (response Signup409JSONResponse) VisitSignupResponse(w http.ResponseWriter)
 	return err
 }
 
+type GetBrandingRequestObject struct {
+}
+
+type GetBrandingResponseObject interface {
+	VisitGetBrandingResponse(w http.ResponseWriter) error
+}
+
+type GetBranding200JSONResponse BrandingSettings
+
+func (response GetBranding200JSONResponse) VisitGetBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGoldMetricsRequestObject struct {
 }
 
@@ -3790,6 +3892,9 @@ type StrictServerInterface interface {
 	// List admins and the super admin (super admin only)
 	// (GET /admin/admins)
 	AdminListAdmins(ctx context.Context, request AdminListAdminsRequestObject) (AdminListAdminsResponseObject, error)
+	// Update app font branding (super admin only)
+	// (PUT /admin/branding)
+	AdminUpdateBranding(ctx context.Context, request AdminUpdateBrandingRequestObject) (AdminUpdateBrandingResponseObject, error)
 	// List users the caller oversees
 	// (GET /admin/users)
 	AdminListUsers(ctx context.Context, request AdminListUsersRequestObject) (AdminListUsersResponseObject, error)
@@ -3874,6 +3979,9 @@ type StrictServerInterface interface {
 	// Create an account and log in
 	// (POST /auth/signup)
 	Signup(ctx context.Context, request SignupRequestObject) (SignupResponseObject, error)
+	// Get app branding settings
+	// (GET /branding)
+	GetBranding(ctx context.Context, request GetBrandingRequestObject) (GetBrandingResponseObject, error)
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx context.Context, request GetGoldMetricsRequestObject) (GetGoldMetricsResponseObject, error)
@@ -3986,6 +4094,35 @@ func (sh *strictHandler) AdminListAdmins(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(AdminListAdminsResponseObject); ok {
 		return validResponse.VisitAdminListAdminsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminUpdateBranding operation middleware
+func (sh *strictHandler) AdminUpdateBranding(ctx echo.Context) error {
+	var request AdminUpdateBrandingRequestObject
+
+	var body AdminUpdateBrandingJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateBranding(ctx.Request().Context(), request.(AdminUpdateBrandingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateBranding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminUpdateBrandingResponseObject); ok {
+		return validResponse.VisitAdminUpdateBrandingResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -4744,6 +4881,29 @@ func (sh *strictHandler) Signup(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(SignupResponseObject); ok {
 		return validResponse.VisitSignupResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetBranding operation middleware
+func (sh *strictHandler) GetBranding(ctx echo.Context) error {
+	var request GetBrandingRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBranding(ctx.Request().Context(), request.(GetBrandingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBranding")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetBrandingResponseObject); ok {
+		return validResponse.VisitGetBrandingResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

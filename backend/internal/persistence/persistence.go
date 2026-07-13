@@ -38,6 +38,7 @@ type Store struct {
 	Users        *UserStore
 	Sessions     *SessionStore
 	Snapshots    *SnapshotStore
+	Branding     *BrandingStore
 
 	// Gold is the Postgres-backed gold store (DD-003). Nil when Postgres
 	// is not configured or unreachable at boot — callers must treat nil as
@@ -61,6 +62,7 @@ func New(db *mongo.Database) *Store {
 		Users:        &UserStore{col: db.Collection("users")},
 		Sessions:     &SessionStore{col: db.Collection("sessions")},
 		Snapshots:    &SnapshotStore{col: db.Collection("portfolio_snapshots")},
+		Branding:     &BrandingStore{col: db.Collection("app_branding")},
 	}
 }
 

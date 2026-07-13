@@ -240,6 +240,43 @@ components:
           type: boolean
           description: Turn premium features on or off for the account
 
+    BrandingFont:
+      type: string
+      enum: [roboto, jetbrains_mono]
+      description: Deployment-wide app font choice.
+
+    BrandingFontOption:
+      type: object
+      required: [id, label, css_family]
+      properties:
+        id:
+          $ref: "#/components/schemas/BrandingFont"
+        label:
+          type: string
+          description: Human-readable font name.
+        css_family:
+          type: string
+          description: CSS font-family stack for applying the font.
+
+    BrandingSettings:
+      type: object
+      required: [font, allowed_fonts]
+      properties:
+        font:
+          $ref: "#/components/schemas/BrandingFont"
+        allowed_fonts:
+          type: array
+          description: Fonts the super admin may choose from.
+          items:
+            $ref: "#/components/schemas/BrandingFontOption"
+
+    BrandingUpdateRequest:
+      type: object
+      required: [font]
+      properties:
+        font:
+          $ref: "#/components/schemas/BrandingFont"
+
     GoldPrice:
       type: object
       description: One user-entered daily per-gram gold price (PRD-003 §7).

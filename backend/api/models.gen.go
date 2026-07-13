@@ -9,6 +9,24 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for BrandingFont.
+const (
+	JetbrainsMono BrandingFont = "jetbrains_mono"
+	Roboto        BrandingFont = "roboto"
+)
+
+// Valid indicates whether the value is a known member of the BrandingFont enum.
+func (e BrandingFont) Valid() bool {
+	switch e {
+	case JetbrainsMono:
+		return true
+	case Roboto:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HistoryRegionSnapshotSource.
 const (
 	Cron   HistoryRegionSnapshotSource = "cron"
@@ -325,6 +343,36 @@ func (e UserRole) Valid() bool {
 type AddHistoryRowInput struct {
 	Date    openapi_types.Date            `json:"date"`
 	Regions map[string]HistoryRegionInput `json:"regions"`
+}
+
+// BrandingFont Deployment-wide app font choice.
+type BrandingFont string
+
+// BrandingFontOption defines model for BrandingFontOption.
+type BrandingFontOption struct {
+	// CssFamily CSS font-family stack for applying the font.
+	CssFamily string `json:"css_family"`
+
+	// Id Deployment-wide app font choice.
+	Id BrandingFont `json:"id"`
+
+	// Label Human-readable font name.
+	Label string `json:"label"`
+}
+
+// BrandingSettings defines model for BrandingSettings.
+type BrandingSettings struct {
+	// AllowedFonts Fonts the super admin may choose from.
+	AllowedFonts []BrandingFontOption `json:"allowed_fonts"`
+
+	// Font Deployment-wide app font choice.
+	Font BrandingFont `json:"font"`
+}
+
+// BrandingUpdateRequest defines model for BrandingUpdateRequest.
+type BrandingUpdateRequest struct {
+	// Font Deployment-wide app font choice.
+	Font BrandingFont `json:"font"`
 }
 
 // ChangePasswordRequest defines model for ChangePasswordRequest.
