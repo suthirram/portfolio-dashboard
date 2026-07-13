@@ -124,7 +124,6 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   return (
     <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
       <header className="dash-nav page-nav nav-glass">
-        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
@@ -152,8 +151,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
             </Link>
           )}
-        </div>
-        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="dash-nav-spacer" aria-hidden />
           {lastRefresh && (
             <span className="dash-nav-hide-sm" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               Updated {lastRefresh.toLocaleTimeString()}
@@ -166,7 +164,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <button onClick={() => setModal('add')} className="btn-primary dash-nav-btn">
             <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
-          <div style={{ position: 'relative' }}>
+          <div className="dash-nav-user" style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(o => !o)} className="btn dash-nav-btn"
               style={{ padding: '6px 12px', color: 'var(--text-primary)' }}>
               <UserIcon size={14} /> <span className="dash-nav-label-sm">{user?.name || user?.username}</span>
@@ -195,7 +193,6 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               </div>
             )}
           </div>
-        </div>
       </header>
 
       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
