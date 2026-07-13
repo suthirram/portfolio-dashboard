@@ -128,12 +128,7 @@ export default function ProfilePage() {
   return (
     <div className="page-art page-art-profile" style={{ minHeight: '100dvh', padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link to="/" aria-label="Back to dashboard" title="Back to dashboard" style={{
-          color: 'var(--text-secondary)', textDecoration: 'none',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--bg-card)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)', width: 32, height: 32,
-        }}>
+        <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
           <ArrowLeftIcon size={14} />
         </Link>
         <h1 style={{ fontSize: 22, fontWeight: 600 }}>Account settings</h1>

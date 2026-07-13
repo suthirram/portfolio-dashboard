@@ -19,10 +19,11 @@ import { ApiError } from '../../lib/api/client'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
+import { ArrowLeftIcon } from '../../components/Icon'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  btnPrimaryStyle, btnSecondaryStyle, chartTooltipProps, fmtAxisAmount,
+  chartTooltipProps, fmtAxisAmount,
   fmtCurrency, goldChartData, monthRange, niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain,
   type RegionKey,
@@ -221,10 +222,12 @@ export default function HistoryPage() {
         top: 0,
         zIndex: 50,
       }}>
-        <Link to="/" style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}>
-          ← Portfolio
-        </Link>
-        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Historical data</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Historical data</h1>
+        </div>
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
@@ -243,16 +246,13 @@ export default function HistoryPage() {
             </select>
           </label>
           <span style={{ flex: 1 }} />
-          <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop}
+          <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop} className="btn"
             title={chartsOnTop ? 'Show the table first' : 'Show the charts first'}
-            style={{
-              ...btnSecondaryStyle,
-              ...(chartsOnTop ? { color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-dim)' } : {}),
-            }}>
+            style={chartsOnTop ? { color: 'var(--blue)', borderColor: 'var(--blue)', background: 'var(--blue-dim)' } : undefined}>
             {chartsOnTop ? '↓ Charts below' : '↑ Charts on top'}
           </button>
-          <button onClick={() => setAddOpen(true)} style={btnPrimaryStyle}>+ Add row</button>
-          <button onClick={() => setPasteOpen(true)} style={btnSecondaryStyle}>Paste month</button>
+          <button onClick={() => setAddOpen(true)} className="btn-primary">+ Add row</button>
+          <button onClick={() => setPasteOpen(true)} className="btn">Paste month</button>
         </section>
 
         {error && <div style={{ color: 'var(--red)', marginBottom: 12 }}>Error: {error}</div>}
