@@ -22,7 +22,10 @@ vi.mock('../auth/AuthContext', () => ({
 }))
 
 vi.mock('../../lib/api/client', () => ({
-  api: { getRegions: vi.fn().mockResolvedValue([]) },
+  api: {
+    getRegions: vi.fn().mockResolvedValue([]),
+    getGoldMetrics: vi.fn().mockResolvedValue(null),
+  },
 }))
 
 vi.mock('../../components/SummaryCards', () => ({ default: () => <div /> }))
@@ -30,21 +33,25 @@ vi.mock('../holdings/HoldingsByCurrency', () => ({ default: () => <div /> }))
 vi.mock('../../components/Charts', () => ({ default: () => <div /> }))
 
 describe('DashboardPage nav grouping', () => {
-  it('keeps page links on the left with the brand and actions on the right', () => {
+  it('keeps page links before the spacer and actions after it', () => {
     const { container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>)
-    const sides = container.querySelectorAll('header .dash-nav-side')
-    expect(sides.length).toBe(2)
+    const header = container.querySelector('header')!
+    const nav = within(header as HTMLElement)
+    const spacer = header.querySelector('.dash-nav-spacer')!
+    expect(spacer).toBeInTheDocument()
 
-    const left = within(sides[0] as HTMLElement)
-    expect(left.getByRole('link', { name: /History/ })).toBeInTheDocument()
-    expect(left.getByRole('link', { name: /Gold/ })).toBeInTheDocument()
-    expect(left.getByRole('link', { name: /Admin Panel/ })).toBeInTheDocument()
-
-    const right = within(sides[1] as HTMLElement)
-    expect(right.getByRole('button', { name: /Refresh/ })).toBeInTheDocument()
-    expect(right.getByRole('button', { name: /Add Holding/ })).toBeInTheDocument()
-    // Navigation lives on the left only — no stray links among the actions.
-    expect((sides[1] as HTMLElement).querySelector('a')).toBeNull()
+    // Page links sit left of the spacer; action buttons sit right of it.
+    for (const name of [/History/, /Gold/, /Admin Panel/]) {
+      const link = nav.getByRole('link', { name })
+      expect(spacer.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    }
+    for (const name of [/Refresh/, /Add Holding/]) {
+      const btn = nav.getByRole('button', { name })
+      expect(spacer.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    // No stray links among the actions after the spacer.
+    const links = Array.from(header.querySelectorAll('a'))
+    expect(links.every(a => spacer.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_PRECEDING)).toBe(true)
   })
 
   it('renders the Holdings/Charts switch as one segmented control', () => {

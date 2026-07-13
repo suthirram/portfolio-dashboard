@@ -140,7 +140,7 @@ export default function ProfilePage() {
         <ThemePicker variant="inline" theme={theme} premium={user?.premium} onSelect={setTheme} />
       </header>
 
-      <main className="page-main" style={{ maxWidth: 1200 }}>
+      <main className="page-main" style={{ maxWidth: 1200, margin: '0 auto' }}>
       <section style={card}>
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Profile</h2>
         <form onSubmit={saveProfile}>

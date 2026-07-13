@@ -4,9 +4,10 @@ import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import { groupByCurrency, type CurrencyCode } from './groupByCurrency'
 import { sumTotals, nativeView, nativeSymbols } from './currencyTotals'
+import type { HoldingWithPreviousClose } from './dashboardPriceMovement'
 
 interface Props {
-  holdings: HoldingWithPrice[]
+  holdings: HoldingWithPreviousClose[]
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void

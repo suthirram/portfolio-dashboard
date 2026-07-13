@@ -19,6 +19,19 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes card-flip-out {
+  from { transform: perspective(600px) rotateY(0deg); }
+  to   { transform: perspective(600px) rotateY(90deg); }
+}
+
+@keyframes card-flip-in {
+  from { transform: perspective(600px) rotateY(-90deg); }
+  to   { transform: perspective(600px) rotateY(0deg); }
+}
+
+.card-flipping-out { animation: card-flip-out 0.18s ease-in forwards; }
+.card-flipping-in  { animation: card-flip-in  0.18s ease-out forwards; }
+
 @keyframes pop-in {
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -303,6 +316,8 @@ a:hover .app-icon .icon-spark,
   padding: 8px 18px;
 }
 
+/* Tinted danger for destructive row/table actions; the border derives from
+ * the live --red so it tracks every theme. */
 .btn-danger {
   color: var(--red);
   background: var(--red-dim);
@@ -314,13 +329,34 @@ a:hover .app-icon .icon-spark,
   border-color: var(--red);
 }
 
-/* Solid fill for the final point-of-no-return confirm ("Yes, delete"):
- * the destructive choice must not share visual weight with its Cancel. */
-.btn-danger-solid,
+/* Solid high-emphasis danger for the point-of-no-return confirm step. */
+.btn-danger-solid {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
 .btn-danger-solid:hover {
   color: #fff;
   background: var(--red);
   border-color: var(--red);
+}
+
+/* One "active pill" idiom for toggles and nav links carrying .btn: tinted
+ * blue-dim surface + blue text keeps AA contrast in every theme (solid
+ * --blue behind white text fails on cyberpunk's cyan). NavLink sets
+ * aria-current="page"; toggle buttons set aria-pressed. */
+.btn[aria-current="page"],
+.btn[aria-pressed="true"] {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
+  font-weight: 600;
+}
+.btn[aria-current="page"]:hover,
+.btn[aria-pressed="true"]:hover {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
 }
 
 /* --- Alerts ------------------------------------------------------------- */
@@ -335,9 +371,11 @@ a:hover .app-icon .icon-spark,
   margin-bottom: 14px;
 }
 
-/* Segmented control: bordered pill group; the active segment reads as a
- * raised card (state carried on aria-pressed). Works in all themes without
- * the solid --blue + white-text combo that fails on cyberpunk's cyan. */
+/* Segmented control: bordered pill group; the active segment is a tinted
+ * blue pill (state carried on aria-pressed). The tint — rather than a
+ * bg-card pill or solid blue — stays visible in light mode (where bg-card
+ * on bg-secondary is white-on-white) and keeps text contrast on cyberpunk
+ * (where solid --blue is cyan behind white text). */
 .seg-group {
   display: inline-flex;
   gap: 2px;
@@ -357,9 +395,6 @@ a:hover .app-icon .icon-spark,
   cursor: pointer;
   white-space: nowrap;
 }
-/* Blue tint rather than a raised bg-card pill: in the light theme bg-card
- * and bg-secondary are both white, which left the active segment marked by
- * nothing but a faint shadow. */
 .seg-btn[aria-pressed="true"] {
   background: var(--blue-dim);
   color: var(--blue);
@@ -404,6 +439,28 @@ a:hover .app-icon .icon-spark,
   text-decoration: none;
 }
 .btn-icon:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
+
+/* --- Page header bar ------------------------------------------------------ */
+
+/* One sticky header layout for every page shell; pages combine it with
+ * .nav-glass and only supply their content. Owning the layout here (rather
+ * than inline per page) keeps height/stickiness/gutter in one place. */
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: var(--nav-height);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+/* Page content container: owns the app-standard gutter so pages don't
+ * re-specify it inline (page width limits stay per-page). */
+.page-main {
+  padding: 24px 28px;
+}
 
 /* --- Brand tile (nav + auth logo mark) ---------------------------------- */
 
@@ -467,6 +524,12 @@ a:hover .app-icon .icon-spark,
   background: var(--bg-card-hover) !important;
   filter: none;
 }
+/* The theme picker marks the current theme with a blue-dim tint (inline);
+ * without this, the generic hover grey above erases the selected indicator
+ * the moment the pointer is over it. */
+.menu-pop button[aria-pressed="true"]:hover {
+  background: var(--blue-dim) !important;
+}
 
 /* --- Modals ----------------------------------------------------------------- */
 
@@ -487,6 +550,12 @@ a:hover .app-icon .icon-spark,
   transition: background var(--speed) var(--ease);
 }
 .holdings-table-wrap tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+/* Column hover highlight — .col-hl is toggled in JS onto every cell sharing
+ * the hovered cell's column index (see HoldingsTable). Cells are transparent
+ * over the row background, so tinting them shows the crosshair. */
+.holdings-table-wrap .col-hl {
   background: var(--bg-card-hover);
 }
 
@@ -596,6 +665,15 @@ a:hover .app-icon .icon-spark,
   z-index: 1;
 }
 
+/* .page-nav declares position: sticky and z-index: 50, but the child-lifting
+ * rule above is later in the file and would flatten both (position: relative,
+ * z-index: 1) — the header stops sticking and its dropdowns (theme picker,
+ * user menu) drop behind the page content. Re-assert at higher specificity. */
+.page-art > .page-nav {
+  position: sticky;
+  z-index: 50;
+}
+
 [data-theme="light"] .page-art {
   --page-art-image: var(--page-art-day-image);
   --page-art-secondary: var(--page-art-day-secondary);
@@ -665,9 +743,10 @@ a:hover .app-icon .icon-spark,
   --page-art-secondary-size: min(62vw, 760px) auto;
 }
 
-/* Single merged block. This selector used to appear twice with an unrelated
- * rule in between; the effective style was a confusing per-property merge
- * (the shadowed first block still supplied opacity/veil/secondary-size). */
+/* Single source for the gold page art. An earlier duplicate block used to
+ * shadow parts of this one (opacity/veil/secondary-size lived there); the
+ * surviving values are merged here so the effective style is readable in
+ * one place. */
 .page-art-gold {
   --page-art-day-image: url('../assets/day-gold-vault.svg');
   --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
@@ -782,18 +861,16 @@ a:hover .app-icon .icon-spark,
   animation: shimmer 1.4s ease infinite;
 }
 
-/* --- Focus restoration (keep last) -------------------------------------------
- * These classes set their own box-shadow, which would otherwise out-cascade
- * the base :focus-visible ring in base.css and leave keyboard users with no
- * visible focus indicator. Declared at the end of the file so they also beat
- * the equal-specificity cyberpunk .btn-primary shadow overrides above. */
+/* --- Focus visibility ---------------------------------------------------- */
+
+/* Button classes that set their own box-shadow (or whose theme overrides
+ * do) would otherwise bury the global :focus-visible ring from base.css —
+ * equal specificity, later stylesheet. Declared last so keyboard focus
+ * always wins. */
+.btn:focus-visible,
 .btn-primary:focus-visible,
+.btn-icon:focus-visible,
+.btn-row:focus-visible,
 .seg-btn:focus-visible {
   box-shadow: var(--ring);
-}
-
-/* The generic .menu-pop hover repaint (!important, above) must not erase the
- * selected-state highlight on the theme options inside the dropdown. */
-.menu-pop button[aria-pressed="true"]:hover {
-  background: var(--blue-dim) !important;
 }

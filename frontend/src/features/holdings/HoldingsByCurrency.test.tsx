@@ -4,8 +4,9 @@ import HoldingsByCurrency from './HoldingsByCurrency'
 import type { HoldingWithPrice } from '../../types'
 
 const noop = () => {}
+type TestHolding = HoldingWithPrice & { previous_close_price?: number }
 
-const h = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+const h = (overrides: Partial<TestHolding>): TestHolding => ({
   id: overrides.id ?? Math.random().toString(),
   script: 'TEST',
   symbol: 'TEST',
@@ -24,7 +25,7 @@ const h = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
   unrealized_pnl_eur: 2.2,
   realized_pnl_eur: 0,
   ...overrides,
-} as HoldingWithPrice)
+} as TestHolding)
 
 describe('HoldingsByCurrency', () => {
   it('renders one section per distinct currency, INR before EUR', () => {
@@ -44,11 +45,11 @@ describe('HoldingsByCurrency', () => {
     expect(within(sections[1] as HTMLElement).getByText(/Euro/)).toBeInTheDocument()
   })
 
-  it('marks the EUR section table wrapper with native-eur and leaves INR default', () => {
+  it('renders each table in its native currency only — no conversion columns', () => {
     render(<HoldingsByCurrency
       holdings={[
         h({ id: '1', currency: 'INR' }),
-        h({ id: '2', currency: 'EUR' }),
+        h({ id: '2', currency: 'EUR', cost_price: 1000, current_value: 1200, unrealized_pnl: 200 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -57,8 +58,13 @@ describe('HoldingsByCurrency', () => {
 
     const wrappers = document.querySelectorAll('.holdings-table-wrap')
     expect(wrappers).toHaveLength(2)
-    expect(wrappers[0].classList.contains('native-eur')).toBe(false)
-    expect(wrappers[1].classList.contains('native-eur')).toBe(true)
+    // No "in €" conversion sub-columns anywhere.
+    expect(screen.queryByText('in €')).not.toBeInTheDocument()
+    // INR table cells are ₹-formatted, EUR table cells are €-formatted.
+    expect(within(wrappers[0] as HTMLElement).getAllByText(/₹1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrappers[0] as HTMLElement).queryByText(/€/)).not.toBeInTheDocument()
+    expect(within(wrappers[1] as HTMLElement).getAllByText(/€1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrappers[1] as HTMLElement).queryByText(/₹/)).not.toBeInTheDocument()
   })
 
   it('renders the empty state when nothing matches the active view', () => {
@@ -137,6 +143,31 @@ describe('HoldingsByCurrency', () => {
       onDelete={noop}
     />)
     expect(screen.queryByText('Today')).toBeNull()
+  })
+
+  it('colors live share prices against the previous close and leaves unchanged prices default', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'UP.NS', current_price: 121, previous_close_price: 120 }),
+        h({ id: '2', script: 'DOWN.NS', current_price: 119, previous_close_price: 120 }),
+        h({ id: '3', script: 'FLAT.NS', current_price: 120, previous_close_price: 120 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const sharePriceCell = (script: string) =>
+      screen.getByText(script).closest('tr')!.querySelectorAll('td')[4] as HTMLTableCellElement
+
+    expect(sharePriceCell('UP.NS')).toHaveClass('pos')
+    expect(sharePriceCell('DOWN.NS')).toHaveClass('neg')
+    expect(sharePriceCell('FLAT.NS')).not.toHaveClass('pos')
+    expect(sharePriceCell('FLAT.NS')).not.toHaveClass('neg')
+    expect(sharePriceCell('FLAT.NS')).toHaveStyle({ color: 'var(--text-primary)' })
+    expect(screen.getByText('(+₹1.00 / +0.83%)')).toBeInTheDocument()
+    expect(screen.getByText('(-₹1.00 / -0.83%)')).toBeInTheDocument()
+    expect(screen.getByText('(₹0.00 / 0.00%)')).toBeInTheDocument()
   })
 
   it('view tabs filter the rendered holdings by active/nil', () => {

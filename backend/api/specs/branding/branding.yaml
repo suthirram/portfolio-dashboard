@@ -1,0 +1,16 @@
+branding:
+  get:
+    tags: [Branding]
+    summary: Get app branding settings
+    description: |
+      Public read used by the frontend before authentication so login and
+      signup can render with the active deployment font.
+    operationId: getBranding
+    security: []
+    responses:
+      "200":
+        description: Active branding settings
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/BrandingSettings"

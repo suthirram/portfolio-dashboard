@@ -114,7 +114,7 @@ export default function GoldPage() {
         </div>
       </header>
 
-      <main className="page-main" style={{ maxWidth: 2000 }}>
+      <main className="page-main" style={{ maxWidth: 2000, margin: '0 auto' }}>
         <GoldMetricsPanel metrics={metrics} />
         {err && (
           <div className="alert-danger">{err}</div>

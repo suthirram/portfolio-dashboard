@@ -18,8 +18,8 @@ import {
 import { ApiError } from '../../lib/api/client'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
-import { useAuthOptional } from '../auth/AuthContext'
 import { ArrowLeftIcon } from '../../components/Icon'
+import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
@@ -220,7 +220,7 @@ export default function HistoryPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main className="page-main" style={{ width: '100%', maxWidth: 1800 }}>
+      <main className="page-main" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto' }}>
         <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
@@ -235,6 +235,7 @@ export default function HistoryPage() {
             </select>
           </label>
           <span style={{ flex: 1 }} />
+          {/* Active look comes from the shared .btn[aria-pressed="true"] rule. */}
           <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop} className="btn"
             title={chartsOnTop ? 'Show the table first' : 'Show the charts first'}>
             {chartsOnTop ? '↓ Charts below' : '↑ Charts on top'}

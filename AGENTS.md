@@ -22,10 +22,10 @@ owner's standing instructions; when in doubt, follow this file and
   branch from `main` → commit → push → PR → squash-merge. A
   `no-commit-to-branch` pre-commit hook enforces this.
 * **`main` is protected: merges are blocked until CI is green.** GitHub
-  branch protection (admin-enforced, no bypass) requires all four checks
-  from `lint.yml` — `Frontend (tsc + vitest)`,
-  `Go (gofmt + golangci-lint + go test)`, `Markdown (markdownlint)`,
-  `YAML (yamllint)`. Force pushes and deletion of `main` are disabled.
+  branch protection (admin-enforced, no bypass) requires all five checks
+  from `lint.yml` — `Frontend (tsc + vitest)`, `Go linter`, `Go tests`,
+  `Markdown (markdownlint)`, `YAML (yamllint)`. Force pushes and deletion
+  of `main` are disabled.
   If a merge is blocked, fix the failing check on the PR branch — never
   try to lift or work around the protection. Post-merge CI on `main` is
   automatic; don't re-run test suites locally after merging. Renaming a

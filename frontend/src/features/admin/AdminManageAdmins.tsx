@@ -56,7 +56,6 @@ export default function AdminManageAdmins() {
     borderBottom: '1px solid var(--border)',
   }
   const td: React.CSSProperties = { padding: '12px', borderBottom: '1px solid var(--border)', fontSize: 13 }
-
   return (
     <AdminShell>
       <div style={{ marginBottom: 16 }}>

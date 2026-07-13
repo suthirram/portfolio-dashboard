@@ -135,7 +135,7 @@ export default function HistoryChartPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main className="page-main" style={{ maxWidth: 1400 }}>
+      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>
           Full dataset {firstDate && lastDate ? `(${firstDate} → ${lastDate})` : '(2000 → today)'}.
           Scroll horizontally to see every plotted day.

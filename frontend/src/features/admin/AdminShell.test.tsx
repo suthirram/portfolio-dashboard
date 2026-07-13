@@ -21,7 +21,7 @@ describe('AdminShell chrome', () => {
     expect(screen.getByRole('button', { name: /^Theme:/ })).toBeInTheDocument()
   })
 
-  it('marks the active nav pill declaratively via aria-current on the shared .btn', () => {
+  it('marks the active nav pill via aria-current on the shared .btn class', () => {
     render(<MemoryRouter initialEntries={['/admin']}><AdminShell>content</AdminShell></MemoryRouter>)
     const users = screen.getByRole('link', { name: /Users/ })
     expect(users).toHaveClass('btn')

@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
-import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon } from '../../components/Icon'
+import { ShieldIcon, ArrowLeftIcon, LogOutIcon, UsersIcon, SettingsIcon } from '../../components/Icon'
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
@@ -13,6 +13,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
       <header className="nav-glass page-nav">
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ShieldIcon size={18} /></div>
@@ -43,10 +44,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <ShieldIcon size={14} /> Admins
             </NavLink>
           )}
+          {isSuper && (
+            <NavLink to="/admin/branding" className="btn">
+              <SettingsIcon size={14} /> Branding
+            </NavLink>
+          )}
         </div>
       </div>
 
-      <main className="page-main" style={{ maxWidth: 1400 }}>
+      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
         {children}
       </main>
     </div>

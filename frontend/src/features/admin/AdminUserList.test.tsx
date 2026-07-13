@@ -41,8 +41,7 @@ describe('AdminUserList action buttons', () => {
     expect(screen.getByRole('link', { name: 'Open' })).toHaveClass('btn', 'btn-sm')
 
     // Destructive action carries the danger variant on top of the same base.
-    const del = screen.getByRole('button', { name: 'Delete' })
-    expect(del).toHaveClass('btn', 'btn-sm', 'btn-danger')
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('btn', 'btn-sm', 'btn-danger')
   })
 
   it('lets the wide user table scroll sideways on narrow screens', async () => {
