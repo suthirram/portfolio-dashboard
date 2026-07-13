@@ -437,14 +437,10 @@ Match this exact column order (mirrors the user's spreadsheet):
 | Shares | quantity |
 | Avg Cost/Share | avg_cost_price in ₹ |
 | Cost Price | stocks_owned × avg_cost_price |
-| in € | cost in EUR |
 | Share Price | live current_price |
 | Current Value | stocks_owned × current_price |
-| in € | current value in EUR |
 | Unrealised Gain | unrealised P&L (current − cost) |
-| in € | |
 | Realised Gain | realised_pnl from DB |
-| in € | |
 | Actions | Edit / Delete |
 
 **Totals row** in `<tfoot>` — sum all numeric columns. Colour P&L green/red.
