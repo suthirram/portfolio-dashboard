@@ -109,10 +109,7 @@ export default function GoldPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
 
-          <button onClick={() => setModal({ open: true, txn: null })} style={{
-            background: 'var(--blue)', color: '#fff', padding: '6px 16px',
-            fontWeight: 600, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}>
+          <button onClick={() => setModal({ open: true, txn: null })} className="btn-primary">
             <PlusIcon size={14} /> Add purchase
           </button>
           <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
