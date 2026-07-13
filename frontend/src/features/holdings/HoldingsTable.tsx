@@ -3,6 +3,10 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { HoldingWithPrice } from '../../types'
 import { EditIcon, TrashIcon, AlertTriangleIcon, ListIcon } from '../../components/Icon'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
+import {
+  priceMovement,
+  type HoldingWithPreviousClose,
+} from './dashboardPriceMovement'
 
 const INR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'
@@ -17,6 +21,13 @@ const EUR = (n?: number | null) => {
   return (n < 0 ? '-€' : '€') + s
 }
 const NUM = (n?: number | null) => (n === undefined || n === null || isNaN(n) || n === 0) ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 3 })
+const SIGNED_MONEY = (n: number, currency?: string | null) => {
+  const abs = Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const sign = n > 0 ? '+' : n < 0 ? '-' : ''
+  const symbol = currency === 'EUR' ? '€' : '₹'
+  return `${sign}${symbol}${abs}`
+}
+const SIGNED_PCT = (n: number) => `${n > 0 ? '+' : n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}%`
 
 interface CellProps {
   children?: ReactNode
@@ -44,7 +55,7 @@ const TD = ({ children, style, className }: CellProps) => (
 )
 
 interface HoldingsTableProps {
-  holdings: HoldingWithPrice[]
+  holdings: HoldingWithPreviousClose[]
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
@@ -189,6 +200,8 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
 
           {sorted.map((h) => {
             const hasPrice = (h.current_price ?? 0) > 0
+            const movement = priceMovement(h.current_price, h.previous_close_price)
+            const priceTone = movement?.tone ?? null
             const unrealized = h.unrealized_pnl ?? 0
             const realized = h.realized_pnl ?? 0
             const unrealCls = !hasPrice ? '' : unrealized > 0 ? 'pos' : unrealized < 0 ? 'neg' : 'neutral'
@@ -223,8 +236,20 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 <TD className="mono col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.cost_price_eur ? EUR(h.cost_price_eur) : '—'}</TD>
 
                 {/* Share price — in the holding's native currency */}
-                <TD className="mono" style={{ color: hasPrice ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {hasPrice ? (h.currency === 'EUR' ? EUR(h.current_price) : INR(h.current_price)) : h.price_error ? <span style={{ color: 'var(--text-muted)' }}>—</span> : <span className="spinner" style={{ width: 12, height: 12, display: 'inline-block' }} />}
+                <TD
+                  className={`mono${priceTone ? ` ${priceTone}` : ''}`}
+                  style={{ color: hasPrice && !priceTone ? 'var(--text-primary)' : hasPrice ? undefined : 'var(--text-muted)' }}
+                >
+                  {hasPrice ? (
+                    <>
+                      <div>{h.currency === 'EUR' ? EUR(h.current_price) : INR(h.current_price)}</div>
+                      {movement && (
+                        <div style={{ fontSize: 10, lineHeight: 1.2, marginTop: 2, whiteSpace: 'nowrap' }}>
+                          ({SIGNED_MONEY(movement.change, h.currency)} / {SIGNED_PCT(movement.pct)})
+                        </div>
+                      )}
+                    </>
+                  ) : h.price_error ? <span style={{ color: 'var(--text-muted)' }}>—</span> : <span className="spinner" style={{ width: 12, height: 12, display: 'inline-block' }} />}
                 </TD>
 
                 {/* Current value */}

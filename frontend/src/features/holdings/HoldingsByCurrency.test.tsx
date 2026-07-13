@@ -4,8 +4,9 @@ import HoldingsByCurrency from './HoldingsByCurrency'
 import type { HoldingWithPrice } from '../../types'
 
 const noop = () => {}
+type TestHolding = HoldingWithPrice & { previous_close_price?: number }
 
-const h = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+const h = (overrides: Partial<TestHolding>): TestHolding => ({
   id: overrides.id ?? Math.random().toString(),
   script: 'TEST',
   symbol: 'TEST',
@@ -24,7 +25,7 @@ const h = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
   unrealized_pnl_eur: 2.2,
   realized_pnl_eur: 0,
   ...overrides,
-} as HoldingWithPrice)
+} as TestHolding)
 
 describe('HoldingsByCurrency', () => {
   it('renders one section per distinct currency, INR before EUR', () => {
@@ -137,6 +138,31 @@ describe('HoldingsByCurrency', () => {
       onDelete={noop}
     />)
     expect(screen.queryByText('Today')).toBeNull()
+  })
+
+  it('colors live share prices against the previous close and leaves unchanged prices default', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'UP.NS', current_price: 121, previous_close_price: 120 }),
+        h({ id: '2', script: 'DOWN.NS', current_price: 119, previous_close_price: 120 }),
+        h({ id: '3', script: 'FLAT.NS', current_price: 120, previous_close_price: 120 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const sharePriceCell = (script: string) =>
+      screen.getByText(script).closest('tr')!.querySelectorAll('td')[5] as HTMLTableCellElement
+
+    expect(sharePriceCell('UP.NS')).toHaveClass('pos')
+    expect(sharePriceCell('DOWN.NS')).toHaveClass('neg')
+    expect(sharePriceCell('FLAT.NS')).not.toHaveClass('pos')
+    expect(sharePriceCell('FLAT.NS')).not.toHaveClass('neg')
+    expect(sharePriceCell('FLAT.NS')).toHaveStyle({ color: 'var(--text-primary)' })
+    expect(screen.getByText('(+₹1.00 / +0.83%)')).toBeInTheDocument()
+    expect(screen.getByText('(-₹1.00 / -0.83%)')).toBeInTheDocument()
+    expect(screen.getByText('(₹0.00 / 0.00%)')).toBeInTheDocument()
   })
 
   it('view tabs filter the rendered holdings by active/nil', () => {
