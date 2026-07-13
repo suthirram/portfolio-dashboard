@@ -53,6 +53,12 @@ describe('GoldPage', () => {
     expect(container.firstElementChild).toHaveClass('page-art', 'page-art-gold')
   })
 
+  it('uses the app-standard content gutter', () => {
+    const { container } = renderPage()
+    const main = container.querySelector('main')!
+    expect(main.style.padding).toBe('24px 28px')
+  })
+
   it('offers the theme toggle in the header', async () => {
     renderPage()
     const btn = await screen.findByRole('button', { name: /^Theme:/ })

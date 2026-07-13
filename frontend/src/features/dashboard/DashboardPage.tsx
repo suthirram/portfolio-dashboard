@@ -225,9 +225,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
         <SummaryCards summary={summary} loading={loadingPrices} />
 
-        <div style={{ height: 24 }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
           <div className="seg-group">
             {TAB('table', 'Holdings')}
             {TAB('charts', 'Charts')}
