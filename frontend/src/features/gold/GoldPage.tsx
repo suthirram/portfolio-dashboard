@@ -120,10 +120,7 @@ export default function GoldPage() {
       <main className="page-main" style={{ padding: '24px 28px', maxWidth: 2000, margin: '0 auto' }}>
         <GoldMetricsPanel metrics={metrics} />
         {err && (
-          <div style={{
-            background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-            padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 14, fontSize: 13,
-          }}>{err}</div>
+          <div className="alert-danger">{err}</div>
         )}
 
         <div style={{

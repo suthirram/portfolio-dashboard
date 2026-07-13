@@ -141,10 +141,7 @@ export default function GoldTxnModal({ txn, onClose, onSaved }: Props) {
         </h2>
 
         {err && (
-          <div style={{
-            background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-            padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 12, fontSize: 13,
-          }}>{err}</div>
+          <div className="alert-danger">{err}</div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

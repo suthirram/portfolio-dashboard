@@ -253,7 +253,7 @@ export default function HistoryPage() {
           <button onClick={() => setPasteOpen(true)} className="btn">Paste month</button>
         </section>
 
-        {error && <div style={{ color: 'var(--red)', marginBottom: 12 }}>Error: {error}</div>}
+        {error && <div className="alert-danger">Error: {error}</div>}
 
         {!loading && rows.length === 0 && (
           <div style={{

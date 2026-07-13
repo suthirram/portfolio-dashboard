@@ -111,10 +111,7 @@ export default function AdminUserList() {
       </div>
 
       {err && (
-        <div style={{
-          background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-          padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 14, fontSize: 13,
-        }}>{err}</div>
+        <div className="alert-danger">{err}</div>
       )}
 
       <div className="table-scroll" style={{

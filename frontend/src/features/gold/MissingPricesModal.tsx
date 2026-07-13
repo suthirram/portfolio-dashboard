@@ -82,10 +82,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
         </p>
 
         {err && (
-          <div style={{
-            background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-            padding: '8px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 12, fontSize: 13,
-          }}>{err}</div>
+          <div className="alert-danger">{err}</div>
         )}
 
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
