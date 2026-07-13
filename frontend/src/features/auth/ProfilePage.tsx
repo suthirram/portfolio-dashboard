@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type SecurityQuestion } from '../../lib/api/client'
 import { useAuth } from './AuthContext'
+import { useTheme } from '../../lib/useTheme'
+import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 
 interface QAState { questionId: string; answer: string }
 
 export default function ProfilePage() {
   const { user, refresh } = useAuth()
+  const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
 
   const [name, setName] = useState(user?.name ?? '')
   const [username, setUsername] = useState(user?.username ?? '')
@@ -49,9 +52,6 @@ export default function ProfilePage() {
     outline: 'none', fontSize: 13, marginBottom: 10,
   }
   const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }
-  const button: React.CSSProperties = {
-    background: 'var(--blue)', color: '#fff', padding: '8px 14px', fontWeight: 600,
-  }
 
   const message = (m: { kind: 'ok' | 'err'; text: string } | null) =>
     m && (
@@ -129,19 +129,18 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="page-art page-art-profile" style={{ minHeight: '100dvh', padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link to="/" aria-label="Back to dashboard" title="Back to dashboard" style={{
-          color: 'var(--text-secondary)', textDecoration: 'none',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--bg-card)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)', width: 32, height: 32,
-        }}>
-          <ArrowLeftIcon size={14} />
-        </Link>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Account settings</h1>
-      </div>
+    <div className="page-art page-art-profile" style={{ minHeight: '100dvh' }}>
+      <header className="nav-glass page-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/" className="btn-icon" aria-label="Back to dashboard" title="Back to dashboard">
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Account settings</h1>
+        </div>
+        <ThemePicker variant="inline" theme={theme} premium={user?.premium} onSelect={setTheme} />
+      </header>
 
+      <main className="page-main" style={{ maxWidth: 1200, margin: '0 auto' }}>
       <section style={card}>
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Profile</h2>
         <form onSubmit={saveProfile}>
@@ -152,7 +151,7 @@ export default function ProfilePage() {
           <label style={labelStyle}>Confirm with your current password</label>
           <input style={inputStyle} type="password" autoComplete="current-password"
             value={profilePassword} onChange={e => setProfilePassword(e.target.value)} required />
-          <button type="submit" disabled={savingProfile} style={{ ...button, opacity: savingProfile ? 0.6 : 1 }}>
+          <button type="submit" disabled={savingProfile} className="btn-primary btn-lg" style={{ opacity: savingProfile ? 0.6 : 1 }}>
             {savingProfile ? 'Saving…' : 'Save profile'}
           </button>
           {message(profileMsg)}
@@ -174,7 +173,7 @@ export default function ProfilePage() {
           <label style={labelStyle}>Confirm new password</label>
           <input style={inputStyle} type="password" autoComplete="new-password"
             value={newPwConfirm} onChange={e => setNewPwConfirm(e.target.value)} required />
-          <button type="submit" disabled={savingPw} style={{ ...button, opacity: savingPw ? 0.6 : 1 }}>
+          <button type="submit" disabled={savingPw} className="btn-primary btn-lg" style={{ opacity: savingPw ? 0.6 : 1 }}>
             {savingPw ? 'Saving…' : 'Change password'}
           </button>
           {message(pwMsg)}
@@ -210,12 +209,13 @@ export default function ProfilePage() {
           <label style={labelStyle}>Confirm with your current password</label>
           <input style={inputStyle} type="password" autoComplete="current-password"
             value={sqPassword} onChange={e => setSqPassword(e.target.value)} required />
-          <button type="submit" disabled={savingSQ} style={{ ...button, opacity: savingSQ ? 0.6 : 1 }}>
+          <button type="submit" disabled={savingSQ} className="btn-primary btn-lg" style={{ opacity: savingSQ ? 0.6 : 1 }}>
             {savingSQ ? 'Saving…' : 'Save security questions'}
           </button>
           {message(sqMsg)}
         </form>
       </section>
+      </main>
     </div>
   )
 }

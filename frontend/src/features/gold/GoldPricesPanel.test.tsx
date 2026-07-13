@@ -42,7 +42,9 @@ describe('GoldPricesPanel', () => {
     fireEvent.change(screen.getByLabelText('Price per gram'), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save price' }))
 
-    expect(await screen.findByText('Price must be a number > 0')).toBeTruthy()
+    const banner = await screen.findByText('Price must be a number > 0')
+    // Errors surface through the shared alert idiom, not ad-hoc inline styles.
+    expect(banner).toHaveClass('alert-danger')
     expect(api.putGoldPrices).not.toHaveBeenCalled()
   })
 })

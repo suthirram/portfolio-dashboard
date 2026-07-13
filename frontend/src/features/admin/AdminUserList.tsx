@@ -77,11 +77,6 @@ export default function AdminUserList() {
   const td: React.CSSProperties = {
     padding: '12px', borderBottom: '1px solid var(--border)', fontSize: 13,
   }
-  const action: React.CSSProperties = {
-    background: 'var(--bg-card)', color: 'var(--text-primary)',
-    border: '1px solid var(--border)', padding: '4px 10px', fontSize: 12,
-  }
-
   return (
     <AdminShell>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
@@ -116,15 +111,12 @@ export default function AdminUserList() {
       </div>
 
       {err && (
-        <div style={{
-          background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid var(--red)',
-          padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 14, fontSize: 13,
-        }}>{err}</div>
+        <div className="alert-danger">{err}</div>
       )}
 
-      <div style={{
+      <div className="table-scroll" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', overflow: 'hidden',
+        borderRadius: 'var(--radius)',
       }}>
         {loading ? (
           <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
@@ -133,7 +125,7 @@ export default function AdminUserList() {
             No users found.
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th style={th}>Username</th>
@@ -169,61 +161,60 @@ export default function AdminUserList() {
                     </td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
-                        <Link to={`/admin/users/${u.id}`}
-                          style={{ ...action, textDecoration: 'none', display: 'inline-block' }}>
+                        <Link to={`/admin/users/${u.id}`} className="btn btn-sm">
                           Open
                         </Link>
                         {u.locked && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminResetLockout(u.id))}>
                             Unlock
                           </button>
                         )}
                         {!isRowSuper && !u.disabled && !isSelf && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminHideUser(u.id), `Hide ${u.username}? They cannot log in until reactivated.`)}>
                             Hide
                           </button>
                         )}
                         {!isRowSuper && u.disabled && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminReactivateUser(u.id))}>
                             Reactivate
                           </button>
                         )}
                         {isSuper && !isRowSuper && !isSelf && u.role === 'user' && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminPromoteUser(u.id), `Promote ${u.username} to admin?`)}>
                             Promote
                           </button>
                         )}
                         {isSuper && u.role === 'admin' && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminDemoteUser(u.id), `Demote ${u.username} back to user?`)}>
                             Demote
                           </button>
                         )}
                         {isSuper && !isRowSuper && !isSelf && (
-                          <button style={action} disabled={busy === u.id} onClick={() => setRegionFor(u)}>
+                          <button className="btn btn-sm" disabled={busy === u.id} onClick={() => setRegionFor(u)}>
                             Move region
                           </button>
                         )}
                         {isSuper && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminSetUserGold(u.id, { enabled: !u.gold_enabled }),
                               u.gold_enabled ? `Disable gold tracking for ${u.username}? Data is kept, only hidden.` : undefined)}>
                             {u.gold_enabled ? 'Disable gold' : 'Enable gold'}
                           </button>
                         )}
                         {isSuper && (
-                          <button style={action} disabled={busy === u.id}
+                          <button className="btn btn-sm" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminSetUserPremium(u.id, { enabled: !u.premium }),
                               u.premium ? `Disable premium for ${u.username}? Their theme falls back to dark.` : undefined)}>
                             {u.premium ? 'Disable premium' : 'Enable premium'}
                           </button>
                         )}
                         {!isRowSuper && !isSelf && (
-                          <button style={{ ...action, color: 'var(--red)' }} disabled={busy === u.id}
+                          <button className="btn btn-sm btn-danger" disabled={busy === u.id}
                             onClick={() => runAction(u.id, () => api.adminDeleteUser(u.id), `Permanently delete ${u.username} and all their holdings? This cannot be undone.`)}>
                             Delete
                           </button>

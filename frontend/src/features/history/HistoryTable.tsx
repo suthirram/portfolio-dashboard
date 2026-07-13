@@ -13,7 +13,7 @@ import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_TINT, NEW_INVESTMENT_TINT,
   PRICE_DIR_TINT, REGIONS, REGION_TINTS,
   actionCell, actionTd, actionTh, fmtCurrency, goldCurrentDirection,
-  holdingRegion, iconBtnBlueStyle, iconBtnRedStyle,
+  holdingRegion,
   regionCurrentDirection, regionDailyVolatility, regionInvestedWentUp,
   regionPnLPct, sortHeaderBtn, td, th,
   type RegionKey,
@@ -110,13 +110,13 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                 <td style={actionTd}>
                   <div style={actionCell}>
                     {onEdit && (
-                      <button onClick={() => onEdit(r)} style={iconBtnBlueStyle}
+                      <button onClick={() => onEdit(r)} className="btn-row btn-row-accent"
                         aria-label={`Edit row for ${r.date}`} title="Edit">
                         <EditIcon size={16} />
                       </button>
                     )}
                     {(isAllManual(r.regions) || canForceDelete) && (
-                      <button onClick={() => onDelete(r.date)} style={iconBtnRedStyle}
+                      <button onClick={() => onDelete(r.date)} className="btn-row btn-row-danger"
                         aria-label={`Delete row for ${r.date}`}
                         title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
                         <TrashIcon size={16} />

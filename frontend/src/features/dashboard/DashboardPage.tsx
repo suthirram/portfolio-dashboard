@@ -101,14 +101,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   )
 
   const TAB = (key: Tab, label: string) => (
-    <button onClick={() => setTab(key)} style={{
-      background: tab === key ? 'var(--blue)' : 'transparent',
-      color: tab === key ? '#fff' : 'var(--text-secondary)',
-      padding: '6px 16px',
-      borderRadius: 'var(--radius-sm)',
-      border: `1px solid ${tab === key ? 'var(--blue)' : 'var(--border)'}`,
-      fontWeight: tab === key ? 600 : 400,
-    }}>{label}</button>
+    <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
+      {label}
+    </button>
   )
 
   const roleBadge = user && (() => {
@@ -128,16 +123,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   return (
     <div className="page-art page-art-dashboard" style={{ minHeight: '100dvh' }}>
-      <header className="dash-nav nav-glass" style={{
-        padding: '0 28px',
-        height: 'var(--nav-height)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
+      <header className="dash-nav page-nav nav-glass">
         <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
@@ -152,8 +138,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
             }}><PinIcon size={12} /> {regionLabel}</span>
           )}
-        </div>
-        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span aria-hidden style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
           <Link to="/history" className="btn dash-nav-btn">
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
           </Link>
@@ -167,6 +152,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               <ShieldIcon size={14} /> <span className="dash-nav-label-sm">Admin Panel</span>
             </Link>
           )}
+        </div>
+        <div className="dash-nav-side" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {lastRefresh && (
             <span className="dash-nav-hide-sm" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               Updated {lastRefresh.toLocaleTimeString()}
@@ -211,7 +198,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </div>
       </header>
 
-      <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
+      <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
@@ -248,10 +235,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
         />
 
-        <div style={{ height: 24 }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
+          <div className="seg-group">
             {TAB('table', 'Holdings')}
             {TAB('charts', 'Charts')}
           </div>

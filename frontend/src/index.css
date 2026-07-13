@@ -9,12 +9,26 @@
  * whole bar reflow on narrow viewports instead of overflowing horizontally. */
 .dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
 
+/* Wide tables scroll sideways inside their card instead of squishing or
+ * clipping columns (the wrapper keeps the rounded border). */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* With the page links sharing the left cluster with the brand and badges,
+ * the bar gets tight on mid-size viewports before the 768px wrap kicks in —
+ * collapse the link labels to icons early. */
+@media (max-width: 1150px) {
+  .dash-nav-label-sm { display: none; }
+}
+
 @media (max-width: 768px) {
-  .dash-nav { height: auto !important; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px !important; }
+  /* All page headers carry .page-nav, whose base layout lives in
+   * components.css — this later stylesheet wins at equal specificity, so
+   * no !important is needed. */
+  .page-nav { height: auto; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; }
   .dash-nav-side { flex-wrap: wrap; row-gap: 6px; }
   .dash-nav-hide-sm { display: none !important; }
-  .dash-nav-label-sm { display: none; }
   .back-btn-label { display: none; }
+  .page-main { padding: 16px 14px; }
   /* Hide low-priority columns on narrow screens. Avg-cost and realised
    * always drop; native vs foreign money columns are picked per section
    * based on the wrapper's `native-eur` modifier so each section only
@@ -34,5 +48,4 @@
   .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
   .holdings-table-wrap table { min-width: 560px; }
   .holdings-table-wrap th { position: static !important; }
-  .dash-main { padding: 16px 14px !important; }
 }

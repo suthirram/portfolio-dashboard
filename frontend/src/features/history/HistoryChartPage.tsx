@@ -6,6 +6,7 @@ import {
 import { api, type HistoryRow } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
+import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
@@ -122,34 +123,25 @@ export default function HistoryChartPage() {
 
   return (
     <div style={{ minHeight: '100dvh' }}>
-      <header style={{
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-secondary)',
-        padding: '0 28px',
-        height: 'var(--nav-height, 56px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}>
-        <Link to="/history" style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}>
-          ← Historical data
-        </Link>
-        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
-          {REGION_LABELS[region]} — Invested vs Current
-        </h1>
+      <header className="nav-glass page-nav">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/history" className="btn-icon" aria-label="Back to historical data" title="Back to historical data">
+            <ArrowLeftIcon size={14} />
+          </Link>
+          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
+            {REGION_LABELS[region]} — Invested vs Current
+          </h1>
+        </div>
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 28px' }}>
+      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>
           Full dataset {firstDate && lastDate ? `(${firstDate} → ${lastDate})` : '(2000 → today)'}.
           Scroll horizontally to see every plotted day.
         </p>
 
-        {error && <div style={{ color: 'var(--red)', marginBottom: 12 }}>Error: {error}</div>}
+        {error && <div className="alert-danger">Error: {error}</div>}
         {loading && <div style={{ color: 'var(--text-secondary)' }}>Loading full history…</div>}
 
         {!loading && !error && !hasData && (
@@ -168,13 +160,10 @@ export default function HistoryChartPage() {
           }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center',
               flexWrap: 'wrap', marginBottom: 12 }}>
-              <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+              <div className="seg-group">
                 {(['week', 'day'] as Granularity[]).map(g => (
-                  <button key={g} onClick={() => setGranularity(g)} style={{
-                    padding: '5px 12px', fontSize: 12, cursor: 'pointer', border: 'none',
-                    background: granularity === g ? 'var(--blue)' : 'transparent',
-                    color: granularity === g ? '#fff' : 'var(--text-primary)',
-                  }} aria-pressed={granularity === g}>
+                  <button key={g} className="seg-btn" onClick={() => setGranularity(g)}
+                    aria-pressed={granularity === g}>
                     {g === 'week' ? 'Weekly' : 'Daily'}
                   </button>
                 ))}
