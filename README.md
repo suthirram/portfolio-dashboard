@@ -52,8 +52,8 @@ See [First run & operations](#first-run--operations) below.
 | Cost Price | Total invested (shares × avg cost) |
 | Share Price | Live price from Yahoo Finance |
 | Current Value | shares × live price |
-| Money in Making | Unrealised P&L (current − cost) |
-| Money Made | Realised P&L (from shares already sold) |
+| Unrealised Gain | Unrealised P&L (current − cost) |
+| Realised Gain | Realised P&L (from shares already sold) |
 
 All INR values shown alongside EUR equivalent at live exchange rate.
 

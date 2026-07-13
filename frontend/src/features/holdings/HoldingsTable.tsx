@@ -160,9 +160,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             {colHead('Share Price', 'current_price')}
             <TH className="col-inr-amt">Current Value</TH>
             <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH className="col-inr-amt">Unrealised Profit</TH>
+            <TH className="col-inr-amt">Unrealised Gain</TH>
             <TH className="col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
-            <TH className="col-hide-sm">Realised Profit</TH>
+            <TH className="col-hide-sm">Realised Gain</TH>
             <TH className="col-hide-sm" style={{ color: 'var(--text-muted)', fontSize: 10 }}>in €</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
           </tr>
@@ -241,7 +241,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 <TD className="mono col-inr-amt" style={{ fontWeight: 700, fontSize: 14, color: h.current_value ? 'var(--blue)' : undefined }}>{h.current_value ? INR(h.current_value) : '—'}</TD>
                 <TD className="mono col-eur-amt" style={{ color: 'var(--text-muted)', fontSize: 12 }}>{h.current_value_eur ? EUR(h.current_value_eur) : '—'}</TD>
 
-                {/* Unrealised (money in making) */}
+                {/* Unrealised gain */}
                 <TD className={`mono col-inr-amt ${unrealCls}`}>
                   {hasPrice ? INR(h.unrealized_pnl) : '—'}
                 </TD>
@@ -249,7 +249,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                   {hasPrice ? EUR(h.unrealized_pnl_eur) : '—'}
                 </TD>
 
-                {/* Realised (money made) — in the holding's native currency */}
+                {/* Realised gain — in the holding's native currency */}
                 <TD className={`mono col-hide-sm ${realized !== 0 ? realCls : 'neutral'}`}>
                   {realized !== 0 ? (h.currency === 'EUR' ? EUR(h.realized_pnl) : INR(h.realized_pnl)) : '—'}
                 </TD>

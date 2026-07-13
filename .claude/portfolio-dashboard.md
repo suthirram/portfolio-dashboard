@@ -441,9 +441,9 @@ Match this exact column order (mirrors the user's spreadsheet):
 | Share Price | live current_price |
 | Current Value | stocks_owned × current_price |
 | in € | current value in EUR |
-| Money in Making | unrealised P&L (current − cost) |
+| Unrealised Gain | unrealised P&L (current − cost) |
 | in € | |
-| Money Made | realised_pnl from DB |
+| Realised Gain | realised_pnl from DB |
 | in € | |
 | Actions | Edit / Delete |
 
