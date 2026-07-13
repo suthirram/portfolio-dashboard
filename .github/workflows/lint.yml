@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   go-lint:
-    name: Go lint (gofmt + golangci-lint)
+    name: Go linter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
           fi
 
   go-test:
-    name: Go test (race)
+    name: Go tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
