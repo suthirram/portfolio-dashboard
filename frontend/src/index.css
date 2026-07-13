@@ -46,15 +46,14 @@
 
   /* Hide low-priority columns (avg-cost, realised) on narrow screens. */
   .col-hide-sm { display: none !important; }
-  /* When the remaining columns still overflow (very narrow viewport), the
-   * wrapper scrolls horizontally. Sticky table headers are disabled in this
-   * mode because overflow-x:auto forces overflow-y:auto, which would clip
-   * the sticky header. */
-  /* touch-action: pan-x restricts touch gestures inside the wrapper to
-   * horizontal pans only; vertical swipes bubble up to the page, so users
-   * can still scroll past long tables on mobile. Without this, iOS Safari
-   * traps vertical touches inside the overflow container. */
-  .holdings-table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+  /* The table scrolls both ways inside a height-capped wrapper: horizontally
+   * for the narrow viewport, vertically within max-height so the sticky
+   * header can pin to the wrapper's top edge as rows scroll. (On desktop the
+   * header sticks to the page under the nav; a scroll container both ways is
+   * needed on mobile because overflow-x:auto forces overflow-y:auto anyway.) */
+  .holdings-table-wrap { overflow: auto; max-height: 78vh; max-width: 100%; -webkit-overflow-scrolling: touch; }
   .holdings-table-wrap table { min-width: 560px; }
-  .holdings-table-wrap th { position: static !important; }
+  /* Pin the header to the wrapper's top (not the page nav offset it uses on
+   * desktop), so it stays visible while scrolling the rows below. */
+  .holdings-table-wrap th { top: 0 !important; }
 }
