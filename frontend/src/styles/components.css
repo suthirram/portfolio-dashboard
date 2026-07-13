@@ -540,6 +540,12 @@ a:hover .app-icon .icon-spark,
 .holdings-table-wrap tbody tr:hover {
   background: var(--bg-card-hover);
 }
+/* Column hover highlight — .col-hl is toggled in JS onto every cell sharing
+ * the hovered cell's column index (see HoldingsTable). Cells are transparent
+ * over the row background, so tinting them shows the crosshair. */
+.holdings-table-wrap .col-hl {
+  background: var(--bg-card-hover);
+}
 
 /* --- Cyberpunk flair (premium theme, PD-046) --------------------------------- */
 

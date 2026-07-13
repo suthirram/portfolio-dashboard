@@ -45,11 +45,11 @@ describe('HoldingsByCurrency', () => {
     expect(within(sections[1] as HTMLElement).getByText(/Euro/)).toBeInTheDocument()
   })
 
-  it('marks the EUR section table wrapper with native-eur and leaves INR default', () => {
+  it('renders each table in its native currency only — no conversion columns', () => {
     render(<HoldingsByCurrency
       holdings={[
         h({ id: '1', currency: 'INR' }),
-        h({ id: '2', currency: 'EUR' }),
+        h({ id: '2', currency: 'EUR', cost_price: 1000, current_value: 1200, unrealized_pnl: 200 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -58,8 +58,13 @@ describe('HoldingsByCurrency', () => {
 
     const wrappers = document.querySelectorAll('.holdings-table-wrap')
     expect(wrappers).toHaveLength(2)
-    expect(wrappers[0].classList.contains('native-eur')).toBe(false)
-    expect(wrappers[1].classList.contains('native-eur')).toBe(true)
+    // No "in €" conversion sub-columns anywhere.
+    expect(screen.queryByText('in €')).not.toBeInTheDocument()
+    // INR table cells are ₹-formatted, EUR table cells are €-formatted.
+    expect(within(wrappers[0] as HTMLElement).getAllByText(/₹1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrappers[0] as HTMLElement).queryByText(/€/)).not.toBeInTheDocument()
+    expect(within(wrappers[1] as HTMLElement).getAllByText(/€1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrappers[1] as HTMLElement).queryByText(/₹/)).not.toBeInTheDocument()
   })
 
   it('renders the empty state when nothing matches the active view', () => {
@@ -153,7 +158,7 @@ describe('HoldingsByCurrency', () => {
     />)
 
     const sharePriceCell = (script: string) =>
-      screen.getByText(script).closest('tr')!.querySelectorAll('td')[5] as HTMLTableCellElement
+      screen.getByText(script).closest('tr')!.querySelectorAll('td')[4] as HTMLTableCellElement
 
     expect(sharePriceCell('UP.NS')).toHaveClass('pos')
     expect(sharePriceCell('DOWN.NS')).toHaveClass('neg')
