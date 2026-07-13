@@ -319,17 +319,15 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                   <Td style={{ textAlign: 'center' }}>
                     {confirm === t.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => t.id && remove(t.id)} style={{ background: 'var(--red)', color: '#fff', padding: '3px 8px', fontSize: 11 }}>Yes</button>
-                        <button onClick={() => setConfirm(null)} style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '3px 8px', fontSize: 11, border: '1px solid var(--border)' }}>No</button>
+                        <button onClick={() => t.id && remove(t.id)} className="btn btn-sm btn-danger-solid">Yes</button>
+                        <button onClick={() => setConfirm(null)} className="btn btn-sm">No</button>
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(t)} title="Edit"
-                          style={{ background: 'var(--blue-dim)', color: 'var(--blue)', padding: '4px 7px', border: '1px solid rgba(79,142,247,0.2)', display: 'inline-flex' }}>
+                        <button onClick={() => startEdit(t)} title="Edit" className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => t.id && setConfirm(t.id)} title="Delete"
-                          style={{ background: 'var(--red-dim)', color: 'var(--red)', padding: '4px 7px', border: '1px solid rgba(255,77,109,0.2)', display: 'inline-flex' }}>
+                        <button onClick={() => t.id && setConfirm(t.id)} title="Delete" className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
                       </span>

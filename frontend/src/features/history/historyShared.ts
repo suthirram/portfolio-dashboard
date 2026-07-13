@@ -549,11 +549,3 @@ export const modalCard: CSSProperties = {
   borderRadius: 'var(--radius)', padding: 24,
   width: '90%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
 }
-export const iconBtnBlueStyle: CSSProperties = {
-  background: 'transparent', border: 'none', color: 'var(--blue, #2563eb)',
-  cursor: 'pointer', padding: 4, display: 'inline-flex', alignItems: 'center',
-}
-export const iconBtnRedStyle: CSSProperties = {
-  background: 'transparent', border: 'none', color: 'var(--red, #dc2626)',
-  cursor: 'pointer', padding: 4, display: 'inline-flex', alignItems: 'center',
-}

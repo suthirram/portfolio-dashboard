@@ -277,11 +277,10 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                   {h.id && confirm === h.id ? (
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                       <button onClick={() => { onDelete(h.id!); setConfirm(null) }}
-                        style={{ background: 'var(--red)', color: '#fff', padding: '3px 8px', fontSize: 11 }}>
+                        className="btn btn-sm btn-danger-solid">
                         Yes
                       </button>
-                      <button onClick={() => setConfirm(null)}
-                        style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '3px 8px', fontSize: 11, border: '1px solid var(--border)' }}>
+                      <button onClick={() => setConfirm(null)} className="btn btn-sm">
                         No
                       </button>
                     </span>
@@ -289,31 +288,16 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                       {onTransactions && (
                         <button onClick={() => onTransactions(h)} disabled={!h.id}
-                          title="Transactions (ledger)"
-                          style={{
-                            background: 'var(--bg-input)', color: 'var(--text-secondary)',
-                            padding: '4px 8px', border: '1px solid var(--border)',
-                            display: 'inline-flex', alignItems: 'center',
-                          }}>
+                          title="Transactions (ledger)" className="btn-row">
                           <ListIcon size={13} />
                         </button>
                       )}
                       <button onClick={() => onEdit(h)} disabled={!h.id}
-                        title="Edit holding"
-                        style={{
-                          background: 'var(--blue-dim)', color: 'var(--blue)',
-                          padding: '4px 8px', border: '1px solid rgba(79,142,247,0.2)',
-                          display: 'inline-flex', alignItems: 'center',
-                        }}>
+                        title="Edit holding" className="btn-row btn-row-accent">
                         <EditIcon size={13} />
                       </button>
                       <button onClick={() => h.id && setConfirm(h.id)} disabled={!h.id}
-                        title="Delete holding"
-                        style={{
-                          background: 'var(--red-dim)', color: 'var(--red)',
-                          padding: '4px 8px', border: '1px solid rgba(255,77,109,0.2)',
-                          display: 'inline-flex', alignItems: 'center',
-                        }}>
+                        title="Delete holding" className="btn-row btn-row-danger">
                         <TrashIcon size={13} />
                       </button>
                     </span>
