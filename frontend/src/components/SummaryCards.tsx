@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type React from 'react'
 import type { Summary } from '../types'
+import { CoinsIcon } from './Icon'
 
 const fmt = (n: number, currency = '₹') =>
   `${currency}${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -35,7 +36,7 @@ function ChangeLine({ row }: { row: ChangeRow }) {
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.symbol}</span>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
+        <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
       </span>
       <span className={cls} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25, minWidth: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{arrow} {fmt(row.value, row.symbol)}</span>
@@ -76,7 +77,7 @@ function Card({ label, inr, eur, positive, negative, highlight, accent, onClick 
   )
 }
 
-interface BreakdownRow { name: string; symbol: string; value: number; signed?: number | null; bg?: string }
+interface BreakdownRow { name: string; symbol: string; value: number; signed?: number | null; bg?: string; icon?: React.ReactNode }
 
 function BreakdownLine({ row }: { row: BreakdownRow }) {
   const val = row.symbol === '€' ? fmtEur(row.value) : fmt(row.value, row.symbol)
@@ -91,7 +92,10 @@ function BreakdownLine({ row }: { row: BreakdownRow }) {
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{row.symbol}</span>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
+        {row.icon
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', color: '#F5B800' }}>{row.icon}</span>
+          : <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)' }}>{row.name}</span>
+        }
       </span>
       <span className={cls} style={{ fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>{sign}{val}</span>
     </div>
@@ -193,9 +197,9 @@ function PnLBreakdownCard({ stocksInr, stocksEur, goldNettPL, onClick }: {
   stocksInr?: number; stocksEur?: number; goldNettPL?: number | null; onClick: () => void
 }) {
   const rows: BreakdownRow[] = [
-    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr, signed: stocksInr }] : []),
-    ...(stocksEur != null ? [{ name: 'EUR', symbol: '€', value: stocksEur, signed: stocksEur }] : []),
-    ...(goldNettPL != null ? [{ name: 'Gold', symbol: '₹', value: goldNettPL, signed: goldNettPL }] : []),
+    ...(stocksInr != null ? [{ name: '🇮🇳', symbol: '₹', value: stocksInr, signed: stocksInr }] : []),
+    ...(stocksEur != null ? [{ name: '🇪🇺', symbol: '€', value: stocksEur, signed: stocksEur }] : []),
+    ...(goldNettPL != null ? [{ name: 'Gold', symbol: '₹', value: goldNettPL, signed: goldNettPL, icon: <CoinsIcon size={15} /> }] : []),
   ]
   return (
     <div className="card" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
