@@ -26,6 +26,7 @@ const CSRFHeaderValue = "portfolio-dashboard"
 // new sibling spec file does not require editing this table.
 var publicRoutes = map[string]bool{
 	"GET /api/healthz":                 true,
+	"GET /api/branding":                true,
 	"GET /api/regions":                 true,
 	"GET /api/auth/security-questions": true,
 	"POST /api/auth/signup":            true,
@@ -81,6 +82,7 @@ var routeTiers = map[string]routeTier{
 	"PUT /api/admin/users/:id/region":   tierSuperAdmin,
 	"PUT /api/admin/users/:id/gold":     tierSuperAdmin,
 	"PUT /api/admin/users/:id/premium":  tierSuperAdmin,
+	"PUT /api/admin/branding":           tierSuperAdmin,
 
 	// Admin or super-admin — every other /api/admin/... route.
 	"GET /api/admin/users":                            tierAdmin,
