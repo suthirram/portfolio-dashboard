@@ -76,7 +76,7 @@ function Card({ label, inr, eur, positive, negative, highlight, accent, onClick 
   )
 }
 
-interface BreakdownRow { name: string; symbol: string; value: number; signed?: number | null }
+interface BreakdownRow { name: string; symbol: string; value: number; signed?: number | null; bg?: string }
 
 function BreakdownLine({ row }: { row: BreakdownRow }) {
   const val = row.symbol === '€' ? fmtEur(row.value) : fmt(row.value, row.symbol)
@@ -86,7 +86,7 @@ function BreakdownLine({ row }: { row: BreakdownRow }) {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
       padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)',
-      background: cls === 'pos' ? 'rgba(34,197,94,0.10)' : cls === 'neg' ? 'rgba(239,68,68,0.10)' : 'var(--bg-card)',
+      background: cls === 'pos' ? 'rgba(34,197,94,0.10)' : cls === 'neg' ? 'rgba(239,68,68,0.10)' : (row.bg ?? 'var(--bg-card)'),
       fontVariantNumeric: 'tabular-nums', minWidth: 0,
     }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -102,9 +102,9 @@ function InvestedBreakdownCard({ stocksInr, stocksEur, goldInvestedInr, onClick 
   stocksInr?: number; stocksEur?: number; goldInvestedInr?: number | null; onClick: () => void
 }) {
   const rows: BreakdownRow[] = [
-    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr }] : []),
-    ...(stocksEur != null && stocksEur > 0 ? [{ name: 'EUR', symbol: '€', value: stocksEur }] : []),
-    ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr }] : []),
+    ...(stocksInr != null ? [{ name: 'INR', symbol: '₹', value: stocksInr, bg: 'rgba(255,153,51,0.13)' }] : []),
+    ...(stocksEur != null && stocksEur > 0 ? [{ name: 'EUR', symbol: '€', value: stocksEur, bg: 'rgba(0,102,204,0.12)' }] : []),
+    ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr, bg: 'rgba(218,165,32,0.15)' }] : []),
   ]
   return (
     <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
@@ -121,10 +121,10 @@ function CurrentBreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
 }) {
   const rows: BreakdownRow[] = []
   const inr = perCurrency?.find(x => x.currency === 'INR')
-  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current })
+  if (inr?.current != null) rows.push({ name: 'INR', symbol: '₹', value: inr.current, bg: 'rgba(255,153,51,0.13)' })
   const eur = perCurrency?.find(x => x.currency === 'EUR')
-  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current })
-  if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr })
+  if (eur?.current != null) rows.push({ name: 'EUR', symbol: '€', value: eur.current, bg: 'rgba(0,102,204,0.12)' })
+  if (goldCurrentInr != null) rows.push({ name: 'Gold', symbol: '₹', value: goldCurrentInr, bg: 'rgba(218,165,32,0.15)' })
 
   return (
     <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
@@ -237,7 +237,7 @@ const cardClass = (highlight?: boolean) => (highlight ? 'card card-highlight' : 
 
 const cardStyle: React.CSSProperties = {
   padding: '16px 20px',
-  flex: '1 1 200px',
+  flex: '1 1 174px',
   minWidth: 180,
   overflow: 'hidden',
 }
