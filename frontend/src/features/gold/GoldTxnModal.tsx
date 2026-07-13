@@ -167,14 +167,13 @@ export default function GoldTxnModal({ txn, onClose, onSaved }: Props) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-          <button onClick={onClose} disabled={busy} style={{
-            background: 'var(--bg-card)', color: 'var(--text-primary)',
-            border: '1px solid var(--border)', padding: '8px 16px', fontSize: 13,
-          }}>Cancel</button>
-          <button onClick={save} disabled={busy} style={{
-            background: 'var(--blue)', color: '#fff', padding: '8px 16px',
-            fontSize: 13, fontWeight: 600, opacity: busy ? 0.6 : 1,
-          }}>{busy ? 'Saving…' : 'Save'}</button>
+          <button onClick={onClose} disabled={busy} className="btn btn-lg">
+            Cancel
+          </button>
+          <button onClick={save} disabled={busy} className="btn-primary btn-lg"
+            style={{ opacity: busy ? 0.6 : 1 }}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
         </div>
       </div>
     </div>

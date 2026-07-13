@@ -83,10 +83,10 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
           <DecimalInput style={input} value={price} onValueChange={setPrice}
             placeholder="₹ / gram" aria-label="Price per gram" />
         </label>
-        <button onClick={save} disabled={saving} style={{
-          background: 'var(--blue)', color: '#fff', padding: '8px 16px',
-          fontSize: 13, fontWeight: 600, opacity: saving ? 0.6 : 1,
-        }}>{saving ? 'Saving…' : 'Save price'}</button>
+        <button onClick={save} disabled={saving} className="btn-primary btn-lg"
+          style={{ opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Saving…' : 'Save price'}
+        </button>
       </div>
 
       {recent.length === 0 ? (

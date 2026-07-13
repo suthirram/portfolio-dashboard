@@ -271,13 +271,12 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
             {editingId && (
-              <button type="button" onClick={resetForm}
-                style={{ background: 'var(--bg-input)', color: 'var(--text-secondary)', padding: '7px 16px', border: '1px solid var(--border)' }}>
+              <button type="button" onClick={resetForm} className="btn">
                 Cancel edit
               </button>
             )}
-            <button type="submit" disabled={saving}
-              style={{ background: 'var(--blue)', color: '#fff', padding: '7px 18px', fontWeight: 600, opacity: saving ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <button type="submit" disabled={saving} className="btn-primary"
+              style={{ opacity: saving ? 0.7 : 1 }}>
               <PlusIcon size={14} /> {saving ? 'Saving…' : editingId ? 'Update transaction' : 'Add transaction'}
             </button>
           </div>

@@ -103,14 +103,13 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
         {err && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 14 }}>{err}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
-          <button onClick={onSkip} disabled={saving} style={{
-            background: 'transparent', border: '1px solid var(--border)',
-            color: 'var(--text-secondary)', padding: '8px 16px', borderRadius: 'var(--radius-sm)',
-          }}>Skip for now</button>
-          <button onClick={saveAll} disabled={saving} style={{
-            background: 'var(--blue)', color: '#fff', padding: '8px 18px',
-            borderRadius: 'var(--radius-sm)', fontWeight: 600, opacity: saving ? 0.6 : 1,
-          }}>{saving ? 'Saving…' : 'Save all'}</button>
+          <button onClick={onSkip} disabled={saving} className="btn btn-lg">
+            Skip for now
+          </button>
+          <button onClick={saveAll} disabled={saving} className="btn-primary btn-lg"
+            style={{ opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving…' : 'Save all'}
+          </button>
         </div>
       </div>
     </div>
