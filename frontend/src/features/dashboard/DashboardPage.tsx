@@ -234,7 +234,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           </div>
         )}
 
-        <SummaryCards summary={summary} loading={loadingPrices} goldCurrentInr={goldMetrics?.current ?? null} goldNettPL={goldMetrics?.nett_in_bees ?? null} />
+        <SummaryCards summary={summary} loading={loadingPrices} goldCurrentInr={goldMetrics?.current ?? null} goldInvestedInr={goldMetrics?.invested ?? null} goldNettPL={goldMetrics?.nett_in_bees ?? null} />
 
         <div style={{ height: 24 }} />
 

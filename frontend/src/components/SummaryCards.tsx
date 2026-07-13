@@ -98,7 +98,23 @@ function BreakdownLine({ row }: { row: BreakdownRow }) {
   )
 }
 
-function BreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
+function InvestedBreakdownCard({ costInr, costEur, goldInvestedInr, onClick }: {
+  costInr: number; costEur: number; goldInvestedInr?: number | null; onClick: () => void
+}) {
+  const rows: BreakdownRow[] = [
+    { name: 'Stocks', symbol: '₹', value: costInr },
+    { name: 'Stocks', symbol: '€', value: costEur },
+    ...(goldInvestedInr != null ? [{ name: 'Gold', symbol: '₹', value: goldInvestedInr }] : []),
+  ]
+  return (
+    <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
+      <div style={cardLabelStyle}>Total Invested</div>
+      {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r} />)}
+    </div>
+  )
+}
+
+function CurrentBreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
   perCurrency?: { currency?: string; current?: number }[]
   goldCurrentInr?: number | null
   onClick: () => void
@@ -113,7 +129,7 @@ function BreakdownCard({ perCurrency, goldCurrentInr, onClick }: {
   return (
     <div className="card card-highlight" style={{ ...cardStyle, cursor: 'pointer' }} onClick={onClick}>
       <div style={cardLabelStyle}>Current Value</div>
-      {rows.map(r => <BreakdownLine key={r.name} row={r} />)}
+      {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r} />)}
     </div>
   )
 }
@@ -210,11 +226,13 @@ interface SummaryCardsProps {
   summary: Summary | null
   loading: boolean
   goldCurrentInr?: number | null
+  goldInvestedInr?: number | null
   goldNettPL?: number | null
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr, goldNettPL }: SummaryCardsProps) {
-  const [showBreakdown, setShowBreakdown] = useState(false)
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL }: SummaryCardsProps) {
+  const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
+  const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
   const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
 
   if (!summary) return null
@@ -263,17 +281,23 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldNet
         {loading && <div className="spinner" style={{ width: 14, height: 14 }} />}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {showBreakdown ? (
-          <BreakdownCard
-            perCurrency={per_currency}
-            goldCurrentInr={goldCurrentInr}
-            onClick={() => setShowBreakdown(false)}
+        {showInvestedBreakdown ? (
+          <InvestedBreakdownCard
+            costInr={total_cost} costEur={total_cost_eur}
+            goldInvestedInr={goldInvestedInr}
+            onClick={() => setShowInvestedBreakdown(false)}
           />
         ) : (
-          <>
-            <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight onClick={() => setShowBreakdown(true)} />
-            <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent onClick={() => setShowBreakdown(true)} />
-          </>
+          <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight onClick={() => setShowInvestedBreakdown(true)} />
+        )}
+        {showCurrentBreakdown ? (
+          <CurrentBreakdownCard
+            perCurrency={per_currency}
+            goldCurrentInr={goldCurrentInr}
+            onClick={() => setShowCurrentBreakdown(false)}
+          />
+        ) : (
+          <Card label="Current Value" inr={total_current_value} eur={total_current_value_eur} highlight accent onClick={() => setShowCurrentBreakdown(true)} />
         )}
         <ChangeCard rows={changeRows} date={previous_close_date} />
         {showPnLBreakdown ? (
