@@ -220,7 +220,7 @@ export default function HistoryPage() {
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
       </header>
 
-      <main style={{ width: "100%", maxWidth: "1800px", margin: '0 auto', padding: '24px 28px' }}>
+      <main className="page-main" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto' }}>
         <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>

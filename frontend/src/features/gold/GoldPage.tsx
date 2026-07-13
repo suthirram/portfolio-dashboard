@@ -114,7 +114,7 @@ export default function GoldPage() {
         </div>
       </header>
 
-      <main style={{ padding: 28, maxWidth: 2000, margin: '0 auto' }}>
+      <main className="page-main" style={{ maxWidth: 2000, margin: '0 auto' }}>
         <GoldMetricsPanel metrics={metrics} />
         {err && (
           <div style={{

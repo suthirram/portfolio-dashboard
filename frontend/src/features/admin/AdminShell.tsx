@@ -50,7 +50,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <main style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
+      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
         {children}
       </main>
     </div>

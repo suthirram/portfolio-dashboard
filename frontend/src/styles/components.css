@@ -432,6 +432,12 @@ a:hover .app-icon .icon-spark,
   z-index: 50;
 }
 
+/* Page content container: owns the app-standard gutter so pages don't
+ * re-specify it inline (page width limits stay per-page). */
+.page-main {
+  padding: 24px 28px;
+}
+
 /* --- Brand tile (nav + auth logo mark) ---------------------------------- */
 
 .brand-tile {

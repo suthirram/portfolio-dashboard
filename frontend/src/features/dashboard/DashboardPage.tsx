@@ -198,7 +198,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </div>
       </header>
 
-      <main className="dash-main" style={{ padding: '24px 28px', maxWidth: 1600, margin: '0 auto' }}>
+      <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
@@ -235,9 +235,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
         />
 
-        <div style={{ height: 24 }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
           <div className="seg-group">
             {TAB('table', 'Holdings')}
             {TAB('charts', 'Charts')}
