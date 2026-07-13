@@ -16,6 +16,11 @@ describe('AdminShell chrome', () => {
     expect(screen.getByRole('button', { name: /Log out/ })).toHaveClass('btn')
   })
 
+  it('offers the theme picker in the header like the other page shells', () => {
+    render(<MemoryRouter initialEntries={['/admin']}><AdminShell>content</AdminShell></MemoryRouter>)
+    expect(screen.getByRole('button', { name: /^Theme:/ })).toBeInTheDocument()
+  })
+
   it('marks the active nav pill via aria-current on the shared .btn class', () => {
     render(<MemoryRouter initialEntries={['/admin']}><AdminShell>content</AdminShell></MemoryRouter>)
     const users = screen.getByRole('link', { name: /Users/ })
