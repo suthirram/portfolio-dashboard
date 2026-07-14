@@ -33,3 +33,6 @@ Screenshot *.png
 # Postman workspace artifacts (MCP integration)
 backend/api/specs/.postman/
 backend/api/specs/postman/
+
+# Local seed script config (holds credentials)
+scripts/seed.env

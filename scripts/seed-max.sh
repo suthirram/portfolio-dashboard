@@ -39,6 +39,11 @@
 #   CONFIRM=yes                          required when API is not localhost
 set -euo pipefail
 
+# Load config from scripts/seed.env (override path with SEED_ENV_FILE). Values
+# in the file win over the built-in defaults below; see scripts/seed.env.example.
+ENV_FILE="${SEED_ENV_FILE:-$(dirname "$0")/seed.env}"
+if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE"; set +a; fi
+
 API="${API:-http://localhost:8080}"
 MONGO_URI="${MONGO_URI:-}"
 MONGO_CONTAINER="${MONGO_CONTAINER:-portfolio_mongo_dev}"
