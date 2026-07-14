@@ -88,20 +88,11 @@ esac
 curl -sf -o /dev/null "$API/api/specs/openapi.yaml" || die "backend not reachable at $API"
 
 # ---------------------------------------------------------------------------
+# Clear any existing Max first — via delete-max.sh so the Postgres gold rows
+# (keyed on the old uid) are cleared too, not just the Mongo docs. Every run
+# mints a fresh uid, so without this the old gold rows would orphan.
 say "Removing any existing $NAME"
-mongo_eval '
-  const u = db.users.findOne({username: "'"$USERNAME"'"});
-  if (u) {
-    db.holdings.deleteMany({user_id: u._id});
-    db.transactions.deleteMany({user_id: u._id});
-    db.portfolio_snapshots.deleteMany({user_id: u._id});
-    db.sessions.deleteMany({user_id: u._id});
-    db.users.deleteOne({_id: u._id});
-    print("  removed old user " + u._id);
-  } else { print("  none"); }
-'
-# Gold rows live in Postgres, keyed on the Mongo uid hex; they are recreated
-# below. Any orphan rows from a prior run are overwritten by uid on re-seed.
+"$(dirname "$0")/delete-max.sh"
 
 # ---------------------------------------------------------------------------
 say "Creating user $NAME ($USERNAME / $PASSWORD)"
