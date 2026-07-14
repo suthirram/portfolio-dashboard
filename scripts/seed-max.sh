@@ -52,7 +52,7 @@ HISTORY_DAYS="${HISTORY_DAYS:-90}"
 
 USERNAME="maxmustermann"
 NAME="Max Mustermann"
-PASSWORD="Passw0rd!23"
+PASSWORD="${PASSWORD:-Passw0rd!23}"
 REGION="europe"
 JAR="$(mktemp)"
 CSRF='X-Requested-With: portfolio-dashboard'

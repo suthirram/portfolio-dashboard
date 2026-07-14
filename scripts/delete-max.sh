@@ -42,7 +42,7 @@ PG_USER="${PG_USER:-portfolio}"
 
 USERNAME="maxmustermann"
 NAME="Max Mustermann"
-PASSWORD="Passw0rd!23"
+PASSWORD="${PASSWORD:-Passw0rd!23}"
 JAR="$(mktemp)"
 CSRF='X-Requested-With: portfolio-dashboard'
 JSON='Content-Type: application/json'
