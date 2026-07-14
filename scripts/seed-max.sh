@@ -59,15 +59,19 @@ CSRF='X-Requested-With: portfolio-dashboard'
 JSON='Content-Type: application/json'
 trap 'rm -f "$JAR"' EXIT
 
-say() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33mWARN:\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # Run a mongosh script: against the given URI for remote envs, else the local
 # docker container.
 mongo_eval() {
   if [ -n "$MONGO_URI" ]; then
     command -v mongosh >/dev/null || die "mongosh is required when MONGO_URI is set"
-    mongosh "$MONGO_URI" --quiet --eval "$1"
+    # Force the database to MONGO_DB via getSiblingDB rather than trusting the
+    # URI's default db — the backend always reads client.Database(MONGODB_DATABASE),
+    # so writes must land in that exact db or the data is invisible to the app.
+    mongosh "$MONGO_URI" --quiet --eval "db = db.getSiblingDB('$MONGO_DB'); $1"
   else
     docker exec -i "$MONGO_CONTAINER" mongosh "$MONGO_DB" --quiet --eval "$1"
   fi
@@ -217,5 +221,22 @@ mongo_eval '
   db.portfolio_snapshots.insertMany(rows);
   print("  inserted " + db.portfolio_snapshots.countDocuments({user_id: uid}) + " snapshot rows");
 '
+
+# ---------------------------------------------------------------------------
+# Read history back THROUGH THE API — this hits the backend's actual database,
+# so a zero here means the snapshots landed in a different db than the app
+# reads (usually a MONGO_DB / MONGODB_DATABASE mismatch), even though the
+# insert above "succeeded" against whatever db mongosh was pointed at.
+say "Verifying history is visible to the backend"
+FROM=$(date -u -v-"$HISTORY_DAYS"d +%Y-%m-%d 2>/dev/null || date -u -d "$HISTORY_DAYS days ago" +%Y-%m-%d)
+TO=$(date -u +%Y-%m-%d)
+SEEN=$(curl -s -b "$JAR" "$API/api/history?from=$FROM&to=$TO" | jq '.rows | length' 2>/dev/null || echo 0)
+if [ "${SEEN:-0}" -gt 0 ]; then
+  say "  backend returns $SEEN history rows ✔"
+else
+  warn "backend returns 0 history rows despite the insert above."
+  warn "The snapshots likely went to a different database than the app reads."
+  warn "Set MONGO_DB to the backend's MONGODB_DATABASE (default 'portfolio') and re-run."
+fi
 
 say "Done. Log in as $USERNAME / $PASSWORD"

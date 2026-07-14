@@ -55,7 +55,9 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 mongo_eval() {
   if [ -n "$MONGO_URI" ]; then
     command -v mongosh >/dev/null || die "mongosh is required when MONGO_URI is set"
-    mongosh "$MONGO_URI" --quiet --eval "$1"
+    # Force the database to MONGO_DB (see seed-max.sh) so cleanup targets the
+    # same db the backend reads, not the URI's default db.
+    mongosh "$MONGO_URI" --quiet --eval "db = db.getSiblingDB('$MONGO_DB'); $1"
   else
     docker exec -i "$MONGO_CONTAINER" mongosh "$MONGO_DB" --quiet --eval "$1"
   fi
