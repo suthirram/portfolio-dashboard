@@ -43,10 +43,16 @@ done
 
 # Refuse to point 'local' restore at anything non-local — this script only
 # ever writes to the dev stack. Overwriting prod would be catastrophic.
-case "$LOCAL_MONGO_URI$LOCAL_POSTGRES_URI" in
-  *localhost*|*127.0.0.1*) : ;;
-  *) die "LOCAL_* URIs must target localhost (got mongo=$LOCAL_MONGO_URI pg=$LOCAL_POSTGRES_URI)" ;;
-esac
+# Validate each URI INDEPENDENTLY: concatenating them lets one localhost URI
+# mask a remote one, so a remote LOCAL_MONGO_URI would still reach --drop.
+require_local() {
+  case "$2" in
+    *localhost*|*127.0.0.1*) : ;;
+    *) die "$1 must target localhost (got $2)" ;;
+  esac
+}
+require_local LOCAL_MONGO_URI    "$LOCAL_MONGO_URI"
+require_local LOCAL_POSTGRES_URI "$LOCAL_POSTGRES_URI"
 
 say "Dump dir: $DUMP_DIR"
 
