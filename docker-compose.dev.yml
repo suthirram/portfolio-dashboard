@@ -17,7 +17,7 @@ services:
 
   # Gold tracking data (PRD-003 / DD-003) lives in Postgres.
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: portfolio_postgres_dev
     ports:
       - "5432:5432"
