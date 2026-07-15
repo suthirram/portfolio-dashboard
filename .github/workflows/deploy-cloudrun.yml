@@ -53,14 +53,14 @@ jobs:
           else
             echo "POSTGRES_URI secret not found — deploying without gold storage"
           fi
-          # OTel tracing is optional: wire only when both secrets exist.
-          # OTEL_EXPORTER_OTLP_ENDPOINT  — base OTLP URL (e.g. Grafana Cloud)
-          # OTEL_EXPORTER_OTLP_HEADERS   — Authorization header (sensitive)
-          # Absent ⇒ config.ApplyEnv leaves OTelEndpoint empty → tracing disabled.
-          if gcloud secrets describe OTEL_EXPORTER_OTLP_ENDPOINT >/dev/null 2>&1 && \
-             gcloud secrets describe OTEL_EXPORTER_OTLP_HEADERS >/dev/null 2>&1; then
-            SECRETS="$SECRETS,OTEL_EXPORTER_OTLP_ENDPOINT=OTEL_EXPORTER_OTLP_ENDPOINT:latest"
-            SECRETS="$SECRETS,OTEL_EXPORTER_OTLP_HEADERS=OTEL_EXPORTER_OTLP_HEADERS:latest"
+          # OTel tracing (plan.md) is optional: wire only when both secrets exist.
+          # Create them via the owner runbook in plan.md before enabling.
+          # Absent ⇒ OTEL_EXPORTER_OTLP_ENDPOINT stays empty ⇒ tracing disabled.
+          EXTRA_ENV_VARS=""
+          if gcloud secrets describe OTEL_EXPORTER_OTLP_HEADERS >/dev/null 2>&1 && \
+             gcloud secrets describe OTEL_EXPORTER_OTLP_ENDPOINT >/dev/null 2>&1; then
+            SECRETS="$SECRETS,OTEL_EXPORTER_OTLP_ENDPOINT=OTEL_EXPORTER_OTLP_ENDPOINT:latest,OTEL_EXPORTER_OTLP_HEADERS=OTEL_EXPORTER_OTLP_HEADERS:latest"
+            EXTRA_ENV_VARS="##OTEL_SERVICE_NAME=portfolio-api"
             echo "OTel secrets found — tracing enabled"
           else
             echo "OTel secrets not found — deploying without tracing"
@@ -76,7 +76,7 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --timeout 60s \
-            --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=info##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}##OTEL_SERVICE_NAME=portfolio-api" \
+            --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=info##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio##CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}${EXTRA_ENV_VARS}" \
             --set-secrets "$SECRETS"
 
       - name: Repoint snapshot job to the freshly deployed image
