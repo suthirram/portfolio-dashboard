@@ -28,8 +28,40 @@ services:
       POSTGRES_PASSWORD: portfolio
       POSTGRES_DB: portfolio
 
+  # Grafana Tempo — local OTLP trace receiver and store.
+  # Only started with: make dev-trace (--profile trace)
+  tempo:
+    image: grafana/tempo:2.7.2
+    container_name: portfolio_tempo_dev
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./config/otel/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data_dev:/tmp/tempo
+    ports:
+      - "4318:4318"  # OTLP HTTP (backend → Tempo)
+      - "3200:3200"  # Tempo HTTP API (Grafana → Tempo)
+    profiles:
+      - trace
+
+  # Grafana OSS — trace UI. Port 3001 avoids clash with Vite on 3000.
+  # Only started with: make dev-trace (--profile trace)
+  grafana:
+    image: grafana/grafana-oss:11.6.1
+    container_name: portfolio_grafana_dev
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./config/otel/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/tempo.yaml:ro
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    profiles:
+      - trace
+
 volumes:
   mongo_data_dev:
     driver: local
   pg_data_dev:
+    driver: local
+  tempo_data_dev:
     driver: local

@@ -1,8 +1,13 @@
-.PHONY: dev dev-db prod down backend frontend install tidy generate
+.PHONY: dev dev-db dev-trace prod down backend frontend install tidy generate
 
 # Start the dev databases only: MongoDB + Postgres (gold tracking)
 dev-db:
 	docker compose -f docker-compose.dev.yml up -d
+
+# Start dev databases + Grafana Tempo trace stack (Tempo :4318, Grafana :3001)
+# Then run backend with: OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 make backend
+dev-trace:
+	docker compose -f docker-compose.dev.yml --profile trace up -d
 
 # Start full stack (production)
 prod:
