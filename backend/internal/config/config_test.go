@@ -132,6 +132,49 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestApplyEnvOTelEndpointFallbackPrecedence(t *testing.T) {
+	t.Run("traces-specific wins over base", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://base:4318")
+		t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://traces:4318")
+		cfg := Default()
+		cfg.ApplyEnv()
+		if cfg.OTelEndpoint != "http://traces:4318" {
+			t.Errorf("OTelEndpoint = %q, want traces-specific", cfg.OTelEndpoint)
+		}
+	})
+	t.Run("base used when traces-specific absent", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://base:4318")
+		cfg := Default()
+		cfg.ApplyEnv()
+		if cfg.OTelEndpoint != "http://base:4318" {
+			t.Errorf("OTelEndpoint = %q, want base endpoint", cfg.OTelEndpoint)
+		}
+	})
+	t.Run("empty when neither set", func(t *testing.T) {
+		cfg := Default()
+		cfg.ApplyEnv()
+		if cfg.OTelEndpoint != "" {
+			t.Errorf("OTelEndpoint = %q, want empty", cfg.OTelEndpoint)
+		}
+	})
+}
+
+func TestApplyEnvOTelServiceNameOverride(t *testing.T) {
+	t.Setenv("OTEL_SERVICE_NAME", "my-service")
+	cfg := Default()
+	cfg.ApplyEnv()
+	if cfg.OTelServiceName != "my-service" {
+		t.Errorf("OTelServiceName = %q, want my-service", cfg.OTelServiceName)
+	}
+}
+
+func TestDefaultOTelServiceName(t *testing.T) {
+	cfg := Default()
+	if cfg.OTelServiceName != "portfolio-api" {
+		t.Errorf("OTelServiceName = %q, want portfolio-api", cfg.OTelServiceName)
+	}
+}
+
 func TestValidateRejectsUnsupportedLogConfig(t *testing.T) {
 	cases := []struct {
 		name    string

@@ -15,6 +15,9 @@ owner's standing instructions; when in doubt, follow this file and
 * `.claude/skills/` — repo skills. `task-breakdown` governs slicing and PR
   descriptions; `run-app` is the verified launch/auth/seed flow for manual
   verification.
+* [`plan.md`](plan.md) — OTel tracing architecture, env vars, dev runbook,
+  and extension points. Read it before modifying any code under
+  `internal/telemetry/` or touching OTel middleware in `internal/httpserver/`.
 
 ## Git workflow (non-negotiable)
 

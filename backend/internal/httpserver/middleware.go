@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -23,6 +24,12 @@ func RequestLogger(base *zap.Logger) echo.MiddlewareFunc {
 
 			reqID := c.Response().Header().Get(echo.HeaderXRequestID)
 			reqLogger := base.With(zap.String("request_id", reqID))
+			if sc := trace.SpanContextFromContext(c.Request().Context()); sc.IsValid() {
+				reqLogger = reqLogger.With(
+					zap.String("trace_id", sc.TraceID().String()),
+					zap.String("span_id", sc.SpanID().String()),
+				)
+			}
 			ctx := logging.IntoContext(c.Request().Context(), reqLogger)
 			c.SetRequest(c.Request().WithContext(ctx))
 
@@ -34,7 +41,7 @@ func RequestLogger(base *zap.Logger) echo.MiddlewareFunc {
 			req := c.Request()
 			res := c.Response()
 			if ce := base.Check(levelForStatus(res.Status), "http_request"); ce != nil {
-				ce.Write(
+				fields := []zap.Field{
 					zap.String("request_id", reqID),
 					zap.String("method", req.Method),
 					zap.String("path", req.URL.Path),
@@ -44,7 +51,14 @@ func RequestLogger(base *zap.Logger) echo.MiddlewareFunc {
 					zap.Int("status", res.Status),
 					zap.Int64("bytes", res.Size),
 					zap.Duration("duration", time.Since(start)),
-				)
+				}
+				if sc := trace.SpanContextFromContext(req.Context()); sc.IsValid() {
+					fields = append(fields,
+						zap.String("trace_id", sc.TraceID().String()),
+						zap.String("span_id", sc.SpanID().String()),
+					)
+				}
+				ce.Write(fields...)
 			}
 			return nil
 		}

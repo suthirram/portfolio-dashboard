@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -35,6 +36,9 @@ func New(cfg config.Config, logger *zap.Logger, db *mongo.Database, h *controlle
 	e.Server.IdleTimeout = cfg.IdleTimeout
 
 	e.Use(middleware.RequestID())
+	e.Use(otelecho.Middleware(cfg.OTelServiceName, otelecho.WithSkipper(func(c echo.Context) bool {
+		return c.Path() == "/api/healthz"
+	})))
 	e.Use(RequestLogger(logger))
 	e.Use(middleware.Recover())
 	e.Use(middleware.ContextTimeoutWithConfig(middleware.ContextTimeoutConfig{

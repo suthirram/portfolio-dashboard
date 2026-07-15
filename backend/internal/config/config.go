@@ -32,6 +32,14 @@ type Config struct {
 	// auth silently.
 	CookieSecure bool
 
+	// OTelEndpoint gates tracing: when empty (the default) the OpenTelemetry
+	// SDK is never installed and the server runs exactly as before. Set from
+	// the standard OTLP env vars; the exporter itself re-reads the full
+	// OTEL_EXPORTER_OTLP_* family, so this field is only the on/off switch,
+	// never passed to the exporter.
+	OTelEndpoint    string
+	OTelServiceName string
+
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
@@ -54,6 +62,7 @@ func Default() Config {
 		PostgresURI:     defaultPostgresURI,
 		LogLevel:        "info",
 		LogFormat:       "json",
+		OTelServiceName: "portfolio-api",
 		ReadTimeout:     10 * time.Second,
 		WriteTimeout:    30 * time.Second,
 		IdleTimeout:     120 * time.Second,
@@ -85,6 +94,16 @@ func (c *Config) ApplyEnv() {
 	}
 	if v := os.Getenv("COOKIE_SECURE"); v != "" {
 		c.CookieSecure = parseBool(v)
+	}
+	// Traces-specific endpoint wins over the base endpoint, matching the
+	// OTLP spec's own precedence.
+	if v := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"); v != "" {
+		c.OTelEndpoint = v
+	} else if v := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); v != "" {
+		c.OTelEndpoint = v
+	}
+	if v := os.Getenv("OTEL_SERVICE_NAME"); v != "" {
+		c.OTelServiceName = v
 	}
 	if v := os.Getenv("CORS_ALLOWED_ORIGINS"); v != "" {
 		parts := strings.Split(v, ",")
