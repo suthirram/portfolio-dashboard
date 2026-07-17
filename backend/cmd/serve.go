@@ -19,6 +19,7 @@ import (
 	"portfolio-dashboard/internal/db"
 	"portfolio-dashboard/internal/httpserver"
 	"portfolio-dashboard/internal/logging"
+	"portfolio-dashboard/internal/telemetry"
 )
 
 var (
@@ -68,6 +69,18 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		zap.String("log_level", cfg.LogLevel),
 		zap.String("log_format", cfg.LogFormat),
 	)
+
+	traceShutdown, _, err := telemetry.Setup(context.Background(), cfg, logger)
+	if err != nil {
+		return fmt.Errorf("init tracing: %w", err)
+	}
+	defer func() {
+		shutCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer cancel()
+		if err := traceShutdown(shutCtx); err != nil {
+			logger.Error("trace shutdown failed", zap.Error(err))
+		}
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
