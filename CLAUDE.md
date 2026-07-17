@@ -26,6 +26,9 @@ Multi-tenant: every user owns a private portfolio (PRD-001 / DD-001). Roles: `us
 # Start MongoDB (required before running backend)
 make dev-db                        # or: docker compose -f docker-compose.dev.yml up -d
 
+# Start dev databases + local trace stack (Grafana Tempo :4318, Grafana UI :3001)
+make dev-trace                     # then run backend with OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
 # Backend (Go) — runs on :8080
 make backend                           # or: cd backend && go run . serve
 
