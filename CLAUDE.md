@@ -1,200 +1,88 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Context (read on demand)
 
-## Git workflow
+* **Full instruction index + load-when table:** `docs/ai/ai-instructions.md`
+* **Project intent + scope + roles:** `docs/agent/PROJECT_INTENT.md` — read before building any feature.
+* **Architecture map** — backend services, frontend features, data flow: `docs/agent/ARCHITECTURE.md`
+* **Conventions** — Go style, naming, logging, error handling, auth, ledger, snapshots: `docs/agent/CONVENTIONS.md`
+* **Existing docs** — PRDs, ADRs, deployment, local setup: `docs/`
 
-Never commit directly to `main`. Every change goes on its own branch, then to `main` via a PR — even one-line fixes. A `no-commit-to-branch` pre-commit hook blocks direct commits to `main`. Standard flow: branch from `main` → commit → push → `gh pr create` → merge (squash). After "commit"/"push"/"open a PR" requests, follow this flow without asking.
+## Git
 
-## Read access restriction (Non-negotiable)
+* Never commit to `main`. Branch → commit → push → `gh pr create` → squash-merge. A pre-commit hook blocks direct commits. After "commit"/"push"/"open a PR" requests, follow this flow without asking.
+* **MUST NOT add `Co-Authored-By` trailers** to any commit.
 
-Never read the "scripts/seed.env" it has the secrets in it. Claude/Agents should not read it. Should NOT ask permission to read this file.
+## Security (non-negotiable)
 
-## Project Overview
+* **Never read `scripts/seed.env`** — it contains production secrets. Do not ask permission to read it.
 
-A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs. Tracks holdings with live prices from Yahoo Finance (5-min cache), unrealised P&L, realised P&L, and INR/EUR conversion via live forex.
+## Stack
 
-Each holding's position is **derived from a per-holding transactions ledger** (average-cost method): the stored `stocks_owned`/`avg_cost_price`/`realized_pnl`/`total_dividends` are a projection recomputed on every ledger write (derive-from-ledger). The portfolio is snapshotted daily by the `snapshot` subcommand into per-user history rows (per-currency totals + per-stock closes) — PRD-002 / DD-002 — browsable on the History page with charts and a per-currency per-stock breakdown modal.
+Go (`echo` + `cobra` + `zap`) backend on `:8080`. React 18 + Vite frontend on `:3000`. MongoDB for all portfolio data. Postgres optional — only for gold tracking (DD-003); missing/unreachable → gold endpoints return 503.
 
-Multi-tenant: every user owns a private portfolio (PRD-001 / DD-001). Roles: `user` → `admin` (one region) → `superadmin` (single owner). Regions (`india`/`europe`/`us`) are an oversight grouping, not data residency. First-run creates `admin`/`admin` with `must_change_password=true`; the super admin sets a real password + 3 security questions on first login (`/onboarding`).
+## Key Locations
 
-## Commands
-
-### Local Development
-
-```bash
-# Start MongoDB (required before running backend)
-make dev-db                        # or: docker compose -f docker-compose.dev.yml up -d
-
-# Backend (Go) — runs on :8080
-make backend                           # or: cd backend && go run . serve
-
-# Frontend (React/Vite) — runs on :3000
-make frontend                      # or: cd frontend && npm run dev
-
-# First-time setup
-make tidy                          # cd backend && go mod tidy
-make install                       # cd frontend && npm install
-```
-
-### Full Docker Stack
-
-```bash
-make prod          # docker compose up --build  (MongoDB + backend + frontend)
-make down          # stop all containers
-```
-
-### Frontend build
-
-```bash
-cd frontend && npm run build       # outputs to frontend/dist
-cd frontend && npm run preview     # preview production build locally
-```
-
-## Architecture
-
-### Backend (`backend/`)
-
-Go service using **echo** router and **cobra** CLI with structured logging via `go.uber.org/zap`. Entry point: `main.go` calls `cmd.Execute()`.
-
-* `cmd/root.go` — cobra root command; registers subcommands
-* `cmd/serve.go` — `serve` subcommand; loads config, builds the logger, connects MongoDB, ensures indexes + bootstrap super admin, wires the `Handler` and HTTP server, runs with graceful shutdown
-* `cmd/migrate.go` — one-shot subcommands: `migrate users --owner <name>` (stamp legacy holdings with `user_id`), `migrate transactions` (seed an `opening` ledger event per existing holding so the position becomes ledger-derived; idempotent), and `admin reset-lockout|set-password --username <name>` break-glass CLI (DD-001 §8/§10)
-* `cmd/copyholdings.go` — `migrate copy-holdings --to-uri <uri> --to-db <db>` copies the super admin's holdings into another database (local → prod seeding); `--dry-run`/`--replace`
-* `cmd/snapshot.go` — `snapshot [--date YYYY-MM-DD] [--user <id>] [--dry-run]` daily history job (run by external cron / Cloud Run Job `pd-snapshot`); maps the wall clock to an IST trading day (08:00 cut-over), idempotent per (user, date), preserves manual overrides
-* `internal/auth/` — catalogues (regions, security questions), password/answer hashing (bcrypt), session id generator, super-admin bootstrap, request-context helpers (`WithUser`, `WithSessionID`)
-* `internal/config/config.go` — typed `Config` (defaults < env < explicit flag)
-* `internal/logging/logging.go` — zap factory (`json`/`text`); `internal/logging/context.go` stashes a per-request logger on context
-* `internal/httpserver/server.go` — builds `*echo.Echo`, registers routes, owns graceful shutdown, and renders errors in the OpenAPI `{"error": "..."}` shape via a custom `HTTPErrorHandler`. Wires `CSRFCheck` (refuses state-changing requests without `X-Requested-With: portfolio-dashboard`) and `AuthGate` (session lookup, role/region/onboarding gates).
-* `internal/httpserver/middleware.go` — zap-backed request logger (severity tracks status, propagates `request_id` to context)
-* `internal/httpserver/auth.go` — `CSRFCheck`, `AuthGate`, session loading + sliding expiry
-* `internal/persistence/` — **data-access layer, one store type per collection** (`holdings.go`, `users.go`, `sessions.go`, `transactions.go`, `snapshots.go`). `persistence.New(db)` builds a `*Store` bundling `HoldingStore`/`UserStore`/`SessionStore`/`TransactionStore`/`SnapshotStore`. All MongoDB reads/writes live here; callers (services, controllers, middleware, CLI) use domain types and never touch `*mongo.Collection`/`bson` directly. Holdings/transactions methods are owner-scoped by construction (`scopedFilter`); single reads return `persistence.ErrNotFound`, inserts return `persistence.ErrDuplicate`. `snapshots.go` upserts per (user, date) and merges manual overrides (`ErrCronProtected` guards cron rows on delete). `gold.go` is the exception to "Mongo per collection": `GoldDao` owns the Postgres gold tables (DD-003), keyed on the Mongo user ObjectID hex so both engines share one identity space; every method pins the owner uid in the WHERE clause.
-* `internal/controllers/controllers.go` — `Controller` struct (owns `*persistence.Store`, the per-domain services, and `*zap.Logger`). `New(db, logger, cookieSecure)` wires the default services; `newWithDeps` is the test seam.
-* `internal/controllers/auth.go` — signup, login, logout, recover (two-step), me, change password, update profile, update security questions, onboarding. Still owns the auth flow end-to-end because it composes credential checks with cookie writes.
-* `internal/controllers/admin.go` — admin/super-admin endpoints: list users/admins, get/hide/reactivate/delete user, reset-lockout, promote, demote, set region, act-as holdings CRUD/prices/summary. Region scope enforced server-side on every target; act-as endpoints delegate to `holdings`/`portfolio` services.
-* `internal/controllers/holdings.go` — thin HTTP wrappers; every method calls `Controller.holdings` (the `services.HoldingsService`) for the scoped CRUD. `List`/`Get` enrich each holding with `has_opening`/`opening_date`; `Update` accepts `opening_date` to stamp the holding's opening event.
-* `internal/controllers/transactions.go` — per-holding ledger endpoints (`/holdings/{id}/transactions` GET/POST, `/transactions/{id}` PUT/DELETE) delegating to `Controller.transactions` (`services.TransactionsService`).
-* `internal/controllers/history.go` — strict-server bodies for `/history` (list/add/patch-regions/delete/paste); maps `services.HistoryRow`↔`api.HistoryRow` incl. the per-stock `holdings` breakdown.
-* `internal/controllers/market.go` — `GetPrices` delegates to `Controller.portfolio.Prices`; `GetMarketPrice` / `GetForexRate` thin-wrap `priceService`.
-* `internal/controllers/summary.go` — `GetSummary` delegates to `Controller.portfolio.Summary`.
-* `internal/controllers/gold.go` — `/gold/*` endpoints (transactions CRUD, prices, metrics, missing-price days) thin-wrapping `Controller.gold` (`services.GoldService`). httpserver's `goldGate` answers 503 on every gold operation when Postgres is not configured, so handlers can assume the service exists.
-* `internal/services/mapper.go` — DBO↔DTO conversion helpers (`HoldingFromInput`, `HoldingToAPI`, `HoldingWithPriceToAPI`, `UserToAPI`) and the `PriceFetcher` interface every service depends on.
-* `internal/services/holdings.go` — `HoldingsService`: owner-scoped CRUD on top of `*persistence.HoldingStore`; returns api DTOs (`(api.Holding, found, err)`) so controllers stay marshaller-free. Seeds the opening event on create, enriches list/get with opening status (`OpeningsByUser`), and `setOpeningDate` stamps the opening event's date.
-* `internal/services/transactions.go` — `TransactionsService`: owns the per-holding ledger CRUD; every mutating call recomputes the holding's position via `recomputeAndPersist` and heals affected snapshots (`healSnapshots`). Validates per-type shape; rejects oversell.
-* `internal/services/ledger.go` — `RecomputePosition`: pure average-cost replay of a holding's transactions into `Position` (opening sorts first as the timeless baseline; buy/sell/dividend/split/bonus/merger); returns `ErrOversell`.
-* `internal/services/position.go` — `recomputeAndPersist`: replays the ledger and writes the derived position back to the holding (shared by holdings + transactions services).
-* `internal/services/snapshot.go` — `SnapshotService.BuildSnapshot`/`Run`: builds a (user, date) snapshot from live holdings + prices (weekend carry-forward of prior close); `CurrencyOf` buckets a holding by `Currency`.
-* `internal/services/snapshot_recompute.go` — `SnapshotRecomputer.RecomputeFrom`: rewrites stored snapshots after a backdated ledger edit, replaying each holding's ledger as-of the row date against the stored close.
-* `internal/services/history.go` — `HistoryService`: list/add/patch-regions/delete/paste over `SnapshotStore`; `HistoryRow` carries per-currency buckets, totals, and the per-stock `Holdings` lines.
-* `internal/services/portfolio.go` — `PortfolioService`: composes holdings + live prices + the INR↔EUR rate for `/prices` and `/summary` (own portfolio and admin act-as).
-* `internal/services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
-* `internal/services/gold.go` — `GoldService`: gold use cases (DD-003 §2) — owner-scoped transaction CRUD over the Postgres store with derived columns (GST 3%, nett per gram) computed at read time; constructed only when Postgres is up.
-* `internal/services/gold_prices.go` — daily gold price series (owner-entered jeweler rate); IST calendar bounds the missing-day window.
-* `internal/services/gold_metrics.go` — live metrics table: ledger totals, valuation at the latest price, GOLDBEES ETF P&L folded in from the stock holdings, XIRR of the physical flows.
-* `internal/services/gold_history.go` — `HistoryOverlay`: as-of gold position per history-row date for the History page's gold column/chart.
-* `internal/services/xirr.go` — spreadsheet-style XIRR (ACT/365, Newton–Raphson with bisection fallback) used by gold metrics.
-* `internal/domain/holding.go` — `Holding` struct (carries `user_id`; position fields are ledger-derived)
-* `internal/domain/transaction.go` — `Transaction` (ledger event; `TxnType` enum; nullable `OpeningDate` = user-set effective opening date)
-* `internal/domain/snapshot.go` — `PortfolioSnapshot` (per-currency `Buckets` + per-stock `Lines`/`HoldingSnapshot`), `BucketsFromLines`, `Totals`
-* `internal/domain/user.go` — `User` (with `Role`, `Region`, lockout counters, `IsAdmin`/`IsSuperAdmin`/`Oversees` helpers)
-* `internal/domain/session.go` — `Session` (opaque id, sliding 30-day expiry); `SessionTTL` constant
-* `internal/domain/gold.go` — `GoldTransaction` / gold price / metrics models (PRD-003); only user-entered fields are stored, derived columns computed in the service layer (same derive-don't-store rule as the stock ledger)
-* `internal/db/mongo.go` — MongoDB connection + index creation for `holdings`, `users`, `sessions`, `transactions`, and `portfolio_snapshots` (incl. TTL on `sessions.expires_at`)
-* `internal/db/postgres.go` — Postgres pool + embedded schema migrations (`internal/db/migrations/*.sql`, applied on connect); optional at boot — a nil pool means "gold disabled"
-* `api/specs/openapi.yaml` — root spec; served live at `/api/specs/openapi.yaml`. Path surface is split by domain under per-domain folders: `api/specs/holdings/holdings.yaml`, `api/specs/transactions/transactions.yaml`, `api/specs/history/history.yaml`, `api/specs/market/market.yaml`, `api/specs/auth/auth.yaml`, `api/specs/admin/admin.yaml`, `api/specs/gold/gold.yaml`. Every component (schemas, responses, parameters) lives inline in `api/specs/portfolio-api.yaml`; the path files reference it via `../portfolio-api.yaml#/components/...`. Every file under `api/specs/` is served at the matching URL by `httpserver.New`; the auth gate lets the whole `/api/specs/` GET tree through via `isPublicSpecRoute`, so adding a new sibling spec file does not require touching the public-routes table.
-* `api/oapi-codegen-models.yaml` + `api/oapi-codegen-server.yaml` — split codegen configs. Models config reads `api/specs/portfolio-api.yaml` (paths-empty, `skip-prune` on) and emits `api/models.gen.go` with the component types and the strict-server response wrappers. Server config reads `api/specs/openapi.yaml`, uses `import-mapping: ../portfolio-api.yaml: "-"` so external refs resolve to the same Go package, and emits `api/server.gen.go` with the operation params, request bodies, and Echo/strict-server scaffolding. Regen both with `go generate -tags tools ./...` from `backend/`; frontend types live at `frontend/src/lib/api/schema.gen.ts` and regen with `npm run gen:api` (openapi-typescript follows external `$ref`s natively).
-
-All app-private packages live under `internal/` per idiomatic Go layout.
-
-#### Logging convention
-
-In service methods, bind the request logger to a local variable — `logger := s.log(ctx)` (or `s.log()` / `r.log()` for services without a ctx-aware logger) — and call `logger.Error(...)` / `logger.Info(...)` on it. A function that logs in several places binds it once up front; never chain `s.log(ctx).Error(...)` inline at a call site (CI greps for this). The ctx-aware `log(ctx)` helpers are one-line delegates to `logging.FromContextOr(ctx, s.logger)` — new services reuse that, not a copy of the resolution logic. Attach errors as `zap.Error(err)` in new code; many legacy sites use `zap.String("error", err.Error())` — migrate them opportunistically, don't sweep.
-
-### Frontend (`frontend/src/`)
-
-React 18 + Vite SPA written in TypeScript with `react-router-dom`. Feature-folder organization: domain features under `features/`, cross-cutting utilities under `lib/`, shared dumb UI under `components/`.
-
-* `App.tsx` — `BrowserRouter` + `AuthProvider`; wires public / authed / admin / super-admin routes with guards
-* `features/auth/AuthContext.tsx` — calls `/api/auth/me` on mount, exposes `{user, loading, refresh, setUser, logout}`
-* `features/auth/guards.tsx` — `RequireAuth`, `RequireAdmin`, `RequireSuperAdmin`, `RedirectIfAuthed`
-* `features/auth/LoginPage.tsx`, `SignupPage.tsx`, `ForgotPasswordPage.tsx`, `OnboardingPage.tsx`, `ProfilePage.tsx`, `AuthShell.tsx` — auth screens
-* `features/dashboard/DashboardPage.tsx` — main app shell; takes optional `actAsUserId`/`actAsLabel` for admin act-as. Shows a blocking **opening-date** prompt (own portfolio only) when a holding has an opening balance with no date set.
-* `features/history/HistoryPage.tsx` — the `/history` view: month picker, per-currency charts + a gold chart panel (Recharts), and the modal wiring. Re-exports everything the module historically exported so tests and `HistoryChartPage` import unchanged. The rest of the feature is split alongside it:
-  * `features/history/historyShared.ts` — constants (regions, palettes, tints), pure helpers (chart data, row stats, form state, paste parsing), shared style objects; imports nothing local
-  * `features/history/HistoryTable.tsx` — the sortable month table: per-currency + gold column groups and the day-over-day cell tints
-  * `features/history/HistoryModals.tsx` — `AddRowModal`/`EditRowModal`/`PasteModal`/`ConflictDialog`/`HoldingsModal` (the per-stock breakdown opened by clicking a currency cell; positive positions only)
-* `features/history/HistoryChartPage.tsx` — `/history/chart/:region`: the full-history invested-vs-current chart for one currency, zoomable and horizontally scrollable; opened from the History page's mini-chart
-* `features/gold/GoldPage.tsx` — the `/gold` view (route gated by `RequireGold`): physical gold transactions table + `GoldTxnModal` (add/edit), `GoldPricesPanel` (monthly jeweler rates), `GoldMetricsPanel` (totals, GOLDBEES, XIRR), `MissingPricesModal` (prompts for missing price days)
-* `features/admin/AdminUserList.tsx` — region-scoped users with promote/demote/hide/reactivate/move-region/delete actions
-* `features/admin/AdminUserView.tsx` — renders `DashboardPage` in act-as mode for a target user
-* `features/admin/AdminManageAdmins.tsx` — super-admin only; demote/move-region across all admins
-* `features/holdings/useHoldings.ts` — data hook owning holdings/prices/summary fetching state; takes optional `userId` for admin act-as (`/api/admin/users/:id/holdings`)
-* `features/holdings/HoldingsTable.tsx` — main table with inline actions
-* `features/holdings/AddEditModal.tsx` — create/edit holding form; symbol **Test** button hits `/api/market/price`; accepts `userId` to target an admin act-as portfolio. Opening position fields seed the holding's `opening` ledger event.
-* `features/holdings/TransactionsModal.tsx` — per-holding ledger editor (add/edit/delete buy/sell/opening/dividend/split/bonus/merger) over `/api/holdings/:id/transactions`; the position recomputes server-side after each write
-* `features/holdings/OpeningDateModal.tsx` — the dashboard's blocking "set opening dates" prompt; inline date pickers, **Save all** PUTs each holding's `opening_date`
-* `components/SummaryCards.tsx` — totals bar (cost, current value, P&L); shared display component
-* `components/Charts.tsx` — Recharts pie/bar charts; shared display component
-* `lib/api/client.ts` — typed fetch wrapper with `credentials: 'include'` and `X-Requested-With` CSRF header on state-changing requests; in dev, Vite proxies `/api` → `localhost:8080`
-* `lib/api/schema.gen.ts` — **generated** OpenAPI types; regenerate via `npm run gen:api` after editing any file under `backend/api/specs/` (`openapi.yaml`, `portfolio-api.yaml`, or a domain path file)
-* `types.ts` — public type aliases re-exported from `schema.gen.ts`
-
-### Data flow
-
-```
-Frontend → /api/prices                      → backend fetches live Yahoo Finance price per holding
-         → /api/summary                     → aggregated portfolio totals
-         → /api/market/price                → ad-hoc symbol lookup (modal Test button)
-         → /api/market/forex                → INR→EUR rate
-         → /api/holdings/:id/transactions   → per-holding ledger; position recomputes on write
-         → /api/history?from&to             → daily snapshot rows (per-currency totals + per-stock lines + gold overlay)
-         → /api/gold/*                       → gold transactions/prices/metrics (Postgres; 503 when POSTGRES_URI unset)
-
-External cron → `snapshot` subcommand → writes one PortfolioSnapshot per user per day
-```
-
-All prices are cached per-symbol in `PriceService.cache` (5-min TTL).
-
-## Symbol format
-
-| Exchange | Format | Example |
-|---|---|---|
-| NSE | `TICKER.NS` | `TCS.NS` |
-| BSE | `TICKER.BO` | `RELIANCE.BO` |
-| US | plain ticker | `AAPL`, `SPY` |
+| What | Where |
+|------|-------|
+| Backend entry | `backend/main.go` → `cmd/` subcommands |
+| HTTP routes + middleware | `backend/internal/httpserver/` |
+| Data access (Mongo) | `backend/internal/persistence/` |
+| Domain structs | `backend/internal/domain/` |
+| Business logic | `backend/internal/services/` |
+| OpenAPI specs | `backend/api/specs/` (root: `openapi.yaml`, components: `portfolio-api.yaml`) |
+| Generated Go types | `backend/api/models.gen.go`, `backend/api/server.gen.go` |
+| Frontend features | `frontend/src/features/{auth,dashboard,holdings,history,gold,admin}/` |
+| Shared UI | `frontend/src/components/` |
+| API client | `frontend/src/lib/api/client.ts` |
+| Generated TS types | `frontend/src/lib/api/schema.gen.ts` |
+| Postgres migrations | `backend/internal/db/migrations/*.sql` |
 
 ## Environment Variables
 
-**Backend** (defaults work for local dev):
+| Var | Default | Notes |
+|-----|---------|-------|
+| `MONGODB_URI` | `mongodb://localhost:27017/portfolio` | |
+| `POSTGRES_URI` | `postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable` | Optional — nil pool disables gold |
+| `PORT` | `8080` | |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | **Required in prod** — credentialed CORS forbids `*` |
+| `COOKIE_SECURE` | `false` | `true` in prod; drives `Secure`/`SameSite=None`; do not derive from `c.Scheme()` |
+| `PD_NEW_PASSWORD` | — | Read by `admin set-password` to avoid shell-history leaks |
+| `VITE_API_URL` | — | Frontend prod only; dev uses Vite proxy |
 
-* `MONGODB_URI` — default `mongodb://localhost:27017/portfolio`
-* `POSTGRES_URI` — gold-tracking DB (DD-003); default `postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable`. Optional at boot: unreachable/empty ⇒ server runs with gold features disabled. Embedded migrations in `internal/db/migrations/` apply on connect.
-* `PORT` — default `8080`
-* `CORS_ALLOWED_ORIGINS` — comma-separated; **required in production** because credentialed CORS forbids `*`. Dev fallback is `http://localhost:3000,http://localhost:5173`.
-* `COOKIE_SECURE` — `true` in production, default `false`. Drives session-cookie `Secure` / `SameSite=None`; do not derive from `c.Scheme()`.
-* `PD_NEW_PASSWORD` — read by `admin set-password` to avoid leaking the password into shell history
+## Meta
 
-**Frontend** (`frontend/.env.example`):
+* **Prefer skills over rules.** When a repeated task or workflow emerges, create a Claude Code skill (`~/.claude/commands/`) rather than adding more inline rules here.
 
-* `VITE_API_URL` — set for production builds; in dev, Vite proxy handles `/api`
+## Hard Rules
 
-## Auth conventions (PRD-001 / DD-001)
+* **Ledger is source of truth.** Never write `stocks_owned`/`avg_cost_price`/`realized_pnl`/`total_dividends` directly — only via `recomputeAndPersist`.
+* **Every state-changing request must carry `X-Requested-With: portfolio-dashboard`** (CSRF). `lib/api/client.ts` handles this automatically.
+* **Per-user scoping:** every holdings/transactions query pins `user_id` via `scopedFilter`. Mismatched id → `404`. Detail: `docs/ai/instructions/mongodb.md`.
+* **`Id` not `ID`** in Go identifiers — intentional project convention, never flag it.
+* **Split FE/BE PRs.** Never mix frontend + backend changes in one PR — backend first, UI follow-up.
+* **Endpoint PRs** must include ready-to-run `curl` commands in the How-to-test section.
+* After editing `backend/api/specs/`, regen both Go and TS types; `deprecated: true` fields require `x-deprecated-reason` — see `docs/ai/instructions/openapi-specs.md`.
 
-* Session cookie: `pd_session`, `HttpOnly`, `Secure`, `SameSite=None`, 30-day sliding expiry. Opaque random id (32 random bytes, base64url); revocation by deleting the row.
-* CSRF: every state-changing request (POST/PUT/DELETE) must carry `X-Requested-With: portfolio-dashboard`. `lib/api/client.ts` and the strict server handler enforce this.
-* Per-user scoping: every Mongo call against `holdings` pins `user_id` via `scopedFilter(uid, extra)`. Mismatched ids return `404` (no enumeration).
-* Region scope: admin requests against a user `:id` are accepted only when `target.role == "user" AND target.region == caller.region`. Super admin bypasses; super admin cannot demote/move/delete itself.
-* Recovery: three wrong security-question answers lock recovery (`423`); reset via `POST /admin/users/:id/reset-lockout` (for users/admins) or break-glass CLI (for the super admin).
+## Commands
 
-## Transactions ledger conventions
+```bash
+# Local dev
+make dev-db        # start MongoDB (Docker)
+make backend       # Go server on :8080
+make frontend      # Vite dev server on :3000
+make tidy          # go mod tidy
+make install       # npm install (frontend)
 
-* The ledger is the source of truth; a holding's `stocks_owned`/`avg_cost_price`/`realized_pnl`/`total_dividends` are **derived** (average-cost) and rewritten on every ledger mutation. Never write those fields directly outside `recomputeAndPersist`.
-* Money is the **total cash amount** per event (fees folded in), not a per-share price. Fractional shares are allowed.
-* The `opening` event is the timeless baseline (sorts first in `RecomputePosition` regardless of date). Its `OpeningDate` is the user-set effective date; nil = unset → the dashboard prompts. The event's ordering `Date` is the holding's creation time on create (`migrate transactions` uses `h.CreatedAt`, else now); `setOpeningDate` syncs both to the user's chosen date. Editing the opening through the transactions ledger (`TransactionsService.Update`) likewise stamps `opening_date` whenever its effective day changes — the ledger API has no `opening_date` field, so a date edit there IS the user declaring the effective date, and the two must not desync (asOfLedger gates the baseline on `OpeningDate`). The opening-date prompt's picker defaults to `2026-06-15` (a frontend default in `OpeningDateModal`).
-* A backdated ledger edit triggers `healSnapshots` → `RecomputeFrom`, which rewrites stored snapshots from the earliest affected date so history stays consistent. `asOfLedger` filters non-opening events by date, but treats the `opening` event as the **timeless baseline**: it is retained on a healed row unless its user-set `OpeningDate` falls on/after that row (the position did not yet exist). An **unset** `OpeningDate` is retained unconditionally — the opening's ordering `Date` defaults to creation/migration time, and filtering on it used to drop the holding (zeroing its position) whenever an unrelated backdated edit re-healed an earlier row. Setting the real opening date narrows membership precisely.
+# Full Docker stack
+make prod          # MongoDB + backend + frontend (docker compose up --build)
+make down          # stop all containers
 
-## Snapshots / history conventions (PRD-002 / DD-002)
+# Frontend build
+cd frontend && npm run build     # production build → frontend/dist
+cd frontend && npm run preview   # preview prod build
 
-* The `snapshot` job is idempotent per (user, date) and keyed on the **IST trading day** (08:00 cut-over) so intraday re-runs never hop the date.
-* A snapshot row stores per-currency `Buckets` (INR/EUR/USD `invested`/`current`) **and** per-stock `Lines` (symbol, script, quantity, avg cost, close, price date). Cron rows carry lines; manual-only rows don't.
-* Manual edits (`PUT /history/:date/regions`, add, paste) override a currency bucket and flip its `source` to `manual`, preserving `original_cron_*` for audit. A cron row can't be deleted except by a super admin (`ErrCronProtected`).
+# Code generation
+cd backend && go generate -tags tools ./...   # regen Go API types
+cd frontend && npm run gen:api                # regen TS types from OpenAPI specs
+```
