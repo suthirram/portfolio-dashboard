@@ -70,10 +70,7 @@ type yahooChartResp struct {
 // GetPrice fetches the current price for a Yahoo Finance symbol.
 // For NSE stocks append ".NS" (e.g. "TCS.NS"), for BSE append ".BO".
 // US symbols are plain (e.g. "AAPL").
-func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, string, error) {
-	ctx, span := tracer.Start(ctx, "PriceService.GetPrice")
-	span.SetAttributes(attribute.String("symbol", symbol))
-	defer span.End()
+func (s *PriceService) GetPrice(ctx context.Context, symbol string) (_ float64, _ string, retErr error) {
 	logger := s.log()
 	if c, ok := s.cacheGet(symbol); ok {
 		logger.Debug("price cache hit",
@@ -82,6 +79,10 @@ func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, st
 		)
 		return c.price, c.currency, nil
 	}
+
+	ctx, span := tracer.Start(ctx, "PriceService.GetPrice")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer endSpan(span, &retErr)
 
 	price, currency, err := s.fetch(ctx, symbol)
 	if err != nil {
@@ -132,10 +133,9 @@ func (s *PriceService) cacheSet(symbol string, price float64, currency string) {
 	s.cache[symbol] = cachedPrice{price: price, currency: currency, fetchedAt: time.Now()}
 }
 
-func (s *PriceService) fetch(ctx context.Context, symbol string) (float64, string, error) {
+func (s *PriceService) fetch(ctx context.Context, symbol string) (_ float64, _ string, retErr error) {
 	ctx, span := tracer.Start(ctx, "PriceService.fetch")
-	span.SetAttributes(attribute.String("symbol", symbol))
-	defer span.End()
+	defer endSpan(span, &retErr)
 	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&range=1d",
 		s.baseURL, url.PathEscape(symbol))
 	yr, err := s.fetchChart(ctx, endpoint, symbol)

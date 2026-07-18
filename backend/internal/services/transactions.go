@@ -90,9 +90,9 @@ func (s *TransactionsService) log(ctx context.Context) *zap.Logger {
 
 // List returns a holding's transactions. found=false when the holding id is
 // invalid, missing, or owned by someone else (so callers respond 404).
-func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, holdingHex string) ([]api.Transaction, bool, error) {
+func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, holdingHex string) (_ []api.Transaction, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.List")
-	defer span.End()
+	defer endSpan(span, &retErr)
 	hid, err := primitive.ObjectIDFromHex(holdingHex)
 	if err != nil {
 		return nil, false, nil
@@ -118,9 +118,9 @@ func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, 
 
 // Create appends a transaction to a holding and recomputes its position.
 // found=false ⇒ 404 (bad holding); a returned ErrValidation/ErrOversell ⇒ 400.
-func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID, holdingHex string, input api.TransactionInput) (api.Transaction, bool, error) {
+func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID, holdingHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Create")
-	defer span.End()
+	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
 	hid, err := primitive.ObjectIDFromHex(holdingHex)
 	if err != nil {
@@ -167,9 +167,9 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 // Update edits a transaction by its id and recomputes the holding. found=false
 // ⇒ 404; ErrValidation/ErrOversell ⇒ 400. On oversell the prior values are
 // restored so the ledger never lands in a rejected state.
-func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.TransactionInput) (api.Transaction, bool, error) {
+func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Update")
-	defer span.End()
+	defer endSpan(span, &retErr)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return api.Transaction{}, false, nil
@@ -230,9 +230,9 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 // Delete removes a transaction and recomputes the holding. Removing a buy can
 // leave a later sell oversold; in that case the transaction is re-inserted and
 // the delete rejected with ErrOversell.
-func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (bool, error) {
+func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (_ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Delete")
-	defer span.End()
+	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
