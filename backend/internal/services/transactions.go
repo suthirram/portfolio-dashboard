@@ -91,6 +91,8 @@ func (s *TransactionsService) log(ctx context.Context) *zap.Logger {
 // List returns a holding's transactions. found=false when the holding id is
 // invalid, missing, or owned by someone else (so callers respond 404).
 func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, holdingHex string) ([]api.Transaction, bool, error) {
+	ctx, span := tracer.Start(ctx, "TransactionsService.List")
+	defer span.End()
 	hid, err := primitive.ObjectIDFromHex(holdingHex)
 	if err != nil {
 		return nil, false, nil
@@ -117,6 +119,8 @@ func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, 
 // Create appends a transaction to a holding and recomputes its position.
 // found=false ⇒ 404 (bad holding); a returned ErrValidation/ErrOversell ⇒ 400.
 func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID, holdingHex string, input api.TransactionInput) (api.Transaction, bool, error) {
+	ctx, span := tracer.Start(ctx, "TransactionsService.Create")
+	defer span.End()
 	logger := s.log(ctx)
 	hid, err := primitive.ObjectIDFromHex(holdingHex)
 	if err != nil {
@@ -164,6 +168,8 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 // ⇒ 404; ErrValidation/ErrOversell ⇒ 400. On oversell the prior values are
 // restored so the ledger never lands in a rejected state.
 func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.TransactionInput) (api.Transaction, bool, error) {
+	ctx, span := tracer.Start(ctx, "TransactionsService.Update")
+	defer span.End()
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return api.Transaction{}, false, nil
@@ -225,6 +231,8 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 // leave a later sell oversold; in that case the transaction is re-inserted and
 // the delete rejected with ErrOversell.
 func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (bool, error) {
+	ctx, span := tracer.Start(ctx, "TransactionsService.Delete")
+	defer span.End()
 	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {

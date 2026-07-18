@@ -127,6 +127,8 @@ func (e *ErrConflict) Error() string { return "history: row exists for date" }
 
 // List returns the caller's rows in [from, to] inclusive.
 func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from, to time.Time) (HistoryList, error) {
+	ctx, span := tracer.Start(ctx, "HistoryService.List")
+	defer span.End()
 	if to.Before(from) {
 		return HistoryList{}, fmt.Errorf("%w: to before from", ErrInvalidDate)
 	}

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // cachedPrice holds a price with a timestamp for TTL-based invalidation.
@@ -69,6 +71,9 @@ type yahooChartResp struct {
 // For NSE stocks append ".NS" (e.g. "TCS.NS"), for BSE append ".BO".
 // US symbols are plain (e.g. "AAPL").
 func (s *PriceService) GetPrice(ctx context.Context, symbol string) (float64, string, error) {
+	ctx, span := tracer.Start(ctx, "PriceService.GetPrice")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer span.End()
 	logger := s.log()
 	if c, ok := s.cacheGet(symbol); ok {
 		logger.Debug("price cache hit",
@@ -128,6 +133,9 @@ func (s *PriceService) cacheSet(symbol string, price float64, currency string) {
 }
 
 func (s *PriceService) fetch(ctx context.Context, symbol string) (float64, string, error) {
+	ctx, span := tracer.Start(ctx, "PriceService.fetch")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer span.End()
 	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&range=1d",
 		s.baseURL, url.PathEscape(symbol))
 	yr, err := s.fetchChart(ctx, endpoint, symbol)

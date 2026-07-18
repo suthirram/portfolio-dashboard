@@ -39,6 +39,8 @@ func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
 
 // List returns the holdings owned by uid, mapped to API DTOs.
 func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]api.Holding, error) {
+	ctx, span := tracer.Start(ctx, "HoldingsService.List")
+	defer span.End()
 	logger := s.log(ctx)
 	holdings, err := s.store.ListByUser(ctx, uid)
 	if err != nil {
@@ -63,6 +65,8 @@ func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) ([]a
 // invalid, missing, or owned by someone else (so callers respond 404 without
 // leaking ownership).
 func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex string) (api.Holding, bool, error) {
+	ctx, span := tracer.Start(ctx, "HoldingsService.Get")
+	defer span.End()
 	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
@@ -94,6 +98,8 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 // derived: any opening stocks_owned/avg_cost_price/realized_pnl are recorded as
 // an `opening` ledger event and the holding is recomputed from it.
 func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, input api.HoldingInput) (api.Holding, error) {
+	ctx, span := tracer.Start(ctx, "HoldingsService.Create")
+	defer span.End()
 	logger := s.log(ctx)
 	holding := HoldingFromInput(input)
 	holding.ID = primitive.NewObjectID()
@@ -168,6 +174,8 @@ func openingFromInput(input api.HoldingInput) (qty, amount, seed float64, ok boo
 // Update applies input to the holding owned by uid. found=false when the id is
 // invalid, missing, or owned by someone else.
 func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.HoldingInput) (api.Holding, bool, error) {
+	ctx, span := tracer.Start(ctx, "HoldingsService.Update")
+	defer span.End()
 	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
@@ -248,6 +256,8 @@ func (s *HoldingsService) setOpeningDate(ctx context.Context, uid, holdingID pri
 // Delete removes the holding owned by uid. ok=false when the id is invalid,
 // missing, or owned by someone else.
 func (s *HoldingsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (bool, error) {
+	ctx, span := tracer.Start(ctx, "HoldingsService.Delete")
+	defer span.End()
 	logger := s.log(ctx)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
