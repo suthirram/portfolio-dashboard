@@ -8,6 +8,7 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -53,7 +54,7 @@ func Setup(ctx context.Context, cfg config.Config, logger *zap.Logger) (shutdown
 	}
 
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp),
+		sdktrace.WithBatcher(exp, sdktrace.WithBatchTimeout(1*time.Second)),
 		sdktrace.WithResource(res),
 	)
 

@@ -55,6 +55,8 @@ func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
 // instead of paying one Yahoo round-trip per symbol. Errors are ignored
 // here — the enrichment loops re-fetch and surface them per holding.
 func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain.Holding) {
+	ctx, span := tracer.Start(ctx, "PortfolioService.prefetchPrices")
+	defer span.End()
 	seen := make(map[string]struct{}, len(holdings))
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(8)
@@ -78,7 +80,9 @@ func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain
 // Prices returns the holdings owned by uid enriched with live market data,
 // plus the live INR→EUR rate. Errors fetching the EUR rate fail the call;
 // per-symbol price failures are surfaced inline on each HoldingWithPrice.
-func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) ([]api.HoldingWithPrice, float64, error) {
+func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (_ []api.HoldingWithPrice, _ float64, retErr error) {
+	ctx, span := tracer.Start(ctx, "PortfolioService.Prices")
+	defer endSpan(span, &retErr)
 	holdings, err := s.store.ListByUser(ctx, uid)
 	if err != nil {
 		return nil, 0, err
@@ -105,7 +109,9 @@ func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (
 // Summary aggregates the portfolio of uid into total cost / current value /
 // realized / unrealized, with EUR equivalents. When the EUR rate is
 // unavailable Summary uses a fixed fallback so the totals stay computable.
-func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) (api.Summary, error) {
+func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) (_ api.Summary, retErr error) {
+	ctx, span := tracer.Start(ctx, "PortfolioService.Summary")
+	defer endSpan(span, &retErr)
 	holdings, err := s.store.ListByUser(ctx, uid)
 	if err != nil {
 		return api.Summary{}, err

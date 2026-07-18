@@ -9,11 +9,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo"
 )
 
 // Connect dials MongoDB and verifies the connection with a Ping.
 func Connect(ctx context.Context, uri string, logger *zap.Logger) (*mongo.Client, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetMonitor(otelmongo.NewMonitor()))
 	if err != nil {
 		return nil, err
 	}

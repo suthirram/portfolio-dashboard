@@ -126,7 +126,9 @@ type ErrConflict struct {
 func (e *ErrConflict) Error() string { return "history: row exists for date" }
 
 // List returns the caller's rows in [from, to] inclusive.
-func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from, to time.Time) (HistoryList, error) {
+func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from, to time.Time) (_ HistoryList, retErr error) {
+	ctx, span := tracer.Start(ctx, "HistoryService.List")
+	defer endSpan(span, &retErr)
 	if to.Before(from) {
 		return HistoryList{}, fmt.Errorf("%w: to before from", ErrInvalidDate)
 	}
