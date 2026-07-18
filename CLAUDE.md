@@ -26,6 +26,9 @@ Multi-tenant: every user owns a private portfolio (PRD-001 / DD-001). Roles: `us
 # Start MongoDB (required before running backend)
 make dev-db                        # or: docker compose -f docker-compose.dev.yml up -d
 
+# Start dev databases + local trace stack (Grafana Tempo :4318, Grafana UI :3001)
+make dev-trace                     # then run backend with OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+
 # Backend (Go) — runs on :8080
 make backend                           # or: cd backend && go run . serve
 
@@ -99,6 +102,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/domain/user.go` — `User` (with `Role`, `Region`, lockout counters, `IsAdmin`/`IsSuperAdmin`/`Oversees` helpers)
 * `internal/domain/session.go` — `Session` (opaque id, sliding 30-day expiry); `SessionTTL` constant
 * `internal/domain/gold.go` — `GoldTransaction` / gold price / metrics models (PRD-003); only user-entered fields are stored, derived columns computed in the service layer (same derive-don't-store rule as the stock ledger)
+* `internal/telemetry/telemetry.go` — `Setup(ctx, cfg, logger)`: initialises the global OTel `TracerProvider` and W3C propagators when `cfg.OTelEndpoint` is non-empty; returns a no-op shutdown when disabled (default). See [`plan.md`](plan.md) for architecture, env vars, dev runbook, and extension points.
 * `internal/db/mongo.go` — MongoDB connection + index creation for `holdings`, `users`, `sessions`, `transactions`, and `portfolio_snapshots` (incl. TTL on `sessions.expires_at`)
 * `internal/db/postgres.go` — Postgres pool + embedded schema migrations (`internal/db/migrations/*.sql`, applied on connect); optional at boot — a nil pool means "gold disabled"
 * `api/specs/openapi.yaml` — root spec; served live at `/api/specs/openapi.yaml`. Path surface is split by domain under per-domain folders: `api/specs/holdings/holdings.yaml`, `api/specs/transactions/transactions.yaml`, `api/specs/history/history.yaml`, `api/specs/market/market.yaml`, `api/specs/auth/auth.yaml`, `api/specs/admin/admin.yaml`, `api/specs/gold/gold.yaml`. Every component (schemas, responses, parameters) lives inline in `api/specs/portfolio-api.yaml`; the path files reference it via `../portfolio-api.yaml#/components/...`. Every file under `api/specs/` is served at the matching URL by `httpserver.New`; the auth gate lets the whole `/api/specs/` GET tree through via `isPublicSpecRoute`, so adding a new sibling spec file does not require touching the public-routes table.
@@ -173,6 +177,10 @@ All prices are cached per-symbol in `PriceService.cache` (5-min TTL).
 * `CORS_ALLOWED_ORIGINS` — comma-separated; **required in production** because credentialed CORS forbids `*`. Dev fallback is `http://localhost:3000,http://localhost:5173`.
 * `COOKIE_SECURE` — `true` in production, default `false`. Drives session-cookie `Secure` / `SameSite=None`; do not derive from `c.Scheme()`.
 * `PD_NEW_PASSWORD` — read by `admin set-password` to avoid leaking the password into shell history
+* `OTEL_EXPORTER_OTLP_ENDPOINT` — base OTLP endpoint (e.g. `http://localhost:4318` for dev Tempo or `https://otlp-gateway-<region>.grafana.net/otlp` for Grafana Cloud). Empty (default) disables tracing entirely with zero overhead.
+* `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` — overrides `OTEL_EXPORTER_OTLP_ENDPOINT` for traces only (used as-is, no path appended). Either var enables tracing.
+* `OTEL_EXPORTER_OTLP_HEADERS` — headers for the OTLP exporter (e.g. `Authorization=Basic <base64>` for Grafana Cloud).
+* `OTEL_SERVICE_NAME` — service name shown in Grafana/Jaeger. Default `portfolio-api`.
 
 **Frontend** (`frontend/.env.example`):
 

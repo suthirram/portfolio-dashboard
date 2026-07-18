@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -120,6 +121,58 @@ func TestRequestLogger_LevelTracksStatus(t *testing.T) {
 				t.Errorf("log line missing level %s: %s", tc.want, buf.String())
 			}
 		})
+	}
+}
+
+func TestRequestLogger_InjectsTraceIDWhenSpanPresent(t *testing.T) {
+	e, buf, _ := newTestEcho(t)
+
+	// Synthetic valid SpanContext — no SDK needed.
+	traceID, _ := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
+	spanID, _ := trace.SpanIDFromHex("00f067aa0ba902b7")
+	sc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
+
+	// Middleware installed ahead of RequestLogger stamps the span context.
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ctx := trace.ContextWithSpanContext(c.Request().Context(), sc)
+			c.SetRequest(c.Request().WithContext(ctx))
+			return next(c)
+		}
+	})
+	e.GET("/traced", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
+
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/traced", nil))
+
+	line := lastJSONLine(t, buf.Bytes())
+	if line["trace_id"] != traceID.String() {
+		t.Errorf("trace_id = %v, want %s", line["trace_id"], traceID.String())
+	}
+	if line["span_id"] != spanID.String() {
+		t.Errorf("span_id = %v, want %s", line["span_id"], spanID.String())
+	}
+}
+
+func TestRequestLogger_NoTraceFieldsWithoutSpan(t *testing.T) {
+	e, buf, _ := newTestEcho(t)
+	e.GET("/untraced", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
+
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/untraced", nil))
+
+	line := lastJSONLine(t, buf.Bytes())
+	if _, ok := line["trace_id"]; ok {
+		t.Errorf("trace_id present in log without a span: %v", line["trace_id"])
 	}
 }
 
