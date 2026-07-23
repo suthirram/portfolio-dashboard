@@ -166,7 +166,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
           <tr style={{ background: 'var(--bg-secondary)' }}>
             <TH style={{ textAlign: 'left', width: 160 }}>Script</TH>
             {colHead('Shares', 'stocks_owned')}
-            <TH className="col-hide-sm">{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
+            <TH>{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
             <TH>Cost Price</TH>
             {colHead('Share Price', 'current_price')}
             <TH>Current Value</TH>
@@ -223,7 +223,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 <TD className="mono">{NUM(h.stocks_owned)}</TD>
 
                 {/* Avg cost — shown in the holding's native currency */}
-                <TD className="mono col-hide-sm">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
+                <TD className="mono">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
 
                 {/* Cost price — in the holding's native currency */}
                 <TD className="mono">{h.cost_price ? MONEY(h.cost_price) : '—'}</TD>
