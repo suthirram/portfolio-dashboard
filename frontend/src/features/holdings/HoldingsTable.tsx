@@ -225,8 +225,17 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 {/* Cost price — in the holding's native currency */}
                 <TD className="mono">{h.cost_price ? MONEY(h.cost_price) : '—'}</TD>
 
-                {/* Avg cost — shown in the holding's native currency */}
-                <TD className="mono">{h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}</TD>
+                {/* Avg cost — color coded vs current share price */}
+                {(() => {
+                  const avgCls = h.avg_cost_price && hasPrice
+                    ? (h.current_price! > h.avg_cost_price ? 'pos' : h.current_price! < h.avg_cost_price ? 'neg' : 'neutral')
+                    : ''
+                  return (
+                    <TD className={`mono${avgCls ? ` ${avgCls}` : ''}`}>
+                      {h.avg_cost_price ? (h.currency === 'EUR' ? EUR(h.avg_cost_price) : INR(h.avg_cost_price)) : '—'}
+                    </TD>
+                  )
+                })()}
 
                 {/* Share price — in the holding's native currency */}
                 <TD
