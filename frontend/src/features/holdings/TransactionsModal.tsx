@@ -288,7 +288,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
               Implied cost/share:{' '}
               <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                {sym}{impliedCostPerShare.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                {sym}{impliedCostPerShare.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
             </div>
           )}
@@ -371,7 +371,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                   <Td className="mono">{num(t.quantity)}</Td>
                   <Td className="mono">{money(t.amount)}</Td>
                   <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>
-                  <Td className="mono">{(() => { const v = t.id ? runningAvgCosts.get(t.id) : undefined; return v ? sym + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—' })()}</Td>
+                  <Td className="mono">{(() => { const v = t.id ? runningAvgCosts.get(t.id) : undefined; return v ? sym + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
                   <Td style={{ textAlign: 'center' }}>
                     {confirm === t.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
