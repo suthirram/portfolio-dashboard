@@ -167,6 +167,15 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
   const isMerger = form.type === 'merger'
   const isOpening = form.type === 'opening'
 
+  const liveQty = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
+  const liveAmt = parseDecimalInput(form.amount)
+  const impliedCostPerShare =
+    !isCorporate && !isMerger && form.type !== 'dividend' &&
+    Number.isFinite(liveQty) && liveQty > 0 &&
+    Number.isFinite(liveAmt) && liveAmt > 0
+      ? liveAmt / liveQty
+      : null
+
   return (
     <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
@@ -236,6 +245,15 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                 <DecimalInput style={INPUT} value={form.amount}
                   onValueChange={value => setForm(f => ({ ...f, amount: value }))} placeholder="0.00" />
               </div>
+            </div>
+          )}
+
+          {impliedCostPerShare !== null && (
+            <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+              Implied cost/share:{' '}
+              <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                {sym}{impliedCostPerShare.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+              </strong>
             </div>
           )}
 
