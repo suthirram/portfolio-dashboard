@@ -162,6 +162,42 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     n == null || n === 0 ? '—' : sym + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const num = (n?: number | null) => (n == null || n === 0 ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
 
+  // Replay the ledger (mirrors backend RecomputePosition) and return a map of
+  // transaction id → avg cost per share after that event executes.
+  const runningAvgCosts = (() => {
+    const sorted = [...txns].sort((a, b) => {
+      const ao = a.type === 'opening', bo = b.type === 'opening'
+      if (ao !== bo) return ao ? -1 : 1
+      return (a.date || '').localeCompare(b.date || '')
+    })
+    let totalQty = 0, totalBasis = 0
+    const m = new Map<string, number>()
+    for (const t of sorted) {
+      const qty = t.quantity ?? 0
+      const amt = t.amount ?? 0
+      switch (t.type) {
+        case 'opening':
+        case 'buy':
+          if (qty > 0) { totalQty += qty; totalBasis += amt }
+          break
+        case 'sell': {
+          const avg = totalQty > 0 ? totalBasis / totalQty : 0
+          const removed = Math.min(qty, totalQty)
+          totalQty -= removed
+          totalBasis -= avg * removed
+          break
+        }
+        case 'split':
+        case 'bonus':
+          if ((t.ratio ?? 0) > 0) totalQty *= t.ratio!
+          break
+        // dividend / merger: no position change
+      }
+      if (t.id) m.set(t.id, totalQty > 0 ? totalBasis / totalQty : 0)
+    }
+    return m
+  })()
+
   // Quantity/amount are irrelevant for split/bonus/merger; show ratio instead.
   const isCorporate = form.type === 'split' || form.type === 'bonus'
   const isMerger = form.type === 'merger'
@@ -312,15 +348,16 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                 <Th>Shares</Th>
                 <Th>Amount</Th>
                 <Th>Ratio</Th>
+                <Th>Avg Cost/Sh</Th>
                 <Th style={{ textAlign: 'center', width: 80 }}>Actions</Th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>Loading…</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>Loading…</td></tr>
               )}
               {!loading && txns.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
                   No transactions yet. Add a buy, sell or dividend above.
                 </td></tr>
               )}
@@ -334,6 +371,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
                   <Td className="mono">{num(t.quantity)}</Td>
                   <Td className="mono">{money(t.amount)}</Td>
                   <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>
+                  <Td className="mono">{(() => { const v = t.id ? runningAvgCosts.get(t.id) : undefined; return v ? sym + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '—' })()}</Td>
                   <Td style={{ textAlign: 'center' }}>
                     {confirm === t.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
