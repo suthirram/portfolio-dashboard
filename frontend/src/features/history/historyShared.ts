@@ -286,9 +286,9 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
     const invested = rs ? rs.invested : null
     const current  = rs ? rs.current  : null
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
-    const daily_vol = current != null && prevCurrent != null && prevCurrent !== 0
+    const daily_vol = current != null && prevCurrent != null
         && invested != null && prevInvested != null
-      ? ((current - prevCurrent - (invested - prevInvested)) / prevCurrent) * 100
+      ? flowAdjustedDailyVolatility(prevCurrent, current, prevInvested, invested)
       : null
     prevCurrent = current
     prevInvested = invested
@@ -373,9 +373,30 @@ export function regionDailyVolatility(rows: HistoryRow[], i: number, region: Reg
   const prev = rows[i + 1]
   if (!prev) return null
   const prevCur = prev.regions[region]?.current ?? 0
-  if (prevCur === 0) return null
   const today = rows[i].regions[region]?.current ?? 0
-  return ((today - prevCur) / prevCur) * 100
+  const prevInv = prev.regions[region]?.invested ?? 0
+  const todayInv = rows[i].regions[region]?.invested ?? 0
+  return flowAdjustedDailyVolatility(prevCur, today, prevInv, todayInv)
+}
+
+function flowAdjustedDailyVolatility(
+  prevCurrent: number,
+  current: number,
+  prevInvested: number,
+  invested: number,
+): number | null {
+  if (prevCurrent === 0) return null
+
+  const investedDelta = invested - prevInvested
+  let externalFlow = investedDelta
+  if (investedDelta < 0) {
+    // Sells remove cost basis from invested, but they leave at market value.
+    // Approximate that withdrawal using the remaining bucket's current/cost
+    // ratio so partial sells do not read as a market drop.
+    if (invested === 0) return null
+    externalFlow = investedDelta * (current / invested)
+  }
+  return ((current - externalFlow - prevCurrent) / prevCurrent) * 100
 }
 
 // regionPnLPct is the per-region P/L %.

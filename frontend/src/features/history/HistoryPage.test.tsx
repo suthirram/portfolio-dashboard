@@ -22,6 +22,7 @@ import {
   perCurrencyChartData,
   goldChartData,
   goldCurrentDirection,
+  regionDailyVolatility,
   regionCurrentDirection,
 } from './HistoryPage'
 import type {
@@ -721,6 +722,19 @@ describe('perCurrencyChartData daily_vol', () => {
     expect(series[1].daily_vol).toBeCloseTo(15, 5)  // net of the +50 contribution
   })
 
+  it('values withdrawn cost basis at current ratio for partial sells', () => {
+    // Day 1: 10 shares, avg cost 10, marked at 12 => invested 100/current 120.
+    // Day 2: sell 5 shares; remaining 5 are marked at 13 => invested 50/current 65.
+    // The sold cost basis left at current value (50 * 65/50 = 65), so the
+    // market move is (65 + 65 - 120) / 120 = 8.33%.
+    const flows: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(50, 65, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 120, 'cron') } }),
+    ]
+    const series = perCurrencyChartData(flows, 'INR')
+    expect(series[1].daily_vol).toBeCloseTo(8.333333, 5)
+  })
+
   it('still computes when invested is zero (principal withdrawn, gains riding)', () => {
     // Division is by prevCurrent; invested 0 is a valid baseline. Day 1:
     // invested 0, current 50. Day 2: invested still 0, market lifts to 55.
@@ -731,6 +745,36 @@ describe('perCurrencyChartData daily_vol', () => {
     ]
     const series = perCurrencyChartData(zeroInvested, 'INR')
     expect(series[1].daily_vol).toBeCloseTo(10, 5)
+  })
+})
+
+describe('regionDailyVolatility', () => {
+  // newest-first (server order): rows[i+1] is the prior day.
+  it('excludes new invested principal from the table daily volatility cell', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(150, 165, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 100, 'cron') } }),
+    ]
+
+    expect(regionDailyVolatility(rows, 0, 'INR')).toBeCloseTo(15, 5)
+  })
+
+  it('does not turn a partial sell in a rising market into negative volatility', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(50, 65, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 120, 'cron') } }),
+    ]
+
+    expect(regionDailyVolatility(rows, 0, 'INR')).toBeCloseTo(8.333333, 5)
+  })
+
+  it('returns null for full liquidation because sale proceeds are not in the aggregate row', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-02', regions: { INR: region(0, 0, 'cron') } }),
+      row({ date: '2026-06-01', regions: { INR: region(100, 120, 'cron') } }),
+    ]
+
+    expect(regionDailyVolatility(rows, 0, 'INR')).toBeNull()
   })
 })
 
