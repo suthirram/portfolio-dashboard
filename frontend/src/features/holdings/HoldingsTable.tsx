@@ -119,8 +119,12 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
     acc.value += h.current_value || 0
     acc.unreal += h.unrealized_pnl || 0
     acc.real += h.realized_pnl || 0
+    const m = priceMovement(h.current_price, h.previous_close_price)
+    if (m !== null) {
+      acc.dayGain = (acc.dayGain ?? 0) + m.change * (h.stocks_owned ?? 0)
+    }
     return acc
-  }, { cost: 0, value: 0, unreal: 0, real: 0 })
+  }, { cost: 0, value: 0, unreal: 0, real: 0, dayGain: null as number | null })
   const TOTAL_MONEY = nativeCurrency === 'EUR' ? EUR : INR
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
@@ -170,6 +174,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH>{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
             {colHead('Share Price', 'current_price')}
             <TH>Current Value</TH>
+            <TH>Day Gain</TH>
             <TH>Unrealised Gain</TH>
             <TH className="col-hide-sm">Realised Gain</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
@@ -195,6 +200,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             const hasPrice = (h.current_price ?? 0) > 0
             const movement = priceMovement(h.current_price, h.previous_close_price)
             const priceTone = movement?.tone ?? null
+            const dayGain = movement !== null ? movement.change * (h.stocks_owned ?? 0) : null
             const unrealized = h.unrealized_pnl ?? 0
             const realized = h.realized_pnl ?? 0
             const unrealCls = !hasPrice ? '' : unrealized > 0 ? 'pos' : unrealized < 0 ? 'neg' : 'neutral'
@@ -257,6 +263,16 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 {/* Current value */}
                 <TD className="mono" style={{ fontWeight: 700, fontSize: 14, color: h.current_value ? 'var(--blue)' : undefined }}>{h.current_value ? MONEY(h.current_value) : '—'}</TD>
 
+                {/* Day Gain — today's monetary move for this position */}
+                <TD className={`mono${dayGain === null ? '' : dayGain > 0 ? ' pos' : dayGain < 0 ? ' neg' : ' neutral'}`}>
+                  {dayGain === null ? '—' : (
+                    <>
+                      <div>{SIGNED_MONEY(dayGain, h.currency)}</div>
+                      {movement && <div style={{ fontSize: 10, lineHeight: 1.2, marginTop: 2, whiteSpace: 'nowrap' }}>{SIGNED_PCT(movement.pct)}</div>}
+                    </>
+                  )}
+                </TD>
+
                 {/* Unrealised gain */}
                 <TD className={`mono ${unrealCls}`}>
                   {hasPrice ? MONEY(h.unrealized_pnl) : '—'}
@@ -312,6 +328,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
               <TD className="mono">{TOTAL_MONEY(totals.cost)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
               <TD className="mono">{TOTAL_MONEY(totals.value)}</TD>
+              <TD className={`mono${totals.dayGain === null ? '' : totals.dayGain > 0 ? ' pos' : totals.dayGain < 0 ? ' neg' : ' neutral'}`}>
+                {totals.dayGain === null ? '—' : SIGNED_MONEY(totals.dayGain, nativeCurrency === 'EUR' ? 'EUR' : 'INR')}
+              </TD>
               <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.unreal)}</TD>
               <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.real)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />

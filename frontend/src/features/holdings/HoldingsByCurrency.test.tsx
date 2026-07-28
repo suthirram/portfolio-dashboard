@@ -168,6 +168,16 @@ describe('HoldingsByCurrency', () => {
     expect(screen.getByText('(+₹1.00 / +0.83%)')).toBeInTheDocument()
     expect(screen.getByText('(-₹1.00 / -0.83%)')).toBeInTheDocument()
     expect(screen.getByText('(₹0.00 / 0.00%)')).toBeInTheDocument()
+
+    // Day Gain column (td index 6): total monetary move for the position (price change × shares).
+    const dayGainCell = (script: string) =>
+      screen.getByText(script).closest('tr')!.querySelectorAll('td')[6] as HTMLTableCellElement
+    expect(dayGainCell('UP.NS')).toHaveClass('pos')
+    expect(dayGainCell('DOWN.NS')).toHaveClass('neg')
+    expect(within(dayGainCell('UP.NS')).getByText('+₹10.00')).toBeInTheDocument()
+    expect(within(dayGainCell('DOWN.NS')).getByText('-₹10.00')).toBeInTheDocument()
+    expect(within(dayGainCell('UP.NS')).getByText('+0.83%')).toBeInTheDocument()
+    expect(within(dayGainCell('DOWN.NS')).getByText('-0.83%')).toBeInTheDocument()
   })
 
   it('view tabs filter the rendered holdings by active/nil', () => {
