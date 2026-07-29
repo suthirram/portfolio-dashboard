@@ -4,7 +4,7 @@ import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import { groupByCurrency, type CurrencyCode } from './groupByCurrency'
 import { sumTotals, nativeView, nativeSymbols } from './currencyTotals'
-import type { HoldingWithPreviousClose } from './dashboardPriceMovement'
+import { priceMovement, type HoldingWithPreviousClose } from './dashboardPriceMovement'
 
 interface Props {
   holdings: HoldingWithPreviousClose[]
@@ -98,6 +98,22 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         const real = nativeView(g.currency, totals.real, totals.realEur)
         const change = changeByBucket.get(GROUP_TO_BUCKET[g.currency])
 
+        // Compute day gain from per-holding movements (same logic as the table
+        // total) so that intraday buys/sells don't inflate the Today figure.
+        // Uses avg_cost_price as fallback baseline for holdings with no snapshot yet.
+        let dayGainSum: number | null = null
+        let dayGainPartial = false
+        for (const h of g.holdings) {
+          if ((h.stocks_owned ?? 0) <= 0) continue
+          const m = priceMovement(h.current_price, h.previous_close_price ?? h.avg_cost_price)
+          if (m !== null) {
+            dayGainSum = (dayGainSum ?? 0) + m.change * (h.stocks_owned ?? 0)
+          } else {
+            dayGainPartial = true
+          }
+        }
+        const computedDayGain = dayGainPartial ? null : dayGainSum
+
         return (
           <section key={g.currency} style={{ marginBottom: 24 }}>
             <header style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
@@ -118,7 +134,9 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               <Stat label={`Current value (${native})`} primary={fmt(value.primary, nativeSym)} secondary={fmt(value.secondary, foreignSym)} />
               <Stat label="Unrealised" primary={fmt(unreal.primary, nativeSym)} secondary={fmt(unreal.secondary, foreignSym)} tone={unreal.primary >= 0 ? 'pos' : 'neg'} />
               <Stat label="Realised" primary={fmt(real.primary, nativeSym)} secondary={fmt(real.secondary, foreignSym)} tone={real.primary >= 0 ? 'pos' : 'neg'} />
-              {change && <ChangeStat change={change} symbol={nativeSym} />}
+              {change && computedDayGain !== null && (
+                <ChangeStat dayGain={computedDayGain} previousClose={change.previous_close} symbol={nativeSym} />
+              )}
             </div>
 
             <HoldingsTable
@@ -138,16 +156,22 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
 }
 
 // ChangeStat shows the native-amount move vs the previous close (no FX), as a
-// "Today" entry inside the currency group card. pct is null when the previous
-// close was zero.
-function ChangeStat({ change, symbol }: { change: CurrencyChange; symbol: string }) {
-  const value = change.change_value ?? 0
-  const up = value >= 0
-  const pct = change.change_pct == null ? '—' : `${up ? '+' : '-'}${Math.abs(change.change_pct).toFixed(2)}%`
+// "Today" entry inside the currency group card.
+// dayGain is summed from per-holding movements so intraday buys/sells don't
+// inflate the figure (unlike the backend's current − previous_close).
+function ChangeStat({ dayGain, previousClose, symbol }: {
+  dayGain: number
+  previousClose: number | undefined
+  symbol: string
+}) {
+  const up = dayGain >= 0
+  const pct = (previousClose && previousClose > 0)
+    ? `${up ? '+' : '-'}${Math.abs((dayGain / previousClose) * 100).toFixed(2)}%`
+    : '—'
   return (
     <Stat
       label="Today"
-      primary={`${up ? '▲' : '▼'} ${fmt(Math.abs(value), symbol)}`}
+      primary={`${up ? '▲' : '▼'} ${fmt(Math.abs(dayGain), symbol)}`}
       secondary={pct}
       tone={up ? 'pos' : 'neg'}
     />

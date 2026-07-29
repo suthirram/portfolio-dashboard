@@ -109,10 +109,13 @@ describe('HoldingsByCurrency', () => {
   })
 
   it('renders the per-currency daily change as a Today stat in the matching group card', () => {
+    // Holdings are set up so per-holding movement sums produce the expected values:
+    // INR: 10 shares × (3500 − 3000) = ₹5,000; pct = 5000 / 30000 = 16.67%
+    // EUR: 10 shares × (60 − 62)     = −€20;   pct = -20 / 620   = -3.23%
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', currency: 'INR', script: 'TCS.NS' }),
-        h({ id: '2', currency: 'EUR', script: 'SAP.DE' }),
+        h({ id: '1', currency: 'INR', script: 'TCS.NS', stocks_owned: 10, current_price: 3500, previous_close_price: 3000 }),
+        h({ id: '2', currency: 'EUR', script: 'SAP.DE', stocks_owned: 10, current_price: 60, previous_close_price: 62 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -142,6 +145,44 @@ describe('HoldingsByCurrency', () => {
       onEdit={noop}
       onDelete={noop}
     />)
+    expect(screen.queryByText('Today')).toBeNull()
+  })
+
+  it('Today stat excludes intraday buy cost — shows only price movement not invested amount', () => {
+    // Existing holding: previous_close 100, current 120 → +₹200 (10 shares)
+    // New holding bought today at 130, current 130 → 0 movement (avg cost = current)
+    // Backend change_value would be 200 + 1300 = 1500 (wrong); correct is 200.
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'OLD.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        h({ id: '2', script: 'NEW.NS', stocks_owned: 10, current_price: 130, avg_cost_price: 130 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      perCurrency={[
+        { currency: 'INR', current: 2500, previous_close: 1000, change_value: 1500, change_pct: 150 },
+      ]}
+    />)
+
+    // Should show ₹200 (only OLD.NS movement), not ₹1,500 (backend's inflated value).
+    expect(screen.getByText(/▲ ₹200/)).toBeInTheDocument()
+  })
+
+  it('omits Today stat when any holding with shares has no usable baseline', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'A.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        h({ id: '2', script: 'B.NS', stocks_owned: 10, current_price: 110, avg_cost_price: undefined as unknown as number }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      perCurrency={[
+        { currency: 'INR', current: 2300, previous_close: 1000, change_value: 1300, change_pct: 130 },
+      ]}
+    />)
+
     expect(screen.queryByText('Today')).toBeNull()
   })
 
