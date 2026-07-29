@@ -180,6 +180,55 @@ describe('HoldingsByCurrency', () => {
     expect(within(dayGainCell('DOWN.NS')).getByText('-0.83%')).toBeInTheDocument()
   })
 
+  it('Day Gain row falls back to avg_cost_price when previous_close_price is absent', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'NEW.NS', current_price: 110, avg_cost_price: 100, stocks_owned: 5 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const dayGainCell = screen.getByText('NEW.NS').closest('tr')!.querySelectorAll('td')[6] as HTMLTableCellElement
+    expect(dayGainCell).toHaveClass('pos')
+    expect(within(dayGainCell).getByText('+₹50.00')).toBeInTheDocument()
+  })
+
+  it('Day Gain total shows sum when all rows have a baseline (via fallback)', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'A.NS', current_price: 110, avg_cost_price: 100, stocks_owned: 5 }),
+        h({ id: '2', script: 'B.NS', current_price: 90, avg_cost_price: 100, stocks_owned: 5 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const tfoot = document.querySelector('tfoot') as HTMLElement
+    const totalDayGain = tfoot.querySelectorAll('td')[6] as HTMLTableCellElement
+    // +50 from A, -50 from B → net 0
+    expect(totalDayGain.textContent).toContain('₹0.00')
+  })
+
+  it('Day Gain total shows — when any row with shares has no usable baseline', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        h({ id: '1', script: 'A.NS', current_price: 110, previous_close_price: 100, stocks_owned: 5 }),
+        // no previous_close_price and no avg_cost_price → movement stays null
+        h({ id: '2', script: 'NOPRICE.NS', current_price: 110, avg_cost_price: undefined as unknown as number, stocks_owned: 5 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const tfoot = document.querySelector('tfoot') as HTMLElement
+    const totalDayGain = tfoot.querySelectorAll('td')[6] as HTMLTableCellElement
+    expect(totalDayGain.textContent).toBe('—')
+  })
+
   it('view tabs filter the rendered holdings by active/nil', () => {
     const user = vi.fn()
     const { rerender } = render(<HoldingsByCurrency
