@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import { type GoldMetrics } from '../../lib/api/client'
@@ -13,6 +13,7 @@ import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
+import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
 import {
   ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
   UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
@@ -93,12 +94,17 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // Display enriched if available, else fall back to plain holdings
   const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(h => ({
     ...h,
-    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),
+    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),cla
   }))
 
   const filtered = displayHoldings.filter(h =>
     !filter || h.script?.toLowerCase().includes(filter.toLowerCase()) || h.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
+
+  const computedDayGainByCurrency = useMemo(() => ({
+    INR: computeGroupDayGain(enriched.filter(h => h.currency === 'INR')),
+    EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
+  }), [enriched])
 
   const TAB = (key: Tab, label: string) => (
     <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
@@ -230,6 +236,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}
           stocksUnrealisedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.unrealized_pnl ?? 0), 0)}
           stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
+          computedDayGainInr={computedDayGainByCurrency.INR}
+          computedDayGainEur={computedDayGainByCurrency.EUR}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>

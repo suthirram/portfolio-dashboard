@@ -4,7 +4,7 @@ import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import { groupByCurrency, type CurrencyCode } from './groupByCurrency'
 import { sumTotals, nativeView, nativeSymbols } from './currencyTotals'
-import { priceMovement, type HoldingWithPreviousClose } from './dashboardPriceMovement'
+import { computeGroupDayGain, type HoldingWithPreviousClose } from './dashboardPriceMovement'
 
 interface Props {
   holdings: HoldingWithPreviousClose[]
@@ -98,21 +98,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         const real = nativeView(g.currency, totals.real, totals.realEur)
         const change = changeByBucket.get(GROUP_TO_BUCKET[g.currency])
 
-        // Compute day gain from per-holding movements (same logic as the table
-        // total) so that intraday buys/sells don't inflate the Today figure.
-        // Uses avg_cost_price as fallback baseline for holdings with no snapshot yet.
-        let dayGainSum: number | null = null
-        let dayGainPartial = false
-        for (const h of g.holdings) {
-          if ((h.stocks_owned ?? 0) <= 0) continue
-          const m = priceMovement(h.current_price, h.previous_close_price ?? h.avg_cost_price)
-          if (m !== null) {
-            dayGainSum = (dayGainSum ?? 0) + m.change * (h.stocks_owned ?? 0)
-          } else {
-            dayGainPartial = true
-          }
-        }
-        const computedDayGain = dayGainPartial ? null : dayGainSum
+        const computedDayGain = computeGroupDayGain(g.holdings)
 
         return (
           <section key={g.currency} style={{ marginBottom: 24 }}>

@@ -266,9 +266,13 @@ interface SummaryCardsProps {
   stocksCurrentEur?: number
   stocksUnrealisedInr?: number
   stocksUnrealisedEur?: number
+  // Frontend-computed day gain per currency (sum of per-holding movements),
+  // matching the ChangeStat values shown in each currency group card.
+  computedDayGainInr?: number | null
+  computedDayGainEur?: number | null
 }
 
-export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur, stocksCurrentInr, stocksCurrentEur, stocksUnrealisedInr, stocksUnrealisedEur }: SummaryCardsProps) {
+export default function SummaryCards({ summary, loading, goldCurrentInr, goldInvestedInr, goldNettPL, stocksInvestedInr, stocksInvestedEur, stocksCurrentInr, stocksCurrentEur, stocksUnrealisedInr, stocksUnrealisedEur, computedDayGainInr, computedDayGainEur }: SummaryCardsProps) {
   const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
   const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
   const [showPnLBreakdown, setShowPnLBreakdown] = useState(false)
@@ -300,9 +304,19 @@ export default function SummaryCards({ summary, loading, goldCurrentInr, goldInv
     { code: 'EUR', name: 'EUR', symbol: '€' },
     { code: 'USD', name: 'USD', symbol: '$' },
   ]
+  const computedGainOverrides: Partial<Record<string, number | null>> = {
+    INR: computedDayGainInr,
+    EUR: computedDayGainEur,
+  }
   const changeRows: ChangeRow[] = CCY_META.flatMap(({ code, name, symbol }) => {
     const c = per_currency?.find(x => x.currency === code)
-    return c ? [{ name, symbol, value: c.change_value ?? 0, pct: c.change_pct ?? null }] : []
+    if (!c) return []
+    const override = computedGainOverrides[code]
+    const value = override != null ? override : (c.change_value ?? 0)
+    const pct = override != null
+      ? ((c.previous_close && c.previous_close > 0) ? (override / c.previous_close) * 100 : null)
+      : (c.change_pct ?? null)
+    return [{ name, symbol, value, pct }]
   })
 
   return (
