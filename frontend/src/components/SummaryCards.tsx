@@ -1,6 +1,6 @@
 import type React from 'react'
 import {useRef, useState} from 'react'
-import type {Summary} from '../types'
+import type {CurrencyChange, Summary} from '../types'
 import {CoinsIcon} from './Icon'
 
 const fmt = (n: number, currency = '₹') =>
@@ -323,6 +323,20 @@ const cardLabelStyle: React.CSSProperties = {
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
 }
 
+function changePct(gain: number, prevClose: number | undefined): number | null {
+    if (!prevClose || prevClose <= 0) {
+        return null
+    }
+    return (gain / prevClose) * 100
+}
+
+function resolveChangeRow(bucket: CurrencyChange, name: string, symbol: string, override: number | null | undefined): ChangeRow {
+    if (override != null) {
+        return { name, symbol, value: override, pct: changePct(override, bucket.previous_close) }
+    }
+    return { name, symbol, value: bucket.change_value ?? 0, pct: bucket.change_pct ?? null }
+}
+
 interface SummaryCardsProps {
     summary: Summary | null
     loading: boolean
@@ -392,25 +406,10 @@ export default function SummaryCards({
         EUR: computedDayGainEur,
     }
 
-    function resolveChangeRow(
-        code: string, name: string, symbol: string,
-    ): ChangeRow | null {
-        const c = per_currency?.find(x => x.currency === code)
-        if (!c) return null
-
-        const override = computedGainOverrides[code]
-        if (override != null) {
-            const prevClose = c.previous_close ?? 0
-            const pct = prevClose > 0 ? (override / prevClose) * 100 : null
-            return { name, symbol, value: override, pct }
-        }
-
-        return { name, symbol, value: c.change_value ?? 0, pct: c.change_pct ?? null }
-    }
-
     const changeRows: ChangeRow[] = CCY_META.flatMap(({ code, name, symbol }) => {
-        const row = resolveChangeRow(code, name, symbol)
-        return row ? [row] : []
+        const bucket = per_currency?.find(entry => entry.currency === code)
+        if (!bucket) return []
+        return [resolveChangeRow(bucket, name, symbol, computedGainOverrides[code])]
     })
 
     return (
