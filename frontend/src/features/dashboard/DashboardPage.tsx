@@ -94,17 +94,26 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // Display enriched if available, else fall back to plain holdings
   const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(h => ({
     ...h,
-    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),cla
+    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),
   }))
 
   const filtered = displayHoldings.filter(h =>
     !filter || h.script?.toLowerCase().includes(filter.toLowerCase()) || h.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
 
-  const computedDayGainByCurrency = useMemo(() => ({
-    INR: computeGroupDayGain(enriched.filter(h => h.currency === 'INR')),
-    EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
-  }), [enriched])
+  // Only override when previous-close enrichment is known to have succeeded.
+  // act-as skips the history lookup (useHoldings line 44: !userId guard), and
+  // a failed history fetch leaves enriched without previous_close_price — both
+  // cases would fall back to avg_cost_price, producing lifetime P&L, not a
+  // day gain. Passing null lets SummaryCards keep the backend's change_value.
+  const computedDayGainByCurrency = useMemo(() => {
+    const hasPreviousClose = !actAsUserId && enriched.some(h => h.previous_close_price != null)
+    if (!hasPreviousClose) return { INR: null, EUR: null }
+    return {
+      INR: computeGroupDayGain(enriched.filter(h => h.currency === 'INR')),
+      EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
+    }
+  }, [actAsUserId, enriched])
 
   const TAB = (key: Tab, label: string) => (
     <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>

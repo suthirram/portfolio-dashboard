@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Code reuse (non-negotiable)
+
+Before writing any new logic, search the codebase for an existing implementation. Reuse is always the first priority over writing new code. Extract shared logic into a utility when the same pattern appears in more than one place. Never duplicate a function, loop, or computation that already exists — find it and call it.
+
 ## Git workflow
 
 Never commit directly to `main`. Every change goes on its own branch, then to `main` via a PR — even one-line fixes. A `no-commit-to-branch` pre-commit hook blocks direct commits to `main`. Standard flow: branch from `main` → commit → push → `gh pr create` → merge (squash). After "commit"/"push"/"open a PR" requests, follow this flow without asking.
