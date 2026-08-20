@@ -180,6 +180,10 @@ func (h *Controller) Signup(ctx context.Context, request api.SignupRequestObject
 func (h *Controller) Login(ctx context.Context, request api.LoginRequestObject) (api.LoginResponseObject, error) {
 	in := request.Body
 
+	if err := validateUsername(in.Username); err != nil {
+		return api.Login401JSONResponse{UnauthorizedJSONResponse: api.UnauthorizedJSONResponse{Error: lo.ToPtr("invalid username or password")}}, nil
+	}
+
 	user, err := h.findUserByUsername(ctx, in.Username)
 	if err != nil {
 		return nil, err
