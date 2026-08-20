@@ -85,4 +85,35 @@ describe('SummaryCards grouped change card', () => {
     expect(screen.queryByText(/vs .* close/)).toBeNull()
     expect(screen.queryByText(/▲|▼/)).toBeNull()
   })
+
+  it('overrides INR/EUR rows with frontend-computed day gain when provided', () => {
+    const summary: Summary = {
+      ...base,
+      previous_close_date: '2026-06-16',
+      per_currency: [
+        { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
+      ],
+    }
+    // Frontend computed a smaller gain (e.g. excludes intraday buys).
+    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={1000} />)
+    expect(screen.getByText('▲ ₹1,000.00')).toBeInTheDocument()
+    // pct recomputed: 1000 / 30000 * 100 = 3.33%
+    expect(screen.getByText('+3.33%')).toBeInTheDocument()
+    // backend value must not appear
+    expect(screen.queryByText('▲ ₹5,000.00')).toBeNull()
+  })
+
+  it('falls back to backend change_value when computed gain is null (act-as / history failed)', () => {
+    const summary: Summary = {
+      ...base,
+      previous_close_date: '2026-06-16',
+      per_currency: [
+        { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
+      ],
+    }
+    // null = history enrichment did not run (act-as or fetch error)
+    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={null} />)
+    expect(screen.getByText('▲ ₹5,000.00')).toBeInTheDocument()
+    expect(screen.getByText('+16.67%')).toBeInTheDocument()
+  })
 })

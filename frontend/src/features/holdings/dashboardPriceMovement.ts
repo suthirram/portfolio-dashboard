@@ -62,3 +62,20 @@ export function priceMovementTone(
 ): PriceMovementTone | null {
   return priceMovement(current, previous)?.tone ?? null
 }
+
+// Sum of (price change × shares) for a group of holdings. Returns null when
+// any active holding is missing price data (partial = unreliable total).
+export function computeGroupDayGain(holdings: HoldingWithPreviousClose[]): number | null {
+  let sum: number | null = null
+  let partial = false
+  for (const h of holdings) {
+    if ((h.stocks_owned ?? 0) <= 0) continue
+    const m = priceMovement(h.current_price, h.previous_close_price ?? h.avg_cost_price)
+    if (m !== null) {
+      sum = (sum ?? 0) + m.change * (h.stocks_owned ?? 0)
+    } else {
+      partial = true
+    }
+  }
+  return partial ? null : sum
+}

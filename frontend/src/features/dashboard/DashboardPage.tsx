@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import { type GoldMetrics } from '../../lib/api/client'
@@ -13,6 +13,7 @@ import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
+import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
 import {
   ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
   UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
@@ -99,6 +100,20 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const filtered = displayHoldings.filter(h =>
     !filter || h.script?.toLowerCase().includes(filter.toLowerCase()) || h.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
+
+  // Only override when previous-close enrichment is known to have succeeded.
+  // act-as skips the history lookup (useHoldings line 44: !userId guard), and
+  // a failed history fetch leaves enriched without previous_close_price — both
+  // cases would fall back to avg_cost_price, producing lifetime P&L, not a
+  // day gain. Passing null lets SummaryCards keep the backend's change_value.
+  const computedDayGainByCurrency = useMemo(() => {
+    const hasPreviousClose = !actAsUserId && enriched.some(h => h.previous_close_price != null)
+    if (!hasPreviousClose) return { INR: null, EUR: null }
+    return {
+      INR: computeGroupDayGain(enriched.filter(h => h.currency === 'INR')),
+      EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
+    }
+  }, [actAsUserId, enriched])
 
   const TAB = (key: Tab, label: string) => (
     <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
@@ -230,6 +245,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}
           stocksUnrealisedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.unrealized_pnl ?? 0), 0)}
           stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
+          computedDayGainInr={computedDayGainByCurrency.INR}
+          computedDayGainEur={computedDayGainByCurrency.EUR}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
