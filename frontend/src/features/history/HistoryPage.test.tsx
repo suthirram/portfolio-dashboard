@@ -316,7 +316,7 @@ describe('HistoryTable', () => {
     const edits = screen.getAllByRole('button', { name: /Edit row/ })
     expect(edits.length).toBe(2)
     // Target by row date, not display position (default order is oldest-first).
-    fireEvent.click(screen.getByRole('button', { name: 'Edit row for 2026-06-16' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit row for 16-06-2026' }))
     expect(onEdit).toHaveBeenCalledWith(rows[0])
   })
 

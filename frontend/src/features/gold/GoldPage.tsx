@@ -175,12 +175,12 @@ export default function GoldPage() {
                     <td style={td}>{t.chennai_rate || '—'}</td>
                     <td style={td}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
-                        <button aria-label={`Edit ${t.date}`} disabled={busy === t.id}
+                        <button aria-label={`Edit ${formatDate(t.date)}`} disabled={busy === t.id}
                           onClick={() => setModal({ open: true, txn: t })}
                           style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 2 }}>
                           <EditIcon size={14} />
                         </button>
-                        <button aria-label={`Delete ${t.date}`} disabled={busy === t.id}
+                        <button aria-label={`Delete ${formatDate(t.date)}`} disabled={busy === t.id}
                           onClick={() => void remove(t)}
                           style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 2 }}>
                           <TrashIcon size={14} />

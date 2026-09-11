@@ -112,13 +112,13 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                   <div style={actionCell}>
                     {onEdit && (
                       <button onClick={() => onEdit(r)} className="btn-row btn-row-accent"
-                        aria-label={`Edit row for ${r.date}`} title="Edit">
+                        aria-label={`Edit row for ${formatDate(r.date)}`} title="Edit">
                         <EditIcon size={16} />
                       </button>
                     )}
                     {(isAllManual(r.regions) || canForceDelete) && (
                       <button onClick={() => onDelete(r.date)} className="btn-row btn-row-danger"
-                        aria-label={`Delete row for ${r.date}`}
+                        aria-label={`Delete row for ${formatDate(r.date)}`}
                         title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
                         <TrashIcon size={16} />
                       </button>
