@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type GoldMetrics, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
+import { formatDate } from '../../lib/formDates'
 import ThemePicker from '../../components/ThemePicker'
 import { useAuthOptional } from '../auth/AuthContext'
 import { ArrowLeftIcon, EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
@@ -73,7 +74,7 @@ export default function GoldPage() {
   useEffect(() => { void load() }, [load])
 
   const remove = async (t: GoldTransaction) => {
-    if (!confirm(`Delete the ${t.date} purchase of ${t.grams_bought} g?`)) return
+    if (!confirm(`Delete the ${formatDate(t.date)} purchase of ${t.grams_bought} g?`)) return
     setBusy(t.id)
     try {
       await api.deleteGoldTransaction(t.id)
@@ -155,7 +156,7 @@ export default function GoldPage() {
               <tbody>
                 {rows.map(t => (
                   <tr key={t.id}>
-                    <td style={{ ...td, textAlign: 'left' }}>{t.date}</td>
+                    <td style={{ ...td, textAlign: 'left' }}>{formatDate(t.date)}</td>
                     <td style={td}>{fmt(t.gm_price)}</td>
                     <td style={td}>{fmt(t.grams_bought, 3)}</td>
                     <td style={{ ...td, ...computed }}>{fmt(t.gold_cost)}</td>

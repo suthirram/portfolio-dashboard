@@ -9,6 +9,7 @@ import type {
   PasteHistoryReport,
 } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
+import { formatDate } from '../../lib/formDates'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
   changedRegions, emptyForm, fmt,
@@ -117,7 +118,7 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
   return (
     <div className="modal-overlay" style={modalBackdrop}>
       <div className="modal-card" style={modalCard}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {row.date}</h2>
+        <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {formatDate(row.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving overrides any cron-written value with the manual value below.
           Only the regions you change are saved; enter <em>0</em> to reset a
@@ -222,7 +223,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
             )}
             {report.rejected.length > 0 && (
               <ul style={{ marginTop: 4, paddingLeft: 18, fontSize: 12 }}>
-                {report.rejected.map(r => <li key={r.date}>{r.date}: {r.reason}</li>)}
+                {report.rejected.map(r => <li key={r.date}>{formatDate(r.date)}: {r.reason}</li>)}
               </ul>
             )}
           </div>
@@ -260,7 +261,7 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
   return (
     <div className="modal-overlay" style={modalBackdrop}>
       <div className="modal-card" style={modalCard}>
-        <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {conflict.date}</h2>
+        <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {formatDate(conflict.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           For each region, tick to keep the incoming value (override). Leave unticked to keep what's already there.
         </p>
@@ -324,7 +325,7 @@ export function HoldingsModal({ row, prev, region, onClose }: {
       <div className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{row.date} · {region}</span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(row.date)} · {region}</span>
         </div>
         {holdings.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No {region} holdings for this row.</p>

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { formatDate } from '../../lib/formDates'
 import {
   parsePasteText,
   monthRange,
@@ -363,8 +364,8 @@ describe('HistoryTable', () => {
 
     // Default is oldest-first: 06-16 on top, 06-17 below.
     let bodyRows = document.querySelectorAll('tbody tr')
-    expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-16')
-    expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-17')
+    expect(bodyRows[0].querySelector('td')?.textContent).toBe('16-06-2026')
+    expect(bodyRows[1].querySelector('td')?.textContent).toBe('17-06-2026')
 
     // Math is unchanged by display order: 06-17 still reads +10.00 vs its
     // prior day (200), and 06-16 (no prior in window) renders "—".
@@ -374,8 +375,8 @@ describe('HistoryTable', () => {
     // Click the Date header → newest-first: 06-17 back on top.
     fireEvent.click(screen.getByRole('button', { name: /Sort by date/ }))
     bodyRows = document.querySelectorAll('tbody tr')
-    expect(bodyRows[0].querySelector('td')?.textContent).toBe('2026-06-17')
-    expect(bodyRows[1].querySelector('td')?.textContent).toBe('2026-06-16')
+    expect(bodyRows[0].querySelector('td')?.textContent).toBe('17-06-2026')
+    expect(bodyRows[1].querySelector('td')?.textContent).toBe('16-06-2026')
   })
 
   it('omits the gold column group when no row carries an overlay', () => {
@@ -409,7 +410,7 @@ describe('HistoryTable', () => {
     // Layout: date(1) + 2 currency groups × 4 (8) + gold group (4) + action(1).
     // The gold cells are indices 9–12; on a pre-purchase row all four are —.
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === '2026-06-16')!
+      .find(t => t.querySelector('td')?.textContent === '16-06-2026')!
     const cells = Array.from(tr.querySelectorAll('td'))
     expect(cells.slice(9, 13).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
   })
@@ -423,7 +424,7 @@ describe('HistoryTable cell tints', () => {
   // td[3]=daily vol, td[4]=P/L%. td[0] is the date.
   const cellsForDate = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === date)!
+      .find(t => t.querySelector('td')?.textContent === formatDate(date))!
     return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
   }
   const pnlCell = (date: string) => cellsForDate(date)[4]
@@ -506,7 +507,7 @@ describe('HistoryTable gold cell tints', () => {
   // td[10]=value td[11]=vol td[12]=P/L%.
   const goldCells = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === date)!
+      .find(t => t.querySelector('td')?.textContent === formatDate(date))!
     return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
   }
   const GOLD_TINT = 'rgba(217,119,6,0.1)'
@@ -576,7 +577,7 @@ const conflict: DateConflict = {
 describe('ConflictDialog', () => {
   it('renders each region with its existing source tag', () => {
     render(<ConflictDialog conflict={conflict} onResolve={vi.fn()} onSkip={vi.fn()} />)
-    expect(screen.getByText(/2026-06-02/)).toBeInTheDocument()
+    expect(screen.getByText(/02-06-2026/)).toBeInTheDocument()
     // existing values carry a (cron) tag
     expect(screen.getAllByText(/\(cron\)/).length).toBe(2)
   })
@@ -625,7 +626,7 @@ describe('PasteModal', () => {
     })
     // report summary renders after submit resolves
     expect(await screen.findByText(/Applied: 1/)).toBeInTheDocument()
-    expect(screen.getByText(/2026-06-31: invalid date/)).toBeInTheDocument()
+    expect(screen.getByText(/31-06-2026: invalid date/)).toBeInTheDocument()
   })
 })
 

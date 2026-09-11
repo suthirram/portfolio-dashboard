@@ -8,6 +8,7 @@ import type {
   RegionSnapshot,
 } from '../../lib/api/client'
 import { EditIcon, TrashIcon } from '../../components/Icon'
+import { formatDate } from '../../lib/formDates'
 import type { ThemeName } from '../../lib/useTheme'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_TINT, NEW_INVESTMENT_TINT,
@@ -94,7 +95,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
             const prev = byDateDesc[i + 1] ?? null
             return (
               <tr key={r.date} title={`Source: ${sourceLabel}`}>
-                <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{r.date}</td>
+                <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{formatDate(r.date)}</td>
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
                     key={region}

@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
+import { formatDate } from '../../lib/formDates'
 
 interface Props {
   /** The caller's price series (ascending) as last loaded. */
@@ -96,7 +97,7 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
               background: 'var(--bg-card)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 13,
             }}>
-              <span style={{ color: 'var(--text-secondary)' }}>{p.date}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{formatDate(p.date)}</span>
               <span style={{ fontWeight: 600 }}>₹{fmt(p.price_per_gram)}</span>
             </div>
           ))}

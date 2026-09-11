@@ -17,6 +17,7 @@ import {
 } from '../../lib/api/client'
 import { ApiError } from '../../lib/api/client'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
+import { formatDate } from '../../lib/formDates'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
@@ -193,7 +194,7 @@ export default function HistoryPage() {
   }
 
   const handleDelete = async (date: string) => {
-    if (!confirm(`Delete row for ${date}?`)) return
+    if (!confirm(`Delete row for ${formatDate(date)}?`)) return
     try {
       await api.deleteHistoryRow(date)
       await reload()

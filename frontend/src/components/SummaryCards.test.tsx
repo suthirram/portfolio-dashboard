@@ -40,7 +40,7 @@ describe('SummaryCards grouped change card', () => {
     expect(screen.getByText('▲ $100.00')).toBeInTheDocument()
     expect(screen.getByText('+10.00%')).toBeInTheDocument()
     // Close date shown once for the group.
-    expect(screen.getAllByText(/vs 2026-06-16 close/).length).toBe(1)
+    expect(screen.getAllByText(/vs 16-06-2026 close/).length).toBe(1)
     // Old P&L cards gone.
     expect(screen.queryByText('Unrealised P&L')).toBeNull()
     expect(screen.queryByText('Realised P&L')).toBeNull()
