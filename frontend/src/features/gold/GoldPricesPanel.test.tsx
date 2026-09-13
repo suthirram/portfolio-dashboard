@@ -17,8 +17,8 @@ describe('GoldPricesPanel', () => {
       { date: '2026-07-06', price_per_gram: 7350 },
     ]
     render(<GoldPricesPanel prices={prices} onSaved={() => {}} />)
-    const cells = screen.getAllByText(/2026-07-0/).map(el => el.textContent)
-    expect(cells[0]).toBe('2026-07-06') // newest first
+    const cells = screen.getAllByText(/0[56]-07-2026/).map(el => el.textContent)
+    expect(cells[0]).toBe('06-07-2026') // newest first
     expect(screen.getByText('₹7,350')).toBeTruthy()
   })
 

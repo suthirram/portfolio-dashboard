@@ -5,6 +5,7 @@ import type { HoldingWithPrice, Transaction, TransactionInput, TransactionType }
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
+import { formatDate } from '../../lib/formDates'
 
 // Ordered for the type picker; opening is managed via the holding's opening
 // balance, but is shown read-only in the list when present.
@@ -363,7 +364,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
               )}
               {!loading && txns.map(t => (
                 <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
-                  <Td style={{ textAlign: 'left' }}>{t.date ? t.date.slice(0, 10) : '—'}</Td>
+                  <Td style={{ textAlign: 'left' }}>{t.date ? formatDate(t.date) : '—'}</Td>
                   <Td style={{ textAlign: 'left' }}>
                     <span style={{ fontWeight: 600 }}>{TYPE_LABEL[t.type || ''] || t.type}</span>
                     {t.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.notes}</div>}

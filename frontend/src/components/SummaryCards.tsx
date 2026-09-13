@@ -2,6 +2,7 @@ import type React from 'react'
 import {useRef, useState} from 'react'
 import type {CurrencyChange, Summary} from '../types'
 import {CoinsIcon} from './Icon'
+import {formatDate} from '../lib/formDates'
 
 const fmt = (n: number, currency = '₹') =>
     `${currency}${Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
@@ -196,7 +197,7 @@ function ChangeCard({rows, date}: { rows: ChangeRow[]; date?: string }) {
                 rows.map(r => <ChangeLine key={r.name} row={r}/>)
             )}
             {date && rows.length > 0 && (
-                <div style={{fontSize: 11, color: 'var(--text-muted)', marginTop: 8}}>vs {date} close</div>
+                <div style={{fontSize: 11, color: 'var(--text-muted)', marginTop: 8}}>vs {formatDate(date)} close</div>
             )}
         </div>
     )

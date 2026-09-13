@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
+import { formatDate } from '../../lib/formDates'
 
 interface Props {
   /** Calendar days (YYYY-MM-DD) since the first purchase with no price row. */
@@ -36,7 +37,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   const invalid = (): string | null => {
     for (const p of filled()) {
       if (!Number.isFinite(p.price_per_gram) || p.price_per_gram <= 0) {
-        return `Price for ${p.date} must be a number > 0`
+        return `Price for ${formatDate(p.date)} must be a number > 0`
       }
     }
     return null
@@ -88,7 +89,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
         <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
           {missing.map(date => (
             <div key={date} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <label htmlFor={`price-${date}`} style={{ fontSize: 13, color: 'var(--text-primary)' }}>{date}</label>
+              <label htmlFor={`price-${date}`} style={{ fontSize: 13, color: 'var(--text-primary)' }}>{formatDate(date)}</label>
               <DecimalInput id={`price-${date}`} style={input} placeholder="₹ / gram"
                 value={prices[date] ?? ''} onValueChange={v => set(date, v)} />
             </div>

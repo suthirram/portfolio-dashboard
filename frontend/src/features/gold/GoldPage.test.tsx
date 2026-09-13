@@ -77,8 +77,8 @@ describe('GoldPage', () => {
     renderPage()
 
     expect(await screen.findByRole('dialog', { name: 'Fill missing gold prices' })).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('2026-07-05'), { target: { value: '7300' } })
-    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7350' } })
+    fireEvent.change(screen.getByLabelText('05-07-2026'), { target: { value: '7300' } })
+    fireEvent.change(screen.getByLabelText('06-07-2026'), { target: { value: '7350' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
 
     await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([
@@ -96,7 +96,7 @@ describe('GoldPage', () => {
 
     await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
     // Fill only one of the three days.
-    fireEvent.change(screen.getByLabelText('2026-07-04'), { target: { value: '7300' } })
+    fireEvent.change(screen.getByLabelText('04-07-2026'), { target: { value: '7300' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
 
     // Only the filled day is sent.
@@ -104,10 +104,10 @@ describe('GoldPage', () => {
       { date: '2026-07-04', price_per_gram: 7300 },
     ]))
     // The prompt stays open and now lists just the two still-blank days.
-    await waitFor(() => expect(screen.queryByLabelText('2026-07-04')).toBeNull())
+    await waitFor(() => expect(screen.queryByLabelText('04-07-2026')).toBeNull())
     expect(screen.getByRole('dialog', { name: 'Fill missing gold prices' })).toBeTruthy()
-    expect(screen.getByLabelText('2026-07-05')).toBeTruthy()
-    expect(screen.getByLabelText('2026-07-06')).toBeTruthy()
+    expect(screen.getByLabelText('05-07-2026')).toBeTruthy()
+    expect(screen.getByLabelText('06-07-2026')).toBeTruthy()
   })
 
   it('clears a stale refresh error once a later refresh succeeds', async () => {
@@ -120,12 +120,12 @@ describe('GoldPage', () => {
     renderPage()
 
     await screen.findByRole('dialog', { name: 'Fill missing gold prices' })
-    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7300' } })
+    fireEvent.change(screen.getByLabelText('06-07-2026'), { target: { value: '7300' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
     expect(await screen.findByText('Failed to refresh gold data')).toBeTruthy()
 
     // Save again → this refresh succeeds → the stale banner clears.
-    fireEvent.change(screen.getByLabelText('2026-07-06'), { target: { value: '7350' } })
+    fireEvent.change(screen.getByLabelText('06-07-2026'), { target: { value: '7350' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save all' }))
     await waitFor(() => expect(screen.queryByText('Failed to refresh gold data')).toBeNull())
   })
@@ -155,7 +155,7 @@ describe('GoldPage', () => {
     vi.mocked(api.listGoldTransactions).mockResolvedValue([row])
     renderPage()
 
-    expect(await screen.findByText('2026-07-01')).toBeTruthy()
+    expect(await screen.findByText('01-07-2026')).toBeTruthy()
     // Server-computed columns rendered as-is (en-IN grouping).
     expect(screen.getByText('58,200')).toBeTruthy()  // gold cost
     expect(screen.getByText('1,746')).toBeTruthy()   // 3% GST
@@ -171,7 +171,7 @@ describe('GoldPage', () => {
     } as unknown as GoldTransaction])
     renderPage()
 
-    await screen.findByText('2026-07-01')
+    await screen.findByText('01-07-2026')
     // Scope to the transactions table — the metrics panel has its own dashes.
     const table = document.querySelector('table')!
     const dashes = Array.from(table.querySelectorAll('td')).filter(td => td.textContent === '—')

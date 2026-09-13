@@ -84,7 +84,7 @@ describe('HistoryPage', () => {
   it('renders the table when rows are present', async () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
-    expect(await screen.findByText('2026-06-16')).toBeInTheDocument()
+    expect(await screen.findByText('16-06-2026')).toBeInTheDocument()
     // Header "Amount invested" appears once per currency group (INR, EUR).
     expect(screen.getAllByText('Amount invested').length).toBe(2)
   })
@@ -92,7 +92,7 @@ describe('HistoryPage', () => {
   it('uses the wide content container so the currency + gold columns fit', async () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
-    await screen.findByText('2026-06-16')
+    await screen.findByText('16-06-2026')
     expect(screen.getByRole('main').style.maxWidth).toBe('1800px')
   })
 
@@ -115,7 +115,7 @@ describe('HistoryPage', () => {
     })
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
-    await screen.findByText('2026-06-16')
+    await screen.findByText('16-06-2026')
 
     const domOrder = () => {
       const table = document.querySelector('table')!
@@ -192,7 +192,7 @@ describe('HistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
     // Conflict dialog appears for the colliding date.
-    expect(await screen.findByText(/Conflict — 2026-06-02/)).toBeInTheDocument()
+    expect(await screen.findByText(/Conflict — 02-06-2026/)).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('checkbox')[0]) // India
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 

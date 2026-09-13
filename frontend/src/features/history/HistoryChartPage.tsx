@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { api, type HistoryRow } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
+import { formatDate } from '../../lib/formDates'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
@@ -137,7 +138,7 @@ export default function HistoryChartPage() {
 
       <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>
-          Full dataset {firstDate && lastDate ? `(${firstDate} → ${lastDate})` : '(2000 → today)'}.
+          Full dataset {firstDate && lastDate ? `(${formatDate(firstDate)} → ${formatDate(lastDate)})` : '(2000 → today)'}.
           Scroll horizontally to see every plotted day.
         </p>
 
@@ -185,10 +186,12 @@ export default function HistoryChartPage() {
                   <ComposedChart data={data} margin={{ top: 8, right: 24, bottom: 48, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45}
-                      textAnchor="end" height={60} interval="preserveStartEnd" minTickGap={8} />
+                      textAnchor="end" height={60} interval="preserveStartEnd" minTickGap={8}
+                      tickFormatter={formatDate} />
                     <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                       tickFormatter={fmtAxisAmount} width={72} />
-                    <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
+                    <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)}
+                      labelFormatter={formatDate} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested}
                       strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
