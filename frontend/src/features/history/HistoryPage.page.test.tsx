@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { HistoryList, HistoryRow } from '../../lib/api/client'
 
 // Recharts' ResponsiveContainer needs ResizeObserver, absent in jsdom.
@@ -199,6 +199,26 @@ describe('HistoryPage', () => {
     await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith(
       '2026-06-02', { regions: { INR: { invested: 200, current: 220 } } },
     ))
+  })
+
+  it('clicking the Gold invested-vs-current chart navigates to its full-history page, like India/Europe', async () => {
+    const goldRow: HistoryRow = {
+      ...sampleRow,
+      gold: { invested: 7200, current: 14400, pnl_pct: 100, volatility_pct: 0 },
+    }
+    mockApi.listHistory.mockResolvedValue(list([goldRow]))
+    render(
+      <MemoryRouter initialEntries={['/history']}>
+        <Routes>
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/history/chart/:region" element={<div>chart page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('16-06-2026')
+
+    fireEvent.click(screen.getByRole('button', { name: /Expand full Gold invested vs current history/ }))
+    expect(await screen.findByText('chart page')).toBeInTheDocument()
   })
 
   it('reloads after a successful add', async () => {

@@ -11,7 +11,7 @@ import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
-  chartTooltipProps, fmtCurrency, fmtAxisAmount, niceDomain,
+  GOLD_PALETTE, chartTooltipProps, fmtCurrency, fmtAxisAmount, niceDomain,
   type RegionKey,
 } from './historyShared'
 
@@ -67,6 +67,18 @@ export function fullSeries(rows: HistoryRow[], region: RegionKey) {
   })
 }
 
+// goldFullSeries mirrors fullSeries for the gold overlay, keeping the FULL
+// ISO date (unlike historyShared's goldChartData, which slices to MM-DD for
+// the History page's mini chart).
+export function goldFullSeries(rows: HistoryRow[]) {
+  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  return oldestFirst.map(r => ({
+    date: r.date,
+    invested: r.gold ? r.gold.invested : null,
+    current: r.gold ? r.gold.current : null,
+  }))
+}
+
 function isRegionKey(s: string | undefined): s is RegionKey {
   return !!s && (REGIONS as readonly string[]).includes(s)
 }
@@ -81,6 +93,7 @@ export default function HistoryChartPage() {
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const params = useParams<{ region: string }>()
+  const isGold = params.region === 'gold'
   const region: RegionKey = isRegionKey(params.region) ? params.region : 'INR'
 
   const [rows, setRows] = useState<HistoryRow[]>([])
@@ -101,11 +114,15 @@ export default function HistoryChartPage() {
     return () => { cancelled = true }
   }, [])
 
-  const cur = CURRENCY_BY_REGION[region]
+  const cur = isGold ? 'INR' : CURRENCY_BY_REGION[region]
   const sym = CURRENCY_SYMBOL[cur]
-  const palette = REGION_COLOURS[theme][region]
+  const palette = isGold ? GOLD_PALETTE[theme] : REGION_COLOURS[theme][region]
+  const label = isGold ? 'Gold' : REGION_LABELS[region]
 
-  const daily = useMemo(() => fullSeries(rows, region), [rows, region])
+  const daily = useMemo(
+    () => isGold ? goldFullSeries(rows) : fullSeries(rows, region),
+    [rows, region, isGold],
+  )
   const data = useMemo(
     () => granularity === 'week' ? toWeekly(daily) : daily,
     [daily, granularity],
@@ -130,7 +147,7 @@ export default function HistoryChartPage() {
             <ArrowLeftIcon size={14} />
           </Link>
           <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
-            {REGION_LABELS[region]} — Invested vs Current
+            {label} — Invested vs Current
           </h1>
         </div>
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
@@ -150,7 +167,7 @@ export default function HistoryChartPage() {
             padding: 32, textAlign: 'center', background: 'var(--bg-secondary)',
             border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-secondary)',
           }}>
-            No {REGION_LABELS[region]} history recorded yet.
+            No {label} history recorded yet.
           </div>
         )}
 
