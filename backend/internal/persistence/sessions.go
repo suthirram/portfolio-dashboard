@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"encoding/base64"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,6 +11,10 @@ import (
 
 	"portfolio-dashboard/internal/domain"
 )
+
+// sessionIDLen is the decoded byte length of a session id minted by
+// auth.NewSessionID (32 random bytes, base64url-encoded without padding).
+const sessionIDLen = 32
 
 // SessionStore owns the sessions collection.
 type SessionStore struct {
@@ -24,8 +29,13 @@ func (s *SessionStore) Insert(ctx context.Context, sess domain.Session) error {
 	return err
 }
 
+// normalizeSessionID rejects any id that isn't a well-formed opaque session
+// token before it reaches a Mongo filter (belt-and-suspenders against
+// malformed/attacker-controlled input; the driver's typed bson.M filter
+// already treats it as a literal value, never as query syntax).
 func normalizeSessionID(id string) (string, error) {
-	if _, err := primitive.ObjectIDFromHex(id); err != nil {
+	decoded, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil || len(decoded) != sessionIDLen {
 		return "", ErrNotFound
 	}
 	return id, nil

@@ -545,7 +545,11 @@ func TestRecoverPassword_WrongAnswerCountsAndLocks(t *testing.T) {
 
 func authedCtx(u *domain.User) context.Context {
 	ctx := auth.WithUser(context.Background(), u)
-	return auth.WithSessionID(ctx, "current-session-id")
+	sessID, err := auth.NewSessionID()
+	if err != nil {
+		panic(err)
+	}
+	return auth.WithSessionID(ctx, sessID)
 }
 
 func testUser(t *testing.T, password string) *domain.User {
