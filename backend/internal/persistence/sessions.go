@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"encoding/base64"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,6 +11,10 @@ import (
 
 	"portfolio-dashboard/internal/domain"
 )
+
+// sessionIDLen is the decoded byte length of a session id minted by
+// auth.NewSessionID (32 random bytes, base64url-encoded without padding).
+const sessionIDLen = 32
 
 // SessionStore owns the sessions collection.
 type SessionStore struct {
@@ -24,13 +29,30 @@ func (s *SessionStore) Insert(ctx context.Context, sess domain.Session) error {
 	return err
 }
 
+// normalizeSessionID rejects any id that isn't a well-formed opaque session
+// token before it reaches a Mongo filter (belt-and-suspenders against
+// malformed/attacker-controlled input; the driver's typed bson.M filter
+// already treats it as a literal value, never as query syntax).
+func normalizeSessionID(id string) (string, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(id)
+	if err != nil || len(decoded) != sessionIDLen {
+		return "", ErrNotFound
+	}
+	return id, nil
+}
+
 // Get returns the session with id, or ErrNotFound.
 func (s *SessionStore) Get(ctx context.Context, id string) (domain.Session, error) {
+	validID, err := normalizeSessionID(id)
+	if err != nil {
+		return domain.Session{}, err
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
 	var sess domain.Session
-	if err := s.col.FindOne(ctx, bson.M{"_id": id}).Decode(&sess); err != nil {
+	if err := s.col.FindOne(ctx, bson.M{"_id": validID}).Decode(&sess); err != nil {
 		return domain.Session{}, translateFindErr(err)
 	}
 	return sess, nil
@@ -38,9 +60,14 @@ func (s *SessionStore) Get(ctx context.Context, id string) (domain.Session, erro
 
 // Delete removes one session by id (logout).
 func (s *SessionStore) Delete(ctx context.Context, id string) error {
+	validID, err := normalizeSessionID(id)
+	if err != nil {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	_, err := s.col.DeleteOne(ctx, bson.M{"_id": id})
+	_, err = s.col.DeleteOne(ctx, bson.M{"_id": validID})
 	return err
 }
 
@@ -60,7 +87,11 @@ func (s *SessionStore) DeleteOthers(ctx context.Context, uid primitive.ObjectID,
 	defer cancel()
 	filter := bson.M{"user_id": uid}
 	if keepID != "" {
-		filter["_id"] = bson.M{"$ne": keepID}
+		validKeepID, err := normalizeSessionID(keepID)
+		if err != nil {
+			return ErrNotFound
+		}
+		filter["_id"] = bson.M{"$ne": validKeepID}
 	}
 	_, err := s.col.DeleteMany(ctx, filter)
 	return err
@@ -68,8 +99,13 @@ func (s *SessionStore) DeleteOthers(ctx context.Context, uid primitive.ObjectID,
 
 // SetExpiry slides a session's expiry forward.
 func (s *SessionStore) SetExpiry(ctx context.Context, id string, expires time.Time) error {
+	validID, err := normalizeSessionID(id)
+	if err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	_, err := s.col.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"expires_at": expires}})
+	_, err = s.col.UpdateOne(ctx, bson.M{"_id": validID}, bson.M{"$set": bson.M{"expires_at": expires}})
 	return err
 }

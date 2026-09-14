@@ -32,7 +32,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		usersNS := mt.DB.Name() + ".users"
 
 		sessionDoc := bson.D{
-			{Key: "_id", Value: "sess-e2e"},
+			{Key: "_id", Value: fakeSessionID("e2e")},
 			{Key: "user_id", Value: userID},
 			{Key: "created_at", Value: time.Now()},
 			{Key: "expires_at", Value: time.Now().Add(domain.SessionTTL)},
@@ -111,7 +111,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		h := controllers.New(mt.DB, logger, false)
 		e := New(config.Default(), logger, mt.DB, h)
 
-		cookie := &http.Cookie{Name: controllers.SessionCookieName, Value: "sess-e2e"} //nolint:gosec // request-side cookie
+		cookie := &http.Cookie{Name: controllers.SessionCookieName, Value: fakeSessionID("e2e")} //nolint:gosec // request-side cookie
 
 		createBody := []byte(`{"script":"TCS","exchange":"NSE","type":"stock","symbol":"TCS.NS","stocks_owned":10,"avg_cost_price":3000}`)
 		createReq := httptest.NewRequest(http.MethodPost, "/api/holdings", bytes.NewReader(createBody))
