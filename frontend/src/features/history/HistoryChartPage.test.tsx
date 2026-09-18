@@ -16,12 +16,17 @@ vi.mock('../../lib/api/client', async () => {
   return { ...actual, api: mockApi }
 })
 
-import HistoryChartPage, { weekKey, toWeekly, fullSeries } from './HistoryChartPage'
+import HistoryChartPage, { weekKey, toWeekly, fullSeries, goldFullSeries } from './HistoryChartPage'
 
 const row = (date: string, inv: number, cur: number): HistoryRow => ({
   date,
   regions: { INR: { invested: inv, current: cur, source: 'cron' } },
   totals: { invested_total: inv, current_total: cur, pnl_pct: 0 },
+})
+
+const goldRow = (date: string, inv: number, cur: number): HistoryRow => ({
+  ...row(date, 0, 0),
+  gold: { invested: inv, current: cur, pnl_pct: 0, volatility_pct: 0 },
 })
 
 describe('weekKey', () => {
@@ -78,6 +83,17 @@ describe('fullSeries', () => {
   })
 })
 
+describe('goldFullSeries', () => {
+  it('sorts oldest-first and keeps the full ISO date (no MM-DD slicing)', () => {
+    const s = goldFullSeries([goldRow('2024-02-01', 1, 2), goldRow('2024-01-01', 3, 4)])
+    expect(s.map(p => p.date)).toEqual(['2024-01-01', '2024-02-01'])
+  })
+  it('emits null (not 0) for a row without a gold overlay', () => {
+    const s = goldFullSeries([row('2024-01-01', 5, 6)])
+    expect(s[0]).toEqual({ date: '2024-01-01', invested: null, current: null })
+  })
+})
+
 const renderAt = (region: string) =>
   render(
     <MemoryRouter initialEntries={[`/history/chart/${region}`]}>
@@ -117,5 +133,17 @@ describe('HistoryChartPage', () => {
     renderAt('ZZZ')
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 }))
       .toHaveTextContent('India (INR)'))
+  })
+
+  it('renders the gold full-history chart at the /gold route, INR-denominated', async () => {
+    mockApi.listHistory.mockResolvedValueOnce({
+      currency: 'INR',
+      rows: [goldRow('2024-01-01', 7200, 14400)],
+    })
+    renderAt('gold')
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }))
+      .toHaveTextContent('Gold — Invested vs Current'))
+    // Requested from the year-2000 floor like every other region.
+    expect(mockApi.listHistory).toHaveBeenCalledWith('2000-01-01', expect.any(String))
   })
 })

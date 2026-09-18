@@ -92,7 +92,7 @@ export const NEW_INVESTMENT_TINT = 'rgba(168,85,247,0.18)' // purple
 export const GOLD_TINT = 'rgba(217,119,6,0.10)'
 
 // Physical gold is INR-denominated; a distinct amber/yellow palette keeps it
-// apart from INR's saffron. No expand target — gold has no full-history page.
+// apart from INR's saffron.
 export const GOLD_PALETTE: Record<ThemeName, { invested: string; current: string }> = {
   dark:  { invested: '#fde047', current: '#eab308' }, // yellow-300 / 500
   light: { invested: '#ca8a04', current: '#854d0e' }, // yellow-600 / 800

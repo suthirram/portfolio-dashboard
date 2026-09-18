@@ -421,12 +421,16 @@ function CurrencyChartPanel({ region, data, theme }: { region: RegionKey; data: 
   )
 }
 
-// GoldChartPanel: the same triptych fed by the per-row gold overlay (§8).
+// GoldChartPanel: the same triptych fed by the per-row gold overlay (§8),
+// expandable to the full-history page like the currency panels.
 function GoldChartPanel({ data, theme }: { data: any[]; theme: ThemeName }) {
+  const navigate = useNavigate()
   return (
     <div style={panelStyle}>
       <h2 style={panelTitle}>Gold (₹)</h2>
-      <ChartTriptych data={data} sym="₹" palette={GOLD_PALETTE[theme]} theme={theme} />
+      <ChartTriptych data={data} sym="₹" palette={GOLD_PALETTE[theme]} theme={theme}
+        onExpand={() => navigate('/history/chart/gold')}
+        expandLabel="Expand full Gold invested vs current history" />
     </div>
   )
 }
