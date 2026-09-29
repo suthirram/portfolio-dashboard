@@ -70,8 +70,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		zap.String("log_format", cfg.LogFormat),
 	)
 
-	traceShutdown, status, err := telemetry.Setup(context.Background(), cfg, logger)
-	logger.Info("telemetry enabled", zap.Bool("enabled", status))
+	traceShutdown, _, err := telemetry.Setup(context.Background(), cfg, logger)
 	if err != nil {
 		return fmt.Errorf("init tracing: %w", err)
 	}
