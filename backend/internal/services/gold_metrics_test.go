@@ -40,12 +40,12 @@ func TestBuildMetrics(t *testing.T) {
 		if m.Invested != 7200 || m.Grams != 72 {
 			t.Fatalf("invested/grams = %v/%v, want 7200/72", m.Invested, m.Grams)
 		}
-		wantPtr(t, "current", m.Current, f64(14400))
-		wantPtr(t, "nett_ex_bees", m.NettExBees, f64(7200))
-		wantPtr(t, "nett_in_bees", m.NettInBees, f64(7700))
-		wantPtr(t, "avg_per_gram", m.AvgPerGram, f64(100))
+		wantPtr(t, "current", m.Current, new(float64(14400)))
+		wantPtr(t, "nett_ex_bees", m.NettExBees, new(float64(7200)))
+		wantPtr(t, "nett_in_bees", m.NettInBees, new(float64(7700)))
+		wantPtr(t, "avg_per_gram", m.AvgPerGram, new(float64(100)))
 		// One flow of -7200 a year ago, +14400 today: doubling in a year.
-		wantPtr(t, "xirr", m.Xirr, f64(1.0))
+		wantPtr(t, "xirr", m.Xirr, new(1.0))
 	})
 
 	t.Run("no price row leaves valuation null but totals present", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestBuildMetrics(t *testing.T) {
 		wantPtr(t, "nett_ex_bees", m.NettExBees, nil)
 		wantPtr(t, "nett_in_bees", m.NettInBees, nil)
 		wantPtr(t, "xirr", m.Xirr, nil)
-		wantPtr(t, "avg_per_gram", m.AvgPerGram, f64(7437.5))
+		wantPtr(t, "avg_per_gram", m.AvgPerGram, new(7437.5))
 	})
 
 	t.Run("bees quote unavailable nulls only the bees rows", func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestBuildMetrics(t *testing.T) {
 
 		wantPtr(t, "bees_pl", m.BeesPl, nil)
 		wantPtr(t, "nett_in_bees", m.NettInBees, nil)
-		wantPtr(t, "nett_ex_bees", m.NettExBees, f64(100))
+		wantPtr(t, "nett_ex_bees", m.NettExBees, new(float64(100)))
 	})
 
 	t.Run("empty ledger yields zeros and nulls", func(t *testing.T) {
@@ -83,6 +83,6 @@ func TestBuildMetrics(t *testing.T) {
 		}
 		wantPtr(t, "avg_per_gram", m.AvgPerGram, nil)
 		wantPtr(t, "xirr", m.Xirr, nil)
-		wantPtr(t, "current", m.Current, f64(0))
+		wantPtr(t, "current", m.Current, new(float64(0)))
 	})
 }

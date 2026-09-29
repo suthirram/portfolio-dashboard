@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/samber/lo"
 	"go.uber.org/zap"
 
 	"portfolio-dashboard/api"
@@ -47,7 +46,7 @@ func (h *Controller) CreateGoldTransaction(ctx context.Context, request api.Crea
 	created, err := h.gold.CreateTransaction(ctx, uid, *request.Body)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidGoldTransaction) {
-			return api.CreateGoldTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.CreateGoldTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		h.reqLog(ctx).Error("gold create failed", zap.String("error", err.Error()))
 		return nil, err
@@ -63,7 +62,7 @@ func (h *Controller) ListGoldPrices(ctx context.Context, request api.ListGoldPri
 	rows, err := h.gold.Prices(ctx, uid, request.Params.From, request.Params.To)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidGoldPrice) {
-			return api.ListGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.ListGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		h.reqLog(ctx).Error("gold prices list failed", zap.String("error", err.Error()))
 		return nil, err
@@ -78,7 +77,7 @@ func (h *Controller) PutGoldPrices(ctx context.Context, request api.PutGoldPrice
 	}
 	if err := h.gold.PutPrices(ctx, uid, *request.Body); err != nil {
 		if errors.Is(err, services.ErrInvalidGoldPrice) {
-			return api.PutGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.PutGoldPrices400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		h.reqLog(ctx).Error("gold prices upsert failed", zap.String("error", err.Error()))
 		return nil, err
@@ -120,13 +119,13 @@ func (h *Controller) UpdateGoldTransaction(ctx context.Context, request api.Upda
 	updated, found, err := h.gold.UpdateTransaction(ctx, uid, request.Id, *request.Body)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidGoldTransaction) {
-			return api.UpdateGoldTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.UpdateGoldTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		h.reqLog(ctx).Error("gold update failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	if !found {
-		return api.UpdateGoldTransaction404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such gold transaction")}}, nil
+		return api.UpdateGoldTransaction404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("no such gold transaction")}}, nil
 	}
 	return api.UpdateGoldTransaction200JSONResponse(updated), nil
 }
@@ -142,7 +141,7 @@ func (h *Controller) DeleteGoldTransaction(ctx context.Context, request api.Dele
 		return nil, err
 	}
 	if !found {
-		return api.DeleteGoldTransaction404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: lo.ToPtr("no such gold transaction")}}, nil
+		return api.DeleteGoldTransaction404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("no such gold transaction")}}, nil
 	}
 	return api.DeleteGoldTransaction204Response{}, nil
 }

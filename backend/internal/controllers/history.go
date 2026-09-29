@@ -32,7 +32,7 @@ func (h *Controller) ListHistory(ctx context.Context, req api.ListHistoryRequest
 	list, err := h.history.List(ctx, uid, from, to)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidDate) {
-			return api.ListHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString(err.Error())}}, nil
+			return api.ListHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (h *Controller) AddHistoryRow(ctx context.Context, req api.AddHistoryRowReq
 		return nil, err
 	}
 	if req.Body == nil {
-		return api.AddHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString("empty body")}}, nil
+		return api.AddHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("empty body")}}, nil
 	}
 	in := services.AddRowInput{
 		Date:    req.Body.Date.Format("2006-01-02"),
@@ -82,8 +82,7 @@ func (h *Controller) AddHistoryRow(ctx context.Context, req api.AddHistoryRowReq
 	}
 	row, err := h.history.Add(ctx, uid, in)
 	if err != nil {
-		var conflict *services.ErrConflict
-		if errors.As(err, &conflict) {
+		if conflict, ok := errors.AsType[*services.ErrConflict](err); ok {
 			msg := conflict.Error()
 			return api.AddHistoryRow409JSONResponse{
 				Error:     msg,
@@ -91,7 +90,7 @@ func (h *Controller) AddHistoryRow(ctx context.Context, req api.AddHistoryRowReq
 			}, nil
 		}
 		if errors.Is(err, services.ErrInvalidDate) || errors.Is(err, services.ErrInvalidRegions) {
-			return api.AddHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString(err.Error())}}, nil
+			return api.AddHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -104,17 +103,17 @@ func (h *Controller) PatchHistoryRegions(ctx context.Context, req api.PatchHisto
 		return nil, err
 	}
 	if req.Body == nil {
-		return api.PatchHistoryRegions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString("empty body")}}, nil
+		return api.PatchHistoryRegions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("empty body")}}, nil
 	}
 	row, err := h.history.PatchRegions(ctx, uid, req.Date.Format("2006-01-02"), services.PatchRegionsInput{
 		Regions: fromAPIRegions(req.Body.Regions),
 	})
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
-			return api.PatchHistoryRegions404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: ptrString("not found")}}, nil
+			return api.PatchHistoryRegions404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("not found")}}, nil
 		}
 		if errors.Is(err, services.ErrInvalidDate) || errors.Is(err, services.ErrInvalidRegions) {
-			return api.PatchHistoryRegions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString(err.Error())}}, nil
+			return api.PatchHistoryRegions400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -133,14 +132,14 @@ func (h *Controller) DeleteHistoryRow(ctx context.Context, req api.DeleteHistory
 	}
 	if err := h.history.Delete(ctx, uid, dateStr, force); err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
-			return api.DeleteHistoryRow404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: ptrString("not found")}}, nil
+			return api.DeleteHistoryRow404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("not found")}}, nil
 		}
 		if errors.Is(err, persistence.ErrCronProtected) {
 			msg := "cannot delete a cron-written row; override individual regions instead"
 			return api.DeleteHistoryRow409JSONResponse{Error: &msg}, nil
 		}
 		if errors.Is(err, services.ErrInvalidDate) {
-			return api.DeleteHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString(err.Error())}}, nil
+			return api.DeleteHistoryRow400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -153,7 +152,7 @@ func (h *Controller) PasteHistory(ctx context.Context, req api.PasteHistoryReque
 		return nil, err
 	}
 	if req.Body == nil {
-		return api.PasteHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString("empty body")}}, nil
+		return api.PasteHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("empty body")}}, nil
 	}
 	rows := make([]services.AddRowInput, 0, len(req.Body.Rows))
 	for _, r := range req.Body.Rows {
@@ -168,7 +167,7 @@ func (h *Controller) PasteHistory(ctx context.Context, req api.PasteHistoryReque
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidDate) {
-			return api.PasteHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: ptrString(err.Error())}}, nil
+			return api.PasteHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -221,14 +220,12 @@ func toAPIHistoryHoldings(hs []services.HistoryHolding) *[]api.HistoryHolding {
 			Currency:   h.Currency,
 			Quantity:   h.Quantity,
 			ClosePrice: h.ClosePrice,
-			PriceDate:  ptrString(h.PriceDate),
-			Current:    ptrFloat(h.Current),
+			PriceDate:  new(h.PriceDate),
+			Current:    new(h.Current),
 		})
 	}
 	return &out
 }
-
-func ptrFloat(f float64) *float64 { return &f }
 
 func toAPIRegionMap(in map[string]domain.RegionSnapshot) map[string]api.HistoryRegionSnapshot {
 	out := make(map[string]api.HistoryRegionSnapshot, len(in))
@@ -339,5 +336,3 @@ func mustParseAPIDate(s string) openapi_types.Date {
 	}
 	return openapi_types.Date{Time: t}
 }
-
-func ptrString(s string) *string { return &s }

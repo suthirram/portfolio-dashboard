@@ -150,8 +150,7 @@ func errorHandler(base *zap.Logger) echo.HTTPErrorHandler {
 		status := http.StatusInternalServerError
 		message := http.StatusText(status)
 
-		var httpErr *echo.HTTPError
-		if errors.As(err, &httpErr) {
+		if httpErr, ok := errors.AsType[*echo.HTTPError](err); ok {
 			status = httpErr.Code
 			switch m := httpErr.Message.(type) {
 			case nil:
