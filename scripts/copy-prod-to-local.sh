@@ -11,18 +11,24 @@
 #   - pg_dump/psql            (brew install libpq  — then add its bin to PATH)
 #   - local dev DBs running:  make dev-db
 #
-# Usage:
+# Usage (env vars):
 #   PROD_MONGO_URI='mongodb+srv://USER:PASS@foliocluster-0.fqu4lgx.mongodb.net/portfolio?appName=folioCluster-0' \
 #   PROD_POSTGRES_URI='postgres://USER:PASS@PROD_HOST:5432/portfolio?sslmode=require' \
 #   ./scripts/copy-prod-to-local.sh
 #
-# Env overrides:
-#   PROD_MONGO_URI       required — prod Mongo connection string (incl. /portfolio)
-#   PROD_POSTGRES_URI    required — prod Postgres connection string
-#   LOCAL_MONGO_URI      default mongodb://localhost:27017
-#   LOCAL_POSTGRES_URI   default postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable
-#   DB_NAME              default portfolio  (Mongo db name)
-#   DUMP_DIR             default a fresh mktemp -d
+# Usage (flags, same effect — flags win when both are set):
+#   ./scripts/copy-prod-to-local.sh \
+#     --prod-mongo-uri 'mongodb+srv://USER:PASS@.../portfolio' \
+#     --prod-postgres-uri 'postgres://USER:PASS@PROD_HOST:5432/portfolio?sslmode=require'
+#
+# Flags / env overrides:
+#   --prod-mongo-uri      PROD_MONGO_URI       required — prod Mongo connection string (incl. /portfolio)
+#   --prod-postgres-uri   PROD_POSTGRES_URI    required — prod Postgres connection string
+#   --local-mongo-uri     LOCAL_MONGO_URI      default mongodb://localhost:27017
+#   --local-postgres-uri  LOCAL_POSTGRES_URI   default postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable
+#   --db-name             DB_NAME              default portfolio  (Mongo db name)
+#   --dump-dir            DUMP_DIR             default a fresh mktemp -d
+#   -h, --help            show this usage and exit
 set -euo pipefail
 
 PROD_MONGO_URI="${PROD_MONGO_URI:-}"
@@ -34,6 +40,21 @@ DUMP_DIR="${DUMP_DIR:-$(mktemp -d)}"
 
 say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+
+usage() { sed -n '2,31p' "$0" | sed 's/^#//; s/^ //'; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --prod-mongo-uri)      PROD_MONGO_URI="$2"; shift 2 ;;
+    --prod-postgres-uri)   PROD_POSTGRES_URI="$2"; shift 2 ;;
+    --local-mongo-uri)     LOCAL_MONGO_URI="$2"; shift 2 ;;
+    --local-postgres-uri)  LOCAL_POSTGRES_URI="$2"; shift 2 ;;
+    --db-name)             DB_NAME="$2"; shift 2 ;;
+    --dump-dir)            DUMP_DIR="$2"; shift 2 ;;
+    -h|--help)             usage; exit 0 ;;
+    *) die "unknown argument: $1 (see --help)" ;;
+  esac
+done
 
 [ -n "$PROD_MONGO_URI" ]    || die "PROD_MONGO_URI is required"
 [ -n "$PROD_POSTGRES_URI" ] || die "PROD_POSTGRES_URI is required"

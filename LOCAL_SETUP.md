@@ -61,6 +61,20 @@ Runs on `:3000`. Vite proxies `/api` → `localhost:8080`, no `.env` needed for 
 cd backend && go run . migrate transactions   # seed opening ledger events for existing holdings
 ```
 
+## 8. Copy prod data into local/dev DBs (optional)
+
+Clones real data from prod Mongo + Postgres into the local dev stack (Mongo holds stocks/holdings/history/users; Postgres holds the gold ledger — both are dumped together so user ids stay in sync).
+
+Prereqs: `brew install mongodb-database-tools libpq` (for `mongodump`/`mongorestore`/`pg_dump`/`psql`), local dev DBs running (`make dev-db`).
+
+```bash
+./scripts/copy-prod-to-local.sh \
+  --prod-mongo-uri 'mongodb+srv://USER:PASS@your-cluster/portfolio' \
+  --prod-postgres-uri 'postgres://USER:PASS@PROD_HOST:5432/portfolio?sslmode=require'
+```
+
+Restores into `mongodb://localhost:27017/portfolio` and the local Postgres by default — same stack `make dev-db` starts, so this works for local or dev use interchangeably. Override target/source with more flags (`--local-mongo-uri`, `--local-postgres-uri`, `--db-name`, `--dump-dir`) or run `--help` for the full list. The script refuses to restore anywhere that isn't `localhost`/`127.0.0.1`, so it can't accidentally overwrite prod.
+
 ## One-shot alternative: full Docker stack
 
 ```bash
