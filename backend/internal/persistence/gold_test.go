@@ -72,9 +72,6 @@ func date(m time.Month, d int) time.Time {
 	return time.Date(2026, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func fp(v float64) *float64 { return &v }
-func sp(v string) *string   { return &v }
-
 func TestGoldTransactions_ScopedCRUD(t *testing.T) {
 	s := goldTestStore(t)
 	ctx := context.Background()
@@ -82,8 +79,8 @@ func TestGoldTransactions_ScopedCRUD(t *testing.T) {
 
 	ins, err := s.InsertTransaction(ctx, domain.GoldTransaction{
 		UserID: alice, Date: date(6, 10), GmPrice: 9950, GramsBought: 8,
-		QuotePrice: fp(10200), BillAmount: fp(81600), ActualPaid: 79600,
-		BilledWeight: fp(7.9), ChennaiRate: sp("10100"),
+		QuotePrice: new(float64(10200)), BillAmount: new(float64(81600)), ActualPaid: 79600,
+		BilledWeight: new(7.9), ChennaiRate: new("10100"),
 	})
 	if err != nil {
 		t.Fatalf("insert: %v", err)

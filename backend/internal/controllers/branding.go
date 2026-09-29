@@ -6,8 +6,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/samber/lo"
-
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
@@ -56,7 +54,7 @@ func (h *Controller) AdminUpdateBranding(ctx context.Context, request api.AdminU
 		return api.AdminUpdateBranding403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
 	}
 	if request.Body == nil || !request.Body.Font.Valid() {
-		return api.AdminUpdateBranding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr("font must be one of roboto, jetbrains_mono")}}, nil
+		return api.AdminUpdateBranding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("font must be one of roboto, jetbrains_mono")}}, nil
 	}
 
 	font := domain.BrandingFont(request.Body.Font)

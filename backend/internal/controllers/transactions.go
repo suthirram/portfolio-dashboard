@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/samber/lo"
-
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/services"
 )
@@ -39,7 +37,7 @@ func (h *Controller) CreateTransaction(ctx context.Context, request api.CreateTr
 	created, found, err := h.transactions.Create(ctx, uid, request.Id, *request.Body)
 	if err != nil {
 		if badTransaction(err) {
-			return api.CreateTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.CreateTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -57,7 +55,7 @@ func (h *Controller) UpdateTransaction(ctx context.Context, request api.UpdateTr
 	updated, found, err := h.transactions.Update(ctx, uid, request.Id, *request.Body)
 	if err != nil {
 		if badTransaction(err) {
-			return api.UpdateTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.UpdateTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
@@ -75,7 +73,7 @@ func (h *Controller) DeleteTransaction(ctx context.Context, request api.DeleteTr
 	deleted, err := h.transactions.Delete(ctx, uid, request.Id)
 	if err != nil {
 		if badTransaction(err) {
-			return api.DeleteTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: lo.ToPtr(err.Error())}}, nil
+			return api.DeleteTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}

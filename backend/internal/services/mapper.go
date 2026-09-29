@@ -4,7 +4,6 @@ import (
 	"context"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
-	"github.com/samber/lo"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"portfolio-dashboard/api"
@@ -116,7 +115,7 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 	realizedPnLEUR = round(realizedPnLEUR)
 
 	hwp := api.HoldingWithPrice{
-		Id:             lo.ToPtr(hld.ID.Hex()),
+		Id:             new(hld.ID.Hex()),
 		Script:         &hld.Script,
 		Symbol:         &hld.Symbol,
 		Exchange:       (*api.HoldingWithPriceExchange)(&hld.Exchange),

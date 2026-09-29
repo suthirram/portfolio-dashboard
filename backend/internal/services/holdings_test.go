@@ -43,9 +43,9 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 		input api.HoldingInput
 	}{
 		{"baseline only required", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock"}},
-		{"with symbol", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Symbol: lo.ToPtr("TCS.NS")}},
+		{"with symbol", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Symbol: new("TCS.NS")}},
 		{"with valid currency EUR", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Currency: lo.ToPtr(api.HoldingInputCurrency("EUR"))}},
-		{"with notes", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Notes: lo.ToPtr("long-term hold")}},
+		{"with notes", api.HoldingInput{Script: "TCS", Exchange: "NSE", Type: "stock", Notes: new("long-term hold")}},
 	}
 
 	for _, tc := range tests {
