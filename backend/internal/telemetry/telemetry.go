@@ -39,6 +39,7 @@ func Setup(ctx context.Context, cfg config.Config, logger *zap.Logger) (shutdown
 
 	exp, err := otlptracehttp.New(ctx)
 	if err != nil {
+		logger.Error("otel setup failed", zap.Error(err))
 		return nil, false, fmt.Errorf("create otlp exporter: %w", err)
 	}
 
@@ -50,6 +51,7 @@ func Setup(ctx context.Context, cfg config.Config, logger *zap.Logger) (shutdown
 		),
 	)
 	if err != nil {
+		logger.Error("otel setup failed", zap.Error(err))
 		return nil, false, fmt.Errorf("build otel resource: %w", err)
 	}
 
