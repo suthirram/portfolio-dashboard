@@ -23,7 +23,7 @@ Implemented in this feature:
 
 Extension points (not in this PR — add in future slices):
 
-* Mongo command spans: `otelmongo` monitor in `internal/db/mongo.go`
+* ~~Mongo command spans: `otelmongo` monitor in `internal/db/mongo.go`~~ — shipped (#159)
 * Postgres spans: pgx tracer in `internal/db/postgres.go`
 * Yahoo Finance outbound spans: `otelhttp` transport in `internal/services/price.go`
 * Loki/Prometheus correlation in Grafana Cloud
