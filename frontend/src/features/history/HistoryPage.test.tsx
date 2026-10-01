@@ -25,6 +25,7 @@ import {
   goldCurrentDirection,
   regionDailyVolatility,
   regionCurrentDirection,
+  buildLiveRow,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -32,6 +33,7 @@ import type {
   PasteHistoryReport,
   RegionSnapshot,
 } from '../../lib/api/client'
+import type { HoldingWithPrice } from '../../types'
 
 // ---- helpers ----
 
@@ -273,6 +275,41 @@ describe('normaliseDate', () => {
   })
 })
 
+describe('buildLiveRow', () => {
+  const holding = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+    symbol: 'TCS.NS', script: 'TCS', currency: 'INR',
+    cost_price: 0, current_value: 0, ...overrides,
+  } as HoldingWithPrice)
+
+  it('buckets holdings by currency into INR/EUR regions', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
+      holding({ currency: 'EUR', cost_price: 50, current_value: 40, symbol: 'SAP.DE', script: 'SAP' }),
+    ])
+    expect(r.date).toBe('2026-06-20')
+    expect(r.tentative).toBe(true)
+    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 40, source: 'manual' })
+    expect(r.totals.invested_total).toBe(150)
+    expect(r.totals.current_total).toBe(190)
+    expect(r.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
+  })
+
+  it('carries a per-stock holdings breakdown so the Holdings modal still opens', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150, symbol: 'TCS.NS', script: 'TCS', stocks_owned: 10, current_price: 15 } as HoldingWithPrice),
+    ])
+    expect(r.holdings).toEqual([
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 10, close_price: 15, current: 150 },
+    ])
+  })
+
+  it('returns null pnl_pct and zeroed totals with no holdings', () => {
+    const r = buildLiveRow('2026-06-20', [])
+    expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+  })
+})
+
 // ---- HistoryTable (TDD §7.3) ----
 
 describe('HistoryTable', () => {
@@ -318,6 +355,16 @@ describe('HistoryTable', () => {
     // Target by row date, not display position (default order is oldest-first).
     fireEvent.click(screen.getByRole('button', { name: 'Edit row for 16-06-2026' }))
     expect(onEdit).toHaveBeenCalledWith(rows[0])
+  })
+
+  it('a tentative row hides Edit/Delete even when handlers are provided, and gets the blink class', () => {
+    const onEdit = vi.fn()
+    render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit}
+      rows={[row({ date: '2026-06-20', regions: { INR: region(100, 150, 'manual') }, tentative: true })]} />)
+    expect(screen.queryByRole('button', { name: /Edit row/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Delete row/ })).toBeNull()
+    expect(document.querySelector('tr.history-row-tentative')).not.toBeNull()
+    expect(screen.getByText('(live)')).toBeInTheDocument()
   })
 
   it('does not render Edit when onEdit is omitted', () => {

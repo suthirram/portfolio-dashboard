@@ -10,6 +10,7 @@ import type {
 } from '../../lib/api/client'
 import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import type { ThemeName } from '../../lib/useTheme'
+import type { HoldingWithPrice } from '../../types'
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -458,6 +459,46 @@ export function holdingRegion(h: HistoryHolding): RegionKey {
   const code = (h.currency || 'INR').toUpperCase()
   // Only INR and EUR are tracked; anything else (incl. legacy USD) → INR.
   return code === 'EUR' ? 'EUR' : 'INR'
+}
+
+// buildLiveRow turns today's live holdings+prices (from GET /prices) into a
+// HistoryRow shape so it can be appended to the real snapshot rows and reuse
+// every day-over-day helper above unchanged (they only index into an array
+// of HistoryRow — they don't care that this one was never snapshotted).
+// Marked `tentative` so HistoryTable can style and disable it differently.
+export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): HistoryRow {
+  const regions: Record<RegionKey, RegionSnapshot> = {
+    INR: { invested: 0, current: 0, source: 'manual' },
+    EUR: { invested: 0, current: 0, source: 'manual' },
+  }
+  const histHoldings: HistoryHolding[] = holdings.map(h => {
+    const region = (h.currency || 'INR').toUpperCase() === 'EUR' ? 'EUR' : 'INR'
+    const invested = h.cost_price ?? 0
+    const current = h.current_value ?? 0
+    regions[region].invested += invested
+    regions[region].current += current
+    return {
+      symbol: h.symbol ?? '',
+      script: h.script ?? h.symbol ?? '',
+      currency: h.currency ?? 'INR',
+      quantity: h.stocks_owned ?? 0,
+      close_price: h.current_price ?? 0,
+      current,
+    }
+  })
+  const investedTotal = regions.INR.invested + regions.EUR.invested
+  const currentTotal = regions.INR.current + regions.EUR.current
+  return {
+    date,
+    regions,
+    totals: {
+      invested_total: investedTotal,
+      current_total: currentTotal,
+      pnl_pct: investedTotal === 0 ? null : ((currentTotal - investedTotal) / investedTotal) * 100,
+    },
+    holdings: histHoldings,
+    tentative: true,
+  }
 }
 
 // ---- Paste parsing (PasteModal) ----

@@ -24,7 +24,7 @@ import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  chartTooltipProps, fmtAxisAmount,
+  buildLiveRow, chartTooltipProps, fmtAxisAmount,
   fmtCurrency, goldChartData, monthRange, niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain,
   type RegionKey,
@@ -42,7 +42,7 @@ export {
   goldChartData, perCurrencyChartData, niceDomain, symmetricDomain, regionHasData,
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
-  regionCurrentDirection, goldCurrentDirection, holdingRegion,
+  regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -61,6 +61,7 @@ export default function HistoryPage() {
   const [year, setYear] = useState(now.getUTCFullYear())
   const [month, setMonth] = useState(now.getUTCMonth())
   const [rows, setRows] = useState<HistoryRow[]>([])
+  const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -100,6 +101,36 @@ export default function HistoryPage() {
   }, [year, month])
 
   useEffect(() => { void reload() }, [reload])
+
+  // Today's live row: only meaningful while viewing the current month, and
+  // only while no snapshot has landed for today yet (the cron row, once it
+  // exists, is the real number — don't shadow it with a live estimate).
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const isCurrentMonth = year === now.getUTCFullYear() && month === now.getUTCMonth()
+  const hasTodaySnapshot = rows.some(r => r.date === todayStr)
+  useEffect(() => {
+    if (!isCurrentMonth || hasTodaySnapshot) {
+      setLiveRow(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const prices = await api.getPrices()
+        if (!cancelled) setLiveRow(buildLiveRow(todayStr, prices.holdings ?? []))
+      } catch {
+        // Live row is a nice-to-have; a failed fetch just means no tentative
+        // row shows, not a page-level error.
+        if (!cancelled) setLiveRow(null)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isCurrentMonth, hasTodaySnapshot, todayStr])
+
+  const displayRows = useMemo(
+    () => liveRow ? [...rows, liveRow] : rows,
+    [rows, liveRow],
+  )
 
   const years = useMemo(() => {
     const current = now.getUTCFullYear()
@@ -247,7 +278,7 @@ export default function HistoryPage() {
 
         {error && <div className="alert-danger">Error: {error}</div>}
 
-        {!loading && rows.length === 0 && (
+        {!loading && displayRows.length === 0 && (
           <div style={{
             padding: 32, textAlign: 'center', background: 'var(--bg-secondary)',
             border: '1px solid var(--border)', borderRadius: 8,
@@ -258,9 +289,9 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {rows.length > 0 && (() => {
+        {displayRows.length > 0 && (() => {
           const table = (
-            <HistoryTable rows={rows} currency={currency} theme={theme}
+            <HistoryTable rows={displayRows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
