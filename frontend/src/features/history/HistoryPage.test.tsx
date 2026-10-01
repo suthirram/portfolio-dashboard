@@ -25,6 +25,10 @@ import {
   goldCurrentDirection,
   regionDailyVolatility,
   regionCurrentDirection,
+  buildLiveRow,
+  buildLiveGoldOverlay,
+  latestGoldOverlay,
+  tradingDateIST,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -32,6 +36,7 @@ import type {
   PasteHistoryReport,
   RegionSnapshot,
 } from '../../lib/api/client'
+import type { HoldingWithPrice } from '../../types'
 
 // ---- helpers ----
 
@@ -273,6 +278,116 @@ describe('normaliseDate', () => {
   })
 })
 
+describe('tradingDateIST', () => {
+  it('stays on the preceding UTC date just before the 08:00 IST (02:30 UTC) cut-over', () => {
+    expect(tradingDateIST(new Date('2026-10-01T00:00:00Z'))).toBe('2026-09-30')
+    expect(tradingDateIST(new Date('2026-10-01T02:29:59Z'))).toBe('2026-09-30')
+  })
+
+  it('rolls over to the new date exactly at 02:30 UTC (08:00 IST)', () => {
+    expect(tradingDateIST(new Date('2026-10-01T02:30:00Z'))).toBe('2026-10-01')
+  })
+
+  it('matches the UTC calendar date outside the cut-over window', () => {
+    expect(tradingDateIST(new Date('2026-10-01T12:00:00Z'))).toBe('2026-10-01')
+  })
+
+  it('crosses a month/year boundary the same way', () => {
+    expect(tradingDateIST(new Date('2027-01-01T00:00:00Z'))).toBe('2026-12-31')
+  })
+})
+
+describe('buildLiveRow', () => {
+  const holding = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+    symbol: 'TCS.NS', script: 'TCS', currency: 'INR',
+    cost_price: 0, current_value: 0, ...overrides,
+  } as HoldingWithPrice)
+
+  it('buckets holdings by currency into INR/EUR regions', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
+      holding({ currency: 'EUR', cost_price_eur: 50, current_value_eur: 40, symbol: 'SAP.DE', script: 'SAP' }),
+    ])
+    expect(r.date).toBe('2026-06-20')
+    expect(r.tentative).toBe(true)
+    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 40, source: 'manual' })
+    expect(r.totals.invested_total).toBe(150)
+    expect(r.totals.current_total).toBe(190)
+    expect(r.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
+  })
+
+  it('uses the EUR-denominated fields for a EUR holding, not the INR-converted twins', () => {
+    // Regression: HoldingWithPrice.cost_price/current_value are always
+    // INR-denominated, even for a EUR holding — using them directly made
+    // the live row show INR amounts for EUR holdings.
+    const r = buildLiveRow('2026-06-20', [
+      holding({
+        currency: 'EUR', symbol: 'SAP.DE', script: 'SAP',
+        cost_price: 4500, current_value: 4700,       // INR-converted twins — must be ignored
+        cost_price_eur: 50, current_value_eur: 52,   // native EUR amounts — must be used
+      }),
+    ])
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 52, source: 'manual' })
+    expect(r.regions.INR).toEqual({ invested: 0, current: 0, source: 'manual' })
+  })
+
+  it('carries a per-stock holdings breakdown so the Holdings modal still opens', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150, symbol: 'TCS.NS', script: 'TCS', stocks_owned: 10, current_price: 15 } as HoldingWithPrice),
+    ])
+    expect(r.holdings).toEqual([
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 10, close_price: 15, current: 150 },
+    ])
+  })
+
+  it('returns null pnl_pct and zeroed totals with no holdings', () => {
+    const r = buildLiveRow('2026-06-20', [])
+    expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+  })
+})
+
+describe('latestGoldOverlay', () => {
+  it('returns the overlay from the most recent dated row that has one', () => {
+    const gold1 = { invested: 100, current: 110, volatility_pct: 0, pnl_pct: 10 }
+    const gold2 = { invested: 100, current: 120, volatility_pct: 9.09, pnl_pct: 20 }
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-15', gold: gold1 }),
+      row({ date: '2026-06-17', gold: gold2 }),
+      row({ date: '2026-06-16' }), // no gold — skipped
+    ]
+    expect(latestGoldOverlay(rows)).toEqual(gold2)
+  })
+
+  it('returns null when no row carries a gold overlay', () => {
+    expect(latestGoldOverlay([row({ date: '2026-06-16' })])).toBeNull()
+  })
+})
+
+describe('buildLiveGoldOverlay', () => {
+  it('computes volatility_pct against the previous day close, mirroring the backend walk', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 115 }, 1100)
+    // current = 10 * 115 = 1150; vs prevCurrent 1100 → +4.545...%
+    expect(overlay?.invested).toBe(1000)
+    expect(overlay?.current).toBe(1150)
+    expect(overlay?.volatility_pct).toBeCloseTo(((1150 - 1100) / 1100) * 100)
+    expect(overlay?.pnl_pct).toBe(15)
+  })
+
+  it('defaults volatility_pct to 0 with no previous day to compare against', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 100 }, null)
+    expect(overlay).toEqual({ invested: 1000, current: 1000, volatility_pct: 0, pnl_pct: 0 })
+  })
+
+  it('returns undefined with no position yet (no invested, no grams)', () => {
+    expect(buildLiveGoldOverlay({ invested: 0, grams: 0, latest_price: 100 }, null)).toBeUndefined()
+  })
+
+  it('returns undefined when there is no price to value the grams with', () => {
+    expect(buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: null }, null)).toBeUndefined()
+  })
+})
+
 // ---- HistoryTable (TDD §7.3) ----
 
 describe('HistoryTable', () => {
@@ -318,6 +433,16 @@ describe('HistoryTable', () => {
     // Target by row date, not display position (default order is oldest-first).
     fireEvent.click(screen.getByRole('button', { name: 'Edit row for 16-06-2026' }))
     expect(onEdit).toHaveBeenCalledWith(rows[0])
+  })
+
+  it('a tentative row hides Edit/Delete even when handlers are provided, and gets the blink class', () => {
+    const onEdit = vi.fn()
+    render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit}
+      rows={[row({ date: '2026-06-20', regions: { INR: region(100, 150, 'manual') }, tentative: true })]} />)
+    expect(screen.queryByRole('button', { name: /Edit row/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Delete row/ })).toBeNull()
+    expect(document.querySelector('tr.history-row-tentative')).not.toBeNull()
+    expect(screen.getByText('(live)')).toBeInTheDocument()
   })
 
   it('does not render Edit when onEdit is omitted', () => {

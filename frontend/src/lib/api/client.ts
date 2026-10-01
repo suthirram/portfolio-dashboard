@@ -221,6 +221,10 @@ export interface HistoryRow {
   holdings?: HistoryHolding[]
   // Gold position as-of the row date; absent for non-gold users / pre-purchase rows.
   gold?: GoldHistoryOverlay
+  // Frontend-only: a synthetic row built client-side from live prices for
+  // "today" when no snapshot exists yet (see historyShared.buildLiveRow).
+  // Never sent to or returned by the backend.
+  tentative?: boolean
 }
 
 export interface HistoryList {

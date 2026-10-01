@@ -77,3 +77,14 @@
    * desktop), so it stays visible while scrolling the rows below. */
   .holdings-table-wrap th { top: 0 !important; }
 }
+
+/* History page: the synthetic "today" row built from live prices (not yet
+ * snapshotted). The animation targets background-color on each cell so it
+ * overrides the per-region tint colours those cells already set inline. */
+@keyframes history-tentative-blink {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: color-mix(in srgb, var(--yellow) 22%, transparent); }
+}
+.history-row-tentative > td {
+  animation: history-tentative-blink 1.8s ease-in-out infinite;
+}

@@ -24,9 +24,9 @@ import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, monthRange, niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain,
+  buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
+  fmtCurrency, goldChartData, latestGoldOverlay, monthRange, niceDomain, perCurrencyChartData,
+  regionHasData, selectStyle, symmetricDomain, tradingDateIST,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
@@ -42,7 +42,8 @@ export {
   goldChartData, perCurrencyChartData, niceDomain, symmetricDomain, regionHasData,
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
-  regionCurrentDirection, goldCurrentDirection, holdingRegion,
+  regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
+  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -58,9 +59,15 @@ export default function HistoryPage() {
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
-  const [year, setYear] = useState(now.getUTCFullYear())
-  const [month, setMonth] = useState(now.getUTCMonth())
+  // The month picker defaults to the IST trading day's month/year, not the
+  // raw UTC calendar one — between 00:00–02:30 UTC those can differ by a
+  // day (see tradingDateIST), which would otherwise default the picker to
+  // tomorrow's month while the snapshot job is still writing today's.
+  const initialTradingDate = tradingDateIST(now)
+  const [year, setYear] = useState(Number(initialTradingDate.slice(0, 4)))
+  const [month, setMonth] = useState(Number(initialTradingDate.slice(5, 7)) - 1)
   const [rows, setRows] = useState<HistoryRow[]>([])
+  const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -100,6 +107,46 @@ export default function HistoryPage() {
   }, [year, month])
 
   useEffect(() => { void reload() }, [reload])
+
+  // Today's live row: only meaningful while viewing the current month, and
+  // only while no snapshot has landed for today yet (the cron row, once it
+  // exists, is the real number — don't shadow it with a live estimate).
+  const todayStr = useMemo(() => tradingDateIST(new Date()), [])
+  const isCurrentMonth = year === Number(todayStr.slice(0, 4)) && month === Number(todayStr.slice(5, 7)) - 1
+  const hasTodaySnapshot = rows.some(r => r.date === todayStr)
+  useEffect(() => {
+    if (!isCurrentMonth || hasTodaySnapshot) {
+      setLiveRow(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const prices = await api.getPrices()
+        const live = buildLiveRow(todayStr, prices.holdings ?? [])
+        // Gold is a separate store (DD-003) with its own endpoint; only
+        // fetch it for gold-enabled users, and degrade silently (gold just
+        // stays absent, same as a pre-purchase historical row) if it 503s.
+        if (auth?.user?.gold_enabled) {
+          try {
+            const metrics = await api.getGoldMetrics()
+            live.gold = buildLiveGoldOverlay(metrics, latestGoldOverlay(rows)?.current ?? null)
+          } catch { /* gold disabled server-side or a transient error — leave gold absent */ }
+        }
+        if (!cancelled) setLiveRow(live)
+      } catch {
+        // Live row is a nice-to-have; a failed fetch just means no tentative
+        // row shows, not a page-level error.
+        if (!cancelled) setLiveRow(null)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isCurrentMonth, hasTodaySnapshot, todayStr, rows, auth?.user?.gold_enabled])
+
+  const displayRows = useMemo(
+    () => liveRow ? [...rows, liveRow] : rows,
+    [rows, liveRow],
+  )
 
   const years = useMemo(() => {
     const current = now.getUTCFullYear()
@@ -247,7 +294,7 @@ export default function HistoryPage() {
 
         {error && <div className="alert-danger">Error: {error}</div>}
 
-        {!loading && rows.length === 0 && (
+        {!loading && displayRows.length === 0 && (
           <div style={{
             padding: 32, textAlign: 'center', background: 'var(--bg-secondary)',
             border: '1px solid var(--border)', borderRadius: 8,
@@ -258,9 +305,9 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {rows.length > 0 && (() => {
+        {displayRows.length > 0 && (() => {
           const table = (
-            <HistoryTable rows={rows} currency={currency} theme={theme}
+            <HistoryTable rows={displayRows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
