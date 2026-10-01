@@ -49,15 +49,7 @@ describe('HoldingsByCurrency', () => {
     render(<HoldingsByCurrency
       holdings={[
         h({ id: '1', currency: 'INR' }),
-        // Regression: HoldingWithPrice.cost_price/current_value/unrealized_pnl
-        // are always INR-denominated, even for a EUR holding — the native
-        // amount lives in the _eur twin. These fixture values (not the
-        // defaults' cost_price/current_value/unrealized_pnl) are what should
-        // actually render under the € symbol.
-        h({
-          id: '2', currency: 'EUR',
-          cost_price_eur: 1000, current_value_eur: 1200, unrealized_pnl_eur: 200,
-        }),
+        h({ id: '2', currency: 'EUR' }),
       ]}
       loading={false}
       onEdit={noop}
@@ -68,11 +60,44 @@ describe('HoldingsByCurrency', () => {
     expect(wrappers).toHaveLength(2)
     // No "in €" conversion sub-columns anywhere.
     expect(screen.queryByText('in €')).not.toBeInTheDocument()
-    // INR table cells are ₹-formatted, EUR table cells are €-formatted.
+    // INR table cells are ₹-formatted (cost_price 1000), EUR table cells are
+    // €-formatted (cost_price_eur 11 — the native twin, not cost_price).
     expect(within(wrappers[0] as HTMLElement).getAllByText(/₹1,000\.00/).length).toBeGreaterThan(0)
     expect(within(wrappers[0] as HTMLElement).queryByText(/€/)).not.toBeInTheDocument()
-    expect(within(wrappers[1] as HTMLElement).getAllByText(/€1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrappers[1] as HTMLElement).getAllByText(/€11\.00/).length).toBeGreaterThan(0)
     expect(within(wrappers[1] as HTMLElement).queryByText(/₹/)).not.toBeInTheDocument()
+  })
+
+  it('a EUR holding shows its native _eur amounts, not the INR-converted twins', () => {
+    // Regression: HoldingWithPrice.cost_price/current_value/unrealized_pnl
+    // are always INR-denominated, even for a EUR holding — the native
+    // amount lives in the _eur twin (HoldingWithPriceToAPI). cost_price_eur
+    // etc. are deliberately DIFFERENT from cost_price etc. here, so reverting
+    // the fix (reading the plain field regardless of currency) renders a
+    // different, wrong number and this test catches it.
+    render(<HoldingsByCurrency
+      holdings={[
+        h({
+          id: '1', currency: 'EUR',
+          cost_price: 91000, cost_price_eur: 1000,
+          current_value: 118300, current_value_eur: 1300,
+          unrealized_pnl: 27300, unrealized_pnl_eur: 300,
+        }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+
+    const wrapper = document.querySelector('.holdings-table-wrap') as HTMLElement
+    // Cost price, current value, and unrealised gain cells.
+    expect(within(wrapper).getAllByText(/€1,000\.00/).length).toBeGreaterThan(0)
+    expect(within(wrapper).getAllByText(/€1,300\.00/).length).toBeGreaterThan(0)
+    expect(within(wrapper).getAllByText(/€300\.00/).length).toBeGreaterThan(0)
+    // The INR-converted twins must never leak into this EUR-native table.
+    expect(within(wrapper).queryByText(/91,000/)).not.toBeInTheDocument()
+    expect(within(wrapper).queryByText(/118,300/)).not.toBeInTheDocument()
+    expect(within(wrapper).queryByText(/27,300/)).not.toBeInTheDocument()
   })
 
   it('renders the empty state when nothing matches the active view', () => {
