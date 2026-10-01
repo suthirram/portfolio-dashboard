@@ -506,6 +506,42 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
   }
 }
 
+// latestGoldOverlay finds the most recent row (by date) that carries a gold
+// overlay — the "previous day" anchor buildLiveGoldOverlay chains its
+// volatility_pct off, mirroring the backend's goldOverlay walk (gold_history.go).
+export function latestGoldOverlay(rows: HistoryRow[]): GoldHistoryOverlay | null {
+  let best: { date: string; gold: GoldHistoryOverlay } | null = null
+  for (const r of rows) {
+    if (!r.gold) continue
+    if (!best || r.date > best.date) best = { date: r.date, gold: r.gold }
+  }
+  return best?.gold ?? null
+}
+
+// buildLiveGoldOverlay mirrors the backend's goldOverlay math (PRD-003 §8,
+// gold_history.go) for today's live gold position: invested/current/grams
+// come straight from GET /gold/metrics (same source the backend's current
+// snapshot uses), and volatility_pct chains off the most recent snapshotted
+// row's gold.current exactly like the backend chains across overlay rows.
+// Returns undefined when there's no position yet or nothing to value it
+// with — same "skip" conditions as the backend walk — so the table falls
+// back to its normal em-dash rendering for gold-enabled users with no data.
+export function buildLiveGoldOverlay(
+  metrics: { invested: number; grams: number; latest_price?: number | null; current?: number | null },
+  prevCurrent: number | null,
+): GoldHistoryOverlay | undefined {
+  const invested = metrics.invested ?? 0
+  const grams = metrics.grams ?? 0
+  if (invested === 0 && grams === 0) return undefined
+  if (metrics.latest_price == null) return undefined
+  const current = metrics.current ?? grams * metrics.latest_price
+  const volatility_pct = prevCurrent !== null && prevCurrent !== 0
+    ? ((current - prevCurrent) / prevCurrent) * 100
+    : 0
+  const pnl_pct = invested === 0 ? null : ((current - invested) / invested) * 100
+  return { invested, current, volatility_pct, pnl_pct }
+}
+
 // ---- Paste parsing (PasteModal) ----
 
 // parsePasteText accepts TSV (tabs) — what Google Sheets / Excel

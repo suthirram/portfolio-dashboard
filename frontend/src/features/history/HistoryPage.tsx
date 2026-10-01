@@ -24,8 +24,8 @@ import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  buildLiveRow, chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, monthRange, niceDomain, perCurrencyChartData,
+  buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
+  fmtCurrency, goldChartData, latestGoldOverlay, monthRange, niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain,
   type RegionKey,
 } from './historyShared'
@@ -43,6 +43,7 @@ export {
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
+  buildLiveGoldOverlay, latestGoldOverlay,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -117,7 +118,17 @@ export default function HistoryPage() {
     void (async () => {
       try {
         const prices = await api.getPrices()
-        if (!cancelled) setLiveRow(buildLiveRow(todayStr, prices.holdings ?? []))
+        const live = buildLiveRow(todayStr, prices.holdings ?? [])
+        // Gold is a separate store (DD-003) with its own endpoint; only
+        // fetch it for gold-enabled users, and degrade silently (gold just
+        // stays absent, same as a pre-purchase historical row) if it 503s.
+        if (auth?.user?.gold_enabled) {
+          try {
+            const metrics = await api.getGoldMetrics()
+            live.gold = buildLiveGoldOverlay(metrics, latestGoldOverlay(rows)?.current ?? null)
+          } catch { /* gold disabled server-side or a transient error — leave gold absent */ }
+        }
+        if (!cancelled) setLiveRow(live)
       } catch {
         // Live row is a nice-to-have; a failed fetch just means no tentative
         // row shows, not a page-level error.
@@ -125,7 +136,7 @@ export default function HistoryPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isCurrentMonth, hasTodaySnapshot, todayStr])
+  }, [isCurrentMonth, hasTodaySnapshot, todayStr, rows, auth?.user?.gold_enabled])
 
   const displayRows = useMemo(
     () => liveRow ? [...rows, liveRow] : rows,

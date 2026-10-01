@@ -26,6 +26,8 @@ import {
   regionDailyVolatility,
   regionCurrentDirection,
   buildLiveRow,
+  buildLiveGoldOverlay,
+  latestGoldOverlay,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -322,6 +324,47 @@ describe('buildLiveRow', () => {
   it('returns null pnl_pct and zeroed totals with no holdings', () => {
     const r = buildLiveRow('2026-06-20', [])
     expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+  })
+})
+
+describe('latestGoldOverlay', () => {
+  it('returns the overlay from the most recent dated row that has one', () => {
+    const gold1 = { invested: 100, current: 110, volatility_pct: 0, pnl_pct: 10 }
+    const gold2 = { invested: 100, current: 120, volatility_pct: 9.09, pnl_pct: 20 }
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-15', gold: gold1 }),
+      row({ date: '2026-06-17', gold: gold2 }),
+      row({ date: '2026-06-16' }), // no gold — skipped
+    ]
+    expect(latestGoldOverlay(rows)).toEqual(gold2)
+  })
+
+  it('returns null when no row carries a gold overlay', () => {
+    expect(latestGoldOverlay([row({ date: '2026-06-16' })])).toBeNull()
+  })
+})
+
+describe('buildLiveGoldOverlay', () => {
+  it('computes volatility_pct against the previous day close, mirroring the backend walk', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 115 }, 1100)
+    // current = 10 * 115 = 1150; vs prevCurrent 1100 → +4.545...%
+    expect(overlay?.invested).toBe(1000)
+    expect(overlay?.current).toBe(1150)
+    expect(overlay?.volatility_pct).toBeCloseTo(((1150 - 1100) / 1100) * 100)
+    expect(overlay?.pnl_pct).toBe(15)
+  })
+
+  it('defaults volatility_pct to 0 with no previous day to compare against', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 100 }, null)
+    expect(overlay).toEqual({ invested: 1000, current: 1000, volatility_pct: 0, pnl_pct: 0 })
+  })
+
+  it('returns undefined with no position yet (no invested, no grams)', () => {
+    expect(buildLiveGoldOverlay({ invested: 0, grams: 0, latest_price: 100 }, null)).toBeUndefined()
+  })
+
+  it('returns undefined when there is no price to value the grams with', () => {
+    expect(buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: null }, null)).toBeUndefined()
   })
 })
 
