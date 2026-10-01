@@ -26,7 +26,7 @@ import {
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
   buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
   fmtCurrency, goldChartData, latestGoldOverlay, monthRange, niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain,
+  regionHasData, selectStyle, symmetricDomain, tradingDateIST,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
@@ -43,7 +43,7 @@ export {
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
-  buildLiveGoldOverlay, latestGoldOverlay,
+  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -59,8 +59,13 @@ export default function HistoryPage() {
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
-  const [year, setYear] = useState(now.getUTCFullYear())
-  const [month, setMonth] = useState(now.getUTCMonth())
+  // The month picker defaults to the IST trading day's month/year, not the
+  // raw UTC calendar one — between 00:00–02:30 UTC those can differ by a
+  // day (see tradingDateIST), which would otherwise default the picker to
+  // tomorrow's month while the snapshot job is still writing today's.
+  const initialTradingDate = tradingDateIST(now)
+  const [year, setYear] = useState(Number(initialTradingDate.slice(0, 4)))
+  const [month, setMonth] = useState(Number(initialTradingDate.slice(5, 7)) - 1)
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
@@ -106,8 +111,8 @@ export default function HistoryPage() {
   // Today's live row: only meaningful while viewing the current month, and
   // only while no snapshot has landed for today yet (the cron row, once it
   // exists, is the real number — don't shadow it with a live estimate).
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
-  const isCurrentMonth = year === now.getUTCFullYear() && month === now.getUTCMonth()
+  const todayStr = useMemo(() => tradingDateIST(new Date()), [])
+  const isCurrentMonth = year === Number(todayStr.slice(0, 4)) && month === Number(todayStr.slice(5, 7)) - 1
   const hasTodaySnapshot = rows.some(r => r.date === todayStr)
   useEffect(() => {
     if (!isCurrentMonth || hasTodaySnapshot) {

@@ -28,6 +28,7 @@ import {
   buildLiveRow,
   buildLiveGoldOverlay,
   latestGoldOverlay,
+  tradingDateIST,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -274,6 +275,25 @@ describe('normaliseDate', () => {
   it('returns empty for nonsense', () => {
     expect(normaliseDate('not a date')).toBe('')
     expect(normaliseDate('')).toBe('')
+  })
+})
+
+describe('tradingDateIST', () => {
+  it('stays on the preceding UTC date just before the 08:00 IST (02:30 UTC) cut-over', () => {
+    expect(tradingDateIST(new Date('2026-10-01T00:00:00Z'))).toBe('2026-09-30')
+    expect(tradingDateIST(new Date('2026-10-01T02:29:59Z'))).toBe('2026-09-30')
+  })
+
+  it('rolls over to the new date exactly at 02:30 UTC (08:00 IST)', () => {
+    expect(tradingDateIST(new Date('2026-10-01T02:30:00Z'))).toBe('2026-10-01')
+  })
+
+  it('matches the UTC calendar date outside the cut-over window', () => {
+    expect(tradingDateIST(new Date('2026-10-01T12:00:00Z'))).toBe('2026-10-01')
+  })
+
+  it('crosses a month/year boundary the same way', () => {
+    expect(tradingDateIST(new Date('2027-01-01T00:00:00Z'))).toBe('2026-12-31')
   })
 })
 

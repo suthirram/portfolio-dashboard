@@ -461,6 +461,18 @@ export function holdingRegion(h: HistoryHolding): RegionKey {
   return code === 'EUR' ? 'EUR' : 'INR'
 }
 
+// tradingDateIST mirrors the backend's tradingDate (backend/cmd/snapshot.go):
+// an 08:00 IST cut-over, so the snapshot's "today" rolls over at 08:00 IST
+// (02:30 UTC), not at UTC midnight. Between 00:00–02:30 UTC the snapshot job
+// still writes the *preceding* UTC calendar date — using a plain UTC-midnight
+// "today" here would desync from that, briefly showing a live row dated a
+// day ahead of (or hiding it from) the month the real snapshot lands in.
+// now.In(IST).Add(-8h) in Go == shifting the UTC instant back 2h30m here.
+export function tradingDateIST(now: Date): string {
+  const shifted = new Date(now.getTime() - 2.5 * 60 * 60 * 1000)
+  return shifted.toISOString().slice(0, 10)
+}
+
 // buildLiveRow turns today's live holdings+prices (from GET /prices) into a
 // HistoryRow shape so it can be appended to the real snapshot rows and reuse
 // every day-over-day helper above unchanged (they only index into an array
