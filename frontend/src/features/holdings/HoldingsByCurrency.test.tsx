@@ -49,7 +49,15 @@ describe('HoldingsByCurrency', () => {
     render(<HoldingsByCurrency
       holdings={[
         h({ id: '1', currency: 'INR' }),
-        h({ id: '2', currency: 'EUR', cost_price: 1000, current_value: 1200, unrealized_pnl: 200 }),
+        // Regression: HoldingWithPrice.cost_price/current_value/unrealized_pnl
+        // are always INR-denominated, even for a EUR holding — the native
+        // amount lives in the _eur twin. These fixture values (not the
+        // defaults' cost_price/current_value/unrealized_pnl) are what should
+        // actually render under the € symbol.
+        h({
+          id: '2', currency: 'EUR',
+          cost_price_eur: 1000, current_value_eur: 1200, unrealized_pnl_eur: 200,
+        }),
       ]}
       loading={false}
       onEdit={noop}

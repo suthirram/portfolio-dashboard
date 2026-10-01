@@ -29,6 +29,15 @@ const SIGNED_MONEY = (n: number, currency?: string | null) => {
 }
 const SIGNED_PCT = (n: number) => `${n > 0 ? '+' : n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}%`
 
+// HoldingWithPrice.cost_price/current_value/unrealized_pnl are always
+// INR-denominated, even for a EUR holding — the backend converts the other
+// way for the _eur twin (HoldingWithPriceToAPI). The native-currency amount
+// for a EUR holding lives in the _eur field instead. (avg_cost_price,
+// current_price, and realized_pnl are already native — no twin needed.)
+const nativeCost       = (h: HoldingWithPrice) => h.currency === 'EUR' ? h.cost_price_eur : h.cost_price
+const nativeValue      = (h: HoldingWithPrice) => h.currency === 'EUR' ? h.current_value_eur : h.current_value
+const nativeUnrealized = (h: HoldingWithPrice) => h.currency === 'EUR' ? h.unrealized_pnl_eur : h.unrealized_pnl
+
 interface CellProps {
   children?: ReactNode
   style?: CSSProperties
@@ -115,9 +124,9 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
   // Totals — summed in the table's native currency (the currency-grouped
   // wrapper renders one table per currency, so rows share a currency).
   const totals = sorted.reduce((acc, h) => {
-    acc.cost += h.cost_price || 0
-    acc.value += h.current_value || 0
-    acc.unreal += h.unrealized_pnl || 0
+    acc.cost += nativeCost(h) || 0
+    acc.value += nativeValue(h) || 0
+    acc.unreal += nativeUnrealized(h) || 0
     acc.real += h.realized_pnl || 0
     // Fall back to avg_cost_price as baseline for holdings without a snapshot yet.
     const baseline = h.previous_close_price ?? h.avg_cost_price
@@ -234,7 +243,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 <TD className="mono">{NUM(h.stocks_owned)}</TD>
 
                 {/* Cost price — in the holding's native currency */}
-                <TD className="mono">{h.cost_price ? MONEY(h.cost_price) : '—'}</TD>
+                <TD className="mono">{nativeCost(h) ? MONEY(nativeCost(h)) : '—'}</TD>
 
                 {/* Avg cost — color coded vs current share price */}
                 {(() => {
@@ -266,7 +275,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 </TD>
 
                 {/* Current value */}
-                <TD className="mono" style={{ fontWeight: 700, fontSize: 14, color: h.current_value ? 'var(--blue)' : undefined }}>{h.current_value ? MONEY(h.current_value) : '—'}</TD>
+                <TD className="mono" style={{ fontWeight: 700, fontSize: 14, color: nativeValue(h) ? 'var(--blue)' : undefined }}>{nativeValue(h) ? MONEY(nativeValue(h)) : '—'}</TD>
 
                 {/* Day Gain — today's monetary move for this position */}
                 <TD className={`mono${dayGain === null ? '' : dayGain > 0 ? ' pos' : dayGain < 0 ? ' neg' : ' neutral'}`}>
@@ -280,7 +289,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
 
                 {/* Unrealised gain */}
                 <TD className={`mono ${unrealCls}`}>
-                  {hasPrice ? MONEY(h.unrealized_pnl) : '—'}
+                  {hasPrice ? MONEY(nativeUnrealized(h)) : '—'}
                 </TD>
 
                 {/* Realised gain — in the holding's native currency */}
