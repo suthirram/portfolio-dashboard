@@ -472,9 +472,14 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     EUR: { invested: 0, current: 0, source: 'manual' },
   }
   const histHoldings: HistoryHolding[] = holdings.map(h => {
-    const region = (h.currency || 'INR').toUpperCase() === 'EUR' ? 'EUR' : 'INR'
-    const invested = h.cost_price ?? 0
-    const current = h.current_value ?? 0
+    const isEUR = (h.currency || 'INR').toUpperCase() === 'EUR'
+    const region: RegionKey = isEUR ? 'EUR' : 'INR'
+    // HoldingWithPrice.cost_price/current_value are always INR-denominated
+    // (even for EUR holdings — the backend converts the other way for the
+    // _eur twin, see HoldingWithPriceToAPI); the native-currency amount for
+    // a EUR holding lives in cost_price_eur/current_value_eur instead.
+    const invested = isEUR ? h.cost_price_eur ?? 0 : h.cost_price ?? 0
+    const current = isEUR ? h.current_value_eur ?? 0 : h.current_value ?? 0
     regions[region].invested += invested
     regions[region].current += current
     return {

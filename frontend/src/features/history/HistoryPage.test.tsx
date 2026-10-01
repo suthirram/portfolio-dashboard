@@ -284,7 +284,7 @@ describe('buildLiveRow', () => {
   it('buckets holdings by currency into INR/EUR regions', () => {
     const r = buildLiveRow('2026-06-20', [
       holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
-      holding({ currency: 'EUR', cost_price: 50, current_value: 40, symbol: 'SAP.DE', script: 'SAP' }),
+      holding({ currency: 'EUR', cost_price_eur: 50, current_value_eur: 40, symbol: 'SAP.DE', script: 'SAP' }),
     ])
     expect(r.date).toBe('2026-06-20')
     expect(r.tentative).toBe(true)
@@ -293,6 +293,21 @@ describe('buildLiveRow', () => {
     expect(r.totals.invested_total).toBe(150)
     expect(r.totals.current_total).toBe(190)
     expect(r.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
+  })
+
+  it('uses the EUR-denominated fields for a EUR holding, not the INR-converted twins', () => {
+    // Regression: HoldingWithPrice.cost_price/current_value are always
+    // INR-denominated, even for a EUR holding — using them directly made
+    // the live row show INR amounts for EUR holdings.
+    const r = buildLiveRow('2026-06-20', [
+      holding({
+        currency: 'EUR', symbol: 'SAP.DE', script: 'SAP',
+        cost_price: 4500, current_value: 4700,       // INR-converted twins — must be ignored
+        cost_price_eur: 50, current_value_eur: 52,   // native EUR amounts — must be used
+      }),
+    ])
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 52, source: 'manual' })
+    expect(r.regions.INR).toEqual({ invested: 0, current: 0, source: 'manual' })
   })
 
   it('carries a per-stock holdings breakdown so the Holdings modal still opens', () => {
