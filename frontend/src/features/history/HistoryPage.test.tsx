@@ -29,9 +29,8 @@ import {
   buildLiveGoldOverlay,
   latestGoldOverlay,
   tradingDateIST,
-  msUntilNextTradingDate,
   msUntilNextLiveBoundary,
-  isWithinLiveWindow,
+  isLiveWindowOpen,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -300,65 +299,31 @@ describe('tradingDateIST', () => {
   })
 })
 
-describe('msUntilNextTradingDate', () => {
-  const MINUTE = 60 * 1000
-  const HOUR = 60 * MINUTE
-
-  it('counts down to 02:30 UTC later the same day', () => {
-    expect(msUntilNextTradingDate(new Date('2026-10-01T00:00:00Z'))).toBe(2.5 * HOUR)
-    expect(msUntilNextTradingDate(new Date('2026-10-01T02:29:00Z'))).toBe(MINUTE)
-  })
-
-  it('rolls to the next day once the cut-over has passed', () => {
-    // Exactly at the boundary the *next* change is a full day away.
-    expect(msUntilNextTradingDate(new Date('2026-10-01T02:30:00Z'))).toBe(24 * HOUR)
-    expect(msUntilNextTradingDate(new Date('2026-10-01T12:00:00Z'))).toBe(14.5 * HOUR)
-  })
-
-  it('always returns a positive delay, so the timer can never busy-loop', () => {
-    for (const iso of [
-      '2026-10-01T02:29:59.999Z', '2026-10-01T02:30:00.000Z',
-      '2026-10-01T02:30:00.001Z', '2026-12-31T23:59:59Z',
-    ]) {
-      expect(msUntilNextTradingDate(new Date(iso))).toBeGreaterThan(0)
-    }
-  })
-
-  it('lands on the instant where tradingDateIST actually changes', () => {
-    const now = new Date('2026-10-01T12:00:00Z')
-    const atBoundary = new Date(now.getTime() + msUntilNextTradingDate(now))
-    const justBefore = new Date(atBoundary.getTime() - 1)
-    expect(tradingDateIST(justBefore)).toBe(tradingDateIST(now))
-    expect(tradingDateIST(atBoundary)).not.toBe(tradingDateIST(now))
-  })
-})
-
-describe('isWithinLiveWindow', () => {
-  // Window: 09:00 IST (03:30 UTC) → 20:30 UTC.
+describe('isLiveWindowOpen', () => {
+  // Mon–Fri, 03:30 UTC (09:00 IST) → 20:30 UTC. 2026-06-16 is a Tuesday.
   it('is closed before the 03:30 UTC open', () => {
-    expect(isWithinLiveWindow(new Date('2026-10-01T00:00:00Z'))).toBe(false)
-    expect(isWithinLiveWindow(new Date('2026-10-01T02:30:00Z'))).toBe(false)
-    expect(isWithinLiveWindow(new Date('2026-10-01T03:29:59Z'))).toBe(false)
+    expect(isLiveWindowOpen(new Date('2026-06-16T02:30:00Z'))).toBe(false)
+    expect(isLiveWindowOpen(new Date('2026-06-16T03:29:59Z'))).toBe(false)
   })
 
   it('is open from 03:30 UTC up to but not including 20:30 UTC', () => {
-    expect(isWithinLiveWindow(new Date('2026-10-01T03:30:00Z'))).toBe(true)
-    expect(isWithinLiveWindow(new Date('2026-10-01T12:00:00Z'))).toBe(true)
-    expect(isWithinLiveWindow(new Date('2026-10-01T20:29:59Z'))).toBe(true)
-    expect(isWithinLiveWindow(new Date('2026-10-01T20:30:00Z'))).toBe(false)
+    expect(isLiveWindowOpen(new Date('2026-06-16T03:30:00Z'))).toBe(true)
+    expect(isLiveWindowOpen(new Date('2026-06-16T20:29:59Z'))).toBe(true)
+    expect(isLiveWindowOpen(new Date('2026-06-16T20:30:00Z'))).toBe(false)
   })
 
-  it('is closed late in the evening', () => {
-    expect(isWithinLiveWindow(new Date('2026-10-01T23:59:59Z'))).toBe(false)
+  it('is closed all weekend, open Mon and Fri', () => {
+    expect(isLiveWindowOpen(new Date('2026-06-19T12:00:00Z'))).toBe(true)  // Fri
+    expect(isLiveWindowOpen(new Date('2026-06-20T12:00:00Z'))).toBe(false) // Sat
+    expect(isLiveWindowOpen(new Date('2026-06-21T12:00:00Z'))).toBe(false) // Sun
+    expect(isLiveWindowOpen(new Date('2026-06-22T12:00:00Z'))).toBe(true)  // Mon
   })
 
-  it('sits wholly inside one trading day, so it never straddles a cut-over', () => {
-    // Open and close must share the trading date, otherwise a row could be
-    // stamped with one day while the window belongs to the next.
-    const open = new Date('2026-10-01T03:30:00Z')
-    const close = new Date('2026-10-01T20:29:59Z')
-    expect(tradingDateIST(open)).toBe('2026-10-01')
-    expect(tradingDateIST(close)).toBe('2026-10-01')
+  it('takes the weekday from the trading date, not the UTC calendar date', () => {
+    // 00:30 UTC Monday is still Sunday's trading day — and shut either way,
+    // but the window must agree with the date the row would be stamped with.
+    expect(tradingDateIST(new Date('2026-06-22T00:30:00Z'))).toBe('2026-06-21')
+    expect(isLiveWindowOpen(new Date('2026-06-22T00:30:00Z'))).toBe(false)
   })
 })
 
@@ -367,32 +332,24 @@ describe('msUntilNextLiveBoundary', () => {
   const HOUR = 60 * MINUTE
 
   it('returns the nearest of the cut-over, window-open and window-close instants', () => {
-    // 00:00 → next is the 02:30 cut-over.
-    expect(msUntilNextLiveBoundary(new Date('2026-10-01T00:00:00Z'))).toBe(2.5 * HOUR)
-    // 02:31 → next is the 03:30 open.
-    expect(msUntilNextLiveBoundary(new Date('2026-10-01T02:31:00Z'))).toBe(59 * MINUTE)
-    // Midday → next is the 20:30 close.
-    expect(msUntilNextLiveBoundary(new Date('2026-10-01T12:00:00Z'))).toBe(8.5 * HOUR)
-    // After the close → wraps to tomorrow's 02:30 cut-over.
-    expect(msUntilNextLiveBoundary(new Date('2026-10-01T20:30:00Z'))).toBe(6 * HOUR)
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T00:00:00Z'))).toBe(2.5 * HOUR)  // → 02:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T02:31:00Z'))).toBe(59 * MINUTE) // → 03:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T12:00:00Z'))).toBe(8.5 * HOUR)  // → 20:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T20:30:00Z'))).toBe(6 * HOUR)    // → next 02:30
   })
 
-  it('always returns a positive delay, so the timer can never busy-loop', () => {
-    for (const iso of [
-      '2026-10-01T02:30:00Z', '2026-10-01T03:30:00Z', '2026-10-01T20:30:00Z',
-      '2026-10-01T23:59:59.999Z', '2026-12-31T23:59:59Z',
-    ]) {
+  it('never returns 0, so the timer cannot busy-loop', () => {
+    for (const iso of ['2026-10-01T02:30:00Z', '2026-10-01T03:30:00Z',
+                       '2026-10-01T20:30:00Z', '2026-12-31T23:59:59.999Z']) {
       expect(msUntilNextLiveBoundary(new Date(iso))).toBeGreaterThan(0)
     }
   })
 
-  it('never overshoots a state change: nothing flips before the returned delay', () => {
-    // Sampling every 15min across a day, the window flag and trading date
-    // must both still match at (delay - 1ms).
+  it('never overshoots: neither the date nor the window flips before it fires', () => {
     for (let m = 0; m < 24 * 60; m += 15) {
       const now = new Date(Date.UTC(2026, 9, 1, 0, m, 0, 0))
       const justBefore = new Date(now.getTime() + msUntilNextLiveBoundary(now) - 1)
-      expect(isWithinLiveWindow(justBefore)).toBe(isWithinLiveWindow(now))
+      expect(isLiveWindowOpen(justBefore)).toBe(isLiveWindowOpen(now))
       expect(tradingDateIST(justBefore)).toBe(tradingDateIST(now))
     }
   })

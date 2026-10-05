@@ -473,57 +473,35 @@ export function tradingDateIST(now: Date): string {
   return shifted.toISOString().slice(0, 10)
 }
 
-// Instants (as minutes past UTC midnight) where the live row's state can
-// change on its own:
-//   02:30 — the trading-day cut-over tradingDateIST is built on (08:00 IST)
-//   03:30 — the live window opens (09:00 IST)
-//   20:30 — the live window closes
-// Both window bounds are fixed UTC offsets: IST never observes DST, and the
-// closing bound was specified in UTC directly, so there is no zone to track.
-export const TRADING_CUTOVER_UTC_MIN = 2 * 60 + 30
-export const LIVE_WINDOW_OPEN_UTC_MIN = 3 * 60 + 30
-export const LIVE_WINDOW_CLOSE_UTC_MIN = 20 * 60 + 30
+// The live row shows Mon–Fri, 09:00 IST (03:30 UTC) → 20:30 UTC. Both
+// bounds are fixed UTC instants: IST has no DST and the close was given in
+// UTC. Outside the window the latest snapshot is the whole truth — a stale
+// intraday estimate parked under today's date is worse than none.
+// Minutes past UTC midnight; 02:30 is the cut-over tradingDateIST rolls on.
+const CUTOVER_MIN = 2 * 60 + 30
+const OPEN_MIN = 3 * 60 + 30
+const CLOSE_MIN = 20 * 60 + 30
 
-// msUntilUtcMinute returns how long until the next occurrence of a given
-// minute-past-UTC-midnight. Passing a minute ≥ 60 is fine — Date normalises
-// it (setUTCHours(0, 150) is 02:30).
-function msUntilUtcMinute(now: Date, minuteOfDay: number): number {
-  const next = new Date(now)
-  next.setUTCHours(0, minuteOfDay, 0, 0)
-  if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1)
-  return next.getTime() - now.getTime()
-}
-
-// msUntilNextTradingDate returns how long until tradingDateIST(now) would
-// next change — i.e. the next 02:30 UTC (08:00 IST) instant. A page left
-// mounted across that boundary must recompute its notion of "today",
-// otherwise it keeps rendering (and refreshing) a tentative row dated to
-// the previous trading day, and at a month boundary under the previous
-// month, until someone reloads the tab.
-export function msUntilNextTradingDate(now: Date): number {
-  return msUntilUtcMinute(now, TRADING_CUTOVER_UTC_MIN)
-}
-
-// isWithinLiveWindow reports whether live prices should be shown right now:
-// 09:00 IST (03:30 UTC) until 20:30 UTC. Outside it the tentative row is
-// hidden entirely — the last snapshot is the whole truth overnight, and a
-// stale intraday estimate sitting under tomorrow's date is worse than none.
-// The window sits wholly inside one trading day (which runs 02:30 → 02:30),
-// so it never straddles a cut-over.
-export function isWithinLiveWindow(now: Date): boolean {
+// isLiveWindowOpen gates the tentative row. The weekday is read off the
+// trading date, not the wall clock, so it always agrees with the date the
+// row is stamped with.
+export function isLiveWindowOpen(now: Date): boolean {
+  const day = new Date(`${tradingDateIST(now)}T00:00:00Z`).getUTCDay()
+  if (day === 0 || day === 6) return false
   const minute = now.getUTCHours() * 60 + now.getUTCMinutes()
-  return minute >= LIVE_WINDOW_OPEN_UTC_MIN && minute < LIVE_WINDOW_CLOSE_UTC_MIN
+  return minute >= OPEN_MIN && minute < CLOSE_MIN
 }
 
-// msUntilNextLiveBoundary returns how long until the next instant where
-// either the trading date or the live window changes — the single timer a
-// mounted page needs to stay honest across all three.
+// msUntilNextLiveBoundary returns how long until tradingDateIST or
+// isLiveWindowOpen could next change — the single timer a mounted page needs
+// so it does not keep a stale date or window state until remount.
 export function msUntilNextLiveBoundary(now: Date): number {
-  return Math.min(
-    msUntilUtcMinute(now, TRADING_CUTOVER_UTC_MIN),
-    msUntilUtcMinute(now, LIVE_WINDOW_OPEN_UTC_MIN),
-    msUntilUtcMinute(now, LIVE_WINDOW_CLOSE_UTC_MIN),
-  )
+  return Math.min(...[CUTOVER_MIN, OPEN_MIN, CLOSE_MIN].map(minuteOfDay => {
+    const next = new Date(now)
+    next.setUTCHours(0, minuteOfDay, 0, 0)
+    if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1)
+    return next.getTime() - now.getTime()
+  }))
 }
 
 // buildLiveRow turns today's live holdings+prices (from GET /prices) into a

@@ -25,7 +25,7 @@ import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
   buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, isWithinLiveWindow, latestGoldOverlay, monthRange,
+  fmtCurrency, goldChartData, isLiveWindowOpen, latestGoldOverlay, monthRange,
   msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain, tradingDateIST,
   type RegionKey,
@@ -44,8 +44,8 @@ export {
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
-  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST, msUntilNextTradingDate,
-  msUntilNextLiveBoundary, isWithinLiveWindow,
+  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
+  msUntilNextLiveBoundary, isLiveWindowOpen,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -110,28 +110,23 @@ export default function HistoryPage() {
 
   useEffect(() => { void reload() }, [reload])
 
-  // Today's live row: only meaningful while viewing the current month, and
-  // only while no snapshot has landed for today yet (the cron row, once it
-  // exists, is the real number — don't shadow it with a live estimate).
+  // Today's live row: only while viewing the current month, only while no
+  // snapshot has landed for today yet (the cron row, once it exists, is the
+  // real number), and only inside the live window.
   //
-  // Neither `todayStr` nor the live-window flag may be memoized once for the
-  // component's lifetime: a tab left open across 02:30 UTC would otherwise
-  // keep refreshing a tentative row stamped with the previous trading day
-  // (and, at a month boundary, filed under the previous month), and one left
-  // open across 03:30 / 20:30 UTC would never open or close the window.
-  // `clockTick` increments at each of those instants, recomputing both.
+  // Neither value may be memoized for the component's lifetime: a tab left
+  // mounted across a boundary would otherwise keep a stale trading day or
+  // window state until remount. `clockTick` fires at each boundary (+1s of
+  // slack, since a timer landing a hair early would recompute the same
+  // values; re-arming on the tick rather than on the derived values keeps
+  // the next timeout scheduled anyway).
   const [clockTick, setClockTick] = useState(0)
   useEffect(() => {
-    // +1s of slack: timers can fire a hair early, and landing just before a
-    // boundary would recompute the same values. Re-arming on `clockTick`
-    // (which always changes) rather than on the derived values guarantees
-    // the next timeout is scheduled even when that happens.
     const t = setTimeout(() => setClockTick(n => n + 1), msUntilNextLiveBoundary(new Date()) + 1000)
     return () => clearTimeout(t)
   }, [clockTick])
   const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
-  // Live prices only between 09:00 IST (03:30 UTC) and 20:30 UTC.
-  const liveWindowOpen = useMemo(() => isWithinLiveWindow(new Date()), [clockTick])
+  const liveWindowOpen = useMemo(() => isLiveWindowOpen(new Date()), [clockTick])
   const isCurrentMonth = year === Number(todayStr.slice(0, 4)) && month === Number(todayStr.slice(5, 7)) - 1
 
   // At each cut-over, refetch so the day that just closed picks up its real

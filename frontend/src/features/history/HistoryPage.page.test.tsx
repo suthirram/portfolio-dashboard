@@ -363,5 +363,15 @@ describe('HistoryPage', () => {
 
       expect(await screen.findByText('(live)')).toBeInTheDocument()
     })
+
+    // Weekday logic is unit-tested on isLiveWindowOpen; this just proves the
+    // page actually applies the gate.
+    it('hides the row at the weekend even inside the time window', async () => {
+      vi.setSystemTime(new Date('2026-06-20T12:00:00Z')) // Sat
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
   })
 })
