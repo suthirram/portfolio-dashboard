@@ -8,6 +8,7 @@ import type {
   HistoryRow,
   RegionSnapshot,
 } from '../../lib/api/client'
+import { formatDayMonth } from '../../lib/formDates'
 import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import type { ThemeName } from '../../lib/useTheme'
 import type { HoldingWithPrice } from '../../types'
@@ -255,7 +256,10 @@ export function fmtCurrency(amount: number, sym: string): string {
 export function goldChartData(rows: HistoryRow[]) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return oldestFirst.map(r => ({
-    date: r.date.slice(5),
+    // dd-MM: the app renders every date day-first (see lib/formDates), and a
+    // raw `.slice(5)` here printed MM-DD — the one place the mini charts
+    // disagreed with every other date in the UI.
+    date: formatDayMonth(r.date),
     invested: r.gold ? r.gold.invested : null,
     current: r.gold ? r.gold.current : null,
     pnl_pct: r.gold ? r.gold.pnl_pct : null,
@@ -293,7 +297,8 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
       : null
     prevCurrent = current
     prevInvested = invested
-    return { date: r.date.slice(5), invested, current, pnl_pct, daily_vol }
+    // dd-MM — day-first, like every other date in the app (lib/formDates).
+    return { date: formatDayMonth(r.date), invested, current, pnl_pct, daily_vol }
   })
 }
 
@@ -400,12 +405,25 @@ function flowAdjustedDailyVolatility(
   return ((current - externalFlow - prevCurrent) / prevCurrent) * 100
 }
 
+// pnlPct is the one P/L-% formula in the feature: null when there is nothing
+// invested to measure against, mirroring the backend, which leaves pnl_pct
+// nil at zero invested. Shared by regionPnLPct, buildLiveRow and
+// buildLiveGoldOverlay so the three cannot drift.
+export function pnlPct(invested: number, current: number): number | null {
+  if (invested === 0) return null
+  return ((current - invested) / invested) * 100
+}
+
+// pctChange is the plain day-over-day % move behind the gold volatility
+// chain: 0 when there is no non-zero baseline, exactly what the backend's
+// goldOverlay walk does (services/gold_history.go).
+export function pctChange(prev: number | null, current: number): number {
+  return prev !== null && prev !== 0 ? ((current - prev) / prev) * 100 : 0
+}
+
 // regionPnLPct is the per-region P/L %.
 export function regionPnLPct(r: HistoryRow, region: RegionKey): number | null {
-  const inv = r.regions[region]?.invested ?? 0
-  const cur = r.regions[region]?.current  ?? 0
-  if (inv === 0) return null
-  return ((cur - inv) / inv) * 100
+  return pnlPct(r.regions[region]?.invested ?? 0, r.regions[region]?.current ?? 0)
 }
 
 // regionInvestedWentUp reports whether the region's invested amount on
@@ -453,8 +471,6 @@ export function goldCurrentDirection(
   return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
 }
 
-// holdingRegion maps a holding's currency code to its table currency group,
-// defaulting unknown/blank to INR (the Holding.Currency default).
 // bucketCurrency mirrors the backend's CurrencyOf (services/snapshot.go):
 // INR and EUR map to themselves, blank defaults to INR, and anything else
 // (legacy USD) has no bucket at all — the snapshot job excludes such a
@@ -565,7 +581,7 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     totals: {
       invested_total: investedTotal,
       current_total: currentTotal,
-      pnl_pct: investedTotal === 0 ? null : ((currentTotal - investedTotal) / investedTotal) * 100,
+      pnl_pct: pnlPct(investedTotal, currentTotal),
     },
     holdings: histHoldings,
     tentative: true,
@@ -601,11 +617,12 @@ export function buildLiveGoldOverlay(
   if (invested === 0 && grams === 0) return undefined
   if (metrics.latest_price == null) return undefined
   const current = metrics.current ?? grams * metrics.latest_price
-  const volatility_pct = prevCurrent !== null && prevCurrent !== 0
-    ? ((current - prevCurrent) / prevCurrent) * 100
-    : 0
-  const pnl_pct = invested === 0 ? null : ((current - invested) / invested) * 100
-  return { invested, current, volatility_pct, pnl_pct }
+  return {
+    invested,
+    current,
+    volatility_pct: pctChange(prevCurrent, current),
+    pnl_pct: pnlPct(invested, current),
+  }
 }
 
 // ---- Paste parsing (PasteModal) ----

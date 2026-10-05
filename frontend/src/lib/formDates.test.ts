@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate } from './formDates'
+import { formatDate, formatDayMonth } from './formDates'
 
 describe('formatDate', () => {
   it('converts YYYY-MM-DD to dd-MM-yyyy', () => {
@@ -19,5 +19,21 @@ describe('formatDate', () => {
     expect(formatDate(null)).toBe('')
     expect(formatDate(undefined)).toBe('')
     expect(formatDate('')).toBe('')
+  })
+})
+
+describe('formatDayMonth', () => {
+  it('converts YYYY-MM-DD to dd-MM, keeping the app-wide day-first order', () => {
+    expect(formatDayMonth('2026-06-16')).toBe('16-06')
+    expect(formatDayMonth('2026-12-01')).toBe('01-12')
+  })
+
+  it('handles a full RFC3339 timestamp by using the date part', () => {
+    expect(formatDayMonth('2026-06-16T00:00:00Z')).toBe('16-06')
+  })
+
+  it('passes through non-ISO input unchanged', () => {
+    expect(formatDayMonth('not a date')).toBe('not a date')
+    expect(formatDayMonth(null)).toBe('')
   })
 })

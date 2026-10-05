@@ -9,3 +9,12 @@ export function formatDate(iso: string | null | undefined): string {
   const [, y, m, d] = match
   return `${d}-${m}-${y}`
 }
+
+// formatDayMonth renders a YYYY-MM-DD as dd-MM — the app's dd-MM-yyyy order
+// minus the year, for compact chart axes where the year is implied by the
+// selected month. Built on formatDate so the two can never disagree on
+// order; non-parseable input is returned unchanged, same as formatDate.
+export function formatDayMonth(iso: string | null | undefined): string {
+  const full = formatDate(iso)
+  return /^\d{2}-\d{2}-\d{4}$/.test(full) ? full.slice(0, 5) : full
+}

@@ -176,9 +176,10 @@ describe('goldChartData', () => {
       row({ date: '2026-06-17', regions: {}, gold: { invested: 7200, current: 14400, volatility_pct: 5, pnl_pct: 100 } }),
       row({ date: '2026-06-16', regions: {} }), // no overlay → nulls
     ]
+    // Axis labels are dd-MM — day-first, like every other date in the app.
     expect(goldChartData(rows)).toEqual([
-      { date: '06-16', invested: null, current: null, pnl_pct: null, daily_vol: null },
-      { date: '06-17', invested: 7200, current: 14400, pnl_pct: 100, daily_vol: 5 },
+      { date: '16-06', invested: null, current: null, pnl_pct: null, daily_vol: null },
+      { date: '17-06', invested: 7200, current: 14400, pnl_pct: 100, daily_vol: 5 },
     ])
   })
 })

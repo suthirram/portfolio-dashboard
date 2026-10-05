@@ -46,6 +46,7 @@ export {
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
   buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
   msUntilNextLiveBoundary, isLiveWindowOpen, yearMonth0, bucketCurrency,
+  pnlPct, pctChange,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -161,6 +162,11 @@ export default function HistoryPage() {
     }
   }, [todayStr, year, month, reload])
   const hasTodaySnapshot = rows.some(r => r.date === todayStr)
+  // The only thing the fetch below needs out of `rows` is the previous
+  // gold close its volatility chains off. Reducing that to a primitive keeps
+  // `rows` out of the deps, so a same-month reload (add / edit / paste) no
+  // longer triggers a redundant /prices + /gold/metrics round-trip.
+  const prevGoldCurrent = useMemo(() => latestGoldOverlay(rows)?.current ?? null, [rows])
   useEffect(() => {
     if (!isCurrentMonth || hasTodaySnapshot || !liveWindowOpen) {
       setLiveRow(null)
@@ -177,7 +183,7 @@ export default function HistoryPage() {
         if (auth?.user?.gold_enabled) {
           try {
             const metrics = await api.getGoldMetrics()
-            live.gold = buildLiveGoldOverlay(metrics, latestGoldOverlay(rows)?.current ?? null)
+            live.gold = buildLiveGoldOverlay(metrics, prevGoldCurrent)
           } catch { /* gold disabled server-side or a transient error — leave gold absent */ }
         }
         if (!cancelled) setLiveRow(live)
@@ -188,7 +194,7 @@ export default function HistoryPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, rows, auth?.user?.gold_enabled])
+  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, prevGoldCurrent, auth?.user?.gold_enabled])
 
   // `hasTodaySnapshot` is computed during render but `liveRow` is only
   // cleared by the effect above, which runs after paint — so guard here too,
@@ -208,14 +214,19 @@ export default function HistoryPage() {
   }, [now])
 
   // One chart per currency. Compute series per bucket.
+  //
+  // Charts plot `displayRows`, the same array the table renders: on `rows`
+  // the table's last row was today while every mini chart stopped at
+  // yesterday, and a gold-enabled user whose only gold-bearing row was the
+  // live one got the table's gold column with no gold panel beside it.
   const chartsByRegion = useMemo(() => ({
-    INR: perCurrencyChartData(rows, 'INR'),
-    EUR: perCurrencyChartData(rows, 'EUR'),
-  }), [rows])
+    INR: perCurrencyChartData(displayRows, 'INR'),
+    EUR: perCurrencyChartData(displayRows, 'EUR'),
+  }), [displayRows])
   // Gold gets its own panel (INR-denominated) from the per-row overlay,
   // shown only when at least one row carries gold data.
-  const goldChart = useMemo(() => goldChartData(rows), [rows])
-  const hasGoldChart = useMemo(() => rows.some(r => r.gold), [rows])
+  const goldChart = useMemo(() => goldChartData(displayRows), [displayRows])
+  const hasGoldChart = useMemo(() => displayRows.some(r => r.gold), [displayRows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
     try {
@@ -351,7 +362,7 @@ export default function HistoryPage() {
             border: '1px solid var(--border)', borderRadius: 8,
           }}>
             <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-              No data for {MONTHS[month]} {year} yet. Your first snapshot will be taken at the next 00:00 UTC, or you can add rows manually.
+              No data for {MONTHS[month]} {year} yet. Your first snapshot will be taken at the next 00:00 UTC run, or you can add rows manually.
             </p>
           </div>
         )}
