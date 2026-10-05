@@ -32,6 +32,13 @@ describe('formatDayMonth', () => {
     expect(formatDayMonth('2026-06-16T00:00:00Z')).toBe('16-06')
   })
 
+  it('passes through an already-formatted dd-MM-yyyy unchanged', () => {
+    // Regression: the first cut re-parsed formatDate's *output* with a
+    // /^\d{2}-\d{2}-\d{4}$/ test, which an already-formatted date matches —
+    // so it got truncated to '16-06' instead of passing through.
+    expect(formatDayMonth('16-06-2026')).toBe('16-06-2026')
+  })
+
   it('passes through non-ISO input unchanged', () => {
     expect(formatDayMonth('not a date')).toBe('not a date')
     expect(formatDayMonth(null)).toBe('')
