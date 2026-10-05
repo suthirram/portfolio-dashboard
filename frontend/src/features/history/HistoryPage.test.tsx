@@ -29,6 +29,7 @@ import {
   buildLiveGoldOverlay,
   latestGoldOverlay,
   tradingDateIST,
+  msUntilNextTradingDate,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -294,6 +295,39 @@ describe('tradingDateIST', () => {
 
   it('crosses a month/year boundary the same way', () => {
     expect(tradingDateIST(new Date('2027-01-01T00:00:00Z'))).toBe('2026-12-31')
+  })
+})
+
+describe('msUntilNextTradingDate', () => {
+  const MINUTE = 60 * 1000
+  const HOUR = 60 * MINUTE
+
+  it('counts down to 02:30 UTC later the same day', () => {
+    expect(msUntilNextTradingDate(new Date('2026-10-01T00:00:00Z'))).toBe(2.5 * HOUR)
+    expect(msUntilNextTradingDate(new Date('2026-10-01T02:29:00Z'))).toBe(MINUTE)
+  })
+
+  it('rolls to the next day once the cut-over has passed', () => {
+    // Exactly at the boundary the *next* change is a full day away.
+    expect(msUntilNextTradingDate(new Date('2026-10-01T02:30:00Z'))).toBe(24 * HOUR)
+    expect(msUntilNextTradingDate(new Date('2026-10-01T12:00:00Z'))).toBe(14.5 * HOUR)
+  })
+
+  it('always returns a positive delay, so the timer can never busy-loop', () => {
+    for (const iso of [
+      '2026-10-01T02:29:59.999Z', '2026-10-01T02:30:00.000Z',
+      '2026-10-01T02:30:00.001Z', '2026-12-31T23:59:59Z',
+    ]) {
+      expect(msUntilNextTradingDate(new Date(iso))).toBeGreaterThan(0)
+    }
+  })
+
+  it('lands on the instant where tradingDateIST actually changes', () => {
+    const now = new Date('2026-10-01T12:00:00Z')
+    const atBoundary = new Date(now.getTime() + msUntilNextTradingDate(now))
+    const justBefore = new Date(atBoundary.getTime() - 1)
+    expect(tradingDateIST(justBefore)).toBe(tradingDateIST(now))
+    expect(tradingDateIST(atBoundary)).not.toBe(tradingDateIST(now))
   })
 })
 

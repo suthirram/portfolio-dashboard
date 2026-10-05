@@ -473,6 +473,19 @@ export function tradingDateIST(now: Date): string {
   return shifted.toISOString().slice(0, 10)
 }
 
+// msUntilNextTradingDate returns how long until tradingDateIST(now) would
+// next change — i.e. the next 02:30 UTC (08:00 IST) instant. A page left
+// mounted across that boundary must recompute its notion of "today",
+// otherwise it keeps rendering (and refreshing) a tentative row dated to
+// the previous trading day, and at a month boundary under the previous
+// month, until someone reloads the tab.
+export function msUntilNextTradingDate(now: Date): number {
+  const next = new Date(now)
+  next.setUTCHours(2, 30, 0, 0)
+  if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1)
+  return next.getTime() - now.getTime()
+}
+
 // buildLiveRow turns today's live holdings+prices (from GET /prices) into a
 // HistoryRow shape so it can be appended to the real snapshot rows and reuse
 // every day-over-day helper above unchanged (they only index into an array

@@ -237,4 +237,69 @@ describe('HistoryPage', () => {
     // reload() runs after add: listHistory called again (mount + reload).
     await waitFor(() => expect(mockApi.listHistory.mock.calls.length).toBeGreaterThanOrEqual(2))
   })
+
+  // Regression: `todayStr` used to be memoized with an empty dep array, so a
+  // tab left open across the 02:30 UTC cut-over kept refreshing a tentative
+  // row stamped with the previous trading day — and, across a month
+  // boundary, filed under the previous month — until it was remounted.
+  describe('trading-day roll-over while mounted', () => {
+    const advancePastCutover = async () => {
+      // Mounted at 02:00Z; the cut-over is at 02:30Z (+1s of scheduled slack).
+      await vi.advanceTimersByTimeAsync(31 * 60 * 1000)
+    }
+
+    it('refetches the month when the trading day rolls over', async () => {
+      vi.setSystemTime(new Date('2026-06-30T02:00:00Z')) // trading day 2026-06-29
+      renderPage()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalled())
+      const callsBefore = mockApi.listHistory.mock.calls.length
+
+      vi.setSystemTime(new Date('2026-06-30T02:31:00Z')) // trading day 2026-06-30
+      await advancePastCutover()
+
+      await waitFor(() =>
+        expect(mockApi.listHistory.mock.calls.length).toBeGreaterThan(callsBefore))
+      // Same month either side, so the range is unchanged — only refetched.
+      const calls = mockApi.listHistory.mock.calls
+      const last = calls[calls.length - 1]
+      expect(last).toEqual(['2026-05-31', '2026-06-30'])
+    })
+
+    it('follows the clock into the new month when the roll-over crosses one', async () => {
+      vi.setSystemTime(new Date('2026-07-01T02:00:00Z')) // trading day 2026-06-30 (June)
+      renderPage()
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-31', '2026-06-30'))
+
+      vi.setSystemTime(new Date('2026-07-01T02:31:00Z')) // trading day 2026-07-01 (July)
+      await advancePastCutover()
+
+      // The picker must advance to July and refetch that range, rather than
+      // leaving a July tentative row stranded under June.
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-30', '2026-07-31'))
+    })
+
+    it('does not yank the user out of a month they navigated to', async () => {
+      vi.setSystemTime(new Date('2026-07-01T02:00:00Z'))
+      renderPage()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalled())
+
+      // Navigate deliberately to March 2026.
+      const monthSelect = document.querySelectorAll('select')[1] as HTMLSelectElement
+      fireEvent.change(monthSelect, { target: { value: '2' } })
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-02-28', '2026-03-31'))
+
+      vi.setSystemTime(new Date('2026-07-01T02:31:00Z'))
+      await advancePastCutover()
+
+      // Still on March: every later fetch keeps the chosen range.
+      await waitFor(() => {
+        const calls = mockApi.listHistory.mock.calls
+      const last = calls[calls.length - 1]
+        expect(last).toEqual(['2026-02-28', '2026-03-31'])
+      })
+    })
+  })
 })
