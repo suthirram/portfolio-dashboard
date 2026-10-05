@@ -17,6 +17,8 @@ const mockApi = vi.hoisted(() => ({
   patchHistoryRegions: vi.fn(),
   deleteHistoryRow: vi.fn(),
   pasteHistory: vi.fn(),
+  getPrices: vi.fn(),
+  getGoldMetrics: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -29,8 +31,10 @@ import HistoryPage from './HistoryPage'
 const renderPage = () => render(<MemoryRouter><HistoryPage /></MemoryRouter>)
 
 // Freeze the clock so the year-dropdown assertion is deterministic across
-// real wall-clock rollovers.
-const FROZEN_NOW = new Date('2026-06-16T12:00:00Z')
+// real wall-clock rollovers. 22:00 UTC is deliberately *outside* the live
+// window (03:30–20:30 UTC), so these tests render snapshot rows only; the
+// live-row tests below set their own time inside the window.
+const FROZEN_NOW = new Date('2026-06-16T22:00:00Z')
 
 const sampleRow: HistoryRow = {
   date: '2026-06-16',
@@ -54,7 +58,15 @@ describe('HistoryPage', () => {
   })
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.setSystemTime(FROZEN_NOW)
     mockApi.listHistory.mockResolvedValue(list([]))
+    mockApi.getPrices.mockResolvedValue({
+      holdings: [{
+        symbol: 'TCS.NS', script: 'TCS', currency: 'INR', stocks_owned: 10,
+        current_price: 150, cost_price: 1000, current_value: 1500,
+      }],
+      eur_rate: 0.011,
+    })
   })
 
   it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
@@ -300,6 +312,56 @@ describe('HistoryPage', () => {
       const last = calls[calls.length - 1]
         expect(last).toEqual(['2026-02-28', '2026-03-31'])
       })
+    })
+  })
+
+  // The tentative row is only shown between 09:00 IST (03:30 UTC) and
+  // 20:30 UTC. Outside that band the last snapshot is the whole truth.
+  describe('live window (03:30–20:30 UTC)', () => {
+    it('shows the tentative row inside the window', async () => {
+      vi.setSystemTime(new Date('2026-06-16T12:00:00Z'))
+      renderPage()
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
+      expect(mockApi.getPrices).toHaveBeenCalled()
+    })
+
+    it('hides it before the 03:30 UTC open', async () => {
+      vi.setSystemTime(new Date('2026-06-16T03:00:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
+
+    it('hides it after the 20:30 UTC close', async () => {
+      vi.setSystemTime(new Date('2026-06-16T21:00:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
+
+    it('drops the row when the window closes while mounted', async () => {
+      vi.setSystemTime(new Date('2026-06-16T20:29:00Z'))
+      renderPage()
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
+
+      vi.setSystemTime(new Date('2026-06-16T20:30:30Z'))
+      await vi.advanceTimersByTimeAsync(2 * 60 * 1000)
+
+      await waitFor(() => expect(screen.queryByText('(live)')).toBeNull())
+    })
+
+    it('adds the row when the window opens while mounted', async () => {
+      vi.setSystemTime(new Date('2026-06-16T03:29:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+
+      vi.setSystemTime(new Date('2026-06-16T03:30:30Z'))
+      await vi.advanceTimersByTimeAsync(2 * 60 * 1000)
+
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
     })
   })
 })

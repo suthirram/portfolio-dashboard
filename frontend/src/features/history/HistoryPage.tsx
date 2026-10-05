@@ -25,8 +25,8 @@ import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
   buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, latestGoldOverlay, monthRange, msUntilNextTradingDate,
-  niceDomain, perCurrencyChartData,
+  fmtCurrency, goldChartData, isWithinLiveWindow, latestGoldOverlay, monthRange,
+  msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain, tradingDateIST,
   type RegionKey,
 } from './historyShared'
@@ -45,6 +45,7 @@ export {
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
   buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST, msUntilNextTradingDate,
+  msUntilNextLiveBoundary, isWithinLiveWindow,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -113,22 +114,24 @@ export default function HistoryPage() {
   // only while no snapshot has landed for today yet (the cron row, once it
   // exists, is the real number — don't shadow it with a live estimate).
   //
-  // `todayStr` must not be memoized once for the component's lifetime: a tab
-  // left open across 02:30 UTC would otherwise keep refreshing a tentative
-  // row stamped with the previous trading day (and, at a month boundary,
-  // filed under the previous month) until it is remounted. `dayTick`
-  // increments at each cut-over, recomputing the date and re-running the
-  // effects below.
-  const [dayTick, setDayTick] = useState(0)
+  // Neither `todayStr` nor the live-window flag may be memoized once for the
+  // component's lifetime: a tab left open across 02:30 UTC would otherwise
+  // keep refreshing a tentative row stamped with the previous trading day
+  // (and, at a month boundary, filed under the previous month), and one left
+  // open across 03:30 / 20:30 UTC would never open or close the window.
+  // `clockTick` increments at each of those instants, recomputing both.
+  const [clockTick, setClockTick] = useState(0)
   useEffect(() => {
-    // +1s of slack: timers can fire a hair early, and landing just before
-    // 02:30 would compute the same date again. Re-arming on `dayTick` (which
-    // always changes) rather than on the date string guarantees the next
-    // timeout is scheduled even when that happens.
-    const t = setTimeout(() => setDayTick(n => n + 1), msUntilNextTradingDate(new Date()) + 1000)
+    // +1s of slack: timers can fire a hair early, and landing just before a
+    // boundary would recompute the same values. Re-arming on `clockTick`
+    // (which always changes) rather than on the derived values guarantees
+    // the next timeout is scheduled even when that happens.
+    const t = setTimeout(() => setClockTick(n => n + 1), msUntilNextLiveBoundary(new Date()) + 1000)
     return () => clearTimeout(t)
-  }, [dayTick])
-  const todayStr = useMemo(() => tradingDateIST(new Date()), [dayTick])
+  }, [clockTick])
+  const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
+  // Live prices only between 09:00 IST (03:30 UTC) and 20:30 UTC.
+  const liveWindowOpen = useMemo(() => isWithinLiveWindow(new Date()), [clockTick])
   const isCurrentMonth = year === Number(todayStr.slice(0, 4)) && month === Number(todayStr.slice(5, 7)) - 1
 
   // At each cut-over, refetch so the day that just closed picks up its real
@@ -156,7 +159,7 @@ export default function HistoryPage() {
   }, [todayStr, year, month, reload])
   const hasTodaySnapshot = rows.some(r => r.date === todayStr)
   useEffect(() => {
-    if (!isCurrentMonth || hasTodaySnapshot) {
+    if (!isCurrentMonth || hasTodaySnapshot || !liveWindowOpen) {
       setLiveRow(null)
       return
     }
@@ -182,7 +185,7 @@ export default function HistoryPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isCurrentMonth, hasTodaySnapshot, todayStr, rows, auth?.user?.gold_enabled])
+  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, todayStr, rows, auth?.user?.gold_enabled])
 
   const displayRows = useMemo(
     () => liveRow ? [...rows, liveRow] : rows,
