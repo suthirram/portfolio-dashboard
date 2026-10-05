@@ -94,8 +94,12 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
             const prev = byDateDesc[i + 1] ?? null
             return (
-              <tr key={r.date} title={`Source: ${sourceLabel}`}>
-                <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>{formatDate(r.date)}</td>
+              <tr key={r.date}
+                className={r.tentative ? 'history-row-tentative' : undefined}
+                title={r.tentative ? 'Live — not yet snapshotted' : `Source: ${sourceLabel}`}>
+                <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>
+                  {formatDate(r.date)}{r.tentative && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>(live)</span>}
+                </td>
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
                     key={region}
@@ -109,21 +113,23 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                 ))}
                 {hasGold && <GoldRowCells gold={r.gold} prevGold={prev?.gold} />}
                 <td style={actionTd}>
-                  <div style={actionCell}>
-                    {onEdit && (
-                      <button onClick={() => onEdit(r)} className="btn-row btn-row-accent"
-                        aria-label={`Edit row for ${formatDate(r.date)}`} title="Edit">
-                        <EditIcon size={16} />
-                      </button>
-                    )}
-                    {(isAllManual(r.regions) || canForceDelete) && (
-                      <button onClick={() => onDelete(r.date)} className="btn-row btn-row-danger"
-                        aria-label={`Delete row for ${formatDate(r.date)}`}
-                        title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
-                        <TrashIcon size={16} />
-                      </button>
-                    )}
-                  </div>
+                  {!r.tentative && (
+                    <div style={actionCell}>
+                      {onEdit && (
+                        <button onClick={() => onEdit(r)} className="btn-row btn-row-accent"
+                          aria-label={`Edit row for ${formatDate(r.date)}`} title="Edit">
+                          <EditIcon size={16} />
+                        </button>
+                      )}
+                      {(isAllManual(r.regions) || canForceDelete) && (
+                        <button onClick={() => onDelete(r.date)} className="btn-row btn-row-danger"
+                          aria-label={`Delete row for ${formatDate(r.date)}`}
+                          title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
+                          <TrashIcon size={16} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
               </tr>
             )

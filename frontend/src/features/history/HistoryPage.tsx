@@ -4,7 +4,7 @@
 // the shared constants/helpers/styles in historyShared.ts; everything that
 // was historically exported from this module is re-exported below so
 // existing imports (tests, HistoryChartPage) keep working unchanged.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
@@ -24,9 +24,10 @@ import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, monthRange, niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain,
+  buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
+  fmtCurrency, goldChartData, isLiveWindowOpen, latestGoldOverlay, monthRange,
+  msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
+  regionHasData, selectStyle, symmetricDomain, tradingDateIST, yearMonth0,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
@@ -42,7 +43,10 @@ export {
   goldChartData, perCurrencyChartData, niceDomain, symmetricDomain, regionHasData,
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
-  regionCurrentDirection, goldCurrentDirection, holdingRegion,
+  regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
+  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
+  msUntilNextLiveBoundary, isLiveWindowOpen, yearMonth0, bucketCurrency,
+  pnlPct, pctChange,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -58,9 +62,15 @@ export default function HistoryPage() {
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
   const now = new Date()
-  const [year, setYear] = useState(now.getUTCFullYear())
-  const [month, setMonth] = useState(now.getUTCMonth())
+  // The month picker defaults to the IST trading day's month/year, not the
+  // raw UTC calendar one — between 00:00–02:30 UTC those can differ by a
+  // day (see tradingDateIST), which would otherwise default the picker to
+  // tomorrow's month while the snapshot job is still writing today's.
+  const initial = yearMonth0(tradingDateIST(now))
+  const [year, setYear] = useState(initial.year)
+  const [month, setMonth] = useState(initial.month0)
   const [rows, setRows] = useState<HistoryRow[]>([])
+  const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -101,6 +111,100 @@ export default function HistoryPage() {
 
   useEffect(() => { void reload() }, [reload])
 
+  // Today's live row: only while viewing the current month, only while no
+  // snapshot has landed for today yet (the cron row, once it exists, is the
+  // real number), and only inside the live window.
+  //
+  // Neither value may be memoized for the component's lifetime: a tab left
+  // mounted across a boundary would otherwise keep a stale trading day or
+  // window state until remount. `clockTick` fires at each boundary (+1s of
+  // slack, since a timer landing a hair early would recompute the same
+  // values; re-arming on the tick rather than on the derived values keeps
+  // the next timeout scheduled anyway).
+  const [clockTick, setClockTick] = useState(0)
+  useEffect(() => {
+    const t = setTimeout(() => setClockTick(n => n + 1), msUntilNextLiveBoundary(new Date()) + 1000)
+    return () => clearTimeout(t)
+  }, [clockTick])
+  const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
+  const liveWindowOpen = useMemo(() => isLiveWindowOpen(new Date()), [clockTick])
+  // /prices is cached 5 min server-side. Without its own cadence the row
+  // labelled "live" would keep showing the window-open price for the whole
+  // 17-hour window, since nothing else in the fetch effect's deps changes.
+  const [priceTick, setPriceTick] = useState(0)
+  useEffect(() => {
+    if (!liveWindowOpen) return
+    const id = setInterval(() => setPriceTick(n => n + 1), 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [liveWindowOpen])
+  const today = yearMonth0(todayStr)
+  const isCurrentMonth = year === today.year && month === today.month0
+
+  // At each cut-over, refetch so the day that just closed picks up its real
+  // snapshot. If the roll-over also crossed a month *and* the user was still
+  // parked on the month that was current until a moment ago, follow the
+  // clock into the new month — but never yank them out of a month they
+  // deliberately navigated to.
+  const prevTodayRef = useRef(todayStr)
+  useEffect(() => {
+    const prev = prevTodayRef.current
+    if (prev === todayStr) return
+    prevTodayRef.current = todayStr
+    const was = yearMonth0(prev)
+    const nowYM = yearMonth0(todayStr)
+    const crossedMonth = nowYM.year !== was.year || nowYM.month0 !== was.month0
+    if (crossedMonth && year === was.year && month === was.month0) {
+      // Changing the picker re-runs `reload` through its own effect.
+      setYear(nowYM.year)
+      setMonth(nowYM.month0)
+    } else {
+      void reload()
+    }
+  }, [todayStr, year, month, reload])
+  const hasTodaySnapshot = rows.some(r => r.date === todayStr)
+  // The only thing the fetch below needs out of `rows` is the previous
+  // gold close its volatility chains off. Reducing that to a primitive keeps
+  // `rows` out of the deps, so a same-month reload (add / edit / paste) no
+  // longer triggers a redundant /prices + /gold/metrics round-trip.
+  const prevGoldCurrent = useMemo(() => latestGoldOverlay(rows)?.current ?? null, [rows])
+  useEffect(() => {
+    if (!isCurrentMonth || hasTodaySnapshot || !liveWindowOpen) {
+      setLiveRow(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const prices = await api.getPrices()
+        const live = buildLiveRow(todayStr, prices.holdings ?? [])
+        // Gold is a separate store (DD-003) with its own endpoint; only
+        // fetch it for gold-enabled users, and degrade silently (gold just
+        // stays absent, same as a pre-purchase historical row) if it 503s.
+        if (auth?.user?.gold_enabled) {
+          try {
+            const metrics = await api.getGoldMetrics()
+            live.gold = buildLiveGoldOverlay(metrics, prevGoldCurrent)
+          } catch { /* gold disabled server-side or a transient error — leave gold absent */ }
+        }
+        if (!cancelled) setLiveRow(live)
+      } catch {
+        // Live row is a nice-to-have; a failed fetch just means no tentative
+        // row shows, not a page-level error.
+        if (!cancelled) setLiveRow(null)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, prevGoldCurrent, auth?.user?.gold_enabled])
+
+  // `hasTodaySnapshot` is computed during render but `liveRow` is only
+  // cleared by the effect above, which runs after paint — so guard here too,
+  // or the frame where today's cron row first arrives renders two <tr>s with
+  // the same key and collapses their day-over-day maths.
+  const displayRows = useMemo(
+    () => liveRow && !hasTodaySnapshot ? [...rows, liveRow] : rows,
+    [rows, liveRow, hasTodaySnapshot],
+  )
+
   const years = useMemo(() => {
     const current = now.getUTCFullYear()
     const start = Math.min(MIN_YEAR, current)
@@ -110,14 +214,19 @@ export default function HistoryPage() {
   }, [now])
 
   // One chart per currency. Compute series per bucket.
+  //
+  // Charts plot `displayRows`, the same array the table renders: on `rows`
+  // the table's last row was today while every mini chart stopped at
+  // yesterday, and a gold-enabled user whose only gold-bearing row was the
+  // live one got the table's gold column with no gold panel beside it.
   const chartsByRegion = useMemo(() => ({
-    INR: perCurrencyChartData(rows, 'INR'),
-    EUR: perCurrencyChartData(rows, 'EUR'),
-  }), [rows])
+    INR: perCurrencyChartData(displayRows, 'INR'),
+    EUR: perCurrencyChartData(displayRows, 'EUR'),
+  }), [displayRows])
   // Gold gets its own panel (INR-denominated) from the per-row overlay,
   // shown only when at least one row carries gold data.
-  const goldChart = useMemo(() => goldChartData(rows), [rows])
-  const hasGoldChart = useMemo(() => rows.some(r => r.gold), [rows])
+  const goldChart = useMemo(() => goldChartData(displayRows), [displayRows])
+  const hasGoldChart = useMemo(() => displayRows.some(r => r.gold), [displayRows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
     try {
@@ -247,20 +356,20 @@ export default function HistoryPage() {
 
         {error && <div className="alert-danger">Error: {error}</div>}
 
-        {!loading && rows.length === 0 && (
+        {!loading && displayRows.length === 0 && (
           <div style={{
             padding: 32, textAlign: 'center', background: 'var(--bg-secondary)',
             border: '1px solid var(--border)', borderRadius: 8,
           }}>
             <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-              No data for {MONTHS[month]} {year} yet. Your first snapshot will be taken at the next 00:00 UTC, or you can add rows manually.
+              No data for {MONTHS[month]} {year} yet. Your first snapshot will be taken at the next 00:00 UTC run, or you can add rows manually.
             </p>
           </div>
         )}
 
-        {rows.length > 0 && (() => {
+        {displayRows.length > 0 && (() => {
           const table = (
-            <HistoryTable rows={rows} currency={currency} theme={theme}
+            <HistoryTable rows={displayRows} currency={currency} theme={theme}
               onDelete={handleDelete} onEdit={r => setEditRow(r)}
               onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />

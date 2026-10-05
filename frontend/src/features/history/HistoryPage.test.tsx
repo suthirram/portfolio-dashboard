@@ -25,6 +25,14 @@ import {
   goldCurrentDirection,
   regionDailyVolatility,
   regionCurrentDirection,
+  buildLiveRow,
+  buildLiveGoldOverlay,
+  latestGoldOverlay,
+  tradingDateIST,
+  msUntilNextLiveBoundary,
+  isLiveWindowOpen,
+  bucketCurrency,
+  yearMonth0,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -32,6 +40,7 @@ import type {
   PasteHistoryReport,
   RegionSnapshot,
 } from '../../lib/api/client'
+import type { HoldingWithPrice } from '../../types'
 
 // ---- helpers ----
 
@@ -167,9 +176,10 @@ describe('goldChartData', () => {
       row({ date: '2026-06-17', regions: {}, gold: { invested: 7200, current: 14400, volatility_pct: 5, pnl_pct: 100 } }),
       row({ date: '2026-06-16', regions: {} }), // no overlay → nulls
     ]
+    // Axis labels are dd-MM — day-first, like every other date in the app.
     expect(goldChartData(rows)).toEqual([
-      { date: '06-16', invested: null, current: null, pnl_pct: null, daily_vol: null },
-      { date: '06-17', invested: 7200, current: 14400, pnl_pct: 100, daily_vol: 5 },
+      { date: '16-06', invested: null, current: null, pnl_pct: null, daily_vol: null },
+      { date: '17-06', invested: 7200, current: 14400, pnl_pct: 100, daily_vol: 5 },
     ])
   })
 })
@@ -273,6 +283,204 @@ describe('normaliseDate', () => {
   })
 })
 
+describe('tradingDateIST', () => {
+  it('stays on the preceding UTC date just before the 08:00 IST (02:30 UTC) cut-over', () => {
+    expect(tradingDateIST(new Date('2026-10-01T00:00:00Z'))).toBe('2026-09-30')
+    expect(tradingDateIST(new Date('2026-10-01T02:29:59Z'))).toBe('2026-09-30')
+  })
+
+  it('rolls over to the new date exactly at 02:30 UTC (08:00 IST)', () => {
+    expect(tradingDateIST(new Date('2026-10-01T02:30:00Z'))).toBe('2026-10-01')
+  })
+
+  it('matches the UTC calendar date outside the cut-over window', () => {
+    expect(tradingDateIST(new Date('2026-10-01T12:00:00Z'))).toBe('2026-10-01')
+  })
+
+  it('crosses a month/year boundary the same way', () => {
+    expect(tradingDateIST(new Date('2027-01-01T00:00:00Z'))).toBe('2026-12-31')
+  })
+})
+
+describe('isLiveWindowOpen', () => {
+  // Mon–Fri, 03:30 UTC (09:00 IST) → 20:30 UTC. 2026-06-16 is a Tuesday.
+  it('is closed before the 03:30 UTC open', () => {
+    expect(isLiveWindowOpen(new Date('2026-06-16T02:30:00Z'))).toBe(false)
+    expect(isLiveWindowOpen(new Date('2026-06-16T03:29:59Z'))).toBe(false)
+  })
+
+  it('is open from 03:30 UTC up to but not including 20:30 UTC', () => {
+    expect(isLiveWindowOpen(new Date('2026-06-16T03:30:00Z'))).toBe(true)
+    expect(isLiveWindowOpen(new Date('2026-06-16T20:29:59Z'))).toBe(true)
+    expect(isLiveWindowOpen(new Date('2026-06-16T20:30:00Z'))).toBe(false)
+  })
+
+  it('is closed all weekend, open Mon and Fri', () => {
+    expect(isLiveWindowOpen(new Date('2026-06-19T12:00:00Z'))).toBe(true)  // Fri
+    expect(isLiveWindowOpen(new Date('2026-06-20T12:00:00Z'))).toBe(false) // Sat
+    expect(isLiveWindowOpen(new Date('2026-06-21T12:00:00Z'))).toBe(false) // Sun
+    expect(isLiveWindowOpen(new Date('2026-06-22T12:00:00Z'))).toBe(true)  // Mon
+  })
+
+  it('takes the weekday from the trading date, not the UTC calendar date', () => {
+    // 00:30 UTC Monday is still Sunday's trading day — and shut either way,
+    // but the window must agree with the date the row would be stamped with.
+    expect(tradingDateIST(new Date('2026-06-22T00:30:00Z'))).toBe('2026-06-21')
+    expect(isLiveWindowOpen(new Date('2026-06-22T00:30:00Z'))).toBe(false)
+  })
+})
+
+describe('msUntilNextLiveBoundary', () => {
+  const MINUTE = 60 * 1000
+  const HOUR = 60 * MINUTE
+
+  it('returns the nearest of the cut-over, window-open and window-close instants', () => {
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T00:00:00Z'))).toBe(2.5 * HOUR)  // → 02:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T02:31:00Z'))).toBe(59 * MINUTE) // → 03:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T12:00:00Z'))).toBe(8.5 * HOUR)  // → 20:30
+    expect(msUntilNextLiveBoundary(new Date('2026-10-01T20:30:00Z'))).toBe(6 * HOUR)    // → next 02:30
+  })
+
+  it('never returns 0, so the timer cannot busy-loop', () => {
+    for (const iso of ['2026-10-01T02:30:00Z', '2026-10-01T03:30:00Z',
+                       '2026-10-01T20:30:00Z', '2026-12-31T23:59:59.999Z']) {
+      expect(msUntilNextLiveBoundary(new Date(iso))).toBeGreaterThan(0)
+    }
+  })
+
+  it('never overshoots: neither the date nor the window flips before it fires', () => {
+    for (let m = 0; m < 24 * 60; m += 15) {
+      const now = new Date(Date.UTC(2026, 9, 1, 0, m, 0, 0))
+      const justBefore = new Date(now.getTime() + msUntilNextLiveBoundary(now) - 1)
+      expect(isLiveWindowOpen(justBefore)).toBe(isLiveWindowOpen(now))
+      expect(tradingDateIST(justBefore)).toBe(tradingDateIST(now))
+    }
+  })
+})
+
+describe('buildLiveRow', () => {
+  const holding = (overrides: Partial<HoldingWithPrice>): HoldingWithPrice => ({
+    symbol: 'TCS.NS', script: 'TCS', currency: 'INR',
+    cost_price: 0, current_value: 0, ...overrides,
+  } as HoldingWithPrice)
+
+  it('buckets holdings by currency into INR/EUR regions', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
+      holding({ currency: 'EUR', cost_price_eur: 50, current_value_eur: 40, symbol: 'SAP.DE', script: 'SAP' }),
+    ])
+    expect(r.date).toBe('2026-06-20')
+    expect(r.tentative).toBe(true)
+    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 40, source: 'manual' })
+    expect(r.totals.invested_total).toBe(150)
+    expect(r.totals.current_total).toBe(190)
+    expect(r.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
+  })
+
+  it('uses the EUR-denominated fields for a EUR holding, not the INR-converted twins', () => {
+    // Regression: HoldingWithPrice.cost_price/current_value are always
+    // INR-denominated, even for a EUR holding — using them directly made
+    // the live row show INR amounts for EUR holdings.
+    const r = buildLiveRow('2026-06-20', [
+      holding({
+        currency: 'EUR', symbol: 'SAP.DE', script: 'SAP',
+        cost_price: 4500, current_value: 4700,       // INR-converted twins — must be ignored
+        cost_price_eur: 50, current_value_eur: 52,   // native EUR amounts — must be used
+      }),
+    ])
+    expect(r.regions.EUR).toEqual({ invested: 50, current: 52, source: 'manual' })
+    expect(r.regions.INR).toEqual({ invested: 0, current: 0, source: 'manual' })
+  })
+
+  it('carries a per-stock holdings breakdown so the Holdings modal still opens', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150, symbol: 'TCS.NS', script: 'TCS', stocks_owned: 10, current_price: 15 } as HoldingWithPrice),
+    ])
+    expect(r.holdings).toEqual([
+      { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 10, close_price: 15, current: 150 },
+    ])
+  })
+
+  it('excludes an unknown-currency holding, as the snapshot job does', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
+      // Legacy USD: the backend's CurrencyOf returns ok=false and the holding
+      // is left out of the buckets entirely. Folding it into INR here would
+      // inflate the live row and then "drop" when the cron row landed.
+      holding({ currency: 'USD' as 'INR', cost_price: 900, current_value: 950 }),
+    ])
+    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(r.holdings).toHaveLength(1)
+  })
+
+  it('returns null pnl_pct and zeroed totals with no holdings', () => {
+    const r = buildLiveRow('2026-06-20', [])
+    expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+  })
+})
+
+describe('bucketCurrency', () => {
+  it('maps INR/EUR to themselves and blank to INR', () => {
+    expect(bucketCurrency('INR')).toBe('INR')
+    expect(bucketCurrency('eur')).toBe('EUR')
+    expect(bucketCurrency('')).toBe('INR')
+    expect(bucketCurrency(undefined)).toBe('INR')
+  })
+
+  it('gives an unknown currency no bucket, matching the backend CurrencyOf', () => {
+    expect(bucketCurrency('USD')).toBeNull()
+  })
+})
+
+describe('yearMonth0', () => {
+  it('splits a YYYY-MM-DD into a zero-based month', () => {
+    expect(yearMonth0('2026-01-31')).toEqual({ year: 2026, month0: 0 })
+    expect(yearMonth0('2026-12-01')).toEqual({ year: 2026, month0: 11 })
+  })
+})
+
+describe('latestGoldOverlay', () => {
+  it('returns the overlay from the most recent dated row that has one', () => {
+    const gold1 = { invested: 100, current: 110, volatility_pct: 0, pnl_pct: 10 }
+    const gold2 = { invested: 100, current: 120, volatility_pct: 9.09, pnl_pct: 20 }
+    const rows: HistoryRow[] = [
+      row({ date: '2026-06-15', gold: gold1 }),
+      row({ date: '2026-06-17', gold: gold2 }),
+      row({ date: '2026-06-16' }), // no gold — skipped
+    ]
+    expect(latestGoldOverlay(rows)).toEqual(gold2)
+  })
+
+  it('returns null when no row carries a gold overlay', () => {
+    expect(latestGoldOverlay([row({ date: '2026-06-16' })])).toBeNull()
+  })
+})
+
+describe('buildLiveGoldOverlay', () => {
+  it('computes volatility_pct against the previous day close, mirroring the backend walk', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 115 }, 1100)
+    // current = 10 * 115 = 1150; vs prevCurrent 1100 → +4.545...%
+    expect(overlay?.invested).toBe(1000)
+    expect(overlay?.current).toBe(1150)
+    expect(overlay?.volatility_pct).toBeCloseTo(((1150 - 1100) / 1100) * 100)
+    expect(overlay?.pnl_pct).toBe(15)
+  })
+
+  it('defaults volatility_pct to 0 with no previous day to compare against', () => {
+    const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 100 }, null)
+    expect(overlay).toEqual({ invested: 1000, current: 1000, volatility_pct: 0, pnl_pct: 0 })
+  })
+
+  it('returns undefined with no position yet (no invested, no grams)', () => {
+    expect(buildLiveGoldOverlay({ invested: 0, grams: 0, latest_price: 100 }, null)).toBeUndefined()
+  })
+
+  it('returns undefined when there is no price to value the grams with', () => {
+    expect(buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: null }, null)).toBeUndefined()
+  })
+})
+
 // ---- HistoryTable (TDD §7.3) ----
 
 describe('HistoryTable', () => {
@@ -318,6 +526,16 @@ describe('HistoryTable', () => {
     // Target by row date, not display position (default order is oldest-first).
     fireEvent.click(screen.getByRole('button', { name: 'Edit row for 16-06-2026' }))
     expect(onEdit).toHaveBeenCalledWith(rows[0])
+  })
+
+  it('a tentative row hides Edit/Delete even when handlers are provided, and gets the blink class', () => {
+    const onEdit = vi.fn()
+    render(<HistoryTable currency="INR" onDelete={() => {}} onEdit={onEdit}
+      rows={[row({ date: '2026-06-20', regions: { INR: region(100, 150, 'manual') }, tentative: true })]} />)
+    expect(screen.queryByRole('button', { name: /Edit row/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Delete row/ })).toBeNull()
+    expect(document.querySelector('tr.history-row-tentative')).not.toBeNull()
+    expect(screen.getByText('(live)')).toBeInTheDocument()
   })
 
   it('does not render Edit when onEdit is omitted', () => {

@@ -17,6 +17,8 @@ const mockApi = vi.hoisted(() => ({
   patchHistoryRegions: vi.fn(),
   deleteHistoryRow: vi.fn(),
   pasteHistory: vi.fn(),
+  getPrices: vi.fn(),
+  getGoldMetrics: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -29,8 +31,10 @@ import HistoryPage from './HistoryPage'
 const renderPage = () => render(<MemoryRouter><HistoryPage /></MemoryRouter>)
 
 // Freeze the clock so the year-dropdown assertion is deterministic across
-// real wall-clock rollovers.
-const FROZEN_NOW = new Date('2026-06-16T12:00:00Z')
+// real wall-clock rollovers. 22:00 UTC is deliberately *outside* the live
+// window (03:30–20:30 UTC), so these tests render snapshot rows only; the
+// live-row tests below set their own time inside the window.
+const FROZEN_NOW = new Date('2026-06-16T22:00:00Z')
 
 const sampleRow: HistoryRow = {
   date: '2026-06-16',
@@ -54,7 +58,15 @@ describe('HistoryPage', () => {
   })
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.setSystemTime(FROZEN_NOW)
     mockApi.listHistory.mockResolvedValue(list([]))
+    mockApi.getPrices.mockResolvedValue({
+      holdings: [{
+        symbol: 'TCS.NS', script: 'TCS', currency: 'INR', stocks_owned: 10,
+        current_price: 150, cost_price: 1000, current_value: 1500,
+      }],
+      eur_rate: 0.011,
+    })
   })
 
   it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
@@ -236,5 +248,130 @@ describe('HistoryPage', () => {
     await waitFor(() => expect(mockApi.addHistoryRow).toHaveBeenCalled())
     // reload() runs after add: listHistory called again (mount + reload).
     await waitFor(() => expect(mockApi.listHistory.mock.calls.length).toBeGreaterThanOrEqual(2))
+  })
+
+  // Regression: `todayStr` used to be memoized with an empty dep array, so a
+  // tab left open across the 02:30 UTC cut-over kept refreshing a tentative
+  // row stamped with the previous trading day — and, across a month
+  // boundary, filed under the previous month — until it was remounted.
+  describe('trading-day roll-over while mounted', () => {
+    const advancePastCutover = async () => {
+      // Mounted at 02:00Z; the cut-over is at 02:30Z (+1s of scheduled slack).
+      await vi.advanceTimersByTimeAsync(31 * 60 * 1000)
+    }
+
+    it('refetches the month when the trading day rolls over', async () => {
+      vi.setSystemTime(new Date('2026-06-30T02:00:00Z')) // trading day 2026-06-29
+      renderPage()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalled())
+      const callsBefore = mockApi.listHistory.mock.calls.length
+
+      vi.setSystemTime(new Date('2026-06-30T02:31:00Z')) // trading day 2026-06-30
+      await advancePastCutover()
+
+      await waitFor(() =>
+        expect(mockApi.listHistory.mock.calls.length).toBeGreaterThan(callsBefore))
+      // Same month either side, so the range is unchanged — only refetched.
+      const calls = mockApi.listHistory.mock.calls
+      const last = calls[calls.length - 1]
+      expect(last).toEqual(['2026-05-31', '2026-06-30'])
+    })
+
+    it('follows the clock into the new month when the roll-over crosses one', async () => {
+      vi.setSystemTime(new Date('2026-07-01T02:00:00Z')) // trading day 2026-06-30 (June)
+      renderPage()
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-31', '2026-06-30'))
+
+      vi.setSystemTime(new Date('2026-07-01T02:31:00Z')) // trading day 2026-07-01 (July)
+      await advancePastCutover()
+
+      // The picker must advance to July and refetch that range, rather than
+      // leaving a July tentative row stranded under June.
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-30', '2026-07-31'))
+    })
+
+    it('does not yank the user out of a month they navigated to', async () => {
+      vi.setSystemTime(new Date('2026-07-01T02:00:00Z'))
+      renderPage()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalled())
+
+      // Navigate deliberately to March 2026.
+      const monthSelect = document.querySelectorAll('select')[1] as HTMLSelectElement
+      fireEvent.change(monthSelect, { target: { value: '2' } })
+      await waitFor(() =>
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-02-28', '2026-03-31'))
+
+      vi.setSystemTime(new Date('2026-07-01T02:31:00Z'))
+      await advancePastCutover()
+
+      // Still on March: every later fetch keeps the chosen range.
+      await waitFor(() => {
+        const calls = mockApi.listHistory.mock.calls
+      const last = calls[calls.length - 1]
+        expect(last).toEqual(['2026-02-28', '2026-03-31'])
+      })
+    })
+  })
+
+  // The tentative row is only shown between 09:00 IST (03:30 UTC) and
+  // 20:30 UTC. Outside that band the last snapshot is the whole truth.
+  describe('live window (03:30–20:30 UTC)', () => {
+    it('shows the tentative row inside the window', async () => {
+      vi.setSystemTime(new Date('2026-06-16T12:00:00Z'))
+      renderPage()
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
+      expect(mockApi.getPrices).toHaveBeenCalled()
+    })
+
+    it('hides it before the 03:30 UTC open', async () => {
+      vi.setSystemTime(new Date('2026-06-16T03:00:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
+
+    it('hides it after the 20:30 UTC close', async () => {
+      vi.setSystemTime(new Date('2026-06-16T21:00:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
+
+    it('drops the row when the window closes while mounted', async () => {
+      vi.setSystemTime(new Date('2026-06-16T20:29:00Z'))
+      renderPage()
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
+
+      vi.setSystemTime(new Date('2026-06-16T20:30:30Z'))
+      await vi.advanceTimersByTimeAsync(2 * 60 * 1000)
+
+      await waitFor(() => expect(screen.queryByText('(live)')).toBeNull())
+    })
+
+    it('adds the row when the window opens while mounted', async () => {
+      vi.setSystemTime(new Date('2026-06-16T03:29:00Z'))
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+
+      vi.setSystemTime(new Date('2026-06-16T03:30:30Z'))
+      await vi.advanceTimersByTimeAsync(2 * 60 * 1000)
+
+      expect(await screen.findByText('(live)')).toBeInTheDocument()
+    })
+
+    // Weekday logic is unit-tested on isLiveWindowOpen; this just proves the
+    // page actually applies the gate.
+    it('hides the row at the weekend even inside the time window', async () => {
+      vi.setSystemTime(new Date('2026-06-20T12:00:00Z')) // Sat
+      renderPage()
+      await screen.findByText(/No data for/)
+      expect(screen.queryByText('(live)')).toBeNull()
+      expect(mockApi.getPrices).not.toHaveBeenCalled()
+    })
   })
 })

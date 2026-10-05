@@ -8,8 +8,10 @@ import type {
   HistoryRow,
   RegionSnapshot,
 } from '../../lib/api/client'
+import { formatDayMonth } from '../../lib/formDates'
 import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import type { ThemeName } from '../../lib/useTheme'
+import type { HoldingWithPrice } from '../../types'
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -254,7 +256,10 @@ export function fmtCurrency(amount: number, sym: string): string {
 export function goldChartData(rows: HistoryRow[]) {
   const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
   return oldestFirst.map(r => ({
-    date: r.date.slice(5),
+    // dd-MM: the app renders every date day-first (see lib/formDates), and a
+    // raw `.slice(5)` here printed MM-DD — the one place the mini charts
+    // disagreed with every other date in the UI.
+    date: formatDayMonth(r.date),
     invested: r.gold ? r.gold.invested : null,
     current: r.gold ? r.gold.current : null,
     pnl_pct: r.gold ? r.gold.pnl_pct : null,
@@ -292,7 +297,8 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
       : null
     prevCurrent = current
     prevInvested = invested
-    return { date: r.date.slice(5), invested, current, pnl_pct, daily_vol }
+    // dd-MM — day-first, like every other date in the app (lib/formDates).
+    return { date: formatDayMonth(r.date), invested, current, pnl_pct, daily_vol }
   })
 }
 
@@ -399,12 +405,25 @@ function flowAdjustedDailyVolatility(
   return ((current - externalFlow - prevCurrent) / prevCurrent) * 100
 }
 
+// pnlPct is the one P/L-% formula in the feature: null when there is nothing
+// invested to measure against, mirroring the backend, which leaves pnl_pct
+// nil at zero invested. Shared by regionPnLPct, buildLiveRow and
+// buildLiveGoldOverlay so the three cannot drift.
+export function pnlPct(invested: number, current: number): number | null {
+  if (invested === 0) return null
+  return ((current - invested) / invested) * 100
+}
+
+// pctChange is the plain day-over-day % move behind the gold volatility
+// chain: 0 when there is no non-zero baseline, exactly what the backend's
+// goldOverlay walk does (services/gold_history.go).
+export function pctChange(prev: number | null, current: number): number {
+  return prev !== null && prev !== 0 ? ((current - prev) / prev) * 100 : 0
+}
+
 // regionPnLPct is the per-region P/L %.
 export function regionPnLPct(r: HistoryRow, region: RegionKey): number | null {
-  const inv = r.regions[region]?.invested ?? 0
-  const cur = r.regions[region]?.current  ?? 0
-  if (inv === 0) return null
-  return ((cur - inv) / inv) * 100
+  return pnlPct(r.regions[region]?.invested ?? 0, r.regions[region]?.current ?? 0)
 }
 
 // regionInvestedWentUp reports whether the region's invested amount on
@@ -452,12 +471,158 @@ export function goldCurrentDirection(
   return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
 }
 
-// holdingRegion maps a holding's currency code to its table currency group,
-// defaulting unknown/blank to INR (the Holding.Currency default).
-export function holdingRegion(h: HistoryHolding): RegionKey {
-  const code = (h.currency || 'INR').toUpperCase()
-  // Only INR and EUR are tracked; anything else (incl. legacy USD) → INR.
-  return code === 'EUR' ? 'EUR' : 'INR'
+// bucketCurrency mirrors the backend's CurrencyOf (services/snapshot.go):
+// INR and EUR map to themselves, blank defaults to INR, and anything else
+// (legacy USD) has no bucket at all — the snapshot job excludes such a
+// holding rather than folding it into one.
+export function bucketCurrency(currency?: string): RegionKey | null {
+  const code = (currency || 'INR').toUpperCase()
+  return code === 'INR' || code === 'EUR' ? code : null
+}
+
+// holdingRegion maps a stored snapshot line to the column group it renders
+// under. Unlike bucketCurrency it never drops a holding: a line the backend
+// already wrote has to be shown somewhere, so an unknown currency falls back
+// to INR.
+export function holdingRegion(h: Pick<HistoryHolding, 'currency'>): RegionKey {
+  return bucketCurrency(h.currency) ?? 'INR'
+}
+
+// yearMonth0 splits a YYYY-MM-DD into the {year, month0} pair the month
+// picker and monthRange both speak, so the slice/-1 arithmetic lives once.
+export function yearMonth0(date: string): { year: number; month0: number } {
+  return { year: Number(date.slice(0, 4)), month0: Number(date.slice(5, 7)) - 1 }
+}
+
+// tradingDateIST mirrors the backend's tradingDate (backend/cmd/snapshot.go):
+// an 08:00 IST cut-over, so the snapshot's "today" rolls over at 08:00 IST
+// (02:30 UTC), not at UTC midnight. Between 00:00–02:30 UTC the snapshot job
+// still writes the *preceding* UTC calendar date — using a plain UTC-midnight
+// "today" here would desync from that, briefly showing a live row dated a
+// day ahead of (or hiding it from) the month the real snapshot lands in.
+// now.In(IST).Add(-8h) in Go == shifting the UTC instant back 2h30m here.
+export function tradingDateIST(now: Date): string {
+  const shifted = new Date(now.getTime() - 2.5 * 60 * 60 * 1000)
+  return shifted.toISOString().slice(0, 10)
+}
+
+// The live row shows Mon–Fri, 09:00 IST (03:30 UTC) → 20:30 UTC. Both
+// bounds are fixed UTC instants: IST has no DST and the close was given in
+// UTC. Outside the window the latest snapshot is the whole truth — a stale
+// intraday estimate parked under today's date is worse than none.
+// Minutes past UTC midnight; 02:30 is the cut-over tradingDateIST rolls on.
+const CUTOVER_MIN = 2 * 60 + 30
+const OPEN_MIN = 3 * 60 + 30
+const CLOSE_MIN = 20 * 60 + 30
+
+// isLiveWindowOpen gates the tentative row. The weekday is read off the
+// trading date, not the wall clock, so it always agrees with the date the
+// row is stamped with.
+export function isLiveWindowOpen(now: Date): boolean {
+  const day = new Date(`${tradingDateIST(now)}T00:00:00Z`).getUTCDay()
+  if (day === 0 || day === 6) return false
+  const minute = now.getUTCHours() * 60 + now.getUTCMinutes()
+  return minute >= OPEN_MIN && minute < CLOSE_MIN
+}
+
+// msUntilNextLiveBoundary returns how long until tradingDateIST or
+// isLiveWindowOpen could next change — the single timer a mounted page needs
+// so it does not keep a stale date or window state until remount.
+export function msUntilNextLiveBoundary(now: Date): number {
+  return Math.min(...[CUTOVER_MIN, OPEN_MIN, CLOSE_MIN].map(minuteOfDay => {
+    const next = new Date(now)
+    next.setUTCHours(0, minuteOfDay, 0, 0)
+    if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1)
+    return next.getTime() - now.getTime()
+  }))
+}
+
+// buildLiveRow turns today's live holdings+prices (from GET /prices) into a
+// HistoryRow shape so it can be appended to the real snapshot rows and reuse
+// every day-over-day helper above unchanged (they only index into an array
+// of HistoryRow — they don't care that this one was never snapshotted).
+// Marked `tentative` so HistoryTable can style and disable it differently.
+export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): HistoryRow {
+  const regions: Record<RegionKey, RegionSnapshot> = {
+    INR: { invested: 0, current: 0, source: 'manual' },
+    EUR: { invested: 0, current: 0, source: 'manual' },
+  }
+  const histHoldings: HistoryHolding[] = []
+  for (const h of holdings) {
+    // Skip what the snapshot job would skip, so the live row and the cron
+    // row that replaces it cover the same holdings — otherwise a legacy USD
+    // position would inflate the live INR column and then vanish, reading as
+    // a real portfolio move.
+    const region = bucketCurrency(h.currency)
+    if (!region) continue
+    const isEUR = region === 'EUR'
+    // HoldingWithPrice.cost_price/current_value are always INR-denominated
+    // (even for EUR holdings — the backend converts the other way for the
+    // _eur twin, see HoldingWithPriceToAPI); the native-currency amount for
+    // a EUR holding lives in cost_price_eur/current_value_eur instead.
+    const invested = isEUR ? h.cost_price_eur ?? 0 : h.cost_price ?? 0
+    const current = isEUR ? h.current_value_eur ?? 0 : h.current_value ?? 0
+    regions[region].invested += invested
+    regions[region].current += current
+    histHoldings.push({
+      symbol: h.symbol ?? '',
+      script: h.script ?? h.symbol ?? '',
+      currency: h.currency ?? 'INR',
+      quantity: h.stocks_owned ?? 0,
+      close_price: h.current_price ?? 0,
+      current,
+    })
+  }
+  const investedTotal = regions.INR.invested + regions.EUR.invested
+  const currentTotal = regions.INR.current + regions.EUR.current
+  return {
+    date,
+    regions,
+    totals: {
+      invested_total: investedTotal,
+      current_total: currentTotal,
+      pnl_pct: pnlPct(investedTotal, currentTotal),
+    },
+    holdings: histHoldings,
+    tentative: true,
+  }
+}
+
+// latestGoldOverlay finds the most recent row (by date) that carries a gold
+// overlay — the "previous day" anchor buildLiveGoldOverlay chains its
+// volatility_pct off, mirroring the backend's goldOverlay walk (gold_history.go).
+export function latestGoldOverlay(rows: HistoryRow[]): GoldHistoryOverlay | null {
+  let best: { date: string; gold: GoldHistoryOverlay } | null = null
+  for (const r of rows) {
+    if (!r.gold) continue
+    if (!best || r.date > best.date) best = { date: r.date, gold: r.gold }
+  }
+  return best?.gold ?? null
+}
+
+// buildLiveGoldOverlay mirrors the backend's goldOverlay math (PRD-003 §8,
+// gold_history.go) for today's live gold position: invested/current/grams
+// come straight from GET /gold/metrics (same source the backend's current
+// snapshot uses), and volatility_pct chains off the most recent snapshotted
+// row's gold.current exactly like the backend chains across overlay rows.
+// Returns undefined when there's no position yet or nothing to value it
+// with — same "skip" conditions as the backend walk — so the table falls
+// back to its normal em-dash rendering for gold-enabled users with no data.
+export function buildLiveGoldOverlay(
+  metrics: { invested: number; grams: number; latest_price?: number | null; current?: number | null },
+  prevCurrent: number | null,
+): GoldHistoryOverlay | undefined {
+  const invested = metrics.invested ?? 0
+  const grams = metrics.grams ?? 0
+  if (invested === 0 && grams === 0) return undefined
+  if (metrics.latest_price == null) return undefined
+  const current = metrics.current ?? grams * metrics.latest_price
+  return {
+    invested,
+    current,
+    volatility_pct: pctChange(prevCurrent, current),
+    pnl_pct: pnlPct(invested, current),
+  }
 }
 
 // ---- Paste parsing (PasteModal) ----
