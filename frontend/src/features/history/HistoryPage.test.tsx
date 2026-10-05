@@ -31,6 +31,8 @@ import {
   tradingDateIST,
   msUntilNextLiveBoundary,
   isLiveWindowOpen,
+  bucketCurrency,
+  yearMonth0,
 } from './HistoryPage'
 import type {
   DateConflict,
@@ -399,9 +401,41 @@ describe('buildLiveRow', () => {
     ])
   })
 
+  it('excludes an unknown-currency holding, as the snapshot job does', () => {
+    const r = buildLiveRow('2026-06-20', [
+      holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
+      // Legacy USD: the backend's CurrencyOf returns ok=false and the holding
+      // is left out of the buckets entirely. Folding it into INR here would
+      // inflate the live row and then "drop" when the cron row landed.
+      holding({ currency: 'USD' as 'INR', cost_price: 900, current_value: 950 }),
+    ])
+    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(r.holdings).toHaveLength(1)
+  })
+
   it('returns null pnl_pct and zeroed totals with no holdings', () => {
     const r = buildLiveRow('2026-06-20', [])
     expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+  })
+})
+
+describe('bucketCurrency', () => {
+  it('maps INR/EUR to themselves and blank to INR', () => {
+    expect(bucketCurrency('INR')).toBe('INR')
+    expect(bucketCurrency('eur')).toBe('EUR')
+    expect(bucketCurrency('')).toBe('INR')
+    expect(bucketCurrency(undefined)).toBe('INR')
+  })
+
+  it('gives an unknown currency no bucket, matching the backend CurrencyOf', () => {
+    expect(bucketCurrency('USD')).toBeNull()
+  })
+})
+
+describe('yearMonth0', () => {
+  it('splits a YYYY-MM-DD into a zero-based month', () => {
+    expect(yearMonth0('2026-01-31')).toEqual({ year: 2026, month0: 0 })
+    expect(yearMonth0('2026-12-01')).toEqual({ year: 2026, month0: 11 })
   })
 })
 

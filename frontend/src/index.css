@@ -79,12 +79,22 @@
 }
 
 /* History page: the synthetic "today" row built from live prices (not yet
- * snapshotted). The animation targets background-color on each cell so it
- * overrides the per-region tint colours those cells already set inline. */
-@keyframes history-tentative-blink {
-  0%, 100% { background-color: transparent; }
-  50% { background-color: color-mix(in srgb, var(--yellow) 22%, transparent); }
+ * snapshotted). The pulse rides on an inset box-shadow rather than
+ * background-color: animating the background would outrank the per-currency
+ * group tint and the day-over-day tints that the cells set inline, wiping
+ * them for most of every cycle. */
+@keyframes history-tentative-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 9999px transparent; }
+  50% { box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--yellow) 22%, transparent); }
 }
 .history-row-tentative > td {
-  animation: history-tentative-blink 1.8s ease-in-out infinite;
+  animation: history-tentative-pulse 1.8s ease-in-out infinite;
+}
+/* WCAG 2.2.2: an indefinite blink must be escapable. Keep the row marked,
+ * just static. */
+@media (prefers-reduced-motion: reduce) {
+  .history-row-tentative > td {
+    animation: none;
+    box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--yellow) 14%, transparent);
+  }
 }

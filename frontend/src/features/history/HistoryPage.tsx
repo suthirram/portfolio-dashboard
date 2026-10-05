@@ -27,7 +27,7 @@ import {
   buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
   fmtCurrency, goldChartData, isLiveWindowOpen, latestGoldOverlay, monthRange,
   msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain, tradingDateIST,
+  regionHasData, selectStyle, symmetricDomain, tradingDateIST, yearMonth0,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
@@ -45,7 +45,7 @@ export {
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
   buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
-  msUntilNextLiveBoundary, isLiveWindowOpen,
+  msUntilNextLiveBoundary, isLiveWindowOpen, yearMonth0, bucketCurrency,
   parseAmount, normaliseDate, parsePasteText,
 } from './historyShared'
 export type { RegionKey, LinePalette } from './historyShared'
@@ -65,9 +65,9 @@ export default function HistoryPage() {
   // raw UTC calendar one — between 00:00–02:30 UTC those can differ by a
   // day (see tradingDateIST), which would otherwise default the picker to
   // tomorrow's month while the snapshot job is still writing today's.
-  const initialTradingDate = tradingDateIST(now)
-  const [year, setYear] = useState(Number(initialTradingDate.slice(0, 4)))
-  const [month, setMonth] = useState(Number(initialTradingDate.slice(5, 7)) - 1)
+  const initial = yearMonth0(tradingDateIST(now))
+  const [year, setYear] = useState(initial.year)
+  const [month, setMonth] = useState(initial.month0)
   const [rows, setRows] = useState<HistoryRow[]>([])
   const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
@@ -127,7 +127,17 @@ export default function HistoryPage() {
   }, [clockTick])
   const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
   const liveWindowOpen = useMemo(() => isLiveWindowOpen(new Date()), [clockTick])
-  const isCurrentMonth = year === Number(todayStr.slice(0, 4)) && month === Number(todayStr.slice(5, 7)) - 1
+  // /prices is cached 5 min server-side. Without its own cadence the row
+  // labelled "live" would keep showing the window-open price for the whole
+  // 17-hour window, since nothing else in the fetch effect's deps changes.
+  const [priceTick, setPriceTick] = useState(0)
+  useEffect(() => {
+    if (!liveWindowOpen) return
+    const id = setInterval(() => setPriceTick(n => n + 1), 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [liveWindowOpen])
+  const today = yearMonth0(todayStr)
+  const isCurrentMonth = year === today.year && month === today.month0
 
   // At each cut-over, refetch so the day that just closed picks up its real
   // snapshot. If the roll-over also crossed a month *and* the user was still
@@ -139,15 +149,13 @@ export default function HistoryPage() {
     const prev = prevTodayRef.current
     if (prev === todayStr) return
     prevTodayRef.current = todayStr
-    const prevYear = Number(prev.slice(0, 4))
-    const prevMonth = Number(prev.slice(5, 7)) - 1
-    const nextYear = Number(todayStr.slice(0, 4))
-    const nextMonth = Number(todayStr.slice(5, 7)) - 1
-    const crossedMonth = nextYear !== prevYear || nextMonth !== prevMonth
-    if (crossedMonth && year === prevYear && month === prevMonth) {
+    const was = yearMonth0(prev)
+    const nowYM = yearMonth0(todayStr)
+    const crossedMonth = nowYM.year !== was.year || nowYM.month0 !== was.month0
+    if (crossedMonth && year === was.year && month === was.month0) {
       // Changing the picker re-runs `reload` through its own effect.
-      setYear(nextYear)
-      setMonth(nextMonth)
+      setYear(nowYM.year)
+      setMonth(nowYM.month0)
     } else {
       void reload()
     }
@@ -180,11 +188,15 @@ export default function HistoryPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, todayStr, rows, auth?.user?.gold_enabled])
+  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, rows, auth?.user?.gold_enabled])
 
+  // `hasTodaySnapshot` is computed during render but `liveRow` is only
+  // cleared by the effect above, which runs after paint — so guard here too,
+  // or the frame where today's cron row first arrives renders two <tr>s with
+  // the same key and collapses their day-over-day maths.
   const displayRows = useMemo(
-    () => liveRow ? [...rows, liveRow] : rows,
-    [rows, liveRow],
+    () => liveRow && !hasTodaySnapshot ? [...rows, liveRow] : rows,
+    [rows, liveRow, hasTodaySnapshot],
   )
 
   const years = useMemo(() => {

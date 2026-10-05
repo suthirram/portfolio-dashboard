@@ -455,10 +455,27 @@ export function goldCurrentDirection(
 
 // holdingRegion maps a holding's currency code to its table currency group,
 // defaulting unknown/blank to INR (the Holding.Currency default).
-export function holdingRegion(h: HistoryHolding): RegionKey {
-  const code = (h.currency || 'INR').toUpperCase()
-  // Only INR and EUR are tracked; anything else (incl. legacy USD) → INR.
-  return code === 'EUR' ? 'EUR' : 'INR'
+// bucketCurrency mirrors the backend's CurrencyOf (services/snapshot.go):
+// INR and EUR map to themselves, blank defaults to INR, and anything else
+// (legacy USD) has no bucket at all — the snapshot job excludes such a
+// holding rather than folding it into one.
+export function bucketCurrency(currency?: string): RegionKey | null {
+  const code = (currency || 'INR').toUpperCase()
+  return code === 'INR' || code === 'EUR' ? code : null
+}
+
+// holdingRegion maps a stored snapshot line to the column group it renders
+// under. Unlike bucketCurrency it never drops a holding: a line the backend
+// already wrote has to be shown somewhere, so an unknown currency falls back
+// to INR.
+export function holdingRegion(h: Pick<HistoryHolding, 'currency'>): RegionKey {
+  return bucketCurrency(h.currency) ?? 'INR'
+}
+
+// yearMonth0 splits a YYYY-MM-DD into the {year, month0} pair the month
+// picker and monthRange both speak, so the slice/-1 arithmetic lives once.
+export function yearMonth0(date: string): { year: number; month0: number } {
+  return { year: Number(date.slice(0, 4)), month0: Number(date.slice(5, 7)) - 1 }
 }
 
 // tradingDateIST mirrors the backend's tradingDate (backend/cmd/snapshot.go):
@@ -514,9 +531,15 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     INR: { invested: 0, current: 0, source: 'manual' },
     EUR: { invested: 0, current: 0, source: 'manual' },
   }
-  const histHoldings: HistoryHolding[] = holdings.map(h => {
-    const isEUR = (h.currency || 'INR').toUpperCase() === 'EUR'
-    const region: RegionKey = isEUR ? 'EUR' : 'INR'
+  const histHoldings: HistoryHolding[] = []
+  for (const h of holdings) {
+    // Skip what the snapshot job would skip, so the live row and the cron
+    // row that replaces it cover the same holdings — otherwise a legacy USD
+    // position would inflate the live INR column and then vanish, reading as
+    // a real portfolio move.
+    const region = bucketCurrency(h.currency)
+    if (!region) continue
+    const isEUR = region === 'EUR'
     // HoldingWithPrice.cost_price/current_value are always INR-denominated
     // (even for EUR holdings — the backend converts the other way for the
     // _eur twin, see HoldingWithPriceToAPI); the native-currency amount for
@@ -525,15 +548,15 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     const current = isEUR ? h.current_value_eur ?? 0 : h.current_value ?? 0
     regions[region].invested += invested
     regions[region].current += current
-    return {
+    histHoldings.push({
       symbol: h.symbol ?? '',
       script: h.script ?? h.symbol ?? '',
       currency: h.currency ?? 'INR',
       quantity: h.stocks_owned ?? 0,
       close_price: h.current_price ?? 0,
       current,
-    }
-  })
+    })
+  }
   const investedTotal = regions.INR.invested + regions.EUR.invested
   const currentTotal = regions.INR.current + regions.EUR.current
   return {
