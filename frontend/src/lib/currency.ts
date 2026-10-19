@@ -29,6 +29,27 @@ export function currencySymbol(raw: string | null | undefined): string {
   return isSupportedCurrency(code) ? SYMBOLS[code] : code
 }
 
+// formatMoney renders an amount in its own currency: symbol for a supported
+// code, "USD 1,234.00" for a legacy one (currencySymbol above). A zero or
+// absent amount renders as an em dash — on a ledger, "no cash moved" and
+// "zero rupees" mean the same thing and a column of 0.00 reads as noise.
+export function formatMoney(amount: number | null | undefined, currency?: string | null): string {
+  if (amount === null || amount === undefined || Number.isNaN(amount) || amount === 0) return '—'
+  const symbol = currencySymbol(currency)
+  const abs = Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  // A multi-letter code needs a separator; a glyph must not have one.
+  const gap = isSupportedCurrency(canonicalCurrency(currency)) ? '' : ' '
+  return `${amount < 0 ? '-' : ''}${symbol}${gap}${abs}`
+}
+
+// formatQuantity renders a share count. Fractional units are real (SIPs,
+// accumulating ETFs), so up to three decimals are kept and trailing zeros
+// dropped.
+export function formatQuantity(qty: number | null | undefined): string {
+  if (qty === null || qty === undefined || Number.isNaN(qty) || qty === 0) return '—'
+  return qty.toLocaleString('en-IN', { maximumFractionDigits: 3 })
+}
+
 // compareCurrencies orders supported currencies first (INR, EUR), then any
 // other code alphabetically, so bucket order is stable and legacy codes
 // sort last rather than interleaving.

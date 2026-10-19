@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
-import type { HoldingWithPrice, Transaction, TransactionInput, TransactionType } from '../../types'
+import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
@@ -40,7 +40,11 @@ const todayISO = () => new Date().toISOString().slice(0, 10)
 const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
-  holding: HoldingWithPrice
+  // Holding, not HoldingWithPrice: every field this editor reads
+  // (currency, script, and the four derived position fields) is stored on
+  // the holding itself, so the portfolio-wide view can open it without
+  // fetching live prices first.
+  holding: Holding
   onClose: () => void
   // Called after any ledger mutation so the parent refreshes holdings/prices
   // (the position is recomputed server-side).

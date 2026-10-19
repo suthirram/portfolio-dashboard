@@ -130,6 +130,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List every transaction across the caller's holdings
+         * @description Read-only, user-wide ledger for the all-transactions view (PRD-004).
+         *     Newest first; each row carries its owning holding's script and symbol.
+         *     Rows whose holding no longer exists keep blank labels.
+         */
+        get: operations["listAllTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transactions/{id}": {
         parameters: {
             query?: never;
@@ -881,6 +903,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every transaction across a user's holdings (act-as, read-only) */
+        get: operations["adminListUserTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1120,8 +1159,13 @@ export interface components {
              * @description Opening only — carries a legacy realized P&L with no underlying sell
              */
             realized_seed?: number;
-            /** @enum {string} */
-            currency?: "INR" | "EUR";
+            /**
+             * Format: date
+             * @description Opening only — user-set effective date; null until set
+             */
+            opening_date?: string | null;
+            /** @description INR | EUR; legacy rows may carry another code */
+            currency?: string;
             notes?: string;
             /** Format: date-time */
             created_at?: string;
@@ -1148,6 +1192,12 @@ export interface components {
             /** Format: double */
             realized_seed?: number;
             notes?: string;
+        };
+        TransactionWithHolding: components["schemas"]["Transaction"] & {
+            /** @description Owning holding's display name */
+            script?: string;
+            /** @description Owning holding's ticker (e.g. TCS.NS) */
+            symbol?: string;
         };
         HistoryRegionSnapshot: {
             /** Format: double */
@@ -1878,6 +1928,26 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listAllTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionWithHolding"][];
+                };
+            };
         };
     };
     updateTransaction: {
@@ -3106,6 +3176,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Summary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminListUserTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionWithHolding"][];
                 };
             };
             404: components["responses"]["NotFound"];

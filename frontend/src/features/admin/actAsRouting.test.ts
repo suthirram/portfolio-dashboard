@@ -5,6 +5,7 @@ import {
   isActingAs,
   pricesPath,
   summaryPath,
+  transactionsPath,
 } from './actAsRouting'
 
 describe('act-as path helpers', () => {
@@ -13,6 +14,7 @@ describe('act-as path helpers', () => {
     expect(holdingPath('h1')).toBe('/holdings/h1')
     expect(pricesPath()).toBe('/prices')
     expect(summaryPath()).toBe('/summary')
+    expect(transactionsPath()).toBe('/transactions')
   })
 
   it('rewrite to /admin/users/:id/... when acting as another user', () => {
@@ -20,11 +22,13 @@ describe('act-as path helpers', () => {
     expect(holdingPath('h1', 'u9')).toBe('/admin/users/u9/holdings/h1')
     expect(pricesPath('u9')).toBe('/admin/users/u9/prices')
     expect(summaryPath('u9')).toBe('/admin/users/u9/summary')
+    expect(transactionsPath('u9')).toBe('/admin/users/u9/transactions')
   })
 
   it('treats empty / whitespace-only userId as no act-as', () => {
     expect(holdingsPath('')).toBe('/holdings')
     expect(holdingsPath('   ')).toBe('/holdings')
+    expect(transactionsPath('   ')).toBe('/transactions')
     expect(isActingAs('')).toBe(false)
     expect(isActingAs('   ')).toBe(false)
     expect(isActingAs(undefined)).toBe(false)

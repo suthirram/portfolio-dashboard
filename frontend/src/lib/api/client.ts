@@ -9,12 +9,14 @@ import type {
   Summary,
   Transaction,
   TransactionInput,
+  TransactionWithHolding,
 } from '../../types'
 import {
   holdingPath,
   holdingsPath,
   pricesPath,
   summaryPath,
+  transactionsPath,
 } from '../../features/admin/actAsRouting'
 
 type Schemas = components['schemas']
@@ -133,6 +135,11 @@ export const api = {
     request<Transaction>('PUT', `/transactions/${id}`, body),
   deleteTransaction:  (id: string) =>
     request<DeleteResponse>('DELETE', `/transactions/${id}`),
+
+  // Portfolio-wide ledger (PD-047). Same act-as shape as listHoldings: the
+  // path mapping lives in actAsRouting, so the view never builds it inline.
+  listAllTransactions: (userId?: string) =>
+    request<TransactionWithHolding[]>('GET', transactionsPath(userId)),
 
   // Market.
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),
