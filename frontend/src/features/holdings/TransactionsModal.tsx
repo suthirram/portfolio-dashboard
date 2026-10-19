@@ -6,12 +6,13 @@ import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
+import { currencySymbol } from '../../lib/currency'
 
 // Ordered for the type picker; opening is managed via the holding's opening
 // balance, but is shown read-only in the list when present.
 const NEW_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'split', 'bonus', 'merger']
 
-const TYPE_LABEL: Record<string, string> = {
+export const TYPE_LABEL: Record<string, string> = {
   opening: 'Opening', buy: 'Buy', sell: 'Sell', dividend: 'Dividend',
   split: 'Split', bonus: 'Bonus', merger: 'Merger',
 }
@@ -47,7 +48,7 @@ interface Props {
 }
 
 export default function TransactionsModal({ holding, onClose, onChanged }: Props) {
-  const sym = holding.currency === 'EUR' ? '€' : '₹'
+  const sym = currencySymbol(holding.currency)
   const [txns, setTxns] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')

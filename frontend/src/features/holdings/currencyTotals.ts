@@ -1,5 +1,6 @@
 import type { HoldingWithPrice } from '../../types'
 import type { CurrencyCode } from './groupByCurrency'
+import { currencySymbol } from '../../lib/currency'
 
 export interface GroupTotals {
   cost: number
@@ -52,7 +53,8 @@ export function nativeView<P, E>(
 
 // Convenience for the symbol pair used by the card header.
 export function nativeSymbols(currency: CurrencyCode): { native: string; foreign: string } {
+  // OTHER keeps the INR pair: the card's amounts are INR-converted there.
   return currency === 'EUR'
-    ? { native: '€', foreign: '₹' }
-    : { native: '₹', foreign: '€' }
+    ? { native: currencySymbol('EUR'), foreign: currencySymbol('INR') }
+    : { native: currencySymbol('INR'), foreign: currencySymbol('EUR') }
 }
