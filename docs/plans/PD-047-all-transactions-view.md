@@ -18,7 +18,7 @@ Read-only: edits route back into the existing per-holding ledger modal.
 
 | File | Change |
 |---|---|
-| `backend/api/specs/portfolio-api.yaml` | `Transaction`: add `opening_date`, widen `currency` enum to `[INR, EUR, USD]`; new `TransactionWithHolding` schema |
+| `backend/api/specs/portfolio-api.yaml` | `Transaction`: add `opening_date`, drop the response-side `currency` enum; new `TransactionWithHolding` schema |
 | `backend/api/specs/transactions/transactions.yaml` | new `transactions` path item (`listAllTransactions`) |
 | `backend/api/specs/admin/admin.yaml` | new `users_id_transactions` path item (`adminListUserTransactions`) |
 | `backend/api/specs/openapi.yaml` | wire `/transactions` and `/admin/users/{id}/transactions` |
@@ -30,12 +30,12 @@ Read-only: edits route back into the existing per-holding ledger modal.
 | `backend/internal/db/mongo.go` | add `{user_id:1, date:-1, created_at:-1}` index on `transactions` |
 | `frontend/src/lib/api/schema.gen.ts` | regenerated |
 | `frontend/src/lib/api/client.ts` | `listAllTransactions`, `adminListUserTransactions` |
-| `frontend/src/lib/currency.ts` | **new** `currencySymbol(code)` |
-| `frontend/src/features/holdings/{TransactionsModal,AddEditModal,HoldingsTable}.tsx`, `currencyTotals.ts` | use `currencySymbol`; export `TYPE_LABEL` |
+| `frontend/src/lib/currency.ts` | **new** `SUPPORTED_CURRENCIES`, `canonicalCurrency`, `currencySymbol`, `compareCurrencies` |
+| `frontend/src/features/holdings/{TransactionsModal,AddEditModal,HoldingsTable}.tsx`, `currencyTotals.ts`, `groupByCurrency.ts` | use `currencySymbol` / `SUPPORTED_CURRENCIES`; export `TYPE_LABEL` |
 | `frontend/src/features/transactions/*` | **new** page, hook, pure filters, table |
-| `frontend/src/features/dashboard/DashboardPage.tsx` | nav button |
+| `frontend/src/features/dashboard/DashboardPage.tsx` | nav button, target-aware in act-as |
 | `frontend/src/features/admin/AdminUserView.tsx` | act-as entry to the view |
-| `frontend/src/App.tsx` | `/transactions` route under `RequireAuth` |
+| `frontend/src/App.tsx` | `/transactions` under `RequireAuth`; `/admin/users/:id/transactions` under `RequireAdmin` |
 | `docs/api.md` | document the two new endpoints |
 | `docs/visuals/PD-047-all-transactions-view.html` | **new** visual spec — the frames tasks 7–9 build against |
 
@@ -45,8 +45,8 @@ Read-only: edits route back into the existing per-holding ledger modal.
 |---|---|---|---|
 | PR1 | `docs/PRD-004-all-transactions-view` | PRD-004 + DD-004 + this plan | — |
 | PR2 | `feat/PD-047-transactions-api` | Tasks 1–4: spec + codegen, mapper, `ListAll`, controllers, index, `docs/api.md` | Go service + controller tests (§5) |
-| PR3 | `feat/PD-047-currency-symbol` | Task 5: `currencySymbol` extraction across the four duplicate sites | vitest `currencySymbol`; existing holdings tests stay green |
-| PR4 | `feat/PD-047-transactions-ui` | Tasks 6–9: regen types, client methods, `features/transactions/`, nav button, route, act-as entry | vitest filters + page render + edit-opens-modal |
+| PR3 | `feat/PD-047-currency` | Task 5: one currency module; replaces the ternary at four duplicate sites | vitest currency module; existing holdings tests stay green |
+| PR4 | `feat/PD-047-transactions-ui` | Tasks 6–9: regen types, client methods, `features/transactions/`, target-aware nav button, both routes | vitest filters + page render + edit-opens-modal + act-as href/endpoint |
 
 PR3 is split out deliberately: it is a pure reuse cleanup touching existing
 holdings files, and keeping it out of PR4 means a regression there bisects to
@@ -66,7 +66,16 @@ one small diff rather than to the new feature.
           description: Opening only — user-set effective date; null until set
   ```
 
-  and widen `currency` to `enum: [INR, EUR, USD]`.
+* [ ] `Transaction` schema: **remove** the `currency` `enum: [INR, EUR]`,
+      replacing it with
+      `description: INR | EUR; legacy rows may carry another code`. Not
+      widened to USD — the app supports two currencies (`CurrencyOf` excludes
+      legacy USD outright, `snapshot.go:68-80`), but the field is denormalised
+      from the free-string `Holding.Currency`, so a strict enum fails response
+      validation on a legacy row and hides it from its owner. Matches how the
+      history schemas already model currency (description, no enum).
+      `Holding`/`HoldingInput` enums stay `[INR, EUR]` — input contracts, and
+      that genuinely is the supported set (DD-004 §2.1).
 * [ ] New schema:
 
   ```yaml
@@ -91,9 +100,9 @@ one small diff rather than to the new feature.
 * [ ] `cd backend && go generate -tags tools ./...`
 
 **Why**: the view's row needs a holding label and `opening_date`, neither of
-which the current DTO carries (DD-004 §2.1). The USD enum widening is a latent
-bug fix — a USD holding's transactions cannot serialise through the strict
-server today.
+which the current DTO carries (DD-004 §2.1). Dropping the response enum fixes a
+latent serialisation failure on legacy-currency rows without claiming USD
+support the rest of the stack does not have.
 
 **Verify**: `go build ./...` and `/usr/bin/grep -n "TransactionWithHolding" api/models.gen.go`
 → generated type present.
@@ -173,21 +182,44 @@ Expected: first call returns an array whose `[0].date` is the most recent
 event and which carries `script`, `symbol`, `currency`; third prints `200`;
 fourth prints `404`.
 
-### Task 5 — `currencySymbol` extraction (PR3)
+### Task 5 — one currency module (PR3)
 
 * [ ] `frontend/src/lib/currency.ts`:
 
   ```ts
-  // currencySymbol maps a holding/transaction currency code to its display
-  // symbol. USD holdings exist (the dashboard buckets them as OTHER) and the
-  // all-transactions view is the first place that must render one, so the
-  // ternary this replaces was both duplicated and USD-blind.
-  export function currencySymbol(code: string | null | undefined): string {
-    switch ((code || '').toUpperCase()) {
-      case 'EUR': return '€'
-      case 'USD': return '$'
-      default: return '₹'
-    }
+  // The app's supported currencies. Mirrors domain.CurrencyINR/CurrencyEUR
+  // and the Holding input enum; CurrencyOf (snapshot.go) excludes anything
+  // else, so this list is the whole supported set — not a display subset.
+  export const SUPPORTED_CURRENCIES = ['INR', 'EUR'] as const
+
+  const SYMBOLS: Record<string, string> = { INR: '\u20b9', EUR: '\u20ac' }
+
+  // canonicalCurrency upper-cases a stored code and applies the blank -> INR
+  // default (Holding.Currency's documented default, matching CurrencyOf).
+  // Unrecognised codes are returned as-is: two different legacy codes must
+  // stay two buckets, or a subtotal would sum across currencies.
+  export function canonicalCurrency(raw: string | null | undefined): string {
+    const code = (raw || '').trim().toUpperCase()
+    return code === '' ? 'INR' : code
+  }
+
+  // currencySymbol returns the symbol for a supported currency and the code
+  // itself for anything else, so a legacy row reads "USD 5,310.00" instead of
+  // "\u20b95,310.00". Falling back to \u20b9 would mislabel real money -- which is
+  // what the ternary this replaces does today for every non-EUR code.
+  export function currencySymbol(raw: string | null | undefined): string {
+    const code = canonicalCurrency(raw)
+    return SYMBOLS[code] ?? code
+  }
+
+  // compareCurrencies orders supported currencies first (INR, EUR), then any
+  // other code alphabetically, so bucket order is stable and legacy codes
+  // sort last rather than interleaving.
+  export function compareCurrencies(a: string, b: string): number {
+    const ia = SUPPORTED_CURRENCIES.indexOf(a as never)
+    const ib = SUPPORTED_CURRENCIES.indexOf(b as never)
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+    return a.localeCompare(b)
   }
   ```
 
@@ -195,14 +227,24 @@ fourth prints `404`.
       `AddEditModal.tsx:228/234`, `HoldingsTable.tsx:27` and
       `currencyTotals.ts:56` (`nativeSymbols` keeps its pair shape, built from
       `currencySymbol`).
+* [ ] `features/holdings/groupByCurrency.ts`: import `SUPPORTED_CURRENCIES`
+      instead of re-listing `'INR'`/`'EUR'` inline. Its three-way display enum
+      stays — the dashboard's fixed three-column layout depends on it — but the
+      supported set is then stated in exactly one place.
 * [ ] Export `TYPE_LABEL` from `TransactionsModal.tsx` (or move it beside the
       new page and import it back) so the new table does not copy it.
-* [ ] vitest for `currencySymbol`.
+* [ ] vitest: `currencySymbol` (INR, blank, lower-case `eur`, unsupported code
+      -> code itself and never a rupee sign), `canonicalCurrency` (blank -> INR,
+      two distinct unknown codes stay distinct), `compareCurrencies` ordering.
 
-**Why**: reuse rule — four copies of one mapping, none handling USD.
+**Why**: reuse rule — four copies of one mapping, and every copy returns
+rupees for any non-EUR code. Harmless while nothing renders a third code;
+actively wrong in a view that lists a legacy-currency row. Defining the
+supported set once keeps this module and the dashboard's display enum from
+drifting (DD-004 §3.2).
 
 **Verify**: `cd frontend && npm test` → expected: existing holdings/currency
-tests pass unchanged plus the new symbol test.
+tests pass unchanged plus the new currency-module tests.
 
 ### Task 6 — client + hook (PR4)
 
@@ -220,10 +262,20 @@ tests pass unchanged plus the new symbol test.
 
 * [ ] `features/transactions/transactionFilters.ts`: `applyFilters`,
       `sortRows`, `currencySubtotals` — pure, no React.
-* [ ] Reuse `normaliseCurrency`/`CURRENCY_ORDER` from
-      `features/holdings/groupByCurrency.ts` for the currency facet.
+* [ ] Build the currency facet and the subtotal buckets from
+      `canonicalCurrency(t.currency)` (task 5), ordered by
+      `compareCurrencies` — **not** `normaliseCurrency`, which folds every
+      non-INR/EUR code into one `OTHER` key and would both drop the specific
+      code from the facet and sum two unlike currencies into one card
+      (DD-004 §3.2).
 * [ ] vitest: each filter alone, filters combined, sort toggle per key,
-      subtotals per currency (never summed across currencies).
+      subtotals per currency, and specifically: a legacy-code row gets its own
+      bucket, two distinct legacy codes get two buckets, and no bucket ever
+      contains two codes.
+
+**Why**: subtotals that silently mix currencies are worse than no subtotals —
+the number looks authoritative and means nothing. The bucket key is therefore
+the raw code, and the test asserts that rather than trusting it.
 
 **Verify**: `npm test -- transactionFilters` → expected: all pass.
 
@@ -242,15 +294,39 @@ tests pass unchanged plus the new symbol test.
 **Verify**: `npm test` + `/transactions` loads with the dev stack
 (`make dev-db`, `make backend`, `make frontend`).
 
-### Task 9 — nav + act-as entry
+### Task 9 — nav + act-as route
 
-* [ ] `DashboardPage` header: `<Link to="/transactions">` button next to
-      History.
-* [ ] `AdminUserView`: entry that renders `TransactionsPage` with
-      `actAsUserId`/`actAsLabel`.
+* [ ] `DashboardPage` header: Transactions button next to History, with a
+      **computed** target:
 
-**Verify**: with the stack running — dashboard button navigates; an admin
-viewing an in-region user sees that user's transactions and no edit path.
+  ```tsx
+  to={actAsUserId ? `/admin/users/${actAsUserId}/transactions` : '/transactions'}
+  ```
+
+* [ ] `App.tsx`: `/admin/users/:id/transactions` under `RequireAdmin`,
+      rendering `TransactionsPage` with `actAsUserId` from `useParams()`.
+* [ ] `AdminUserView`: link into that route for the user being viewed.
+* [ ] vitest: in act-as, the nav link's `href` carries the target id; the
+      act-as route's page calls `adminListUserTransactions` with that id and
+      renders without the Edit column; the own-portfolio route calls
+      `listAllTransactions`.
+
+**Why**: `AdminUserView` renders `DashboardPage`, so a hard-coded
+`to="/transactions"` drops `actAsUserId` — the page would then hit the ordinary
+endpoint and show the **admin's own** transactions under the target user's
+heading. That failure looks plausible on screen, which is exactly why the test
+asserts the href and the endpoint rather than just that the page renders. The
+id lives in the URL so the act-as view is linkable and refresh-safe
+(DD-004 §3.3).
+
+Note: the `History` link in the same header has this flaw today and is **not**
+fixed here (no act-as history endpoint exists) — it is why this link is not
+modelled on it.
+
+**Verify**: with the stack running — the dashboard button navigates; an admin
+viewing an in-region user lands on `/admin/users/<id>/transactions`, sees that
+user's events and no edit path; editing the id to an out-of-region user yields
+the 404 state, not data.
 
 ## 5. Rollback
 
@@ -265,5 +341,8 @@ go unused but harmless. PR3 is mechanical and reverts to the inline ternaries.
 * Inline edit in the view, if the modal round-trip proves annoying
   (PRD-004 §9.2) — would add the second write path this design avoids.
 * Server-side paging / virtualisation, only on evidence (DD-004 §4).
-* Widening the `Holding`/`HoldingInput` currency enums to include USD
-  (DD-004 §6) — a contract change on create/edit, its own task.
+* **Supporting USD as a real currency** (forex leg, `CurrencyOf` bucket,
+  snapshot column, input enums) — out of scope and not half-started here: this
+  plan adds no USD affordance, only correct handling of legacy codes already in
+  the data. If it ever happens, the change is one entry in
+  `SUPPORTED_CURRENCIES` plus its symbol, plus the backend work above.

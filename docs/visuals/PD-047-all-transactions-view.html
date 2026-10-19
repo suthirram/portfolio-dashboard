@@ -1,4 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PD-047 — All-transactions view: visual spec</title>
+
 
 <style>
   /* ---------------------------------------------------------------------
@@ -695,6 +699,7 @@
       <div class="meta-cell"><dt>Write path</dt><dd>unchanged</dd></div>
       <div class="meta-cell"><dt>New components</dt><dd>4</dd></div>
       <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
+      <div class="meta-cell"><dt>Currencies</dt><dd>INR · EUR</dd></div>
     </dl>
   </header>
 
@@ -759,9 +764,10 @@
     </div>
 
     <ol class="annotations">
-      <li><b>1</b><span>New <code>&lt;Link to="/transactions"&gt;</code> using the existing <code>btn dash-nav-btn</code> class — placed after History, before Gold. No layout change: one more pill in the same row.</span></li>
-      <li><b>2</b><span>Gold stays conditional on <code>user.gold_enabled</code>; Transactions is unconditional, because every user has a ledger.</span></li>
-      <li><b>3</b><span>Label is <em>Transactions</em>, not "All transactions" — the page title carries the qualifier, the nav pill stays short enough for the <code>dash-nav-label-sm</code> breakpoint.</span></li>
+      <li><b>1</b><span>New nav pill using the existing <code>btn dash-nav-btn</code> class — after History, before Gold. No layout change: one more pill in the same row.</span></li>
+      <li><b>2</b><span>Its target is <strong>computed</strong>, not fixed: <code>actAsUserId ? '/admin/users/:id/transactions' : '/transactions'</code>. <code>AdminUserView</code> renders this same header, so a hard-coded link would drop the target id and show the <em>admin's own</em> ledger under the user's name.</span></li>
+      <li><b>3</b><span>Gold stays conditional on <code>user.gold_enabled</code>; the pill itself is unconditional, because every user has a ledger.</span></li>
+      <li><b>4</b><span>Label is <em>Transactions</em>, not "All transactions" — the page title carries the qualifier, the nav pill stays short enough for the <code>dash-nav-label-sm</code> breakpoint.</span></li>
     </ol>
   </section>
 
@@ -820,7 +826,7 @@
               <div class="chipset">
                 <span class="chip">₹ INR</span>
                 <span class="chip">€ EUR</span>
-                <span class="chip">$ USD</span>
+                <span class="chip">USD <span style="opacity:.7">legacy</span></span>
               </div>
             </div>
             <div class="field">
@@ -849,10 +855,10 @@
               <div class="sub-row"><span>Dividends</span><span>€412.18</span></div>
             </div>
             <div class="sub-card">
-              <div class="sub-head"><span>USD</span><span class="sub-sym">$</span></div>
-              <div class="sub-row"><span>Bought</span><span>$9,145.00</span></div>
-              <div class="sub-row"><span>Sold</span><span>$0.00</span></div>
-              <div class="sub-row"><span>Dividends</span><span>$128.60</span></div>
+              <div class="sub-head"><span>USD · legacy</span><span class="sub-sym" style="font-size:12px">USD</span></div>
+              <div class="sub-row"><span>Bought</span><span>USD 9,145.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>USD 0.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>USD 128.60</span></div>
             </div>
           </div>
 
@@ -910,13 +916,13 @@
                     <td class="l"><div class="script">Apple Inc</div><div class="symbol">AAPL</div></td>
                     <td class="l"><span class="type-tag t-div">Dividend</span></td>
                     <td class="muted">—</td>
-                    <td class="num">$42.80</td>
+                    <td class="num">USD 42.80</td>
                     <td class="muted">—</td>
                     <td class="muted">—</td>
                     <td class="muted">—</td>
                     <td class="muted">—</td>
                     <td class="l note">Q4 payout, net of withholding</td>
-                    <td class="c muted">USD</td>
+                    <td class="c muted" style="color:var(--yellow)">USD</td>
                     <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
                   </tr>
                   <tr>
@@ -966,13 +972,13 @@
                     <td class="l"><div class="script">Apple Inc</div><div class="symbol">AAPL</div></td>
                     <td class="l"><span class="type-tag t-open">Opening</span></td>
                     <td class="num">25</td>
-                    <td class="num">$5,310.00</td>
-                    <td class="num">$212.40</td>
+                    <td class="num">USD 5,310.00</td>
+                    <td class="num">USD 212.40</td>
                     <td class="muted">—</td>
                     <td class="muted">—</td>
                     <td class="muted" style="color:var(--yellow)">Not set</td>
                     <td class="l note">Dashboard still prompts for this date</td>
-                    <td class="c muted">USD</td>
+                    <td class="c muted" style="color:var(--yellow)">USD</td>
                     <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
                   </tr>
                 </tbody>
@@ -988,8 +994,9 @@
       <li><b>2</b><span>Per-currency subtotals — one card per currency <em>present in the filtered set</em>. Deliberately never summed across currencies and never labelled P&amp;L; these are plain sums of <code>amount</code> by type.</span></li>
       <li><b>3</b><span>Eleven columns = PRD-004 §5 exactly. Type-specific fields render <code>—</code> where they do not apply, rather than being hidden, so a column means the same thing in every row.</span></li>
       <li><b>4</b><span>Unset <code>opening_date</code> renders as a yellow <em>Not set</em> — the same state the dashboard's blocking prompt is driven by, and the field DD-004 adds to <code>TransactionToAPI</code>.</span></li>
-      <li><b>5</b><span>USD rows carry <code>$</code>. This is the frame that forces <code>currencySymbol()</code> to exist and the <code>Transaction.currency</code> enum to admit USD.</span></li>
-      <li><b>6</b><span>Zebra striping comes from <code>--bg-primary</code> against the shell's <code>--bg-secondary</code>; no new token, and it survives all three themes.</span></li>
+      <li><b>5</b><span>The app supports <strong>INR and EUR only</strong> — <code>CurrencyOf</code> excludes legacy USD outright. So there is no <code>$</code> and no USD chip pretending otherwise: a legacy row shows its own code, in its own bucket. Honest about the data, and nothing to unpick later.</span></li>
+      <li><b>6</b><span>Buckets key on the raw currency code, never a folded <code>OTHER</code> — two unlike codes must never share a subtotal card. That is why the facet does not reuse <code>normaliseCurrency</code>.</span></li>
+      <li><b>7</b><span>Zebra striping comes from <code>--bg-primary</code> against the shell's <code>--bg-secondary</code>; no new token, and it survives all three themes.</span></li>
     </ol>
   </section>
 
@@ -1270,9 +1277,10 @@
     </div>
 
     <ol class="annotations">
-      <li><b>1</b><span>Act-as reuses the dashboard's existing "viewing user" banner. The <strong>Edit column is absent</strong>, not disabled — act-as has no ledger write path today, and showing a dead control would imply one exists.</span></li>
-      <li><b>2</b><span>An out-of-region target never reaches this screen: the endpoint answers 404, matching the no-enumeration rule the rest of act-as follows.</span></li>
-      <li><b>3</b><span>Empty state points at the only action that can produce a transaction, rather than apologising for having no data.</span></li>
+      <li><b>1</b><span>Served by its own route — <code>/admin/users/:id/transactions</code> under <code>RequireAdmin</code>. The id lives in the URL, so the view is linkable and refresh-safe, and the page picks <code>adminListUserTransactions</code> from it: heading and data source cannot disagree.</span></li>
+      <li><b>2</b><span>Act-as reuses the dashboard's existing "viewing user" banner. The <strong>Edit column is absent</strong>, not disabled — act-as has no ledger write path today, and a dead control would imply one exists.</span></li>
+      <li><b>3</b><span>An out-of-region target never reaches this screen: the endpoint answers 404 server-side, matching the no-enumeration rule the rest of act-as follows. Hand-editing the id changes nothing.</span></li>
+      <li><b>4</b><span>Empty state points at the only action that can produce a transaction, rather than apologising for having no data.</span></li>
     </ol>
   </section>
 
@@ -1320,12 +1328,12 @@
           <tr><th>Frame</th><th>Commitment</th><th>Lands in</th></tr>
         </thead>
         <tbody>
-          <tr><td>01</td><td>One nav pill, existing classes, unconditional</td><td>PD-047 task 9</td></tr>
-          <tr><td>02</td><td>11 columns, chip filters, per-currency strip, USD symbol</td><td>PD-047 tasks 7–8</td></tr>
+          <tr><td>01</td><td>One nav pill, existing classes, target computed from <code>actAsUserId</code></td><td>PD-047 task 9</td></tr>
+          <tr><td>02</td><td>11 columns, chip filters, per-currency strip keyed on raw codes</td><td>PD-047 tasks 5, 7–8</td></tr>
           <tr><td>02</td><td><code>opening_date</code> exposed on the DTO</td><td>PD-047 task 2</td></tr>
           <tr><td>03</td><td>Filtered count format, all-empty columns collapse</td><td>PD-047 task 7</td></tr>
           <tr><td>04</td><td>No new editor — reuse <code>TransactionsModal</code></td><td>PD-047 task 8</td></tr>
-          <tr><td>05</td><td>Act-as renders without the Edit column</td><td>PD-047 tasks 4, 9</td></tr>
+          <tr><td>05</td><td>Act-as has its own route and renders without the Edit column</td><td>PD-047 tasks 4, 9</td></tr>
         </tbody>
       </table>
     </div>
@@ -1352,3 +1360,4 @@
     })
   })
 </script>
+</html>

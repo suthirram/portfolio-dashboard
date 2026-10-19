@@ -59,8 +59,9 @@ events in `TransactionsModal`. Consequences:
   labels.
 * **No cross-currency totals.** Transaction amounts are in the holding's
   currency; the view groups/labels per currency and does **not** sum
-  INR + EUR + USD into one figure. (A per-currency subtotal strip is allowed,
-  §7.)
+  two currencies into one figure. (A per-currency subtotal strip is allowed,
+  §7.) The app supports INR and EUR; a holding carrying a legacy code gets its
+  own bucket rather than being merged into a catch-all.
 * **No gold transactions.** Physical gold (PRD-003) has its own page and its
   own table shape; it is out of scope here.
 * **No export** (CSV / print) in v1 — likely follow-up, see §9.

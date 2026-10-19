@@ -15,6 +15,12 @@ a token change that invalidates a frame shows up in a diff.
 
 * One file per plan: `PD-0xx-<slug>.html`. No build step, no external
   requests — open it directly in a browser (`open docs/visuals/<file>.html`).
+* **Start every file with `<!doctype html>`, `<meta charset="utf-8">` and a
+  viewport meta**, then `<title>`/`<style>` — no `<html>`/`<head>`/`<body>`.
+  The Artifact publisher wraps the page in its own skeleton (where the extra
+  doctype is a harmless no-op), but a file opened locally gets no wrapper:
+  without these lines it renders in quirks mode (broken table/box sizing)
+  and may decode `—`/`₹`/`€` as Windows-1252 garbage.
 * **Palettes are copied from `tokens.css`, never invented.** A frame that
   drifts from the shipped tokens is worse than no frame. Each page carries a
   switcher for the three shipped themes (dark, light, cyberpunk) so a

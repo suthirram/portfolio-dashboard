@@ -50,12 +50,29 @@ view needs. Changes:
    `opening_date` (`format: date`, nullable) to the `Transaction` schema and
    map it. This also makes the per-holding modal able to show it later; it is
    additive and no existing consumer breaks.
-3. **Currency enum widened** to `[INR, EUR, USD]` on `Transaction` only.
-   `domain.Holding.Currency` is a free string and USD holdings exist in the
-   data (the dashboard buckets them as `OTHER`, `groupByCurrency.ts:12`), so a
-   USD holding's transactions would fail strict-server enum validation on the
-   way out. The `Holding`/`HoldingInput` enums are left alone — widening those
-   changes the create/edit contract and belongs to its own change.
+3. **The `currency` enum comes off the `Transaction` response schema** —
+   replaced by `description: INR | EUR; legacy rows may carry another code`.
+   Not widened to include USD.
+
+   The app supports exactly two currencies. `CurrencyOf`
+   (`internal/services/snapshot.go:68-80`) is explicit: INR or EUR → that
+   bucket, blank → INR, **anything else (including legacy USD) → excluded and
+   logged**; `domain` defines only `CurrencyINR`/`CurrencyEUR`, and the
+   holdings form offers only those two. USD is legacy data, not a supported
+   currency, so adding it to an enum would advertise support that does not
+   exist — the tech debt, not the fix.
+
+   But `domain.Holding.Currency` is a free string and `Transaction.Currency` is
+   denormalised from it, so a legacy row *can* carry `USD`. Under a strict
+   enum that row fails response validation and the user cannot see their own
+   ledger event. A plain string with a documented meaning is how
+   `portfolio-api.yaml` already models currency on the history schemas
+   (`:782`, `:831`, `:860` — description, no enum); this follows that
+   precedent rather than inventing a third convention.
+
+   `Holding`/`HoldingInput` keep their `[INR, EUR]` enums: those are *input*
+   contracts, and INR/EUR genuinely is the supported set. Nothing is left out
+   of step.
 
 ### 2.2 Service: `TransactionsService.ListAll`
 
@@ -157,15 +174,93 @@ Route `/transactions`, guarded by `RequireAuth`, under a new
 |---|---|
 | Type labels (`Buy`/`Sell`/…) | `TYPE_LABEL` in `TransactionsModal.tsx` — extract to `features/transactions/` (or `lib/`) and import from both; do not copy |
 | Date rendering | `formatDate` (`lib/formDates.ts`) |
-| Currency facet / ordering | `normaliseCurrency`, `CURRENCY_ORDER` (`features/holdings/groupByCurrency.ts`) |
-| Money symbol | **new** `currencySymbol(code)` in `lib/` — the `currency === 'EUR' ? '€' : '₹'` ternary is currently duplicated in `TransactionsModal.tsx:50`, `AddEditModal.tsx:228/234`, `HoldingsTable.tsx:27` and `currencyTotals.ts:56`. Extract once, add `USD → '$'`, and replace those call sites (reuse rule, CLAUDE.md) |
+| Currency facet / ordering | **not** `normaliseCurrency` — see §3.2 |
+| Money symbol | **new** `currencySymbol(code)` in `lib/currency.ts` — §3.2 |
 | Modal for editing | `features/holdings/TransactionsModal.tsx` as-is; it needs a `HoldingWithPrice`, which the page gets from the holdings it already loads for the filter facet |
 
-### 3.2 Nav
+### 3.2 Currency: one module, raw codes, no silent merging
 
-`DashboardPage` header gains a `<Link to="/transactions" className="btn dash-nav-btn">`
-with a receipt/list icon, placed next to History and before Gold — one more
-entry in the same row, no layout change.
+`normaliseCurrency` / `CURRENCY_ORDER` (`features/holdings/groupByCurrency.ts:10-12`)
+collapse every code that is not INR or EUR into a single `OTHER` key. That is
+correct for what it was built for — the dashboard renders exactly three column
+groups — but it is **wrong for this view** in two ways:
+
+* a facet built on it cannot offer a specific currency filter for a legacy
+  code, because the code is gone by the time the facet is built; and
+* two different unrecognised codes land in one bucket, so a subtotal card
+  would sum across currencies — the one thing PRD-004 §7 forbids.
+
+So the facet and the subtotals bucket on the **raw `currency` string**,
+upper-cased, with blank → `INR` (the same rule `CurrencyOf` applies
+server-side, `snapshot.go:72`). One legacy code gets one bucket; two get two.
+
+To avoid a second currency model drifting from the first, all of it lives in
+one new `frontend/src/lib/currency.ts`:
+
+```ts
+// Supported set. Mirrors domain.CurrencyINR/CurrencyEUR and the Holding
+// input enum — the app has exactly two currencies.
+export const SUPPORTED_CURRENCIES = ['INR', 'EUR'] as const
+
+// canonicalCurrency upper-cases a stored code and applies the blank → INR
+// default (Holding.Currency's documented default, and what CurrencyOf does
+// server-side). Unrecognised codes are returned as-is, never folded together.
+export function canonicalCurrency(raw: string | null | undefined): string
+
+// currencySymbol returns the display symbol for a supported currency, and the
+// code itself for anything else — so a legacy USD row reads "USD 5,310.00"
+// rather than "₹5,310.00". Falling back to ₹ would mislabel real money.
+export function currencySymbol(raw: string | null | undefined): string
+
+// compareCurrencies orders supported currencies first (INR, EUR), then any
+// other code alphabetically, so bucket order is stable and legacy codes sort
+// last instead of interleaving.
+export function compareCurrencies(a: string, b: string): number
+```
+
+`groupByCurrency.ts` keeps its three-way display enum (the dashboard's layout
+depends on it) but imports `SUPPORTED_CURRENCIES` instead of re-listing
+`'INR' | 'EUR'` inline, so the supported set is stated once.
+
+**No USD affordance is built.** USD is unsupported (§2.1), so there is no USD
+chip, no `$`, and no USD column — a legacy row simply appears under its own
+code, which is honest about the state of the data and adds nothing to remove
+later if USD is never supported. If USD becomes supported, the change is one
+entry in `SUPPORTED_CURRENCIES` plus its symbol.
+
+### 3.3 Nav and the act-as route
+
+`DashboardPage` header gains a `<Link className="btn dash-nav-btn">` with a
+receipt/list icon, placed next to History and before Gold — one more entry in
+the same row, no layout change. Its target is **computed, not hard-coded**:
+
+```tsx
+to={actAsUserId ? `/admin/users/${actAsUserId}/transactions` : '/transactions'}
+```
+
+`DashboardPage` is also what `AdminUserView` renders in act-as mode, so a
+hard-coded `to="/transactions"` would drop `actAsUserId` on navigation: the
+page would call the ordinary endpoint and show the **admin's own** ledger under
+the target user's heading — wrong data, and wrong in the direction that looks
+plausible. Two routes therefore exist, matching how act-as is already addressed
+for the dashboard (`/admin/users/:id`):
+
+| Route | Guard | Renders |
+|---|---|---|
+| `/transactions` | `RequireAuth` | `TransactionsPage`, own ledger |
+| `/admin/users/:id/transactions` | `RequireAdmin` | `TransactionsPage` with `actAsUserId` from the route param |
+
+`TransactionsPage` picks its endpoint from that prop
+(`listAllTransactions` vs `adminListUserTransactions`), so the data source
+cannot disagree with the heading. Taking the id from the URL rather than only a
+prop also makes the act-as view linkable and refresh-safe, like the act-as
+dashboard. Region scope stays server-side: an admin hand-editing the id gets
+404, not another region's data.
+
+> **Pre-existing, not introduced here**: the `History` link in the same header
+> is hard-coded to `/history` and has exactly this flaw in act-as today. Out of
+> scope for PD-047 — there is no act-as history endpoint to point at — but it is
+> the reason this link does not simply copy that one. Worth its own issue.
 
 ## 4. Filtering and scale
 
@@ -193,7 +288,9 @@ tests):
 * **Frontend (vitest)**: `transactionFilters` unit tests (each filter, combined
   filters, sort toggle, per-currency subtotals); page render test asserting the
   §5 columns appear and that the edit action opens the holding modal;
-  `currencySymbol` for INR/EUR/USD/unknown.
+  `currencySymbol` (INR, blank → ₹; EUR → €; an unsupported code → the code
+  itself, never ₹), `canonicalCurrency` (blank → INR, case-folding, two
+  distinct unknown codes stay distinct) and `compareCurrencies` ordering.
 
 ## 6. Risks
 
@@ -201,13 +298,23 @@ tests):
   `TransactionToAPI` changes the per-holding ledger response too. Additive and
   optional, so existing consumers ignore it — but it does mean regenerating
   both `api/*.gen.go` and `frontend/src/lib/api/schema.gen.ts`.
-* **Currency enum.** Widening `Transaction.currency` to include USD fixes a
-  latent strict-server validation failure for USD holdings; it does not make
-  `Holding` accept USD, so the two enums are deliberately out of step until
-  that is addressed separately. Called out so it is not read as an oversight.
+* **Dropping the `currency` enum from the `Transaction` response** loosens that
+  field's contract. Deliberate: the field is denormalised from a free-string
+  `Holding.Currency`, so a legacy code (USD) is representable in the data and a
+  strict enum would hide a user's own ledger row behind a validation error. The
+  *input* enums stay strict, so nothing gets easier to write. Trade-off
+  recorded so a future reviewer does not "tighten" it back and reintroduce the
+  failure (§2.1).
 * **Symbol-helper extraction touches four existing files.** Mechanical, but it
-  lands in the UI PR and is the kind of change a reviewer should see as reuse
-  cleanup, not scope creep — it is required because this view is the first
-  place that must render a USD amount.
+  lands in its own PR (PD-047 PR3) so a regression there bisects cleanly. It is
+  required because the existing ternary returns ₹ for *any* non-EUR code, which
+  this view would turn from an invisible inaccuracy into a visibly mislabelled
+  row.
+* **Two currency groupings now exist** — this view's raw-code buckets and the
+  dashboard's three-way display enum (§3.2). They are not duplicates: the
+  former preserves codes, the latter drives a fixed three-column layout. Both
+  read `SUPPORTED_CURRENCIES` from one module, so the supported set cannot
+  drift; if the dashboard ever needs per-code groups too, the display enum goes
+  away rather than being extended.
 * **Scale assumption** — see §4; the escalation path is written down rather
   than pre-built.
