@@ -1,0 +1,1363 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD-047 — All-transactions view: visual spec</title>
+
+
+<style>
+  /* ---------------------------------------------------------------------
+     Document chrome tokens. Three-state theming: bare :root is the light
+     palette, redefined for a dark OS (unless the viewer explicitly chose
+     light) and again for an explicit dark choice. Component rules only ever
+     read these tokens, never a literal.
+     --------------------------------------------------------------------- */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-rule-soft: #e8ecf4;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-rule-soft: #1a2032;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-rule-soft: #1a2032;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* --- Document typography ---------------------------------------------
+     Three roles, all system faces (the artifact CSP blocks font CDNs, and a
+     silent fallback would be worse than an honest system stack):
+       prose  — Georgia/serif, deliberately unlike the app's own UI face so
+                spec commentary never reads as part of a mockup
+       label  — Helvetica Neue/Arial, uppercase + tracked, for frame chrome
+       data   — Menlo/ui-monospace, for field names and numbers
+     --------------------------------------------------------------------- */
+  :root {
+    --prose: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --data: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--prose);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* --- Masthead -------------------------------------------------------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .eyebrow a { color: var(--doc-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .eyebrow a:hover, .eyebrow a:focus-visible { border-bottom-color: currentColor; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    color: var(--doc-ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-rule);
+    border: 1px solid var(--doc-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meta-cell { background: var(--doc-panel); padding: 14px 16px; }
+  .meta-cell dt {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    margin: 0 0 5px;
+  }
+  .meta-cell dd { margin: 0; font-size: 14px; font-family: var(--data); color: var(--doc-ink); }
+
+  /* --- Section headings ------------------------------------------------ */
+
+  h2 {
+    margin: 0;
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--doc-ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .prose-stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* --- Theme switcher -------------------------------------------------- */
+
+  .switcher {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    background: var(--doc-bg);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  .switcher-label {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+  }
+
+  .switcher button {
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 2px;
+    border: 1px solid var(--doc-rule);
+    background: var(--doc-panel);
+    color: var(--doc-ink-soft);
+    cursor: pointer;
+  }
+  .switcher button:hover { color: var(--doc-ink); border-color: var(--doc-ink-faint); }
+  .switcher button[aria-pressed="true"] {
+    color: var(--doc-accent);
+    border-color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    font-weight: 700;
+  }
+  .switcher button:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  /* --- Frames ----------------------------------------------------------
+     A frame = one labelled artboard on a canvas, the way the same screen
+     would sit in a design file: chrome strip with frame id + viewport,
+     the rendered mockup, then numbered annotations beneath it.
+     --------------------------------------------------------------------- */
+
+  .frame { display: flex; flex-direction: column; gap: 14px; }
+
+  .frame-chrome {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: var(--label);
+  }
+  .frame-id {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+  .frame-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-ink); }
+  .frame-viewport { font-family: var(--data); font-size: 11px; color: var(--doc-ink-faint); margin-left: auto; }
+
+  .canvas {
+    background: var(--doc-canvas);
+    border: 1px solid var(--doc-rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+
+  .annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 22px;
+  }
+  .annotations li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    line-height: 1.45;
+  }
+  .annotations b {
+    font-family: var(--data);
+    font-size: 11px;
+    color: var(--doc-accent);
+    border: 1px solid var(--doc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .annotations code, p code, li code, td code {
+    font-family: var(--data);
+    font-size: 0.86em;
+    color: var(--doc-ink);
+  }
+
+  .callout {
+    border-left: 3px solid var(--doc-note);
+    background: var(--doc-note-soft);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    max-width: 78ch;
+  }
+  .callout strong { color: var(--doc-ink); }
+
+  /* --- Spec table ------------------------------------------------------ */
+
+  .spec-scroll { overflow-x: auto; border: 1px solid var(--doc-rule); border-radius: 3px; }
+  table.spec { border-collapse: collapse; width: 100%; min-width: 620px; font-family: var(--label); font-size: 13px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--doc-rule-soft); vertical-align: top; }
+  table.spec thead th {
+    background: var(--doc-panel);
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+  table.spec td { color: var(--doc-ink-soft); }
+  table.spec td:first-child { font-family: var(--data); color: var(--doc-ink); white-space: nowrap; }
+  table.spec tbody tr:last-child td { border-bottom: none; }
+
+  /* =====================================================================
+     APP MOCKUP. Palettes copied verbatim from
+     frontend/src/styles/tokens.css so the frames are token-accurate, and
+     scoped to .app[data-app-theme] rather than :root so the in-page theme
+     switcher can't collide with the viewer's own document theme.
+     ===================================================================== */
+
+  .app {
+    --bg-primary: #0a0c16;
+    --bg-secondary: #121524;
+    --bg-card: #171b2e;
+    --bg-card-hover: #1d2238;
+    --bg-input: #0d101f;
+    --border: #232842;
+    --border-light: #2e3453;
+    --text-primary: #eef1f8;
+    --text-secondary: #939dbb;
+    --text-muted: #545d85;
+    --green: #00d69f;
+    --green-dim: rgba(0, 214, 159, 0.12);
+    --red: #ff5c7a;
+    --red-dim: rgba(255, 92, 122, 0.12);
+    --blue: #5b93ff;
+    --blue-dim: rgba(91, 147, 255, 0.12);
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+    --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+    --bg-glass: rgba(14, 17, 31, 0.92);
+
+    font-family: Roboto, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 980px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f3fa;
+    --bg-input: #ffffff;
+    --border: #dfe4ef;
+    --border-light: #cbd3e4;
+    --text-primary: #0f1526;
+    --text-secondary: #4b5670;
+    --text-muted: #7a849e;
+    --green: #0b9e6c;
+    --green-dim: rgba(11, 158, 108, 0.10);
+    --red: #dc2649;
+    --red-dim: rgba(220, 38, 73, 0.10);
+    --blue: #2f6bdb;
+    --blue-dim: rgba(47, 107, 219, 0.10);
+    --yellow: #d97706;
+    --purple: #7c3aed;
+    --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+    --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+    --bg-glass: rgba(255, 255, 255, 0.95);
+  }
+
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f;
+    --bg-secondary: #0d0519;
+    --bg-card: #120826;
+    --bg-card-hover: #1a0c33;
+    --bg-input: #0a0416;
+    --border: #2e1354;
+    --border-light: #45207a;
+    --text-primary: #f2e9ff;
+    --text-secondary: #a78fd6;
+    --text-muted: #64509a;
+    --green: #00ffa3;
+    --green-dim: rgba(0, 255, 163, 0.12);
+    --red: #ff2e6c;
+    --red-dim: rgba(255, 46, 108, 0.14);
+    --blue: #00e5ff;
+    --blue-dim: rgba(0, 229, 255, 0.12);
+    --yellow: #ffe600;
+    --purple: #c26bff;
+    --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+    --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+    --bg-glass: rgba(10, 4, 22, 0.92);
+  }
+
+  /* Nav — mirrors .page-nav + .nav-glass + .dash-nav-btn */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-tile {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient-brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .nav-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-brand);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+    white-space: nowrap;
+  }
+  .btn-current { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .pill {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* The marker ring that points at what this frame introduces. */
+  .marked { position: relative; }
+  .marked::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed var(--blue);
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .pin {
+    position: absolute;
+    top: -10px; right: -12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #04070f;
+    font-family: var(--data);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+
+  .app-main { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+
+  .page-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .page-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* Filter bar */
+  .filters {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .control {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    min-width: 128px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .control.wide { min-width: 210px; }
+  .control .caret, .control .ghost { color: var(--text-muted); font-size: 11px; }
+  .chipset { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+  }
+  .chip-on { border-color: var(--blue); background: var(--blue-dim); color: var(--blue); font-weight: 600; }
+  .filter-count { margin-left: auto; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .filter-count strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* Per-currency subtotal strip */
+  .subtotals { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .sub-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .sub-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .sub-sym { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .sub-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+  .sub-row span:last-child { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+  /* Ledger table */
+  .table-shell { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-secondary); }
+  .table-scroll { overflow-x: auto; }
+  table.ledger { border-collapse: collapse; width: 100%; min-width: 1120px; font-size: 12.5px; }
+  table.ledger th {
+    background: var(--bg-secondary);
+    padding: 9px 11px;
+    text-align: right;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  table.ledger th.l, table.ledger td.l { text-align: left; }
+  table.ledger th.c, table.ledger td.c { text-align: center; }
+  table.ledger th.sorted { color: var(--blue); }
+  table.ledger td {
+    padding: 9px 11px;
+    text-align: right;
+    border-top: 1px solid var(--border);
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  table.ledger tbody tr:nth-child(odd) td { background: var(--bg-primary); }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--text-muted); }
+  .script { font-weight: 600; }
+  .symbol { font-size: 10px; color: var(--text-muted); }
+  .note { font-size: 10px; color: var(--text-muted); max-width: 190px; white-space: normal; }
+
+  .type-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .t-buy { background: var(--blue-dim); color: var(--blue); }
+  .t-sell { background: var(--red-dim); color: var(--red); }
+  .t-div { background: var(--green-dim); color: var(--green); }
+  .t-open { background: rgba(167, 139, 250, 0.14); color: var(--purple); }
+  .t-split { background: rgba(251, 191, 36, 0.14); color: var(--yellow); }
+
+  .row-actions { display: inline-flex; gap: 5px; }
+  .icon-btn {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 11px;
+  }
+  .icon-btn.accent { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); }
+
+  .empty { padding: 44px 20px; text-align: center; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .empty-title { font-size: 14px; color: var(--text-secondary); font-weight: 600; }
+
+  /* Modal frame (the reused per-holding ledger editor) */
+  .modal-stage { background: var(--bg-primary); padding: 22px; display: grid; place-items: center; }
+  .modal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-hint { font-size: 11px; color: var(--text-muted); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .form-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; background: var(--bg-secondary); display: flex; flex-direction: column; gap: 10px; }
+  .form-foot { display: flex; justify-content: flex-end; gap: 8px; }
+  .derived { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+  .derived strong { color: var(--text-primary); }
+
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue);
+    color: var(--text-primary);
+  }
+
+  .frame-pair { display: grid; grid-template-columns: 1fr; gap: 18px; }
+
+  footer.doc-foot {
+    border-top: 1px solid var(--doc-rule);
+    padding-top: 20px;
+    font-family: var(--label);
+    font-size: 12px;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  footer.doc-foot a { color: var(--doc-accent); text-decoration: none; }
+  footer.doc-foot a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Visual spec</span>
+      <span>PD-047</span>
+      <span>PRD-004 · DD-004</span>
+      <span>Portfolio Dashboard</span>
+    </div>
+    <h1>All-transactions view</h1>
+    <p class="standfirst">
+      One dashboard button opens every past ledger event across every holding —
+      newest first, filterable, with every field the add/edit transaction modal
+      accepts visible in the row. These frames are the visual contract for
+      PD-047; they are rendered in the app's own design tokens, not an
+      approximation of them.
+    </p>
+
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt>Route</dt><dd>/transactions</dd></div>
+      <div class="meta-cell"><dt>Entry point</dt><dd>Dashboard header</dd></div>
+      <div class="meta-cell"><dt>Write path</dt><dd>unchanged</dd></div>
+      <div class="meta-cell"><dt>New components</dt><dd>4</dd></div>
+      <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
+      <div class="meta-cell"><dt>Currencies</dt><dd>INR · EUR</dd></div>
+    </dl>
+  </header>
+
+  <div class="switcher">
+    <span class="switcher-label">Render frames in</span>
+    <button type="button" data-theme-btn="dark" aria-pressed="true">Dark (default)</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="cyberpunk" aria-pressed="false">Cyberpunk (premium)</button>
+  </div>
+
+  <section class="section">
+    <h2>Why this is HTML and not a Figma file</h2>
+    <div class="prose-stack">
+      <p>
+        There is no Figma account wired into this project, so this document is
+        the design deliverable in its place: the same role a Figma frame set
+        plays — labelled artboards, annotations, state coverage — authored
+        against the real token file.
+      </p>
+      <p class="callout">
+        <strong>Every colour, radius, and type size below is read from
+        <code>frontend/src/styles/tokens.css</code>.</strong> The theme switcher
+        above swaps between the three shipped palettes. A mockup that drifts
+        from the tokens is worse than no mockup, so nothing here invents a
+        value; the frames use the <code>.btn</code>, <code>.card</code>,
+        <code>.page-nav</code> and <code>.nav-glass</code> rules the app
+        already ships.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ FRAME 01 ============================ -->
+  <section class="frame">
+    <div class="frame-chrome">
+      <span class="frame-id">01</span>
+      <span class="frame-name">Dashboard header — the new entry point</span>
+      <span class="frame-viewport">1280 × 56</span>
+    </div>
+
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-nav">
+          <div class="brand-tile">◫</div>
+          <span class="brand-name">Portfolio Dashboard</span>
+          <span class="pill">Super admin</span>
+          <span class="pill">◍ India</span>
+          <span class="nav-divider"></span>
+          <span class="btn">◴ History</span>
+          <span class="marked" style="display:inline-flex">
+            <span class="pin">1</span>
+            <span class="btn">☰ Transactions</span>
+          </span>
+          <span class="btn">◎ Gold</span>
+          <span class="btn">⛉ Admin Panel</span>
+          <span class="nav-spacer"></span>
+          <span class="muted" style="font-size:11px">Updated 20:41:07</span>
+          <span class="btn">⟳ Refresh</span>
+          <span class="btn-primary">+ Add Holding</span>
+          <span class="btn">◔ Suthir</span>
+        </div>
+      </div>
+    </div>
+
+    <ol class="annotations">
+      <li><b>1</b><span>New nav pill using the existing <code>btn dash-nav-btn</code> class — after History, before Gold. No layout change: one more pill in the same row.</span></li>
+      <li><b>2</b><span>Its target is <strong>computed</strong>, not fixed: <code>actAsUserId ? '/admin/users/:id/transactions' : '/transactions'</code>. <code>AdminUserView</code> renders this same header, so a hard-coded link would drop the target id and show the <em>admin's own</em> ledger under the user's name.</span></li>
+      <li><b>3</b><span>Gold stays conditional on <code>user.gold_enabled</code>; the pill itself is unconditional, because every user has a ledger.</span></li>
+      <li><b>4</b><span>Label is <em>Transactions</em>, not "All transactions" — the page title carries the qualifier, the nav pill stays short enough for the <code>dash-nav-label-sm</code> breakpoint.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============================ FRAME 02 ============================ -->
+  <section class="frame">
+    <div class="frame-chrome">
+      <span class="frame-id">02</span>
+      <span class="frame-name">/transactions — default state, newest first</span>
+      <span class="frame-viewport">1280 × auto</span>
+    </div>
+
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-nav">
+          <div class="brand-tile">◫</div>
+          <span class="brand-name">Portfolio Dashboard</span>
+          <span class="nav-divider"></span>
+          <span class="btn">◴ History</span>
+          <span class="btn btn-current">☰ Transactions</span>
+          <span class="btn">◎ Gold</span>
+          <span class="nav-spacer"></span>
+          <span class="btn">⟳ Refresh</span>
+          <span class="btn">◔ Suthir</span>
+        </div>
+
+        <div class="app-main">
+          <div class="page-title-row">
+            <span class="page-title">All transactions</span>
+            <span class="page-sub">Every ledger event across all holdings · position recomputes from this ledger (average cost)</span>
+          </div>
+
+          <div class="filters marked">
+            <span class="pin">1</span>
+            <div class="field">
+              <span class="field-label">Search</span>
+              <span class="control wide"><span class="ghost">Script, symbol or notes</span><span class="caret">⌕</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">Holding</span>
+              <span class="control"><span>All holdings</span><span class="caret">▾</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">Type</span>
+              <div class="chipset">
+                <span class="chip">Buy</span>
+                <span class="chip">Sell</span>
+                <span class="chip">Dividend</span>
+                <span class="chip">Opening</span>
+                <span class="chip">Split</span>
+                <span class="chip">Bonus</span>
+                <span class="chip">Merger</span>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">Currency</span>
+              <div class="chipset">
+                <span class="chip">₹ INR</span>
+                <span class="chip">€ EUR</span>
+                <span class="chip">USD <span style="opacity:.7">legacy</span></span>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">From</span>
+              <span class="control"><span class="ghost">dd-mm-yyyy</span><span class="caret">▦</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">To</span>
+              <span class="control"><span class="ghost">dd-mm-yyyy</span><span class="caret">▦</span></span>
+            </div>
+            <span class="filter-count"><strong>142</strong> transactions</span>
+          </div>
+
+          <div class="subtotals marked">
+            <span class="pin">2</span>
+            <div class="sub-card">
+              <div class="sub-head"><span>INR</span><span class="sub-sym">₹</span></div>
+              <div class="sub-row"><span>Bought</span><span>₹18,42,310.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>₹4,10,775.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>₹37,912.40</span></div>
+            </div>
+            <div class="sub-card">
+              <div class="sub-head"><span>EUR</span><span class="sub-sym">€</span></div>
+              <div class="sub-row"><span>Bought</span><span>€24,860.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>€3,200.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>€412.18</span></div>
+            </div>
+            <div class="sub-card">
+              <div class="sub-head"><span>USD · legacy</span><span class="sub-sym" style="font-size:12px">USD</span></div>
+              <div class="sub-row"><span>Bought</span><span>USD 9,145.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>USD 0.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>USD 128.60</span></div>
+            </div>
+          </div>
+
+          <div class="table-shell marked">
+            <span class="pin">3</span>
+            <div class="table-scroll">
+              <table class="ledger">
+                <thead>
+                  <tr>
+                    <th class="l sorted">Date ▾</th>
+                    <th class="l">Holding</th>
+                    <th class="l">Type</th>
+                    <th>Shares</th>
+                    <th>Amount</th>
+                    <th>Implied cost/sh</th>
+                    <th>Ratio</th>
+                    <th>Realised seed</th>
+                    <th>Opening date</th>
+                    <th class="l">Notes</th>
+                    <th class="c">Cur</th>
+                    <th class="c">Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="l num">17-10-2026</td>
+                    <td class="l"><div class="script">Tata Consultancy</div><div class="symbol">TCS.NS</div></td>
+                    <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                    <td class="num">12</td>
+                    <td class="num">₹48,912.00</td>
+                    <td class="num">₹4,076.00</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="l note">SIP tranche, brokerage folded in</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">14-10-2026</td>
+                    <td class="l"><div class="script">Vanguard FTSE All-World</div><div class="symbol">VWCE.DE</div></td>
+                    <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                    <td class="num">21.4508</td>
+                    <td class="num">€2,600.00</td>
+                    <td class="num">€121.21</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="l note">Monthly order, 2600 debited</td>
+                    <td class="c muted">EUR</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">09-10-2026</td>
+                    <td class="l"><div class="script">Apple Inc</div><div class="symbol">AAPL</div></td>
+                    <td class="l"><span class="type-tag t-div">Dividend</span></td>
+                    <td class="muted">—</td>
+                    <td class="num">USD 42.80</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="l note">Q4 payout, net of withholding</td>
+                    <td class="c muted" style="color:var(--yellow)">USD</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">02-10-2026</td>
+                    <td class="l"><div class="script">Infosys</div><div class="symbol">INFY.NS</div></td>
+                    <td class="l"><span class="type-tag t-sell">Sell</span></td>
+                    <td class="num">30</td>
+                    <td class="num">₹56,118.00</td>
+                    <td class="num">₹1,870.60</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="l note">Trimmed on rebalance</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">26-09-2026</td>
+                    <td class="l"><div class="script">Nippon Gold ETF</div><div class="symbol">GOLDBEES.NS</div></td>
+                    <td class="l"><span class="type-tag t-split">Split</span></td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="num">2×</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="l note">2-for-1; basis invariant</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">15-06-2026</td>
+                    <td class="l"><div class="script">Tata Consultancy</div><div class="symbol">TCS.NS</div></td>
+                    <td class="l"><span class="type-tag t-open">Opening</span></td>
+                    <td class="num">64</td>
+                    <td class="num">₹2,41,920.00</td>
+                    <td class="num">₹3,780.00</td>
+                    <td class="muted">—</td>
+                    <td class="num">₹12,480.00</td>
+                    <td class="num">15-06-2026</td>
+                    <td class="l note">Opening balance carried from sheet</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">15-06-2026</td>
+                    <td class="l"><div class="script">Apple Inc</div><div class="symbol">AAPL</div></td>
+                    <td class="l"><span class="type-tag t-open">Opening</span></td>
+                    <td class="num">25</td>
+                    <td class="num">USD 5,310.00</td>
+                    <td class="num">USD 212.40</td>
+                    <td class="muted">—</td>
+                    <td class="muted">—</td>
+                    <td class="muted" style="color:var(--yellow)">Not set</td>
+                    <td class="l note">Dashboard still prompts for this date</td>
+                    <td class="c muted" style="color:var(--yellow)">USD</td>
+                    <td class="c"><span class="row-actions"><span class="icon-btn accent">✎</span></span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="annotations">
+      <li><b>1</b><span>Filter bar. Holding is a select, type and currency are multi-select chips, dates bound the range, search spans script/symbol/notes. All client-side over the fetched array; the match count is the only "a filter is on" signal needed.</span></li>
+      <li><b>2</b><span>Per-currency subtotals — one card per currency <em>present in the filtered set</em>. Deliberately never summed across currencies and never labelled P&amp;L; these are plain sums of <code>amount</code> by type.</span></li>
+      <li><b>3</b><span>Eleven columns = PRD-004 §5 exactly. Type-specific fields render <code>—</code> where they do not apply, rather than being hidden, so a column means the same thing in every row.</span></li>
+      <li><b>4</b><span>Unset <code>opening_date</code> renders as a yellow <em>Not set</em> — the same state the dashboard's blocking prompt is driven by, and the field DD-004 adds to <code>TransactionToAPI</code>.</span></li>
+      <li><b>5</b><span>The app supports <strong>INR and EUR only</strong> — <code>CurrencyOf</code> excludes legacy USD outright. So there is no <code>$</code> and no USD chip pretending otherwise: a legacy row shows its own code, in its own bucket. Honest about the data, and nothing to unpick later.</span></li>
+      <li><b>6</b><span>Buckets key on the raw currency code, never a folded <code>OTHER</code> — two unlike codes must never share a subtotal card. That is why the facet does not reuse <code>normaliseCurrency</code>.</span></li>
+      <li><b>7</b><span>Zebra striping comes from <code>--bg-primary</code> against the shell's <code>--bg-secondary</code>; no new token, and it survives all three themes.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============================ FRAME 03 ============================ -->
+  <section class="frame">
+    <div class="frame-chrome">
+      <span class="frame-id">03</span>
+      <span class="frame-name">Filtered — "what did I buy last month?"</span>
+      <span class="frame-viewport">1280 × auto</span>
+    </div>
+
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="filters">
+            <div class="field">
+              <span class="field-label">Search</span>
+              <span class="control wide"><span class="ghost">Script, symbol or notes</span><span class="caret">⌕</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">Holding</span>
+              <span class="control"><span>All holdings</span><span class="caret">▾</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">Type</span>
+              <div class="chipset">
+                <span class="chip chip-on">Buy</span>
+                <span class="chip">Sell</span>
+                <span class="chip">Dividend</span>
+                <span class="chip">Opening</span>
+              </div>
+            </div>
+            <div class="field">
+              <span class="field-label">From</span>
+              <span class="control"><span class="num">01-09-2026</span><span class="caret">▦</span></span>
+            </div>
+            <div class="field">
+              <span class="field-label">To</span>
+              <span class="control"><span class="num">30-09-2026</span><span class="caret">▦</span></span>
+            </div>
+            <span class="filter-count"><strong>6</strong> of 142 transactions</span>
+          </div>
+
+          <div class="subtotals">
+            <div class="sub-card">
+              <div class="sub-head"><span>INR</span><span class="sub-sym">₹</span></div>
+              <div class="sub-row"><span>Bought</span><span>₹1,26,440.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>₹0.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>₹0.00</span></div>
+            </div>
+            <div class="sub-card">
+              <div class="sub-head"><span>EUR</span><span class="sub-sym">€</span></div>
+              <div class="sub-row"><span>Bought</span><span>€2,600.00</span></div>
+              <div class="sub-row"><span>Sold</span><span>€0.00</span></div>
+              <div class="sub-row"><span>Dividends</span><span>€0.00</span></div>
+            </div>
+          </div>
+
+          <div class="table-shell">
+            <div class="table-scroll">
+              <table class="ledger">
+                <thead>
+                  <tr>
+                    <th class="l sorted">Date ▾</th>
+                    <th class="l">Holding</th>
+                    <th class="l">Type</th>
+                    <th>Shares</th>
+                    <th>Amount</th>
+                    <th>Implied cost/sh</th>
+                    <th class="l">Notes</th>
+                    <th class="c">Cur</th>
+                    <th class="c">Edit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="l num">28-09-2026</td>
+                    <td class="l"><div class="script">Infosys</div><div class="symbol">INFY.NS</div></td>
+                    <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                    <td class="num">24</td>
+                    <td class="num">₹44,760.00</td>
+                    <td class="num">₹1,865.00</td>
+                    <td class="l note">Weekly SIP</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="icon-btn accent">✎</span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">16-09-2026</td>
+                    <td class="l"><div class="script">Vanguard FTSE All-World</div><div class="symbol">VWCE.DE</div></td>
+                    <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                    <td class="num">21.0043</td>
+                    <td class="num">€2,600.00</td>
+                    <td class="num">€123.78</td>
+                    <td class="l note">Monthly order</td>
+                    <td class="c muted">EUR</td>
+                    <td class="c"><span class="icon-btn accent">✎</span></td>
+                  </tr>
+                  <tr>
+                    <td class="l num">08-09-2026</td>
+                    <td class="l"><div class="script">Tata Consultancy</div><div class="symbol">TCS.NS</div></td>
+                    <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                    <td class="num">20</td>
+                    <td class="num">₹81,680.00</td>
+                    <td class="num">₹4,084.00</td>
+                    <td class="l note">Added on dip</td>
+                    <td class="c muted">INR</td>
+                    <td class="c"><span class="icon-btn accent">✎</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="annotations">
+      <li><b>1</b><span>Active chips take the shipped <code>aria-pressed="true"</code> look (<code>--blue</code> on <code>--blue-dim</code>) — no bespoke selected state.</span></li>
+      <li><b>2</b><span>Count becomes <em>6 of 142</em> when a filter narrows the set, so an accidentally-sticky filter is visible without reading the controls.</span></li>
+      <li><b>3</b><span>USD drops out of the subtotal strip because no USD row matches — cards follow the filtered set, not the portfolio.</span></li>
+      <li><b>4</b><span>Columns that are empty for every matching row (ratio, realised seed, opening date) collapse away. This is the one place the column set is not fixed, and it keeps the buy-only view readable.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============================ FRAME 04 ============================ -->
+  <section class="frame">
+    <div class="frame-chrome">
+      <span class="frame-id">04</span>
+      <span class="frame-name">Edit → the existing per-holding ledger editor</span>
+      <span class="frame-viewport">1280 × auto · reused component</span>
+    </div>
+
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="modal-stage">
+          <div class="modal-card marked">
+            <span class="pin">1</span>
+            <div class="modal-head">
+              <span class="modal-title">Transactions — Tata Consultancy</span>
+              <span class="muted">✕</span>
+            </div>
+            <div class="modal-hint">Position recomputes from this ledger (average cost). Buy = total debited; Sell = total credited.</div>
+
+            <div class="form-box">
+              <div class="form-grid">
+                <div class="field">
+                  <span class="field-label">Type</span>
+                  <span class="control"><span>Buy</span><span class="caret">▾</span></span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Date</span>
+                  <span class="control"><span class="num">17-10-2026</span><span class="caret">▦</span></span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Shares</span>
+                  <span class="control"><span class="num">12</span></span>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <span class="field-label">Price / share (₹) <span style="text-transform:none">optional</span></span>
+                  <span class="control"><span class="ghost">NAV / price</span></span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Total debited (₹)</span>
+                  <span class="control"><span class="num">48,912.00</span></span>
+                </div>
+                <div class="field">
+                  <span class="field-label">Notes</span>
+                  <span class="control"><span>SIP tranche</span></span>
+                </div>
+              </div>
+              <div class="modal-hint">Implied cost/share: <strong style="color:var(--text-primary)">₹4,076.00</strong></div>
+              <div class="form-foot">
+                <span class="btn btn-sm">Cancel edit</span>
+                <span class="btn-primary">✎ Update transaction</span>
+              </div>
+            </div>
+
+            <div class="derived">
+              <span>Shares: <strong>96</strong></span>
+              <span>Avg cost: <strong>₹3,912.40</strong></span>
+              <span>Realised: <strong>₹12,480.00</strong></span>
+              <span>Dividends: <strong>₹4,310.00</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="annotations">
+      <li><b>1</b><span>This frame is <em>not a new design</em>. It is <code>features/holdings/TransactionsModal.tsx</code> as it ships today, opened on the row's holding. Drawn here only to make the hand-off explicit: the view navigates, the modal writes.</span></li>
+      <li><b>2</b><span>Keeping one editor keeps <code>recomputeAndPersist</code> + <code>healSnapshots</code> the only path that can move a position — the reason PRD-004 refuses a second write surface.</span></li>
+      <li><b>3</b><span>On close the view refetches, so a corrected date is reflected in the list without a reload.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============================ FRAME 05 ============================ -->
+  <section class="frame">
+    <div class="frame-chrome">
+      <span class="frame-id">05</span>
+      <span class="frame-name">Edge states — empty ledger · admin act-as (read-only)</span>
+      <span class="frame-viewport">1280 × auto</span>
+    </div>
+
+    <div class="frame-pair">
+      <div class="canvas">
+        <div class="app" data-app-theme="dark">
+          <div class="app-main">
+            <div class="page-title-row">
+              <span class="page-title">All transactions</span>
+              <span class="page-sub">Every ledger event across all holdings</span>
+            </div>
+            <div class="table-shell">
+              <div class="empty">
+                <span class="empty-title">No transactions yet</span>
+                <span>Add a holding, then record a buy, sell or dividend from its ledger.</span>
+                <span class="btn-primary" style="margin-top:4px">+ Add Holding</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="canvas">
+        <div class="app" data-app-theme="dark">
+          <div class="app-main">
+            <div class="banner marked">
+              <span class="pin">1</span>
+              <span>Viewing <strong>priya.n</strong> · India · read-only</span>
+              <span class="nav-spacer"></span>
+              <span class="btn btn-sm">← Back to admin</span>
+            </div>
+            <div class="page-title-row">
+              <span class="page-title">All transactions</span>
+              <span class="page-sub">priya.n · 38 events</span>
+            </div>
+            <div class="table-shell">
+              <div class="table-scroll">
+                <table class="ledger" style="min-width:820px">
+                  <thead>
+                    <tr>
+                      <th class="l sorted">Date ▾</th>
+                      <th class="l">Holding</th>
+                      <th class="l">Type</th>
+                      <th>Shares</th>
+                      <th>Amount</th>
+                      <th>Implied cost/sh</th>
+                      <th class="c">Cur</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="l num">11-10-2026</td>
+                      <td class="l"><div class="script">HDFC Bank</div><div class="symbol">HDFCBANK.NS</div></td>
+                      <td class="l"><span class="type-tag t-buy">Buy</span></td>
+                      <td class="num">15</td>
+                      <td class="num">₹26,715.00</td>
+                      <td class="num">₹1,781.00</td>
+                      <td class="c muted">INR</td>
+                    </tr>
+                    <tr>
+                      <td class="l num">03-10-2026</td>
+                      <td class="l"><div class="script">Reliance</div><div class="symbol">RELIANCE.BO</div></td>
+                      <td class="l"><span class="type-tag t-div">Dividend</span></td>
+                      <td class="muted">—</td>
+                      <td class="num">₹1,120.00</td>
+                      <td class="muted">—</td>
+                      <td class="c muted">INR</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ol class="annotations">
+      <li><b>1</b><span>Served by its own route — <code>/admin/users/:id/transactions</code> under <code>RequireAdmin</code>. The id lives in the URL, so the view is linkable and refresh-safe, and the page picks <code>adminListUserTransactions</code> from it: heading and data source cannot disagree.</span></li>
+      <li><b>2</b><span>Act-as reuses the dashboard's existing "viewing user" banner. The <strong>Edit column is absent</strong>, not disabled — act-as has no ledger write path today, and a dead control would imply one exists.</span></li>
+      <li><b>3</b><span>An out-of-region target never reaches this screen: the endpoint answers 404 server-side, matching the no-enumeration rule the rest of act-as follows. Hand-editing the id changes nothing.</span></li>
+      <li><b>4</b><span>Empty state points at the only action that can produce a transaction, rather than apologising for having no data.</span></li>
+    </ol>
+  </section>
+
+  <!-- ============================ COLUMN MAP ========================== -->
+  <section class="section">
+    <h2>Column map — frame 02 against PRD-004 §5</h2>
+    <p>
+      The row is the contract: everything the add/edit modal accepts has a
+      column, so nothing requires opening the modal to read.
+    </p>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead>
+          <tr><th>Column</th><th>Field</th><th>Shown for</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Date</td><td>date</td><td>all</td><td>ledger · default sort, descending</td></tr>
+          <tr><td>Holding</td><td>script + symbol</td><td>all</td><td>joined from holdings (DD-004 §2.1)</td></tr>
+          <tr><td>Type</td><td>type</td><td>all</td><td>ledger · shared <code>TYPE_LABEL</code></td></tr>
+          <tr><td>Shares</td><td>quantity</td><td>all but dividend</td><td>ledger</td></tr>
+          <tr><td>Amount</td><td>amount</td><td>all but split/bonus</td><td>ledger · holding's currency</td></tr>
+          <tr><td>Implied cost/sh</td><td>amount ÷ quantity</td><td>buy · sell · opening</td><td>derived in the view</td></tr>
+          <tr><td>Ratio</td><td>ratio</td><td>split · bonus</td><td>ledger</td></tr>
+          <tr><td>Realised seed</td><td>realized_seed</td><td>opening</td><td>ledger</td></tr>
+          <tr><td>Opening date</td><td>opening_date</td><td>opening</td><td>ledger · <strong>new in the DTO</strong></td></tr>
+          <tr><td>Notes</td><td>notes</td><td>all</td><td>ledger</td></tr>
+          <tr><td>Cur</td><td>currency</td><td>all</td><td>ledger · drives the money symbol</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="callout">
+      Running <strong>avg cost per share</strong> is intentionally missing. It
+      is only meaningful in one holding's replay order, which is exactly what
+      the per-holding modal in frame 04 already shows — putting it in a
+      cross-holding list would print a number that means nothing.
+    </p>
+  </section>
+
+  <!-- ============================ BUILD NOTES ========================= -->
+  <section class="section">
+    <h2>What the frames commit the implementation to</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead>
+          <tr><th>Frame</th><th>Commitment</th><th>Lands in</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>01</td><td>One nav pill, existing classes, target computed from <code>actAsUserId</code></td><td>PD-047 task 9</td></tr>
+          <tr><td>02</td><td>11 columns, chip filters, per-currency strip keyed on raw codes</td><td>PD-047 tasks 5, 7–8</td></tr>
+          <tr><td>02</td><td><code>opening_date</code> exposed on the DTO</td><td>PD-047 task 2</td></tr>
+          <tr><td>03</td><td>Filtered count format, all-empty columns collapse</td><td>PD-047 task 7</td></tr>
+          <tr><td>04</td><td>No new editor — reuse <code>TransactionsModal</code></td><td>PD-047 task 8</td></tr>
+          <tr><td>05</td><td>Act-as has its own route and renders without the Edit column</td><td>PD-047 tasks 4, 9</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>PD-047 visual spec</span>
+    <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
+    <span>Mockup — not production markup</span>
+  </footer>
+</div>
+
+<script>
+  // Theme switcher drives the mockup frames only. It deliberately does not
+  // touch the document root: the viewer's own light/dark choice governs this
+  // page's chrome, while these buttons choose which of the app's three
+  // shipped palettes the frames are rendered in.
+  const buttons = document.querySelectorAll('[data-theme-btn]')
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeBtn
+      document.querySelectorAll('.app').forEach(app => { app.dataset.appTheme = theme })
+      buttons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)))
+    })
+  })
+</script>
+</html>
