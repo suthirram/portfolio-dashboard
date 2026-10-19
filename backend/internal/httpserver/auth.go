@@ -97,6 +97,7 @@ var routeTiers = map[string]routeTier{
 	"DELETE /api/admin/users/:id/holdings/:holdingId": tierAdmin,
 	"GET /api/admin/users/:id/prices":                 tierAdmin,
 	"GET /api/admin/users/:id/summary":                tierAdmin,
+	"GET /api/admin/users/:id/transactions":           tierAdmin,
 }
 
 // tierFor returns the tier required for the route key, defaulting to

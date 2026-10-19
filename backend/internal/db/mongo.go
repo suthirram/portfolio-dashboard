@@ -54,6 +54,11 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Lo
 			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "holding_id", Value: 1}, {Key: "date", Value: 1}}},
 			// cascade delete when a holding is removed.
 			{Keys: bson.D{{Key: "holding_id", Value: 1}}},
+			// portfolio-wide ledger listing (DD-004 §2.3). Keys mirror
+			// ListByUser's full sort — date THEN created_at — so Mongo walks
+			// the index instead of blocking-sorting same-day events. Both
+			// descend so the index reverse-scans for the ascending sort.
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}, {Key: "created_at", Value: -1}}},
 		},
 		"portfolio_snapshots": {
 			// at most one row per (user, UTC midnight). Also powers the

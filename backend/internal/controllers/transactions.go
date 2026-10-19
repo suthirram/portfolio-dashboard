@@ -29,6 +29,18 @@ func (h *Controller) ListTransactions(ctx context.Context, request api.ListTrans
 	return api.ListTransactions200JSONResponse(txns), nil
 }
 
+func (h *Controller) ListAllTransactions(ctx context.Context, _ api.ListAllTransactionsRequestObject) (api.ListAllTransactionsResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	txns, err := h.transactions.ListAll(ctx, currentUserId)
+	if err != nil {
+		return nil, err
+	}
+	return api.ListAllTransactions200JSONResponse(txns), nil
+}
+
 func (h *Controller) CreateTransaction(ctx context.Context, request api.CreateTransactionRequestObject) (api.CreateTransactionResponseObject, error) {
 	uid, err := currentUserID(ctx)
 	if err != nil {

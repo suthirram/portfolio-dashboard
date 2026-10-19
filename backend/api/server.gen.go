@@ -188,6 +188,9 @@ type ServerInterface interface {
 	// A user's portfolio summary
 	// (GET /admin/users/{id}/summary)
 	AdminGetUserSummary(ctx echo.Context, id UserID) error
+	// Every transaction across a user's holdings (act-as, read-only)
+	// (GET /admin/users/{id}/transactions)
+	AdminListUserTransactions(ctx echo.Context, id UserID) error
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx echo.Context) error
@@ -299,6 +302,9 @@ type ServerInterface interface {
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx echo.Context) error
+	// List every transaction across the caller's holdings
+	// (GET /transactions)
+	ListAllTransactions(ctx echo.Context) error
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx echo.Context, id string) error
@@ -655,6 +661,24 @@ func (w *ServerInterfaceWrapper) AdminGetUserSummary(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminGetUserSummary(ctx, id)
+	return err
+}
+
+// AdminListUserTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminListUserTransactions(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminListUserTransactions(ctx, id)
 	return err
 }
 
@@ -1171,6 +1195,17 @@ func (w *ServerInterfaceWrapper) GetSummary(ctx echo.Context) error {
 	return err
 }
 
+// ListAllTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) ListAllTransactions(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListAllTransactions(ctx)
+	return err
+}
+
 // DeleteTransaction converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteTransaction(ctx echo.Context) error {
 	var err error
@@ -1273,6 +1308,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/admin/users/:id/region", wrapper.AdminSetUserRegion, options.OperationMiddlewares["adminSetUserRegion"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/reset-lockout", wrapper.AdminResetLockout, options.OperationMiddlewares["adminResetLockout"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/summary", wrapper.AdminGetUserSummary, options.OperationMiddlewares["adminGetUserSummary"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/transactions", wrapper.AdminListUserTransactions, options.OperationMiddlewares["adminListUserTransactions"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
 	router.GET(options.BaseURL+"/auth/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
@@ -1310,6 +1346,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
 	router.GET(options.BaseURL+"/regions", wrapper.GetRegions, options.OperationMiddlewares["getRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
+	router.GET(options.BaseURL+"/transactions", wrapper.ListAllTransactions, options.OperationMiddlewares["listAllTransactions"]...)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction, options.OperationMiddlewares["deleteTransaction"]...)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction, options.OperationMiddlewares["updateTransaction"]...)
 
@@ -2128,6 +2165,42 @@ func (response AdminGetUserSummary200JSONResponse) VisitAdminGetUserSummaryRespo
 type AdminGetUserSummary404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminGetUserSummary404JSONResponse) VisitAdminGetUserSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserTransactionsRequestObject struct {
+	Id UserID `json:"id"`
+}
+
+type AdminListUserTransactionsResponseObject interface {
+	VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error
+}
+
+type AdminListUserTransactions200JSONResponse []TransactionWithHolding
+
+func (response AdminListUserTransactions200JSONResponse) VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserTransactions404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminListUserTransactions404JSONResponse) VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -3784,6 +3857,27 @@ func (response GetSummary200JSONResponse) VisitGetSummaryResponse(w http.Respons
 	return err
 }
 
+type ListAllTransactionsRequestObject struct {
+}
+
+type ListAllTransactionsResponseObject interface {
+	VisitListAllTransactionsResponse(w http.ResponseWriter) error
+}
+
+type ListAllTransactions200JSONResponse []TransactionWithHolding
+
+func (response ListAllTransactions200JSONResponse) VisitListAllTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteTransactionRequestObject struct {
 	Id string `json:"id"`
 }
@@ -3946,6 +4040,9 @@ type StrictServerInterface interface {
 	// A user's portfolio summary
 	// (GET /admin/users/{id}/summary)
 	AdminGetUserSummary(ctx context.Context, request AdminGetUserSummaryRequestObject) (AdminGetUserSummaryResponseObject, error)
+	// Every transaction across a user's holdings (act-as, read-only)
+	// (GET /admin/users/{id}/transactions)
+	AdminListUserTransactions(ctx context.Context, request AdminListUserTransactionsRequestObject) (AdminListUserTransactionsResponseObject, error)
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -4057,6 +4154,9 @@ type StrictServerInterface interface {
 	// Portfolio-level summary with live P&L
 	// (GET /summary)
 	GetSummary(ctx context.Context, request GetSummaryRequestObject) (GetSummaryResponseObject, error)
+	// List every transaction across the caller's holdings
+	// (GET /transactions)
+	ListAllTransactions(ctx context.Context, request ListAllTransactionsRequestObject) (ListAllTransactionsResponseObject, error)
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx context.Context, request DeleteTransactionRequestObject) (DeleteTransactionResponseObject, error)
@@ -4580,6 +4680,31 @@ func (sh *strictHandler) AdminGetUserSummary(ctx echo.Context, id UserID) error 
 		return err
 	} else if validResponse, ok := response.(AdminGetUserSummaryResponseObject); ok {
 		return validResponse.VisitAdminGetUserSummaryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminListUserTransactions operation middleware
+func (sh *strictHandler) AdminListUserTransactions(ctx echo.Context, id UserID) error {
+	var request AdminListUserTransactionsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListUserTransactions(ctx.Request().Context(), request.(AdminListUserTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListUserTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminListUserTransactionsResponseObject); ok {
+		return validResponse.VisitAdminListUserTransactionsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -5559,6 +5684,29 @@ func (sh *strictHandler) GetSummary(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(GetSummaryResponseObject); ok {
 		return validResponse.VisitGetSummaryResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListAllTransactions operation middleware
+func (sh *strictHandler) ListAllTransactions(ctx echo.Context) error {
+	var request ListAllTransactionsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAllTransactions(ctx.Request().Context(), request.(ListAllTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAllTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListAllTransactionsResponseObject); ok {
+		return validResponse.VisitListAllTransactionsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
