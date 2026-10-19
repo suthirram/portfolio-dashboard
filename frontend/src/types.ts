@@ -13,6 +13,7 @@ export type Summary = Schemas['Summary']
 export type CurrencyChange = Schemas['CurrencyChange']
 export type Transaction = Schemas['Transaction']
 export type TransactionInput = Schemas['TransactionInput']
+export type TransactionWithHolding = Schemas['TransactionWithHolding']
 
 export type Exchange = NonNullable<Holding['exchange']>
 export type HoldingType = NonNullable<Holding['type']>

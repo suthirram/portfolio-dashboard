@@ -15,8 +15,8 @@ import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
 import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
 import {
-  ChartLineIcon, CoinsIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon, UserCheckIcon,
-  UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
+  ChartLineIcon, CoinsIcon, ListIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon,
+  UserCheckIcon, UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
 } from '../../components/Icon'
 
 type ModalState = 'add' | HoldingWithPrice | null
@@ -155,6 +155,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <span aria-hidden style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
           <Link to="/history" className="btn dash-nav-btn">
             <ChartLineIcon size={14} /> <span className="dash-nav-label-sm">History</span>
+          </Link>
+          {/* Target-aware: this header is also what AdminUserView renders in
+              act-as mode, so a hard-coded "/transactions" would drop
+              actAsUserId and show the admin's OWN ledger under the target
+              user's name. */}
+          <Link to={actAsUserId ? `/admin/users/${actAsUserId}/transactions` : '/transactions'}
+            className="btn dash-nav-btn">
+            <ListIcon size={14} /> <span className="dash-nav-label-sm">Transactions</span>
           </Link>
           {!actAsUserId && user?.gold_enabled && (
             <Link to="/gold" className="btn dash-nav-btn">

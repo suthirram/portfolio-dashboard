@@ -32,6 +32,12 @@ export function summaryPath(userId?: string): string {
   return id ? `/admin/users/${id}/summary` : '/summary'
 }
 
+/** Portfolio-wide ledger listing (PD-047); read-only in act-as. */
+export function transactionsPath(userId?: string): string {
+  const id = actingAs(userId)
+  return id ? `/admin/users/${id}/transactions` : '/transactions'
+}
+
 /** True when the caller is currently acting as another user. */
 export function isActingAs(userId?: string): boolean {
   return actingAs(userId) !== null
