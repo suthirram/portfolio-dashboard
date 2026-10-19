@@ -173,16 +173,16 @@ func (e HoldingInputType) Valid() bool {
 
 // Defines values for HoldingWithPriceCurrency.
 const (
-	HoldingWithPriceCurrencyEUR HoldingWithPriceCurrency = "EUR"
-	HoldingWithPriceCurrencyINR HoldingWithPriceCurrency = "INR"
+	EUR HoldingWithPriceCurrency = "EUR"
+	INR HoldingWithPriceCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceCurrency enum.
 func (e HoldingWithPriceCurrency) Valid() bool {
 	switch e {
-	case HoldingWithPriceCurrencyEUR:
+	case EUR:
 		return true
-	case HoldingWithPriceCurrencyINR:
+	case INR:
 		return true
 	default:
 		return false
@@ -228,24 +228,6 @@ func (e HoldingWithPriceType) Valid() bool {
 	case Etf:
 		return true
 	case Stock:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for TransactionCurrency.
-const (
-	TransactionCurrencyEUR TransactionCurrency = "EUR"
-	TransactionCurrencyINR TransactionCurrency = "INR"
-)
-
-// Valid indicates whether the value is a known member of the TransactionCurrency enum.
-func (e TransactionCurrency) Valid() bool {
-	switch e {
-	case TransactionCurrencyEUR:
-		return true
-	case TransactionCurrencyINR:
 		return true
 	default:
 		return false
@@ -312,6 +294,39 @@ func (e TransactionInputType) Valid() bool {
 	case TransactionInputTypeSell:
 		return true
 	case TransactionInputTypeSplit:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TransactionWithHoldingType.
+const (
+	Bonus    TransactionWithHoldingType = "bonus"
+	Buy      TransactionWithHoldingType = "buy"
+	Dividend TransactionWithHoldingType = "dividend"
+	Merger   TransactionWithHoldingType = "merger"
+	Opening  TransactionWithHoldingType = "opening"
+	Sell     TransactionWithHoldingType = "sell"
+	Split    TransactionWithHoldingType = "split"
+)
+
+// Valid indicates whether the value is a known member of the TransactionWithHoldingType enum.
+func (e TransactionWithHoldingType) Valid() bool {
+	switch e {
+	case Bonus:
+		return true
+	case Buy:
+		return true
+	case Dividend:
+		return true
+	case Merger:
+		return true
+	case Opening:
+		return true
+	case Sell:
+		return true
+	case Split:
 		return true
 	default:
 		return false
@@ -902,9 +917,11 @@ type Summary struct {
 // Transaction defines model for Transaction.
 type Transaction struct {
 	// Amount Total cash — debited (buy) or credited (sell, dividend); fees folded in
-	Amount    *float64             `json:"amount,omitempty"`
-	CreatedAt *time.Time           `json:"created_at,omitempty"`
-	Currency  *TransactionCurrency `json:"currency,omitempty"`
+	Amount    *float64   `json:"amount,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Currency INR | EUR; legacy rows may carry another code
+	Currency *string `json:"currency,omitempty"`
 
 	// Date Trade / ex date; orders the ledger
 	Date *time.Time `json:"date,omitempty"`
@@ -915,6 +932,9 @@ type Transaction struct {
 	// Id MongoDB ObjectID
 	Id    *string `json:"id,omitempty"`
 	Notes *string `json:"notes,omitempty"`
+
+	// OpeningDate Opening only — user-set effective date; null until set
+	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
 
 	// Quantity Shares (buy/sell/opening); unused for dividend
 	Quantity *float64 `json:"quantity,omitempty"`
@@ -927,9 +947,6 @@ type Transaction struct {
 	Type         *TransactionType `json:"type,omitempty"`
 	UpdatedAt    *time.Time       `json:"updated_at,omitempty"`
 }
-
-// TransactionCurrency defines model for Transaction.Currency.
-type TransactionCurrency string
 
 // TransactionType defines model for Transaction.Type.
 type TransactionType string
@@ -947,6 +964,49 @@ type TransactionInput struct {
 
 // TransactionInputType defines model for TransactionInput.Type.
 type TransactionInputType string
+
+// TransactionWithHolding defines model for TransactionWithHolding.
+type TransactionWithHolding struct {
+	// Amount Total cash — debited (buy) or credited (sell, dividend); fees folded in
+	Amount    *float64   `json:"amount,omitempty"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Currency INR | EUR; legacy rows may carry another code
+	Currency *string `json:"currency,omitempty"`
+
+	// Date Trade / ex date; orders the ledger
+	Date *time.Time `json:"date,omitempty"`
+
+	// HoldingId Owning holding's ObjectID
+	HoldingId *string `json:"holding_id,omitempty"`
+
+	// Id MongoDB ObjectID
+	Id    *string `json:"id,omitempty"`
+	Notes *string `json:"notes,omitempty"`
+
+	// OpeningDate Opening only — user-set effective date; null until set
+	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
+
+	// Quantity Shares (buy/sell/opening); unused for dividend
+	Quantity *float64 `json:"quantity,omitempty"`
+
+	// Ratio Split/bonus ratio, e.g. 2.0 = 2-for-1
+	Ratio *float64 `json:"ratio,omitempty"`
+
+	// RealizedSeed Opening only — carries a legacy realized P&L with no underlying sell
+	RealizedSeed *float64 `json:"realized_seed,omitempty"`
+
+	// Script Owning holding's display name
+	Script *string `json:"script,omitempty"`
+
+	// Symbol Owning holding's ticker (e.g. TCS.NS)
+	Symbol    *string                     `json:"symbol,omitempty"`
+	Type      *TransactionWithHoldingType `json:"type,omitempty"`
+	UpdatedAt *time.Time                  `json:"updated_at,omitempty"`
+}
+
+// TransactionWithHoldingType defines model for TransactionWithHolding.Type.
+type TransactionWithHoldingType string
 
 // UpdateProfileRequest defines model for UpdateProfileRequest.
 type UpdateProfileRequest struct {

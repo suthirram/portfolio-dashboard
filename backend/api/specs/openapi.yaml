@@ -53,6 +53,8 @@ paths:
 
   /holdings/{id}/transactions:
     $ref: "./transactions/transactions.yaml#/holdings_id_transactions"
+  /transactions:
+    $ref: "./transactions/transactions.yaml#/transactions"
   /transactions/{id}:
     $ref: "./transactions/transactions.yaml#/transactions_id"
 
@@ -137,6 +139,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_prices"
   /admin/users/{id}/summary:
     $ref: "./admin/admin.yaml#/users_id_summary"
+  /admin/users/{id}/transactions:
+    $ref: "./admin/admin.yaml#/users_id_transactions"
 
 components:
   securitySchemes:

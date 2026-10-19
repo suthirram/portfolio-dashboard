@@ -292,3 +292,79 @@ func TestTransactionsService_Delete_OversellReinserts(t *testing.T) {
 		}
 	})
 }
+
+// ListAll joins each event to its holding's labels, returns newest first
+// (reversing the store's replay order), keeps an orphan event with blank
+// labels, and exposes the opening's user-set date (DD-004 §2.2).
+func TestTransactionsService_ListAll(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("join, order, orphan, opening_date", func(mt *mtest.T) {
+		userId := primitive.NewObjectID()
+		tcs, gone := primitive.NewObjectID(), primitive.NewObjectID()
+		openID, buyID, divID := primitive.NewObjectID(), primitive.NewObjectID(), primitive.NewObjectID()
+		day := func(d int) time.Time { return time.Date(2026, 6, d, 0, 0, 0, 0, time.UTC) }
+		txnsNS := mt.DB.Name() + ".transactions"
+		holdingsNS := mt.DB.Name() + ".holdings"
+
+		mt.AddMockResponses(
+			// ListByUser — store order is replay order (date ascending).
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch,
+				bson.D{{Key: "_id", Value: openID}, {Key: "user_id", Value: userId}, {Key: "holding_id", Value: tcs},
+					{Key: "type", Value: "opening"}, {Key: "date", Value: day(1)}, {Key: "opening_date", Value: day(15)}},
+				bson.D{{Key: "_id", Value: buyID}, {Key: "user_id", Value: userId}, {Key: "holding_id", Value: tcs},
+					{Key: "type", Value: "buy"}, {Key: "date", Value: day(2)}},
+				bson.D{{Key: "_id", Value: divID}, {Key: "user_id", Value: userId}, {Key: "holding_id", Value: gone},
+					{Key: "type", Value: "dividend"}, {Key: "date", Value: day(3)}},
+			),
+			// holdings.ListByUser — only TCS survives; `gone` is orphaned.
+			mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch,
+				bson.D{{Key: "_id", Value: tcs}, {Key: "user_id", Value: userId}, {Key: "script", Value: "TCS"}, {Key: "symbol", Value: "TCS.NS"}},
+			),
+		)
+
+		st := persistence.New(mt.DB)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
+		rows, err := svc.ListAll(context.Background(), userId)
+		if err != nil {
+			t.Fatalf("ListAll: %v", err)
+		}
+		if len(rows) != 3 {
+			t.Fatalf("len = %d, want 3", len(rows))
+		}
+		wantIDs := []primitive.ObjectID{divID, buyID, openID}
+		for i, want := range wantIDs {
+			if *rows[i].Id != want.Hex() {
+				t.Errorf("rows[%d].id = %s, want %s (newest first)", i, *rows[i].Id, want.Hex())
+			}
+		}
+		if *rows[0].Script != "" || *rows[0].Symbol != "" {
+			t.Errorf("orphan labels = %q/%q, want blank", *rows[0].Script, *rows[0].Symbol)
+		}
+		if *rows[1].Script != "TCS" || *rows[1].Symbol != "TCS.NS" {
+			t.Errorf("buy labels = %q/%q, want TCS/TCS.NS", *rows[1].Script, *rows[1].Symbol)
+		}
+		if rows[2].OpeningDate == nil || !rows[2].OpeningDate.Equal(day(15)) {
+			t.Errorf("opening_date = %v, want %v", rows[2].OpeningDate, day(15))
+		}
+		if rows[1].OpeningDate != nil {
+			t.Errorf("buy opening_date = %v, want nil", rows[1].OpeningDate)
+		}
+	})
+
+	mt.Run("empty ledger is an empty slice, not nil", func(mt *mtest.T) {
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch),
+		)
+		st := persistence.New(mt.DB)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, nil, nil)
+		rows, err := svc.ListAll(context.Background(), primitive.NewObjectID())
+		if err != nil {
+			t.Fatalf("ListAll: %v", err)
+		}
+		if rows == nil || len(rows) != 0 {
+			t.Fatalf("rows = %#v, want empty non-nil slice (serialises as [])", rows)
+		}
+	})
+}

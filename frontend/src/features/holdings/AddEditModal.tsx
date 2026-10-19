@@ -5,6 +5,7 @@ import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } 
 import { CheckIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
+import { currencySymbol } from '../../lib/currency'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
 const TYPES: HoldingType[] = ['stock', 'etf']
@@ -225,13 +226,13 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
                     <DecimalInput style={INPUT} value={form.stocks_owned} onValueChange={value => setForm(f => ({ ...f, stocks_owned: value }))} placeholder="0" />
                   </div>
                   <div>
-                    <label style={LABEL}>Avg Cost Price ({form.currency === 'EUR' ? '€' : '₹'})</label>
+                    <label style={LABEL}>Avg Cost Price ({currencySymbol(form.currency)})</label>
                     <DecimalInput style={INPUT} value={form.avg_cost_price} onValueChange={value => setForm(f => ({ ...f, avg_cost_price: value }))} placeholder="0.00" />
                   </div>
                 </div>
 
                 <div>
-                  <label style={LABEL}>Realised P&L ({form.currency === 'EUR' ? '€' : '₹'})</label>
+                  <label style={LABEL}>Realised P&L ({currencySymbol(form.currency)})</label>
                   <DecimalInput style={INPUT} value={form.realized_pnl} allowNegative onValueChange={value => setForm(f => ({ ...f, realized_pnl: value }))} placeholder="Profit/loss from shares already sold" />
                 </div>
               </>

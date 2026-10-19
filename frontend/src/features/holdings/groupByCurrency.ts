@@ -1,3 +1,5 @@
+import { SUPPORTED_CURRENCIES, isSupportedCurrency } from '../../lib/currency'
+
 export type CurrencyCode = 'INR' | 'EUR' | 'OTHER'
 
 type Currencied = { currency?: string | null }
@@ -5,11 +7,11 @@ type Currencied = { currency?: string | null }
 // Render currencies in a stable order regardless of how holdings happen to be
 // sorted in the input list — INR first (largest cohort in the data set), EUR
 // second, anything unrecognised last.
-export const CURRENCY_ORDER: CurrencyCode[] = ['INR', 'EUR', 'OTHER']
+export const CURRENCY_ORDER: CurrencyCode[] = [...SUPPORTED_CURRENCIES, 'OTHER']
 
 export const normaliseCurrency = (raw: string | null | undefined): CurrencyCode => {
   const c = (raw || '').toUpperCase()
-  return c === 'INR' || c === 'EUR' ? c : 'OTHER'
+  return isSupportedCurrency(c) ? c : 'OTHER'
 }
 
 export interface CurrencyGroup<T> {

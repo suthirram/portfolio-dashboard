@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"go.uber.org/zap"
@@ -114,6 +115,37 @@ func (s *TransactionsService) List(ctx context.Context, uid primitive.ObjectID, 
 		out = append(out, TransactionToAPI(t))
 	}
 	return out, true, nil
+}
+
+// ListAll returns every transaction owned by userId, newest first, each enriched
+// with its holding's script/symbol (DD-004 §2.2). Two reads (ledger +
+// holdings) joined in memory; the view filters client-side. An orphan event
+// (holding gone) keeps blank labels rather than being hidden. Always non-nil.
+func (s *TransactionsService) ListAll(ctx context.Context, userId primitive.ObjectID) (_ []api.TransactionWithHolding, retErr error) {
+	ctx, span := tracer.Start(ctx, "TransactionsService.ListAll")
+	defer endSpan(span, &retErr)
+	logger := s.log(ctx)
+	txns, err := s.txns.ListByUser(ctx, userId)
+	if err != nil {
+		logger.Error("list user transactions failed", zap.Error(err))
+		return nil, err
+	}
+	holdings, err := s.holdings.ListByUser(ctx, userId)
+	if err != nil {
+		logger.Error("list user holdings failed", zap.Error(err))
+		return nil, err
+	}
+	holdingsById := make(map[primitive.ObjectID]*domain.Holding, len(holdings))
+	for i := range holdings {
+		holdingsById[holdings[i].ID] = &holdings[i]
+	}
+	// ListByUser is replay order (date, created_at ascending); reverse it
+	// for newest-first rather than adding a second store sort.
+	out := make([]api.TransactionWithHolding, 0, len(txns))
+	for _, t := range slices.Backward(txns) {
+		out = append(out, TransactionWithHoldingToAPI(t, holdingsById[t.HoldingID]))
+	}
+	return out, nil
 }
 
 // Create appends a transaction to a holding and recomputes its position.

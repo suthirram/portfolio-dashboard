@@ -573,3 +573,24 @@ func (h *Controller) AdminGetUserSummary(ctx context.Context, request api.AdminG
 	}
 	return api.AdminGetUserSummary200JSONResponse(summary), nil
 }
+
+// AdminListUserTransactions is the act-as, read-only view of a target user's
+// full ledger (PRD-004 §2.5). Region scope comes from loadTargetUser.
+func (h *Controller) AdminListUserTransactions(ctx context.Context, request api.AdminListUserTransactionsRequestObject) (api.AdminListUserTransactionsResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminListUserTransactions404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	txns, err := h.transactions.ListAll(ctx, target.ID)
+	if err != nil {
+		return nil, err
+	}
+	return api.AdminListUserTransactions200JSONResponse(txns), nil
+}

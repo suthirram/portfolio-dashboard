@@ -7,6 +7,7 @@ import {
   priceMovement,
   type HoldingWithPreviousClose,
 } from './dashboardPriceMovement'
+import { currencySymbol } from '../../lib/currency'
 
 const INR = (n?: number | null) => {
   if (n === undefined || n === null || isNaN(n)) return '—'
@@ -24,7 +25,7 @@ const NUM = (n?: number | null) => (n === undefined || n === null || isNaN(n) ||
 const SIGNED_MONEY = (n: number, currency?: string | null) => {
   const abs = Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const sign = n > 0 ? '+' : n < 0 ? '-' : ''
-  const symbol = currency === 'EUR' ? '€' : '₹'
+  const symbol = currencySymbol(currency)
   return `${sign}${symbol}${abs}`
 }
 const SIGNED_PCT = (n: number) => `${n > 0 ? '+' : n < 0 ? '-' : ''}${Math.abs(n).toFixed(2)}%`

@@ -658,9 +658,14 @@ components:
           type: number
           format: double
           description: Opening only — carries a legacy realized P&L with no underlying sell
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+          description: Opening only — user-set effective date; null until set
         currency:
           type: string
-          enum: [INR, EUR]
+          description: INR | EUR; legacy rows may carry another code
         notes:
           type: string
         created_at:
@@ -669,6 +674,18 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    TransactionWithHolding:
+      allOf:
+        - $ref: "#/components/schemas/Transaction"
+        - type: object
+          properties:
+            script:
+              type: string
+              description: Owning holding's display name
+            symbol:
+              type: string
+              description: Owning holding's ticker (e.g. TCS.NS)
 
     TransactionInput:
       type: object
