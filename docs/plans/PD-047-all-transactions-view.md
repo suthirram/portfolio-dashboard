@@ -27,7 +27,7 @@ Read-only: edits route back into the existing per-holding ledger modal.
 | `backend/internal/services/transactions.go` | new `ListAll` |
 | `backend/internal/controllers/transactions.go` | new `ListAllTransactions` |
 | `backend/internal/controllers/admin.go` | new `AdminListUserTransactions` |
-| `backend/internal/db/mongo.go` | add `{user_id:1, date:-1}` index on `transactions` |
+| `backend/internal/db/mongo.go` | add `{user_id:1, date:-1, created_at:-1}` index on `transactions` |
 | `frontend/src/lib/api/schema.gen.ts` | regenerated |
 | `frontend/src/lib/api/client.ts` | `listAllTransactions`, `adminListUserTransactions` |
 | `frontend/src/lib/currency.ts` | **new** `currencySymbol(code)` |
@@ -130,8 +130,17 @@ PRD-004 §5 column 9 is unreachable.
       `currentUserID` → service → 200).
 * [ ] `AdminListUserTransactions` in `controllers/admin.go` (pattern:
       `adminCaller` → `loadTargetUser` → 404 on miss → service with `target.ID`).
-* [ ] `internal/db/mongo.go`: `{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}}}`
-      in the `transactions` block.
+* [ ] `internal/db/mongo.go`, `transactions` block:
+
+  ```go
+  {Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}, {Key: "created_at", Value: -1}}},
+  ```
+
+  `created_at` is required, not cosmetic: `ListByUser` sorts
+  `{date:1, created_at:1}`, and an index missing the second sort key cannot
+  serve the sort at all — Mongo falls back to a blocking in-memory sort on
+  every same-date pair (a buy and a dividend booked on one day). Both keys
+  descend so the index reverse-scans for the store's ascending order.
 * [ ] Controller tests: own 200; act-as in-region 200, out-of-region 404.
 * [ ] `docs/api.md`: both endpoints.
 

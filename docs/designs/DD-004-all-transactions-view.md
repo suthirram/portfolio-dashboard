@@ -77,9 +77,11 @@ func (s *TransactionsService) ListAll(ctx context.Context, uid primitive.ObjectI
   cascade-delete with their holding) is **emitted with empty labels**, not
   dropped — silently hiding a user's own ledger row would be worse than an
   unlabelled row, and it makes orphan state visible instead of invisible.
-* Sort: `ListByUser` sorts `date ASC, created_at ASC`. The view wants newest
-  first; reversing in the service keeps the store method shared with
-  `SnapshotRecomputer` (which needs replay order) unchanged.
+* Sort: `ListByUser` sorts `date ASC, created_at ASC` (both keys — ties on a
+  shared date break on insertion time). The view wants newest first; reversing
+  in the service keeps the store method shared with `SnapshotRecomputer`
+  (which needs replay order) unchanged, and the §2.3 index covers the store's
+  ascending order by reverse scan.
 
 ### 2.3 Index
 
@@ -89,9 +91,19 @@ can use the `user_id` prefix but not the sort — `holding_id` sits between the
 two keys, so Mongo does an in-memory sort. Add:
 
 ```go
-// portfolio-wide ledger listing, newest first (DD-004 §2.3).
-{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}}},
+// portfolio-wide ledger listing (DD-004 §2.3). Keys mirror ListByUser's
+// full sort — date THEN created_at — so Mongo can walk the index instead of
+// blocking-sorting; same-day events are common (a buy and a dividend on one
+// date), and a {user_id, date} index alone would leave the sort in memory
+// exactly then. Both sort keys descend so the index is reverse-scannable for
+// the store's ascending {date:1, created_at:1} order.
+{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}, {Key: "created_at", Value: -1}}},
 ```
+
+A compound index only serves a sort when its keys match the sort's keys in
+order and are either all in the same direction or all inverted; mixing (`date`
+indexed, `created_at` not) disqualifies it entirely, which is why the second
+key is not optional.
 
 Index creation is idempotent at boot; no migration.
 
