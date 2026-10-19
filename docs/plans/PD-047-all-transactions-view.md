@@ -4,6 +4,9 @@
 * **Owner**: project owner
 * **Implements**: [PRD-004](../prds/PRD-004-all-transactions-view.md)
 * **Design**: [DD-004](../designs/DD-004-all-transactions-view.md)
+* **Visuals**: [PD-047 visual spec](../visuals/PD-047-all-transactions-view.html)
+  ([published](https://claude.ai/code/artifact/f9a60fc0-e8c3-4ae9-9549-02af56e6f52c)) —
+  five annotated frames; its closing table maps each frame to the tasks below
 
 ## 1. Goal
 
@@ -34,6 +37,7 @@ Read-only: edits route back into the existing per-holding ledger modal.
 | `frontend/src/features/admin/AdminUserView.tsx` | act-as entry to the view |
 | `frontend/src/App.tsx` | `/transactions` route under `RequireAuth` |
 | `docs/api.md` | document the two new endpoints |
+| `docs/visuals/PD-047-all-transactions-view.html` | **new** visual spec — the frames tasks 7–9 build against |
 
 ## 3. PR sequence (FE/BE split — backend first)
 

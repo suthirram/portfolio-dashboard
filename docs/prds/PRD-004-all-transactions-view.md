@@ -5,6 +5,9 @@
 * **Type**: Product Requirements — the *what* and *why*. The *how* (endpoint
   shape, query params, component split) belongs in a companion design doc
   (DD-004) and rollout plan (PD-0xx), not here.
+* **Visuals**: [PD-047 visual spec](../visuals/PD-047-all-transactions-view.html)
+  ([published](https://claude.ai/code/artifact/f9a60fc0-e8c3-4ae9-9549-02af56e6f52c)) —
+  annotated frames for every state described below.
 * **Builds on**: the per-holding transactions ledger (average-cost,
   derive-from-ledger) and [PRD-001](PRD-001-user-auth-and-multi-tenancy.md)
   multi-tenancy.

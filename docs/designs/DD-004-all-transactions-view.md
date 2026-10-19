@@ -4,6 +4,9 @@
 * **Owner**: project owner
 * **Implements**: [PRD-004](../prds/PRD-004-all-transactions-view.md)
 * **Rollout plan**: [PD-047](../plans/PD-047-all-transactions-view.md)
+* **Visuals**: [PD-047 visual spec](../visuals/PD-047-all-transactions-view.html)
+  ([published](https://claude.ai/code/artifact/f9a60fc0-e8c3-4ae9-9549-02af56e6f52c)) —
+  frame 02 is the column contract for §2.1, frame 04 the reuse boundary for §1
 * **Related**: [DD-001](DD-001-user-auth-and-multi-tenancy.md) (per-user
   scoping), [DD-002](DD-002-historical-snapshots.md) (ledger ↔ snapshot heal)
 
