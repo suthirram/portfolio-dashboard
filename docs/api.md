@@ -42,6 +42,7 @@ summary are scoped to the logged-in user.
 
 | Method | Path | Description |
 |---|---|---|
+| GET | `/api/transactions` | Every ledger event across the caller's holdings, newest first, with `script`/`symbol` (read-only) |
 | GET/POST | `/api/holdings/{id}/transactions` | List / append the holding's ledger events |
 | PUT/DELETE | `/api/transactions/{id}` | Edit / remove a ledger event (holding is recomputed) |
 
@@ -58,6 +59,6 @@ summary are scoped to the logged-in user.
 **Admin** (region-scoped; super admin sees all) — `/api/admin/users`,
 `/api/admin/users/{id}` (+ `/hide`, `/reactivate`, `/reset-lockout`,
 `/promote`, `/demote`, `/region`, and act-as `/holdings`, `/prices`,
-`/summary`), and `/api/admin/admins` (super admin only).
+`/summary`, `/transactions`), and `/api/admin/admins` (super admin only).
 
 Full spec: `/api/specs/openapi.yaml`

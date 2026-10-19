@@ -365,6 +365,25 @@ users_id_prices:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_transactions:
+  get:
+    tags: [Admin]
+    summary: Every transaction across a user's holdings (act-as, read-only)
+    operationId: adminListUserTransactions
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    responses:
+      "200":
+        description: Transactions, newest first
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/TransactionWithHolding"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_summary:
   get:
     tags: [Admin]

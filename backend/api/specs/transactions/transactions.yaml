@@ -1,3 +1,22 @@
+transactions:
+  get:
+    tags: [Transactions]
+    summary: List every transaction across the caller's holdings
+    description: |
+      Read-only, user-wide ledger for the all-transactions view (PRD-004).
+      Newest first; each row carries its owning holding's script and symbol.
+      Rows whose holding no longer exists keep blank labels.
+    operationId: listAllTransactions
+    responses:
+      "200":
+        description: Transactions, newest first
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "../portfolio-api.yaml#/components/schemas/TransactionWithHolding"
+
 holdings_id_transactions:
   parameters:
     - name: id

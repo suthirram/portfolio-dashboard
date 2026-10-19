@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,10 +17,18 @@ import (
 func openingStatus(openings map[primitive.ObjectID]domain.Transaction, holdingID primitive.ObjectID) (hasOpening *bool, openingDate *openapi_types.Date) {
 	opening, ok := openings[holdingID]
 	hasOpening = &ok
-	if ok && opening.OpeningDate != nil {
-		openingDate = &openapi_types.Date{Time: *opening.OpeningDate}
+	if ok {
+		openingDate = apiDate(opening.OpeningDate)
 	}
 	return hasOpening, openingDate
+}
+
+// apiDate converts an optional calendar date to its API form; nil stays nil.
+func apiDate(d *time.Time) *openapi_types.Date {
+	if d == nil {
+		return nil
+	}
+	return &openapi_types.Date{Time: *d}
 }
 
 // PriceFetcher abstracts PriceService. Services and mappers depend on it
@@ -202,7 +211,7 @@ func TransactionToAPI(t domain.Transaction) api.Transaction {
 	id := t.ID.Hex()
 	holdingID := t.HoldingID.Hex()
 	typ := api.TransactionType(t.Type)
-	currency := api.TransactionCurrency(t.Currency)
+	currency := t.Currency
 	date := t.Date
 	return api.Transaction{
 		Id:           &id,
@@ -213,10 +222,40 @@ func TransactionToAPI(t domain.Transaction) api.Transaction {
 		Amount:       &t.Amount,
 		Ratio:        &t.Ratio,
 		RealizedSeed: &t.RealizedSeed,
+		OpeningDate:  apiDate(t.OpeningDate),
 		Currency:     &currency,
 		Notes:        &t.Notes,
 		CreatedAt:    &t.CreatedAt,
 		UpdatedAt:    &t.UpdatedAt,
+	}
+}
+
+// TransactionWithHoldingToAPI maps a ledger event plus its owning holding's
+// labels to the all-transactions row. h is nil for an orphan event (holding
+// deleted), which keeps blank labels rather than being dropped.
+func TransactionWithHoldingToAPI(t domain.Transaction, h *domain.Holding) api.TransactionWithHolding {
+	base := TransactionToAPI(t)
+	typ := api.TransactionWithHoldingType(t.Type)
+	var script, symbol string
+	if h != nil {
+		script, symbol = h.Script, h.Symbol
+	}
+	return api.TransactionWithHolding{
+		Id:           base.Id,
+		HoldingId:    base.HoldingId,
+		Type:         &typ,
+		Date:         base.Date,
+		Quantity:     base.Quantity,
+		Amount:       base.Amount,
+		Ratio:        base.Ratio,
+		RealizedSeed: base.RealizedSeed,
+		OpeningDate:  base.OpeningDate,
+		Currency:     base.Currency,
+		Notes:        base.Notes,
+		CreatedAt:    base.CreatedAt,
+		UpdatedAt:    base.UpdatedAt,
+		Script:       &script,
+		Symbol:       &symbol,
 	}
 }
 
