@@ -121,7 +121,7 @@ PRD-004 §5 column 9 is unreachable.
 
 ### Task 3 — `TransactionsService.ListAll`
 
-* [ ] Add `ListAll(ctx, uid)` per DD-004 §2.2: `txns.ListByUser` +
+* [ ] Add `ListAll(ctx, userId)` per DD-004 §2.2: `txns.ListByUser` +
       `holdings.ListByUser`, map join, `TransactionToAPI` reuse, newest-first,
       orphan rows kept with blank labels.
 * [ ] Tests in `internal/services/transactions_test.go`: label join, order,

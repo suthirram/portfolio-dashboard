@@ -80,13 +80,13 @@ New method next to the existing `List`, same file, same owner-scoping
 discipline:
 
 ```go
-// ListAll returns every transaction owned by uid, newest first, each enriched
-// with its holding's script/symbol. Two reads (ledger + holdings) joined in
+// ListAll returns every transaction owned by userId, newest first, each
+// enriched with its holding's script/symbol. Two reads (ledger + holdings) joined in
 // memory; the view filters client-side (DD-004 §4).
-func (s *TransactionsService) ListAll(ctx context.Context, uid primitive.ObjectID) (_ []api.TransactionWithHolding, retErr error)
+func (s *TransactionsService) ListAll(ctx context.Context, userId primitive.ObjectID) (_ []api.TransactionWithHolding, retErr error)
 ```
 
-* Reads `s.txns.ListByUser(ctx, uid)` and `s.holdings.ListByUser(ctx, uid)`.
+* Reads `s.txns.ListByUser(ctx, userId)` and `s.holdings.ListByUser(ctx, userId)`.
 * Builds `map[primitive.ObjectID]domain.Holding` once, then per transaction
   emits `TransactionToAPI(t)` + the label pair. Reuses the existing mapper —
   no second marshalling path.
