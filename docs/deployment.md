@@ -18,4 +18,8 @@ GCP_PROJECT_ID=<proj> CORS_ALLOWED_ORIGINS=https://<app>.pages.dev \
   ./deploy/cloudrun/deploy.sh
 ```
 
+After a merge, confirm it actually reached production:
+[deploy-verification.md](deploy-verification.md) — watching the job, reading
+the Cloud Build log when it fails, and proving which binary is live.
+
 `backend/fly.toml` is retained as a documented fallback (`cd backend && flyctl deploy`).
