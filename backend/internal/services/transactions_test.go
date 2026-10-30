@@ -405,3 +405,62 @@ func TestValidateTxnInput_FutureDividendRejected(t *testing.T) {
 		t.Fatalf("err = %v, want ErrValidation", err)
 	}
 }
+
+// countingRecomputer records RecomputeFrom calls (the snapshot heal).
+type countingRecomputer struct{ calls int }
+
+func (c *countingRecomputer) RecomputeFrom(context.Context, primitive.ObjectID, time.Time) error {
+	c.calls++
+	return nil
+}
+
+// A back-dated dividend must not heal snapshots; a back-dated buy still must.
+func TestTransactionsService_DividendSkipsHeal(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	past := time.Date(2024, time.March, 15, 0, 0, 0, 0, time.UTC)
+
+	create := func(mt *mtest.T, typ string, qty float64) int {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		holdingsNS, txnsNS := mt.DB.Name()+".holdings", mt.DB.Name()+".transactions"
+		event := bson.D{
+			{Key: "_id", Value: primitive.NewObjectID()}, {Key: "type", Value: typ},
+			{Key: "date", Value: past}, {Key: "quantity", Value: qty}, {Key: "amount", Value: 300.0},
+		}
+		mt.AddMockResponses(
+			// GetScoped(holdings).
+			mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "INR"},
+			}),
+			// Insert(transactions).
+			mtest.CreateSuccessResponse(),
+			// recompute ListByHolding.
+			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, event),
+			// recompute holdings findAndModify.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: holdingId}}}),
+		)
+		rec := &countingRecomputer{}
+		st := persistence.New(mt.DB)
+		svc := NewTransactionsService(st.Transactions, st.Holdings, rec, nil)
+		svc.now = func() time.Time { return time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC) }
+		amt := 300.0
+		in := api.TransactionInput{Type: api.TransactionInputType(typ), Date: past, Amount: &amt}
+		if qty > 0 {
+			in.Quantity = &qty
+		}
+		if _, found, err := svc.Create(context.Background(), userId, holdingId.Hex(), in); err != nil || !found {
+			t.Fatalf("Create %s: found=%v err=%v", typ, found, err)
+		}
+		return rec.calls
+	}
+
+	mt.Run("dividend", func(mt *mtest.T) {
+		if calls := create(mt, "dividend", 0); calls != 0 {
+			t.Errorf("heal calls = %d, want 0 for a dividend", calls)
+		}
+	})
+	mt.Run("buy", func(mt *mtest.T) {
+		if calls := create(mt, "buy", 10); calls != 1 {
+			t.Errorf("heal calls = %d, want 1 for a buy", calls)
+		}
+	})
+}
