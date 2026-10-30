@@ -241,7 +241,10 @@ the History overlay are pure functions in their own files
   `recomputeAndPersist` once per affected holding. Returns `{imported,
   duplicates, batch_id}`.
 * **`DeleteAll(ctx, userId, currency) (int64, error)`** — in one transaction:
-  `DeleteDividends`, then `recomputeAndPersist` for each affected holding.
+  `DeleteDividends`, then `recomputeAndPersist` for each affected holding. A
+  holding that no longer exists (an orphan dividend left by a failed cascade)
+  returns `ErrNotFound` from the recompute and is skipped, so one stray row
+  can never block Delete all for the tab.
 * Single add / edit / delete reuse **`TransactionsService.Create/Update/Delete`**
   — no second write path. One change there: a new `healAfter(events...)`
   **skips the snapshot heal when every event involved is a dividend**

@@ -3710,7 +3710,10 @@ func (s *DividendsService) DeleteAll(ctx context.Context, userId primitive.Objec
    return err
   }
   for _, holdingId := range holdingIds {
-   if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil {
+   // An orphan dividend (its holding was deleted and the cascade missed it)
+   // has no holding to recompute; skipping it keeps one stray row from
+   // blocking Delete all for the whole tab.
+   if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil && !errors.Is(err, persistence.ErrNotFound) {
     return err
    }
   }
@@ -3849,6 +3852,23 @@ func TestDeleteAll_ScopedAndRecomputes(t *testing.T) {
    t.Errorf("recomputes = %d, want 1", n)
   }
  })
+
+ // A dividend whose holding no longer exists (ErrNoDocuments on recompute)
+ // must not block Delete all.
+ mt.Run("orphan dividend", func(mt *mtest.T) {
+  userId, gone := primitive.NewObjectID(), primitive.NewObjectID()
+  mt.AddMockResponses(
+   mtest.CreateSuccessResponse(bson.E{Key: "values", Value: bson.A{gone}}), // distinct
+   mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}),          // deleteMany
+   mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+   mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}), // holding not found
+  )
+  st := persistence.New(mt.DB)
+  deleted, err := NewDividendsService(st.Transactions, st.Holdings, directRunner{}, nil).DeleteAll(context.Background(), userId, "INR")
+  if err != nil || deleted != 1 {
+   t.Fatalf("DeleteAll = %d, %v; want 1, nil (orphan skipped)", deleted, err)
+  }
+ })
 }
 ```
 
@@ -3858,7 +3878,7 @@ func TestDeleteAll_ScopedAndRecomputes(t *testing.T) {
 cd backend && go build ./... && go test ./internal/services/ -run DeleteAll -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
 ```
 
-Expected: `--- PASS: TestDeleteAll_ScopedAndRecomputes/INR`.
+Expected: `--- PASS: TestDeleteAll_ScopedAndRecomputes/INR` and `/orphan_dividend`.
 
 * [ ] **Step 7: curl (PR6)**
 
