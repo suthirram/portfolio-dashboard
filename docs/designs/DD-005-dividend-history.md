@@ -105,6 +105,12 @@ one private `find(ctx, filter, sort)` that every list method calls.
 `""`, because a blank holding currency means INR (`CurrencyOf`) and ledger
 events copy the holding's currency.
 
+Because every tab, delete-all and the History overlay filter on that copy,
+the copy must follow the holding: `TransactionStore.SetCurrencyByHolding`
+rewrites it on every event of a holding, and `HoldingsService.Update` calls it
+whenever an edit sends a currency (canonical value from `CurrencyOf`). The
+call is idempotent, so a failed sync is repaired by saving the same edit again.
+
 `HoldingStore` gains `MoveAliases(ctx, userId, holdingId, keys)`: `$pull`
 the keys from the user's other holdings, `$addToSet` on this one, so a
 re-pointed name never belongs to two holdings.

@@ -53,6 +53,7 @@
 | Create | `backend/internal/services/clock.go` | `istZone`, `istToday` (moved from `gold_prices.go`) |
 | Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go`, `gold_prices_test.go` | call `istToday` |
 | Modify | `backend/internal/services/transactions.go`, `transactions_test.go` | `validateDividend`; `healAfter` skips dividend-only writes |
+| Modify | `backend/internal/services/holdings.go`, `holdings_test.go` | a holding's currency change rewrites its ledger events' currency |
 | Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `currencyMatch` |
 | Modify | `backend/internal/persistence/holdings.go` | `MoveAliases` |
 | Modify | `backend/internal/persistence/persistence.go` | `client` field; `InTransaction` |
@@ -101,7 +102,7 @@
 | # | Branch | Tasks | Value (gate 2) | Test that fails without it (gate 3) | No regression (gate 1) |
 |---|---|---|---|---|---|
 | PR1 | `docs/PRD-005-dividend-history` | 0 | agreed design on record | — (docs) | docs only |
-| PR2 | `feat/PD-048-dividend-rules` | 1–3 | future-dated dividends rejected; dividend writes stop rewriting History | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal` | gold tests green after the `istToday` move; buy/sell still heal |
+| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
 | PR3 | `feat/PD-048-dividends-view-api` | 4–7 | `GET /dividends` (+ act-as): rows, both running totals, yearly / monthly / per-holding | `TestBuildDividendView_*`, `TestListDividends_*` | additive routes + index |
 | PR4 | `feat/PD-048-dividends-preview-api` | 8–11 | `POST /dividends/import/preview`: name resolution, duplicates, invalid rows, warnings — no writes | `TestResolveNames_*`, `TestPartition_OccurrenceBased`, `TestCumulativeWarnings` | read-only endpoint; `Holding.Aliases` omitempty |
 | PR5 | `feat/PD-048-dividends-import-api` | 12–14 | `POST /dividends/import`: atomic commit, aliases remembered, totals recomputed | `TestImport` | a replica set behaves as a superset of standalone; existing code ignores sessions |
@@ -520,11 +521,164 @@ curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d '{"type":"d
 curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d '{"type":"dividend","date":"2024-03-15T00:00:00Z","amount":300}' $B/holdings/<holding id>/transactions   # 201; backend log has no "snapshot heal" line
 ```
 
-* [ ] **Step 6: Push and open PR2**
+PR2 is opened at the end of Task 3A.
+
+---
+
+## Task 3A: Keep ledger currency in step with the holding (PR2)
+
+**Files:**
+
+* Modify: `backend/internal/persistence/transactions.go`, `backend/internal/services/holdings.go`, `backend/internal/services/holdings_test.go`
+
+* [ ] **Step 1: `SetCurrencyByHolding` (append to `persistence/transactions.go`)**
+
+WHY: every ledger event copies its holding's currency, and the dividend tab,
+delete-all and the History overlay all filter on that copy. Today
+`HoldingsService.Update` can change a holding's currency without touching its
+events, so an INR → EUR edit would leave the old dividends on the INR tab and
+in the INR History column while the dashboard shows the holding as EUR —
+breaking PRD-005 §9 (every view agrees). The all-transactions view (PD-047)
+already shows this mismatch today, so the fix stands on its own.
+
+```go
+// SetCurrencyByHolding rewrites the denormalised currency on every event of
+// one holding, so the ledger follows a holding's currency change.
+func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, holdingId primitive.ObjectID, currency string) error {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ _, err := s.col.UpdateMany(ctx,
+  scopedFilter(userId, bson.M{"holding_id": holdingId}),
+  bson.M{"$set": bson.M{"currency": currency}})
+ return err
+}
+```
+
+* [ ] **Step 2: Call it from `HoldingsService.Update` (Edit)**
+
+WHY: runs after the holding write succeeds, with the holding's canonical
+currency. The call is idempotent, so if it fails the edit returns an error and
+saving the same edit again repairs the ledger. `Update` is edited, so its
+`uid` parameter is renamed `userId` throughout the function (CLAUDE.md naming
+rule).
+
+Current:
+
+```go
+ // Setting the opening date stamps the holding's opening event with the
+ // user-chosen effective date (and syncs the ordering Date to it), then
+ // re-derives the position. No-op when the holding has no opening event.
+ if input.OpeningDate != nil {
+```
+
+Replacement:
+
+```go
+ // The ledger copies the holding's currency onto every event; keep those
+ // copies in step so the dividend tab, History and the all-transactions
+ // view never disagree with the dashboard (PRD-005 §9).
+ if input.Currency != nil && ValidCurrency(*input.Currency) {
+  currency, _ := CurrencyOf(updated)
+  if err := s.txns.SetCurrencyByHolding(ctx, userId, id, currency); err != nil {
+   logger.Error("sync ledger currency failed", zap.String("id", idHex), zap.Error(err))
+   return api.Holding{}, false, err
+  }
+ }
+
+ // Setting the opening date stamps the holding's opening event with the
+ // user-chosen effective date (and syncs the ordering Date to it), then
+ // re-derives the position. No-op when the holding has no opening event.
+ if input.OpeningDate != nil {
+```
+
+Signature — current
+`func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {`,
+replacement
+`func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {`;
+the two remaining `uid` uses in the body (`UpdateScopedAndReturn(ctx, uid, …)`
+and `setOpeningDate(ctx, uid, …)`) become `userId`.
+
+* [ ] **Step 3: Test (append to `holdings_test.go`)**
+
+```go
+// A currency change rewrites the currency on the holding's ledger events; an
+// edit that leaves the currency alone does not touch the ledger.
+func TestHoldingsService_Update_SyncsLedgerCurrency(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ run := func(mt *mtest.T, currency *api.HoldingInputCurrency) int {
+  userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+  mt.AddMockResponses(
+   // UpdateScopedAndReturn — findAndModify on holdings.
+   mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+    {Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "EUR"},
+   }}),
+   // SetCurrencyByHolding — updateMany on transactions.
+   mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(3)}, bson.E{Key: "nModified", Value: int32(3)}),
+  )
+  st := persistence.New(mt.DB)
+  svc := NewHoldingsService(st.Holdings, st.Transactions, nil)
+  if _, found, err := svc.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
+   Script: "SAP", Exchange: "XETRA", Type: "stock", Currency: currency,
+  }); err != nil || !found {
+   t.Fatalf("Update: found=%v err=%v", found, err)
+  }
+  n := 0
+  for _, e := range mt.GetAllStartedEvents() {
+   if e.CommandName != "update" || e.Command.Lookup("update").StringValue() != "transactions" {
+    continue
+   }
+   n++
+   set := e.Command.Lookup("updates").Array().Index(0).Document().Lookup("u", "$set").Document()
+   if got := set.Lookup("currency").StringValue(); got != "EUR" {
+    t.Errorf("ledger currency = %q, want EUR", got)
+   }
+  }
+  return n
+ }
+ mt.Run("currency changed", func(mt *mtest.T) {
+  eur := api.HoldingInputCurrency("EUR")
+  if n := run(mt, &eur); n != 1 {
+   t.Errorf("ledger updates = %d, want 1", n)
+  }
+ })
+ mt.Run("currency not sent", func(mt *mtest.T) {
+  if n := run(mt, nil); n != 0 {
+   t.Errorf("ledger updates = %d, want 0", n)
+  }
+ })
+}
+```
+
+(Field names follow the generated `api.HoldingInput`; `Exchange` / `Type`
+take whichever enum values `holdings_test.go` already uses.)
+
+* [ ] **Step 4: Verify**
+
+```bash
+cd backend && go build ./... && go test ./internal/services/ -run 'HoldingsService' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
+```
+
+Expected: `--- PASS: TestHoldingsService_Update_SyncsLedgerCurrency/currency_changed`, `/currency_not_sent`; existing holdings tests PASS.
+
+* [ ] **Step 5: Commit**
+
+```bash
+git add backend/internal/persistence/transactions.go backend/internal/services/holdings.go backend/internal/services/holdings_test.go
+git commit -m "🐛 Sync ledger currency when a holding's changes"
+```
+
+* [ ] **Step 6: curl (PR2 "How to test", appended to Task 3's block)**
+
+```bash
+curl -s -b c.txt -X PUT -H "$H" -H "$J" -d '{"script":"SAP","exchange":"XETRA","type":"stock","currency":"EUR"}' $B/holdings/<holding id> >/dev/null
+curl -s -b c.txt "$B/holdings/<holding id>/transactions" | jq '[.[].currency] | unique'   # ["EUR"]
+```
+
+* [ ] **Step 7: Push and open PR2**
 
 ```bash
 git push -u origin feat/PD-048-dividend-rules
-gh pr create --title "✨ Reject future-dated dividends and stop dividend writes from rewriting History" --body-file pr2.md
+gh pr create --title "✨ Tighten ledger dividend rules and keep event currency in step with the holding" --body-file pr2.md
 ```
 
 Expected: PR URL.
