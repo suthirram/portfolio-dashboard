@@ -13,6 +13,7 @@ import DividendsTable from './DividendsTable'
 import DividendsAnalytics from './DividendsAnalytics'
 import DividendModal, { DeleteDividendDialog } from './DividendModal'
 import DeleteAllDialog from './DeleteAllDialog'
+import DividendImportModal from './DividendImportModal'
 
 const INPUT: CSSProperties = {
   background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
@@ -42,6 +43,7 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
   const [editor, setEditor] = useState<{ row: DividendRow | null } | null>(null)
   const [deleting, setDeleting] = useState<DividendRow | null>(null)
   const [deletingAll, setDeletingAll] = useState(false)
+  const [importing, setImporting] = useState(false)
   // after closes the dialog and refetches the tab.
   const after = (close: () => void) => () => { close(); void refresh() }
 
@@ -83,6 +85,7 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
             {view.by_holding.map(h => <option key={h.holding_id} value={h.holding_id}>{h.script || h.symbol}</option>)}
           </select>
           <input aria-label="Search" placeholder="Search holding…" style={{ ...INPUT, minWidth: 200 }} value={search} onChange={e => setSearch(e.target.value)} />
+          <button className="btn" onClick={() => setImporting(true)}>⇪ Upload CSV</button>
           <button className="btn-primary" onClick={() => setEditor({ row: null })}>+ Add dividend</button>
           {view.summary.count > 0 && (
             <button className="btn btn-row-danger" onClick={() => setDeletingAll(true)}>Delete all {currency}</button>
@@ -114,6 +117,10 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
           </>
         )}
       </main>
+      {importing && (
+        <DividendImportModal currency={currency} holdings={holdings} userId={actAsUserId}
+          onClose={() => setImporting(false)} onImported={() => void refresh()} />
+      )}
       {editor && (
         <DividendModal currency={currency} holdings={holdings} editing={editor.row} userId={actAsUserId}
           onClose={() => setEditor(null)} onSaved={after(() => setEditor(null))} />
