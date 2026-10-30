@@ -241,3 +241,37 @@ func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID
 		zap.Int("duplicates", len(result.Duplicates)), zap.String("batch_id", result.BatchId))
 	return result, nil
 }
+
+// DeleteAll removes every dividend of one currency and recomputes the
+// affected holdings, atomically (PRD-005 §8).
+func (s *DividendsService) DeleteAll(ctx context.Context, userId primitive.ObjectID, currency string) (_ int64, retErr error) {
+	ctx, span := tracer.Start(ctx, "DividendsService.DeleteAll")
+	defer endSpan(span, &retErr)
+	logger := s.log(ctx)
+	if !ValidCurrency(currency) {
+		return 0, fmt.Errorf("%w: currency must be INR or EUR", ErrValidation)
+	}
+	var deleted int64
+	err := s.tx.InTransaction(ctx, func(ctx context.Context) error {
+		holdingIds, n, err := s.txns.DeleteDividends(ctx, userId, currency)
+		if err != nil {
+			return err
+		}
+		for _, holdingId := range holdingIds {
+			// An orphan dividend (its holding was deleted and the cascade missed it)
+			// has no holding to recompute; skipping it keeps one stray row from
+			// blocking Delete all for the whole tab.
+			if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil && !errors.Is(err, persistence.ErrNotFound) {
+				return err
+			}
+		}
+		deleted = n
+		return nil
+	})
+	if err != nil {
+		logger.Error("delete all dividends failed", zap.Error(err))
+		return 0, err
+	}
+	logger.Info("dividends deleted", zap.String("currency", currency), zap.Int64("deleted", deleted))
+	return deleted, nil
+}

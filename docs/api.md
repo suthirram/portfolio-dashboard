@@ -56,6 +56,8 @@ summary are scoped to the logged-in user.
 | POST | `/api/admin/users/{id}/dividends/import/preview` | Act-as mirror of the preview |
 | POST | `/api/dividends/import` | Commit the import atomically: 200 `DividendImportResult`, 400 malformed, 422 fresh preview when rows are invalid (nothing written) |
 | POST | `/api/admin/users/{id}/dividends/import` | Act-as mirror of the import |
+| DELETE | `/api/dividends?currency=INR\|EUR` | Delete every dividend of the tab (imported and hand-entered) and recompute the affected holdings, atomically → `{"deleted": N}`; holdings and other event types untouched |
+| DELETE | `/api/admin/users/{id}/dividends?currency=INR\|EUR` | Act-as mirror of delete-all |
 
 Dividends are `transactions` documents with `type = dividend`; add / edit /
 delete one through the ledger endpoints above. Any other `currency` is a 400.
