@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayMonth } from './formDates'
+import { formatDate, formatDayMonth, todayIST } from './formDates'
 
 describe('formatDate', () => {
   it('converts YYYY-MM-DD to dd-MM-yyyy', () => {
@@ -42,5 +42,12 @@ describe('formatDayMonth', () => {
   it('passes through non-ISO input unchanged', () => {
     expect(formatDayMonth('not a date')).toBe('not a date')
     expect(formatDayMonth(null)).toBe('')
+  })
+})
+
+describe('todayIST', () => {
+  it('rolls over at midnight IST, not UTC', () => {
+    expect(todayIST(new Date('2026-10-30T18:29:00Z'))).toBe('2026-10-30')
+    expect(todayIST(new Date('2026-10-30T18:31:00Z'))).toBe('2026-10-31')
   })
 })
