@@ -42,6 +42,8 @@ type HistoryRow struct {
 	Totals   domain.SnapshotTotals            `json:"totals"`
 	Holdings []HistoryHolding                 `json:"holdings,omitempty"` // per-stock breakdown (cron rows only)
 	Gold     *domain.GoldHistoryPoint         `json:"gold,omitempty"`     // physical-gold overlay (gold-enabled users, PRD-003 §8)
+	// Dividends is the on-read dividend overlay per currency (PRD-005 §9).
+	Dividends map[string]DividendHistoryPoint `json:"dividends,omitempty"`
 }
 
 // HistoryHolding is one stock's line within a history snapshot, surfaced so the
@@ -54,6 +56,7 @@ type HistoryHolding struct {
 	ClosePrice float64 `json:"close_price"`
 	PriceDate  string  `json:"price_date,omitempty"`
 	Current    float64 `json:"current"`
+	Dividends  float64 `json:"dividends"` // received on or before the row date (PRD-005 §9)
 }
 
 // HistoryList is the GET /api/history response envelope.

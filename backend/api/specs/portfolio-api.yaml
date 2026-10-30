@@ -897,6 +897,10 @@ components:
           type: number
           format: double
           description: quantity × close_price
+        dividends:
+          type: number
+          format: double
+          description: Dividends received from this stock on or before the row date (PRD-005 §9)
 
     HistoryRow:
       type: object
@@ -918,6 +922,11 @@ components:
             $ref: "#/components/schemas/HistoryHolding"
         gold:
           $ref: "#/components/schemas/GoldHistoryOverlay"
+        dividends:
+          type: object
+          description: Dividends per currency as of the row date — computed on read, never snapshotted (PRD-005 §9)
+          additionalProperties:
+            $ref: "#/components/schemas/DividendHistoryOverlay"
 
     HistoryList:
       type: object
@@ -1162,6 +1171,12 @@ components:
         duplicates: { type: array, items: { $ref: "#/components/schemas/DividendImportRow" } }
         batch_id: { type: string }
         warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    DividendHistoryOverlay:
+      type: object
+      required: [to_date, on_day]
+      properties:
+        to_date: { type: number, format: double }
+        on_day: { type: number, format: double }
 
   responses:
     BadRequest:

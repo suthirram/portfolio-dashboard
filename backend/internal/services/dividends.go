@@ -275,3 +275,18 @@ func (s *DividendsService) DeleteAll(ctx context.Context, userId primitive.Objec
 	logger.Info("dividends deleted", zap.String("currency", currency), zap.Int64("deleted", deleted))
 	return deleted, nil
 }
+
+// HistoryOverlay returns the dividends overlay for the given History dates.
+func (s *DividendsService) HistoryOverlay(ctx context.Context, userId primitive.ObjectID, dates []string) (_ map[string]DividendDay, retErr error) {
+	ctx, span := tracer.Start(ctx, "DividendsService.HistoryOverlay")
+	defer endSpan(span, &retErr)
+	txns, err := s.txns.ListAllDividends(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	holdings, err := s.holdings.ListByUser(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	return DividendOverlay(txns, holdings, dates), nil
+}
