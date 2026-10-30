@@ -54,7 +54,8 @@
 | Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go`, `gold_prices_test.go` | call `istToday` |
 | Modify | `backend/internal/services/transactions.go`, `transactions_test.go` | `validateDividend`; `healAfter` skips dividend-only writes |
 | Modify | `backend/internal/services/holdings.go`, `holdings_test.go` | a holding's currency change rewrites its ledger events' currency |
-| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `currencyMatch` |
+| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `SetCurrencyByHolding`; `FillBlankCurrency` |
+| Modify | `backend/cmd/migrate.go`, `backend/internal/persistence/holdings.go` | `migrate currencies`: legacy blank currencies → INR, once |
 | Modify | `backend/internal/persistence/holdings.go` | `MoveAliases` |
 | Modify | `backend/internal/persistence/persistence.go` | `client` field; `InTransaction` |
 | Modify | `backend/internal/db/mongo.go`, `mongo_test.go` | dividend listing index |
@@ -102,7 +103,7 @@
 | # | Branch | Tasks | Value (gate 2) | Test that fails without it (gate 3) | No regression (gate 1) |
 |---|---|---|---|---|---|
 | PR1 | `docs/PRD-005-dividend-history` | 0 | agreed design on record | — (docs) | docs only |
-| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
+| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events; every event stores one canonical currency (`migrate currencies` fixes legacy blanks) | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency`, `TestLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
 | PR3 | `feat/PD-048-dividends-view-api` | 4–7 | `GET /dividends` (+ act-as): rows, both running totals, yearly / monthly / per-holding | `TestBuildDividendView_*`, `TestListDividends_*` | additive routes + index |
 | PR4 | `feat/PD-048-dividends-preview-api` | 8–11 | `POST /dividends/import/preview`: name resolution, duplicates, invalid rows, warnings — no writes | `TestResolveNames_*`, `TestPartition_OccurrenceBased`, `TestCumulativeWarnings` | read-only endpoint; `Holding.Aliases` omitempty |
 | PR5 | `feat/PD-048-dividends-import-api` | 12–14 | `POST /dividends/import`: atomic commit, aliases remembered, totals recomputed | `TestImport` | a replica set behaves as a superset of standalone; existing code ignores sessions |
@@ -529,7 +530,7 @@ PR2 is opened at the end of Task 3A.
 
 **Files:**
 
-* Modify: `backend/internal/persistence/transactions.go`, `backend/internal/services/holdings.go`, `backend/internal/services/holdings_test.go`
+* Modify: `backend/internal/persistence/transactions.go`, `backend/internal/persistence/holdings.go`, `backend/internal/services/holdings.go`, `backend/internal/services/holdings_test.go`, `backend/internal/services/transactions.go`, `backend/internal/services/transactions_test.go`, `backend/cmd/migrate.go`
 
 * [ ] **Step 1: `SetCurrencyByHolding` (append to `persistence/transactions.go`)**
 
@@ -551,6 +552,47 @@ func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, hol
   scopedFilter(userId, bson.M{"holding_id": holdingId}),
   bson.M{"$set": bson.M{"currency": currency}})
  return err
+}
+```
+
+* [ ] **Step 1a: One stored currency format — `ledgerCurrency` (Edit `services/transactions.go`)**
+
+WHY: today `TransactionsService.Create` copies `holding.Currency` as-is, so a
+legacy holding with a blank currency writes `""` while the import (Task 14)
+would write `"INR"` — the same kind of record stored two ways, and every
+reader then has to special-case `""`. Every ledger write goes through one
+helper instead, so the stored currency is always canonical and the dividend
+queries (Task 4) and History overlay (Task 17) can filter on it directly.
+Legacy rows are fixed once by `migrate currencies` (Step 5a).
+
+Append to `transactions.go`:
+
+```go
+// ledgerCurrency is the currency a ledger event stores for holding h: the
+// canonical INR/EUR from CurrencyOf (blank → INR), or the holding's own code
+// upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
+// so readers filter on the stored value without special cases.
+func ledgerCurrency(h domain.Holding) string {
+ if c, ok := CurrencyOf(h); ok {
+  return c
+ }
+ return strings.ToUpper(h.Currency)
+}
+```
+
+In `Create` — current `t.Currency = holding.Currency`, replacement
+`t.Currency = ledgerCurrency(holding)`. Add `"strings"` to the imports.
+
+Test (append to `transactions_test.go`):
+
+```go
+func TestLedgerCurrency(t *testing.T) {
+ cases := map[string]string{"": "INR", "inr": "INR", "EUR": "EUR", "usd": "USD"}
+ for in, want := range cases {
+  if got := ledgerCurrency(domain.Holding{Currency: in}); got != want {
+   t.Errorf("ledgerCurrency(%q) = %q, want %q", in, got, want)
+  }
+ }
 }
 ```
 
@@ -578,8 +620,7 @@ Replacement:
  // copies in step so the dividend tab, History and the all-transactions
  // view never disagree with the dashboard (PRD-005 §9).
  if input.Currency != nil && ValidCurrency(*input.Currency) {
-  currency, _ := CurrencyOf(updated)
-  if err := s.txns.SetCurrencyByHolding(ctx, userId, id, currency); err != nil {
+  if err := s.txns.SetCurrencyByHolding(ctx, userId, id, ledgerCurrency(updated)); err != nil {
    logger.Error("sync ledger currency failed", zap.String("id", idHex), zap.Error(err))
    return api.Holding{}, false, err
   }
@@ -655,16 +696,119 @@ take whichever enum values `holdings_test.go` already uses.)
 * [ ] **Step 4: Verify**
 
 ```bash
-cd backend && go build ./... && go test ./internal/services/ -run 'HoldingsService' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
+cd backend && go build ./... && go test ./internal/services/ -run 'HoldingsService|LedgerCurrency|TransactionsService' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
 ```
 
-Expected: `--- PASS: TestHoldingsService_Update_SyncsLedgerCurrency/currency_changed`, `/currency_not_sent`; existing holdings tests PASS.
+Expected: `--- PASS: TestHoldingsService_Update_SyncsLedgerCurrency/currency_changed`, `/currency_not_sent`, `--- PASS: TestLedgerCurrency`; existing holdings and transactions tests PASS.
 
 * [ ] **Step 5: Commit**
 
 ```bash
-git add backend/internal/persistence/transactions.go backend/internal/services/holdings.go backend/internal/services/holdings_test.go
-git commit -m "🐛 Sync ledger currency when a holding's changes"
+git add backend/internal/persistence/transactions.go backend/internal/services/holdings.go backend/internal/services/holdings_test.go backend/internal/services/transactions.go backend/internal/services/transactions_test.go
+git commit -m "🐛 Keep ledger currency canonical and in sync"
+```
+
+* [ ] **Step 5a: `migrate currencies` — fix legacy blank currencies once (Edit `cmd/migrate.go`, append to `persistence/holdings.go` and `persistence/transactions.go`)**
+
+WHY: new writes are canonical from Step 1a on, but rows written before keep
+`""`. One idempotent pass sets them to `INR` (the documented default), so no
+reader needs a blank special case. It runs once per environment right after
+PR2 merges and **before PR3 deploys** (Task 27 Step 0).
+
+Store methods:
+
+```go
+// FillBlankCurrency sets currency to INR on every holding whose currency is
+// blank or missing (the documented default). Returns the number changed.
+func (s *HoldingStore) FillBlankCurrency(ctx context.Context) (int64, error) {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ res, err := s.col.UpdateMany(ctx, bson.M{"currency": bson.M{"$in": bson.A{"", nil}}},
+  bson.M{"$set": bson.M{"currency": domain.CurrencyINR}})
+ if err != nil {
+  return 0, err
+ }
+ return res.ModifiedCount, nil
+}
+```
+
+```go
+// FillBlankCurrency sets currency to INR on every ledger event whose currency
+// is blank or missing. Returns the number changed.
+func (s *TransactionStore) FillBlankCurrency(ctx context.Context) (int64, error) {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ res, err := s.col.UpdateMany(ctx, bson.M{"currency": bson.M{"$in": bson.A{"", nil}}},
+  bson.M{"$set": bson.M{"currency": domain.CurrencyINR}})
+ if err != nil {
+  return 0, err
+ }
+ return res.ModifiedCount, nil
+}
+```
+
+Command (append to `cmd/migrate.go`, next to `migrateTransactionsCmd`):
+
+```go
+var migrateCurrenciesCmd = &cobra.Command{
+ Use:   "currencies",
+ Short: "Set blank holding and ledger currencies to INR (PD-048)",
+ Long: `Legacy holdings and ledger events may carry a blank currency, which means
+INR. This sets them to "INR" so every reader can filter on the stored value.
+Idempotent: a second run changes nothing.`,
+ RunE: runMigrateCurrencies,
+}
+
+func runMigrateCurrencies(_ *cobra.Command, _ []string) error {
+ cfg := config.Default()
+ cfg.ApplyEnv()
+ logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+ if err != nil {
+  return err
+ }
+ ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
+ defer cancel()
+ st, _, disconnect, err := cliConnect(ctx, logger, cfg)
+ if err != nil {
+  return err
+ }
+ defer disconnect()
+
+ holdings, err := st.Holdings.FillBlankCurrency(ctx)
+ if err != nil {
+  return fmt.Errorf("filling holding currencies: %w", err)
+ }
+ txns, err := st.Transactions.FillBlankCurrency(ctx)
+ if err != nil {
+  return fmt.Errorf("filling ledger currencies: %w", err)
+ }
+ logger.Info("currencies migrated", zap.Int64("holdings", holdings), zap.Int64("transactions", txns))
+ return nil
+}
+```
+
+In `init()` — current `migrateCmd.AddCommand(migrateTransactionsCmd)`,
+replacement:
+
+```go
+ migrateCmd.AddCommand(migrateTransactionsCmd)
+ migrateCmd.AddCommand(migrateCurrenciesCmd)
+```
+
+Verify against the local database:
+
+```bash
+cd backend && go build ./... && go run . migrate currencies && go run . migrate currencies
+```
+
+Expected: first run logs `currencies migrated` with the counts of legacy rows
+(0 on a fresh database); the second run logs `holdings: 0, transactions: 0`.
+
+Commit:
+
+```bash
+git add backend/cmd/migrate.go backend/internal/persistence/holdings.go backend/internal/persistence/transactions.go
+git commit -m "🔧 Add migrate currencies for legacy blanks"
 ```
 
 * [ ] **Step 6: curl (PR2 "How to test", appended to Task 3's block)**
@@ -697,9 +841,9 @@ WHY: `ListByHolding` and `ListByUser` repeat one Find + cursor body; the
 dividend queries would make it five copies, so it is extracted once (reuse
 rule). The dividend order ends on `_id` because one import batch shares one
 `created_at`; the service assigns ObjectIDs in sheet order, so `_id` keeps
-it. A blank holding currency means INR (`CurrencyOf`) and its ledger events
-carry `currency: ""`, so the INR filter must include `""` or those dividends
-disappear from the INR tab.
+it. The currency filter is the stored value as-is: since Task 3A every ledger
+write stores a canonical currency (`ledgerCurrency`) and `migrate currencies`
+has fixed the legacy blanks, so no `""` special case is needed.
 
 Current:
 
@@ -782,20 +926,11 @@ func (s *TransactionStore) ListByUser(ctx context.Context, userId primitive.Obje
  return s.find(ctx, scopedFilter(userId, nil), replayOrder)
 }
 
-// currencyMatch is the stored-currency filter for a tab. Ledger events copy
-// the holding's currency, and a blank holding currency means INR
-// (CurrencyOf), so the INR tab also matches "".
-func currencyMatch(currency string) any {
- if currency == domain.CurrencyINR {
-  return bson.M{"$in": bson.A{domain.CurrencyINR, ""}}
- }
- return currency
-}
-
 // ListDividends returns userId's dividend events in one currency, in tab order.
+// Stored currencies are canonical (ledgerCurrency), so the filter is exact.
 func (s *TransactionStore) ListDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]domain.Transaction, error) {
  return s.find(ctx, scopedFilter(userId, bson.M{
-  "type": string(domain.TxnDividend), "currency": currencyMatch(currency),
+  "type": string(domain.TxnDividend), "currency": currency,
  }), dividendOrder)
 }
 
@@ -3367,10 +3502,10 @@ func (e *ImportInvalidError) Error() string {
 // toTransaction builds the ledger event for a new imported dividend. The
 // ObjectID is assigned here, in sheet order (DD-005 §2.2).
 func (r importRow) toTransaction(userId primitive.ObjectID, batchId string, now time.Time) domain.Transaction {
- currency, _ := CurrencyOf(*r.holding)
  return domain.Transaction{
   ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
-  Type: domain.TxnDividend, Date: r.day, Amount: r.in.Amount, Currency: currency,
+  // Same helper as hand-entered events, so both store one format (Task 3A).
+  Type: domain.TxnDividend, Date: r.day, Amount: r.in.Amount, Currency: ledgerCurrency(*r.holding),
   Import:    &domain.ImportMeta{BatchId: batchId, Line: r.in.Line, SheetName: r.in.ShareName, SheetCumulative: r.in.Cumulative},
   CreatedAt: now, UpdatedAt: now,
  }
@@ -3693,7 +3828,7 @@ buys, sells and the other tab are untouched.
 func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]primitive.ObjectID, int64, error) {
  ctx, cancel := context.WithTimeout(ctx, writeTimeout)
  defer cancel()
- filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currencyMatch(currency)})
+ filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currency})
  raw, err := s.col.Distinct(ctx, "holding_id", filter)
  if err != nil {
   return nil, 0, err
@@ -4284,7 +4419,6 @@ package services
 
 import (
  "slices"
- "strings"
  "time"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
@@ -4303,15 +4437,6 @@ type DividendHistoryPoint struct {
 type DividendDay struct {
  ByCurrency map[string]DividendHistoryPoint
  BySymbol   map[string]float64
-}
-
-// canonicalCurrency applies CurrencyOf's blank → INR rule to a stored event
-// currency.
-func canonicalCurrency(c string) string {
- if c == "" {
-  return domain.CurrencyINR
- }
- return strings.ToUpper(c)
 }
 
 // DividendOverlay computes dividends to date per currency and per symbol for
@@ -4336,7 +4461,8 @@ func DividendOverlay(txns []domain.Transaction, holdings []domain.Holding, dates
   onDay := map[string]int64{}
   for ; i < len(txns) && !domain.UTCDate(txns[i].Date).After(cutoff); i++ {
    t := txns[i]
-   c, cents := canonicalCurrency(t.Currency), domain.AmountCents(t.Amount)
+   // Stored currencies are canonical (ledgerCurrency, Task 3A).
+   c, cents := t.Currency, domain.AmountCents(t.Amount)
    toDate[c] += cents
    bySymbol[symbolOf[t.HoldingID]] += cents
    if domain.UTCDate(t.Date).Equal(cutoff) {
@@ -4561,9 +4687,7 @@ func TestDividendOverlay(t *testing.T) {
  holdings := []domain.Holding{{ID: tcs, Symbol: "TCS.NS"}, {ID: sap, Symbol: "SAP.DE"}}
  eur := dividendEvent(sap, "2020-02-10", 40)
  eur.Currency = "EUR"
- blank := dividendEvent(tcs, "2020-03-15", 1250.5)
- blank.Currency = "" // legacy blank currency = INR
- txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, blank}
+ txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, dividendEvent(tcs, "2020-03-15", 1250.5)}
 
  got := DividendOverlay(txns, holdings, []string{"2020-03-15", "2019-12-31", "2020-01-31"})
 
@@ -4574,7 +4698,7 @@ func TestDividendOverlay(t *testing.T) {
   t.Errorf("31 Jan INR = %+v, want to_date 600, on_day 0", p)
  }
  if p := got["2020-03-15"].ByCurrency["INR"]; p.ToDate != 1850.5 || p.OnDay != 1250.5 {
-  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5 (blank currency counted as INR)", p)
+  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5", p)
  }
  if p := got["2020-03-15"].ByCurrency["EUR"]; p.ToDate != 40 {
   t.Errorf("15 Mar EUR = %+v, want 40 (never mixed with INR)", p)
@@ -7062,6 +7186,12 @@ gh pr create --title "✨ Show dividends on the dashboard and in History, and ma
 ## Task 27: End-to-end verification (dev stack, `dev` label)
 
 **Files:** none
+
+* [ ] **Step 0: Migrate legacy currencies** — once PR2 has merged, and before
+  PR3 deploys, run `migrate currencies` (Task 3A Step 5a) against the dev and
+  the prod database (`MONGODB_URI` set to each). Expected: the first run logs
+  the legacy counts; a second run logs zero for both. From PR3 on, the
+  dividend queries rely on canonical stored currencies.
 
 * [ ] **Step 1: Deploy** — add the `dev` label to PR12 once PR2–PR11 have
   merged (PD-044 flow). Expected: dev Cloud Run + Pages preview updated; the

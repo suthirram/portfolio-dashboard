@@ -101,15 +101,19 @@ one private `find(ctx, filter, sort)` that every list method calls.
 | `InsertMany(ctx, txns)` | ordered batch insert |
 | `DeleteDividends(ctx, userId, currency) ([]primitive.ObjectID, int64, error)` | delete-all; returns the affected holding ids |
 
-`currencyMatch(currency)` is the currency filter: the INR tab also matches
-`""`, because a blank holding currency means INR (`CurrencyOf`) and ledger
-events copy the holding's currency.
+**One stored currency format.** Every ledger write — hand-entered
+(`TransactionsService.Create`), imported, or synced — stores
+`ledgerCurrency(holding)`: the canonical INR/EUR from `CurrencyOf` (blank →
+INR), never blank. Legacy rows written before that are fixed once by the
+idempotent `migrate currencies` command (blank → INR, holdings and events),
+run after PR2 and before PR3 deploys. So the dividend queries, delete-all and
+the History overlay filter on the stored value with no `""` special case.
 
 Because every tab, delete-all and the History overlay filter on that copy,
 the copy must follow the holding: `TransactionStore.SetCurrencyByHolding`
 rewrites it on every event of a holding, and `HoldingsService.Update` calls it
-whenever an edit sends a currency (canonical value from `CurrencyOf`). The
-call is idempotent, so a failed sync is repaired by saving the same edit again.
+(with `ledgerCurrency`) whenever an edit sends a currency. The call is
+idempotent, so a failed sync is repaired by saving the same edit again.
 
 `HoldingStore` gains `MoveAliases(ctx, userId, holdingId, keys)`: `$pull`
 the keys from the user's other holdings, `$addToSet` on this one, so a
