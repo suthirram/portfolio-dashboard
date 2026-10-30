@@ -1154,6 +1154,14 @@ components:
         names: { type: array, items: { $ref: "#/components/schemas/DividendNameResolution" } }
         rows: { type: array, items: { $ref: "#/components/schemas/DividendImportRowStatus" } }
         warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    DividendImportResult:
+      type: object
+      required: [imported, duplicates, batch_id, warnings]
+      properties:
+        imported: { type: integer }
+        duplicates: { type: array, items: { $ref: "#/components/schemas/DividendImportRow" } }
+        batch_id: { type: string }
+        warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
 
   responses:
     BadRequest:

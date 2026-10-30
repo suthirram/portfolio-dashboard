@@ -100,6 +100,7 @@ var routeTiers = map[string]routeTier{
 	"GET /api/admin/users/:id/transactions":              tierAdmin,
 	"GET /api/admin/users/:id/dividends":                 tierAdmin,
 	"POST /api/admin/users/:id/dividends/import/preview": tierAdmin,
+	"POST /api/admin/users/:id/dividends/import":         tierAdmin,
 }
 
 // tierFor returns the tier required for the route key, defaulting to
