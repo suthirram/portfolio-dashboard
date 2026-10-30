@@ -212,11 +212,13 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
               <>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Opening balance
+                    Opening balance <span style={{ textTransform: 'none', fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                    Your starting position. Record later buys, sells and dividends in the
-                    holding's <strong>Transactions</strong> ledger — the position recomputes automatically.
+                    Only for shares you held before you started tracking.
+                    For a new purchase (incl. an IPO), leave these blank and add a
+                    dated <strong>Buy</strong> in the holding's <strong>Transactions</strong> ledger
+                    so History shows the investment on the right day.
                   </div>
                 </div>
 
