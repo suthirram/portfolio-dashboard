@@ -277,7 +277,9 @@ func TestIntegration_UpdateHolding_CurrencyPersistedAndReturned(t *testing.T) {
 				{Key: "type", Value: "etf"},
 				{Key: "currency", Value: "EUR"},
 			},
-		}))
+		}),
+			// UpdateMany(transactions) — the ledger follows the currency.
+			mtest.CreateSuccessResponse())
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{prices: map[string]float64{}})
 
@@ -323,7 +325,9 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 				{Key: "currency", Value: "INR"},
 				{Key: "notes", Value: "core position"},
 			},
-		}))
+		}),
+			// UpdateMany(transactions) — the ledger follows the currency.
+			mtest.CreateSuccessResponse())
 
 		h := newIntegrationHandler(mt, &mockPriceFetcher{})
 

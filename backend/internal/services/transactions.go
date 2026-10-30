@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -191,7 +192,7 @@ func (s *TransactionsService) Create(ctx context.Context, userId primitive.Objec
 	t.ID = primitive.NewObjectID()
 	t.UserID = userId
 	t.HoldingID = hid
-	t.Currency = holding.Currency
+	t.Currency = ledgerCurrency(holding)
 	now := time.Now()
 	t.CreatedAt = now
 	t.UpdatedAt = now
@@ -396,4 +397,15 @@ func validateTxnInput(input api.TransactionInput, today time.Time) error {
 		return fmt.Errorf("%w: unknown type %q", ErrValidation, input.Type)
 	}
 	return nil
+}
+
+// ledgerCurrency is the currency a ledger event stores for holding h: the
+// canonical INR/EUR from CurrencyOf (blank → INR), or the holding's own code
+// upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
+// so readers filter on the stored value without special cases.
+func ledgerCurrency(h domain.Holding) string {
+	if c, ok := CurrencyOf(h); ok {
+		return c
+	}
+	return strings.ToUpper(h.Currency)
 }

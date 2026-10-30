@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
 )
 
@@ -463,4 +464,13 @@ func TestTransactionsService_DividendSkipsHeal(t *testing.T) {
 			t.Errorf("heal calls = %d, want 1 for a buy", calls)
 		}
 	})
+}
+
+func TestLedgerCurrency(t *testing.T) {
+	cases := map[string]string{"": "INR", "inr": "INR", "EUR": "EUR", "usd": "USD"}
+	for in, want := range cases {
+		if got := ledgerCurrency(domain.Holding{Currency: in}); got != want {
+			t.Errorf("ledgerCurrency(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
