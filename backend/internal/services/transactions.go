@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -165,7 +166,7 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 		}
 		return api.Transaction{}, false, err
 	}
-	if err := validateTxnInput(input); err != nil {
+	if err := validateTxnInput(input, istToday()); err != nil {
 		return api.Transaction{}, true, err
 	}
 
@@ -213,7 +214,7 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 		}
 		return api.Transaction{}, false, err
 	}
-	if err := validateTxnInput(input); err != nil {
+	if err := validateTxnInput(input, istToday()); err != nil {
 		return api.Transaction{}, true, err
 	}
 
@@ -330,8 +331,26 @@ func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectI
 	}
 }
 
+// maxDividendAmount bounds one dividend so a mistyped cell (an account number
+// pasted into the amount) is rejected instead of stored.
+const maxDividendAmount = 1e12
+
+// validateDividend is the dividend rule shared by the ledger form and the CSV
+// import (PRD-005 §4): a positive finite amount below the bound, dated no
+// later than today (IST).
+func validateDividend(date time.Time, amount float64, today time.Time) error {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount <= 0 || amount >= maxDividendAmount {
+		return fmt.Errorf("%w: dividend must be a positive amount", ErrValidation)
+	}
+	if domain.UTCDate(date).After(today) {
+		return fmt.Errorf("%w: dividend date is in the future", ErrValidation)
+	}
+	return nil
+}
+
 // validateTxnInput enforces the shape required by each transaction type.
-func validateTxnInput(input api.TransactionInput) error {
+// today is the IST calendar day (istToday), a parameter so tests pin it.
+func validateTxnInput(input api.TransactionInput, today time.Time) error {
 	typ := domain.TxnType(input.Type)
 	switch typ {
 	case domain.TxnBuy, domain.TxnSell:
@@ -346,9 +365,10 @@ func validateTxnInput(input api.TransactionInput) error {
 			return fmt.Errorf("%w: opening quantity cannot be negative", ErrValidation)
 		}
 	case domain.TxnDividend:
-		if input.Amount == nil || *input.Amount <= 0 {
-			return fmt.Errorf("%w: dividend requires a positive amount", ErrValidation)
+		if input.Amount == nil {
+			return fmt.Errorf("%w: dividend must be a positive amount", ErrValidation)
 		}
+		return validateDividend(input.Date, *input.Amount, today)
 	case domain.TxnSplit, domain.TxnBonus:
 		if input.Ratio == nil || *input.Ratio <= 0 {
 			return fmt.Errorf("%w: %s requires a positive ratio", ErrValidation, typ)

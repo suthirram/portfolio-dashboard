@@ -368,3 +368,40 @@ func TestTransactionsService_ListAll(t *testing.T) {
 		}
 	})
 }
+
+// The ledger and the CSV import share one dividend rule (PRD-005 §4).
+func TestValidateDividend(t *testing.T) {
+	today := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name   string
+		date   time.Time
+		amount float64
+		ok     bool
+	}{
+		{"today, positive", today, 300, true},
+		{"past, positive", today.AddDate(-6, 0, 0), 1250.5, true},
+		{"tomorrow", today.AddDate(0, 0, 1), 300, false},
+		{"zero", today, 0, false},
+		{"negative", today, -5, false},
+		{"absurd", today, 1e12, false},
+	}
+	for _, c := range cases {
+		err := validateDividend(c.date, c.amount, today)
+		if c.ok && err != nil {
+			t.Errorf("%s: err = %v, want nil", c.name, err)
+		}
+		if !c.ok && !errors.Is(err, ErrValidation) {
+			t.Errorf("%s: err = %v, want ErrValidation", c.name, err)
+		}
+	}
+}
+
+// A future-dated dividend through the ledger API is a 400, not a stored row.
+func TestValidateTxnInput_FutureDividendRejected(t *testing.T) {
+	today := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
+	amt := 300.0
+	err := validateTxnInput(api.TransactionInput{Type: "dividend", Date: today.AddDate(0, 0, 2), Amount: &amt}, today)
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("err = %v, want ErrValidation", err)
+	}
+}
