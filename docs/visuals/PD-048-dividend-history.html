@@ -1,0 +1,1204 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dividend History Spec</title>
+
+
+<style>
+  /* ---------------------------------------------------------------------
+     Document chrome tokens. Three-state theming: bare :root is the light
+     palette, redefined for a dark OS (unless the viewer explicitly chose
+     light) and again for an explicit dark choice. Component rules only ever
+     read these tokens, never a literal.
+     --------------------------------------------------------------------- */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-rule-soft: #e8ecf4;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-rule-soft: #1a2032;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-rule-soft: #1a2032;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* --- Document typography ---------------------------------------------
+     Three roles, all system faces (the artifact CSP blocks font CDNs, and a
+     silent fallback would be worse than an honest system stack):
+       prose  — Georgia/serif, deliberately unlike the app's own UI face so
+                spec commentary never reads as part of a mockup
+       label  — Helvetica Neue/Arial, uppercase + tracked, for frame chrome
+       data   — Menlo/ui-monospace, for field names and numbers
+     --------------------------------------------------------------------- */
+  :root {
+    --prose: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --data: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--prose);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* --- Masthead -------------------------------------------------------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .eyebrow a { color: var(--doc-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .eyebrow a:hover, .eyebrow a:focus-visible { border-bottom-color: currentColor; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    color: var(--doc-ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-rule);
+    border: 1px solid var(--doc-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meta-cell { background: var(--doc-panel); padding: 14px 16px; }
+  .meta-cell dt {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    margin: 0 0 5px;
+  }
+  .meta-cell dd { margin: 0; font-size: 14px; font-family: var(--data); color: var(--doc-ink); }
+
+  /* --- Section headings ------------------------------------------------ */
+
+  h2 {
+    margin: 0;
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--doc-ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .prose-stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* --- Theme switcher -------------------------------------------------- */
+
+  .switcher {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    background: var(--doc-bg);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  .switcher-label {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+  }
+
+  .switcher button {
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 2px;
+    border: 1px solid var(--doc-rule);
+    background: var(--doc-panel);
+    color: var(--doc-ink-soft);
+    cursor: pointer;
+  }
+  .switcher button:hover { color: var(--doc-ink); border-color: var(--doc-ink-faint); }
+  .switcher button[aria-pressed="true"] {
+    color: var(--doc-accent);
+    border-color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    font-weight: 700;
+  }
+  .switcher button:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  /* --- Frames ----------------------------------------------------------
+     A frame = one labelled artboard on a canvas, the way the same screen
+     would sit in a design file: chrome strip with frame id + viewport,
+     the rendered mockup, then numbered annotations beneath it.
+     --------------------------------------------------------------------- */
+
+  .frame { display: flex; flex-direction: column; gap: 14px; }
+
+  .frame-chrome {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: var(--label);
+  }
+  .frame-id {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+  .frame-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-ink); }
+  .frame-viewport { font-family: var(--data); font-size: 11px; color: var(--doc-ink-faint); margin-left: auto; }
+
+  .canvas {
+    background: var(--doc-canvas);
+    border: 1px solid var(--doc-rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+
+  .annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 22px;
+  }
+  .annotations li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    line-height: 1.45;
+  }
+  .annotations b {
+    font-family: var(--data);
+    font-size: 11px;
+    color: var(--doc-accent);
+    border: 1px solid var(--doc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .annotations code, p code, li code, td code {
+    font-family: var(--data);
+    font-size: 0.86em;
+    color: var(--doc-ink);
+  }
+
+  .callout {
+    border-left: 3px solid var(--doc-note);
+    background: var(--doc-note-soft);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    max-width: 78ch;
+  }
+  .callout strong { color: var(--doc-ink); }
+
+  /* --- Spec table ------------------------------------------------------ */
+
+  .spec-scroll { overflow-x: auto; border: 1px solid var(--doc-rule); border-radius: 3px; }
+  table.spec { border-collapse: collapse; width: 100%; min-width: 620px; font-family: var(--label); font-size: 13px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--doc-rule-soft); vertical-align: top; }
+  table.spec thead th {
+    background: var(--doc-panel);
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+  table.spec td { color: var(--doc-ink-soft); }
+  table.spec td:first-child { font-family: var(--data); color: var(--doc-ink); white-space: nowrap; }
+  table.spec tbody tr:last-child td { border-bottom: none; }
+
+  /* =====================================================================
+     APP MOCKUP. Palettes copied verbatim from
+     frontend/src/styles/tokens.css so the frames are token-accurate, and
+     scoped to .app[data-app-theme] rather than :root so the in-page theme
+     switcher can't collide with the viewer's own document theme.
+     ===================================================================== */
+
+  .app {
+    --bg-primary: #0a0c16;
+    --bg-secondary: #121524;
+    --bg-card: #171b2e;
+    --bg-card-hover: #1d2238;
+    --bg-input: #0d101f;
+    --border: #232842;
+    --border-light: #2e3453;
+    --text-primary: #eef1f8;
+    --text-secondary: #939dbb;
+    --text-muted: #545d85;
+    --green: #00d69f;
+    --green-dim: rgba(0, 214, 159, 0.12);
+    --red: #ff5c7a;
+    --red-dim: rgba(255, 92, 122, 0.12);
+    --blue: #5b93ff;
+    --blue-dim: rgba(91, 147, 255, 0.12);
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+    --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+    --bg-glass: rgba(14, 17, 31, 0.92);
+
+    font-family: Roboto, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 980px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f3fa;
+    --bg-input: #ffffff;
+    --border: #dfe4ef;
+    --border-light: #cbd3e4;
+    --text-primary: #0f1526;
+    --text-secondary: #4b5670;
+    --text-muted: #7a849e;
+    --green: #0b9e6c;
+    --green-dim: rgba(11, 158, 108, 0.10);
+    --red: #dc2649;
+    --red-dim: rgba(220, 38, 73, 0.10);
+    --blue: #2f6bdb;
+    --blue-dim: rgba(47, 107, 219, 0.10);
+    --yellow: #d97706;
+    --purple: #7c3aed;
+    --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+    --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+    --bg-glass: rgba(255, 255, 255, 0.95);
+  }
+
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f;
+    --bg-secondary: #0d0519;
+    --bg-card: #120826;
+    --bg-card-hover: #1a0c33;
+    --bg-input: #0a0416;
+    --border: #2e1354;
+    --border-light: #45207a;
+    --text-primary: #f2e9ff;
+    --text-secondary: #a78fd6;
+    --text-muted: #64509a;
+    --green: #00ffa3;
+    --green-dim: rgba(0, 255, 163, 0.12);
+    --red: #ff2e6c;
+    --red-dim: rgba(255, 46, 108, 0.14);
+    --blue: #00e5ff;
+    --blue-dim: rgba(0, 229, 255, 0.12);
+    --yellow: #ffe600;
+    --purple: #c26bff;
+    --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+    --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+    --bg-glass: rgba(10, 4, 22, 0.92);
+  }
+
+  /* Nav — mirrors .page-nav + .nav-glass + .dash-nav-btn */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-tile {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient-brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .nav-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-brand);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+    white-space: nowrap;
+  }
+  .btn-current { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .pill {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* The marker ring that points at what this frame introduces. */
+  .marked { position: relative; }
+  .marked::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed var(--blue);
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .pin {
+    position: absolute;
+    top: -10px; right: -12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #04070f;
+    font-family: var(--data);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+
+  .app-main { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+
+  .page-title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .page-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-sub { font-size: 11px; color: var(--text-muted); }
+
+  /* Filter bar */
+  .filters {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .control {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    min-width: 128px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .control.wide { min-width: 210px; }
+  .control .caret, .control .ghost { color: var(--text-muted); font-size: 11px; }
+  .chipset { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+  }
+  .chip-on { border-color: var(--blue); background: var(--blue-dim); color: var(--blue); font-weight: 600; }
+  .filter-count { margin-left: auto; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+  .filter-count strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* Per-currency subtotal strip */
+  .subtotals { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+  .sub-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 11px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .sub-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .sub-sym { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .sub-row { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+  .sub-row span:last-child { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+  /* Ledger table */
+  .table-shell { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-secondary); }
+  .table-scroll { overflow-x: auto; }
+  table.ledger { border-collapse: collapse; width: 100%; min-width: 1120px; font-size: 12.5px; }
+  table.ledger th {
+    background: var(--bg-secondary);
+    padding: 9px 11px;
+    text-align: right;
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  table.ledger th.l, table.ledger td.l { text-align: left; }
+  table.ledger th.c, table.ledger td.c { text-align: center; }
+  table.ledger th.sorted { color: var(--blue); }
+  table.ledger td {
+    padding: 9px 11px;
+    text-align: right;
+    border-top: 1px solid var(--border);
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  table.ledger tbody tr:nth-child(odd) td { background: var(--bg-primary); }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--text-muted); }
+  .script { font-weight: 600; }
+  .symbol { font-size: 10px; color: var(--text-muted); }
+  .note { font-size: 10px; color: var(--text-muted); max-width: 190px; white-space: normal; }
+
+  .type-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .t-buy { background: var(--blue-dim); color: var(--blue); }
+  .t-sell { background: var(--red-dim); color: var(--red); }
+  .t-div { background: var(--green-dim); color: var(--green); }
+  .t-open { background: rgba(167, 139, 250, 0.14); color: var(--purple); }
+  .t-split { background: rgba(251, 191, 36, 0.14); color: var(--yellow); }
+
+  .row-actions { display: inline-flex; gap: 5px; }
+  .icon-btn {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    display: grid; place-items: center;
+    font-size: 11px;
+  }
+  .icon-btn.accent { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); }
+
+  .empty { padding: 44px 20px; text-align: center; color: var(--text-muted); display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .empty-title { font-size: 14px; color: var(--text-secondary); font-weight: 600; }
+
+  /* Modal frame (the reused per-holding ledger editor) */
+  .modal-stage { background: var(--bg-primary); padding: 22px; display: grid; place-items: center; }
+  .modal-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-hint { font-size: 11px; color: var(--text-muted); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .form-box { border: 1px solid var(--border); border-radius: var(--radius); padding: 13px; background: var(--bg-secondary); display: flex; flex-direction: column; gap: 10px; }
+  .form-foot { display: flex; justify-content: flex-end; gap: 8px; }
+  .derived { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+  .derived strong { color: var(--text-primary); }
+
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue);
+    color: var(--text-primary);
+  }
+
+  .frame-pair { display: grid; grid-template-columns: 1fr; gap: 18px; }
+
+  footer.doc-foot {
+    border-top: 1px solid var(--doc-rule);
+    padding-top: 20px;
+    font-family: var(--label);
+    font-size: 12px;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  footer.doc-foot a { color: var(--doc-accent); text-decoration: none; }
+  footer.doc-foot a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  /* --- PD-048 additions (tokens only, no new values) ------------------ */
+  .tabs { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-secondary); }
+  .tab { padding: 6px 16px; border-radius: 6px; font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+  .tab-on { background: var(--blue-dim); color: var(--blue); font-weight: 700; box-shadow: inset 0 0 0 1px var(--blue); }
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .toolbar .grow { flex: 1; }
+  .banner-warn { background: rgba(251, 191, 36, 0.12); border-color: var(--yellow); }
+  .banner-warn strong { color: var(--yellow); }
+  .banner-err { background: var(--red-dim); border-color: var(--red); }
+  .banner-err strong { color: var(--red); }
+  .banner-ok { background: var(--green-dim); border-color: var(--green); }
+  .banner-ok strong { color: var(--green); }
+  .dropzone { border: 1.5px dashed var(--border-light); border-radius: var(--radius); padding: 26px; text-align: center; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px; align-items: center; background: var(--bg-secondary); }
+  .dropzone .big { font-size: 22px; color: var(--blue); }
+  .codeline { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--text-primary); }
+  table.mini { border-collapse: collapse; width: 100%; font-size: 12px; }
+  table.mini th { text-align: left; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.mini td { padding: 6px 8px; border-top: 1px solid var(--border); color: var(--text-primary); }
+  table.mini td.num, table.mini th.num { text-align: right; }
+  .same-day td { background: var(--blue-dim) !important; }
+  .cum { color: var(--green); font-weight: 600; }
+  .ro { opacity: .75; }
+  .btn-danger { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; font-size: 13px; border-radius: var(--radius-sm); background: var(--red-dim); color: var(--red); border: 1px solid var(--red); font-weight: 600; }
+  .modal-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .modal-pair { grid-template-columns: 1fr; } }
+</style>
+
+<style>
+  .bars { display: flex; align-items: flex-end; gap: 10px; height: 130px; padding: 8px 4px 0; border-bottom: 1px solid var(--border); }
+  .bar { flex: 1; background: var(--blue); border-radius: 4px 4px 0 0; position: relative; min-width: 14px; opacity: .85; }
+  .bar span { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
+  .bar-labels { display: flex; gap: 10px; padding: 4px 4px 0; }
+  .bar-labels span { flex: 1; text-align: center; font-size: 10px; color: var(--text-muted); min-width: 14px; }
+  .hbar { height: 8px; border-radius: 4px; background: var(--green); }
+  .an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .panel-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg span { padding: 3px 9px; font-size: 11px; color: var(--text-secondary); }
+  .seg .on { background: var(--blue-dim); color: var(--blue); font-weight: 600; }
+  .radio { display: flex; gap: 8px; align-items: center; font-size: 12px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; }
+  .radio.on { border-color: var(--blue); background: var(--blue-dim); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--text-muted); flex-shrink: 0; }
+  .radio.on .dot { border-color: var(--blue); background: radial-gradient(var(--blue) 45%, transparent 50%); }
+  .score { margin-left: auto; font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .name-block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; flex-direction: column; gap: 6px; background: var(--bg-secondary); }
+  .name-head { display: flex; gap: 8px; align-items: baseline; }
+  .name-head code { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--yellow); }
+  .st { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+  .st-ready { background: var(--green-dim); color: var(--green); }
+  .st-dup { background: rgba(251,191,36,.14); color: var(--yellow); }
+  .st-bad { background: var(--red-dim); color: var(--red); }
+  .st-auto { background: var(--blue-dim); color: var(--blue); }
+  .btn-disabled { opacity: .45; }
+  .count-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 760px) { .an-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Visual spec</span><span>PD-048 v2</span><span>PRD-005 · DD-005</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-10-30 applied</span>
+    </div>
+    <h1>Dividend history</h1>
+    <p class="standfirst">
+      Dividends are ledger events of a holding. Upload the dividend sheet on a
+      currency tab, confirm any inconsistent share names, review the preview,
+      and commit atomically. The same records then drive the Dividends page,
+      the dashboard, History and every ledger view, so nothing is counted twice.
+    </p>
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt>Route</dt><dd>/dividends?currency=INR</dd></div>
+      <div class="meta-cell"><dt>Act-as route</dt><dd>/admin/users/:id/dividends</dd></div>
+      <div class="meta-cell"><dt>Storage</dt><dd>transactions · type=dividend</dd></div>
+      <div class="meta-cell"><dt>Import</dt><dd>preview → confirm · atomic</dd></div>
+      <div class="meta-cell"><dt>Duplicates</dt><dd>holding+day+amount · by occurrence</dd></div>
+      <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
+    </dl>
+  </header>
+
+  <div class="switcher">
+    <span class="switcher-label">Render frames in</span>
+    <button type="button" data-theme-btn="dark" aria-pressed="true">Dark (default)</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="cyberpunk" aria-pressed="false">Cyberpunk (premium)</button>
+  </div>
+
+  <section class="section">
+    <h2>About these frames</h2>
+    <p class="callout">
+      No Figma account is wired into this project, so this page plays that
+      role (<code>docs/visuals/README.md</code>). <strong>Every colour, radius and type size is read from
+      <code>frontend/src/styles/tokens.css</code>.</strong> Example data only; not production markup.
+    </p>
+  </section>
+
+  <!-- 01 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">Dashboard — entry point and dividend figures</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-nav">
+          <div class="brand-tile">◫</div><span class="brand-name">Portfolio Dashboard</span><span class="nav-divider"></span>
+          <span class="btn">◴ History</span><span class="btn">☰ Transactions</span>
+          <span class="marked" style="display:inline-flex"><span class="pin">1</span><span class="btn">❖ Dividends</span></span>
+          <span class="btn">◎ Gold</span><span class="nav-spacer"></span><span class="btn">⟳ Refresh</span><span class="btn-primary">+ Add Holding</span>
+        </div>
+        <div class="app-main">
+          <div class="subtotals">
+            <div class="sub-card"><div class="sub-head"><span>Invested · INR</span></div><span class="sub-sym">₹24,10,500.00</span></div>
+            <div class="sub-card"><div class="sub-head"><span>Unrealised P&amp;L · INR</span></div><span class="sub-sym" style="color:var(--green)">+₹3,92,180.00</span></div>
+            <div class="marked sub-card"><span class="pin">2</span><div class="sub-head"><span>Dividend income · INR</span></div><span class="sub-sym" style="color:var(--green)">₹1,84,212.50</span></div>
+          </div>
+          <div class="table-shell"><div class="table-scroll">
+            <table class="ledger" style="min-width:820px">
+              <thead><tr><th class="l">Holding</th><th>Shares</th><th>Avg cost</th><th>Current</th><th>Unrealised P&amp;L</th><th class="sorted">Dividends</th></tr></thead>
+              <tbody>
+                <tr><td class="l"><span class="script">TCS</span> <span class="symbol">TCS.NS</span></td><td class="num">40</td><td class="num">₹3,210.00</td><td class="num">₹4,102.30</td><td class="num" style="color:var(--green)">+₹35,692.00</td><td class="num cum">₹48,600.00</td></tr>
+                <tr><td class="l"><span class="script">Jio Platforms Ltd</span> <span class="symbol">JIOPLA.NS</span></td><td class="num">120</td><td class="num">₹410.00</td><td class="num">₹455.80</td><td class="num" style="color:var(--green)">+₹5,496.00</td><td class="num cum">₹9,880.50</td></tr>
+                <tr><td class="l"><span class="script">ITC</span> <span class="symbol">ITC.NS</span></td><td class="num">0</td><td class="num muted">—</td><td class="num">₹468.10</td><td class="num muted">—</td><td class="num cum">₹12,420.00</td></tr>
+              </tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>New nav pill after Transactions. Target-aware in act-as: <code>/admin/users/:id/dividends</code>.</span></li>
+      <li><b>2</b><span>Per-currency <strong>Dividend income</strong> card and a <strong>Dividends</strong> column, both from the holding's ledger-derived <code>total_dividends</code>. Shown beside P&amp;L and never added into it.</span></li>
+      <li><b>3</b><span>ITC is sold to zero shares and still holds its dividends; zero-share holdings are valid dividend targets.</span></li>
+    </ol>
+  </section>
+
+  <!-- 02 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">/dividends — INR tab, chronological, two running totals</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-nav">
+          <div class="brand-tile">◫</div><span class="brand-name">Portfolio Dashboard</span><span class="nav-divider"></span>
+          <span class="btn">◴ History</span><span class="btn">☰ Transactions</span><span class="btn btn-current">❖ Dividends</span><span class="btn">◎ Gold</span><span class="nav-spacer"></span><span class="btn">◔ Suthir</span>
+        </div>
+        <div class="app-main">
+          <div class="page-title-row"><span class="page-title">Dividends</span><span class="page-sub">Dividend events across your holdings · oldest first</span></div>
+          <div class="toolbar">
+            <span class="marked" style="display:inline-flex"><span class="pin">1</span><span class="tabs"><span class="tab tab-on">₹ INR</span><span class="tab">€ EUR</span></span></span>
+            <span class="grow"></span>
+            <span class="control"><span class="ghost">All holdings</span><span class="caret">▾</span></span>
+            <span class="control wide"><span class="ghost">⌕ Search…</span></span>
+            <span class="btn">⇪ Upload CSV</span><span class="btn-primary">+ Add dividend</span>
+            <span class="marked" style="display:inline-flex"><span class="pin">2</span><span class="btn-danger">Delete all INR</span></span>
+          </div>
+          <div class="subtotals">
+            <div class="sub-card"><div class="sub-head"><span>Total dividends · INR</span></div><span class="sub-sym">₹1,84,212.50</span></div>
+            <div class="sub-card"><div class="sub-head"><span>Dividends</span></div><span class="sub-sym">342</span></div>
+            <div class="sub-card"><div class="sub-head"><span>Holdings paying</span></div><span class="sub-sym">14</span></div>
+            <div class="sub-card"><div class="sub-head"><span>Range</span></div><span class="sub-sym" style="font-size:13px">01-01-2020 → 18-10-2026</span></div>
+          </div>
+          <div class="table-shell"><div class="table-scroll">
+            <table class="ledger" style="min-width:900px">
+              <thead><tr><th class="l" style="width:44px">#</th><th class="l sorted">Date ▲</th><th class="l">Holding</th><th>Dividend</th><th>Cumulative</th><th>Holding cumulative</th><th class="c" style="width:80px">Actions</th></tr></thead>
+              <tbody>
+                <tr class="same-day"><td class="l muted num">1</td><td class="l num">01-01-2020</td><td class="l"><span class="script">TCS</span> <span class="symbol">TCS.NS</span></td><td class="num">₹300.00</td><td class="num cum">₹300.00</td><td class="num">₹300.00</td><td class="c"><span class="row-actions"><span class="icon-btn">✎</span><span class="icon-btn">🗑</span></span></td></tr>
+                <tr class="same-day"><td class="l muted num">2</td><td class="l num">01-01-2020</td><td class="l"><span class="script">TCS</span> <span class="symbol">TCS.NS</span></td><td class="num">₹300.00</td><td class="num cum">₹600.00</td><td class="num">₹600.00</td><td class="c"><span class="row-actions"><span class="icon-btn">✎</span><span class="icon-btn">🗑</span></span></td></tr>
+                <tr><td class="l muted num">3</td><td class="l num">15-03-2020</td><td class="l"><span class="script">Jio Platforms Ltd</span> <span class="symbol">JIOPLA.NS</span></td><td class="num">₹1,250.50</td><td class="num cum">₹1,850.50</td><td class="num">₹1,250.50</td><td class="c"><span class="row-actions"><span class="icon-btn">✎</span><span class="icon-btn">🗑</span></span></td></tr>
+                <tr><td class="l muted num">4</td><td class="l num">28-07-2020</td><td class="l"><span class="script">ITC</span> <span class="symbol">ITC.NS</span></td><td class="num">₹1,010.00</td><td class="num cum">₹2,860.50</td><td class="num">₹1,010.00</td><td class="c"><span class="row-actions"><span class="icon-btn">✎</span><span class="icon-btn">🗑</span></span></td></tr>
+                <tr><td class="l muted num">5</td><td class="l num">20-08-2020</td><td class="l"><span class="script">TCS</span> <span class="symbol">TCS.NS</span></td><td class="num">₹1,200.00</td><td class="num cum">₹4,060.50</td><td class="num">₹1,800.00</td><td class="c"><span class="row-actions"><span class="icon-btn">✎</span><span class="icon-btn">🗑</span></span></td></tr>
+                <tr><td class="l muted" colspan="7" style="text-align:center">⋮ 337 more ⋮</td></tr>
+              </tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Tabs from <code>SUPPORTED_CURRENCIES</code>, held in the URL. Only that currency's holdings and dividends appear.</span></li>
+      <li><b>2</b><span>Delete all for <strong>this tab only</strong>; opens frame 10.</span></li>
+      <li><b>3</b><span><strong>Cumulative</strong> = running total across all holdings in the tab (what the sheet's CUMULATIVE meant). <strong>Holding cumulative</strong> = running total for that holding. Both computed server-side in cents and kept when filtering.</span></li>
+      <li><b>4</b><span>Rows 1–2 (highlighted for the spec) are two genuine payouts with the same holding, date and amount; both stay.</span></li>
+    </ol>
+  </section>
+
+  <!-- 03 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">03</span><span class="frame-name">Analytics — yearly, monthly trend, per holding</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="an-grid">
+            <div class="panel">
+              <div class="panel-title"><span>Dividend income over time · INR</span><span class="seg"><span>Monthly</span><span class="on">Yearly</span></span></div>
+              <div class="bars">
+                <div class="bar" style="height:22%"><span>₹14.2k</span></div>
+                <div class="bar" style="height:34%"><span>₹21.9k</span></div>
+                <div class="bar" style="height:45%"><span>₹28.7k</span></div>
+                <div class="bar" style="height:58%"><span>₹36.9k</span></div>
+                <div class="bar" style="height:66%"><span>₹42.1k</span></div>
+                <div class="bar" style="height:63%"><span>₹40.4k</span></div>
+                <div class="bar" style="height:0%; background: transparent"></div>
+              </div>
+              <div class="bar-labels"><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span></span></div>
+              <table class="mini count-table">
+                <thead><tr><th>Year</th><th class="num">Dividends</th><th class="num">Total</th></tr></thead>
+                <tbody>
+                  <tr><td>2026</td><td class="num">41</td><td>₹40,412.00</td></tr>
+                  <tr><td>2025</td><td class="num">58</td><td>₹42,108.50</td></tr>
+                  <tr><td>2024</td><td class="num">54</td><td>₹36,940.00</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="panel">
+              <div class="panel-title"><span>By holding · INR</span><span class="muted">biggest first</span></div>
+              <table class="mini count-table">
+                <thead><tr><th>Holding</th><th>Share</th><th class="num">Total</th></tr></thead>
+                <tbody>
+                  <tr><td>TCS</td><td><div class="hbar" style="width:100%"></div><span class="muted" style="font-size:10px">26.4%</span></td><td>₹48,600.00</td></tr>
+                  <tr><td>ITC</td><td><div class="hbar" style="width:26%"></div><span class="muted" style="font-size:10px">6.7%</span></td><td>₹12,420.00</td></tr>
+                  <tr><td>HDFC Bank</td><td><div class="hbar" style="width:23%"></div><span class="muted" style="font-size:10px">6.1%</span></td><td>₹11,210.00</td></tr>
+                  <tr><td>Jio Platforms Ltd</td><td><div class="hbar" style="width:20%"></div><span class="muted" style="font-size:10px">5.4%</span></td><td>₹9,880.50</td></tr>
+                  <tr><td class="muted" colspan="3">⋮ 10 more</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Yearly / monthly toggle on one chart (Recharts in the build; bars here are illustrative). Respects the active tab.</span></li>
+      <li><b>2</b><span>Per-holding totals ranked, with share of the tab total. Each equals that holding's dashboard Dividends value, because both come from the same events.</span></li>
+      <li><b>3</b><span>Everything comes from <code>GET /dividends</code> and refreshes after any add, edit, import or delete.</span></li>
+    </ol>
+  </section>
+
+  <!-- 04 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">04</span><span class="frame-name">Add / edit dividend · delete confirmation</span><span class="frame-viewport">modal 440 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:900px">
+        <div class="modal-stage"><div class="modal-pair" style="width:100%">
+          <div class="modal-card">
+            <div class="modal-head"><span class="modal-title">Edit dividend</span><span class="icon-btn">✕</span></div>
+            <div class="form-box">
+              <div class="field"><span class="field-label">Holding (INR)</span><span class="control">Jio Platforms Ltd · JIOPLA.NS <span class="caret">▾</span></span></div>
+              <div class="field"><span class="field-label">Date</span><span class="control">15-03-2020 <span class="caret">▾</span></span></div>
+              <div class="field"><span class="field-label">Dividend (total received)</span><span class="control">1,250.50</span></div>
+            </div>
+            <div class="form-foot"><span class="btn">Cancel</span><span class="btn-primary">Save</span></div>
+          </div>
+          <div class="modal-card">
+            <div class="modal-head"><span class="modal-title">Delete dividend?</span><span class="icon-btn">✕</span></div>
+            <table class="mini"><tbody>
+              <tr><td class="muted">Date</td><td>15-03-2020</td></tr>
+              <tr><td class="muted">Holding</td><td>Jio Platforms Ltd</td></tr>
+              <tr><td class="muted">Dividend</td><td>₹1,250.50</td></tr>
+            </tbody></table>
+            <span class="modal-hint">The holding's dividend total and every later running total drop by ₹1,250.50.</span>
+            <div class="form-foot"><span class="btn">Cancel</span><span class="btn-danger">Delete</span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Holding dropdown lists only the tab's currency. Saves through the existing ledger endpoints as a <code>dividend</code> event, the same write path as the per-holding ledger editor.</span></li>
+      <li><b>2</b><span>Identical rows are allowed here; duplicate detection is for CSV imports only.</span></li>
+    </ol>
+  </section>
+
+  <!-- 05 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">05</span><span class="frame-name">Import step 1 — choose file</span><span class="frame-viewport">modal 620 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:680px">
+        <div class="modal-stage"><div class="modal-card" style="max-width:620px">
+          <div class="modal-head"><span class="modal-title">Import dividends</span><span class="modal-hint">Step 1 of 3</span><span class="icon-btn">✕</span></div>
+          <div class="banner">Importing into <strong>&nbsp;₹ INR</strong>&nbsp;· dates read as <strong>&nbsp;DD/MM/YYYY</strong>&nbsp;(1/2/2020 = 1 Feb 2020)</div>
+          <div class="dropzone"><span class="big">⇪</span><span><strong style="color:var(--text-primary)">Choose a .csv file</strong> or drop it here</span><span class="modal-hint">Max 5,000 rows · 1 MB · nothing is saved until you confirm</span></div>
+          <span class="modal-hint">Expected header (any order, any case; CUMULATIVE optional):</span>
+          <span class="codeline">Date,Share Name,Dividend,CUMULATIVE</span>
+          <div class="form-foot"><span class="btn">Cancel</span></div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The target currency is on every step of the dialog, so an import into the wrong tab is hard to miss.</span></li>
+    </ol>
+  </section>
+
+  <!-- 06 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">06</span><span class="frame-name">Import step 2 — confirm share names (popup)</span><span class="frame-viewport">modal 620 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:680px">
+        <div class="modal-stage"><div class="modal-card" style="max-width:620px">
+          <div class="modal-head"><span class="modal-title">Confirm share names</span><span class="modal-hint">Step 2 of 3 · ₹ INR</span><span class="icon-btn">✕</span></div>
+          <span class="modal-hint">These names in your sheet don't exactly match a holding. Choose the holding each one means. Your answers are remembered for next time.</span>
+          <div class="name-block">
+            <div class="name-head"><code>JLP</code><span class="modal-hint">· 6 rows</span></div>
+            <div class="radio on"><span class="dot"></span>Jio Platforms Ltd · JIOPLA.NS<span class="score">suggested</span></div>
+            <div class="radio"><span class="dot"></span>Jindal Steel · JINDALSTEL.NS</div>
+            <div class="radio"><span class="dot"></span>Other holding… <span class="caret">▾</span></div>
+            <div class="radio"><span class="dot"></span>Leave unresolved <span class="score">its rows become invalid</span></div>
+          </div>
+          <div class="name-block">
+            <div class="name-head"><code>Jio Platforms Limited</code><span class="modal-hint">· 3 rows</span></div>
+            <div class="radio on"><span class="dot"></span>Jio Platforms Ltd · JIOPLA.NS<span class="score">suggested</span></div>
+            <div class="radio"><span class="dot"></span>Other holding… <span class="caret">▾</span></div>
+            <div class="radio"><span class="dot"></span>Leave unresolved</div>
+          </div>
+          <div class="name-block">
+            <div class="name-head"><code>Reliance</code><span class="modal-hint">· 4 rows · matches 2 holdings</span></div>
+            <div class="radio"><span class="dot"></span>Reliance Industries · RELIANCE.NS</div>
+            <div class="radio"><span class="dot"></span>Reliance Power · RPOWER.NS</div>
+            <div class="radio"><span class="dot"></span>Leave unresolved</div>
+          </div>
+          <div class="form-foot"><span class="btn">Back</span><span class="btn-primary btn-disabled">Continue to preview</span></div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Any name that is not an exact match on script, symbol or a saved alias appears here: <code>jio</code>, <code>JLP</code>, <code>Jio Platforms Limited</code>, <code>JIOPLA</code>. A fuzzy match is never applied without the user's choice.</span></li>
+      <li><b>2</b><span>Suggestions are ranked. One is pre-selected only when it is a clear best. <em>Other holding…</em> lists every holding in this currency.</span></li>
+      <li><b>3</b><span>An ambiguous name (two equal matches) has no pre-selection. <em>Continue</em> is enabled once every name has an answer; "Leave unresolved" counts as an answer.</span></li>
+      <li><b>4</b><span>Confirmed answers are saved as aliases of the holding when the import commits, so the next upload maps them with no popup.</span></li>
+    </ol>
+  </section>
+
+  <!-- 07 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">07</span><span class="frame-name">Import step 3 — preview (invalid rows block confirm)</span><span class="frame-viewport">modal 720 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:780px">
+        <div class="modal-stage"><div class="modal-card" style="max-width:720px">
+          <div class="modal-head"><span class="modal-title">Preview import</span><span class="modal-hint">Step 3 of 3 · ₹ INR · dividends_2026.csv</span><span class="icon-btn">✕</span></div>
+          <table class="mini count-table" style="max-width:320px">
+            <thead><tr><th>Status</th><th class="num">Count</th></tr></thead>
+            <tbody>
+              <tr><td><span class="st st-ready">Ready to import</span></td><td>90</td></tr>
+              <tr><td><span class="st st-dup">Already exists</span></td><td>7</td></tr>
+              <tr><td><span class="st st-bad">Invalid</span></td><td>3</td></tr>
+              <tr><td><strong>Total</strong></td><td><strong>100</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="banner banner-err"><strong>3 rows need fixing</strong>&nbsp;before you can import. Nothing has been saved.</div>
+          <div class="banner banner-warn">⚠&nbsp;<strong>1 warning</strong>&nbsp;— line 41: cumulative ₹19,900.00, expected ₹19,850.50. Import is still allowed.</div>
+          <table class="mini">
+            <thead><tr><th>Line</th><th>Date</th><th>Sheet name → holding</th><th class="num">Dividend</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="num">2</td><td>01-01-2020</td><td>TCS → TCS <span class="st st-auto">auto</span></td><td class="num">₹300.00</td><td><span class="st st-dup">already exists</span></td></tr>
+              <tr><td class="num">3</td><td>01-01-2020</td><td>TCS → TCS <span class="st st-auto">auto</span></td><td class="num">₹300.00</td><td><span class="st st-ready">ready</span></td></tr>
+              <tr><td class="num">17</td><td>31/02/2021</td><td>ITC → ITC</td><td class="num">₹410.00</td><td><span class="st st-bad">invalid</span> <span class="muted">not a real date</span></td></tr>
+              <tr><td class="num">88</td><td>02-06-2022</td><td>HDFC Bank → HDFC Bank</td><td class="num">abc</td><td><span class="st st-bad">invalid</span> <span class="muted">not a positive number</span></td></tr>
+              <tr><td class="num">90</td><td>11-07-2022</td><td>Reliance → <em>unresolved</em></td><td class="num">₹920.00</td><td><span class="st st-bad">invalid</span> <span class="muted">no holding chosen</span></td></tr>
+            </tbody>
+          </table>
+          <div class="form-foot"><span class="btn">Change names</span><span class="btn">Choose another file</span><span class="btn-primary btn-disabled">Confirm import</span></div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Parsing, validation, name resolution and duplicate detection all run with <strong>no writes</strong>.</span></li>
+      <li><b>2</b><span><strong>Confirm import</strong> is enabled only when Invalid = 0. Duplicates never block.</span></li>
+      <li><b>3</b><span>Lines 2–3: the database holds one TCS 300 on 01-01-2020 and the sheet has two, so <strong>one</strong> is a duplicate and one is ready (occurrence matching, scenario A).</span></li>
+      <li><b>4</b><span>Cumulative mismatches are warnings only. They never change a row's status or the duplicate count.</span></li>
+      <li><b>5</b><span>Line numbers are file lines (header = 1), matching spreadsheet row numbers.</span></li>
+    </ol>
+  </section>
+
+  <!-- 08 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">08</span><span class="frame-name">Preview ready → result</span><span class="frame-viewport">modals 620 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:900px">
+        <div class="modal-stage"><div class="modal-pair" style="width:100%">
+          <div class="modal-card">
+            <div class="modal-head"><span class="modal-title">Preview import</span><span class="modal-hint">₹ INR</span></div>
+            <table class="mini count-table">
+              <tbody>
+                <tr><td><span class="st st-ready">Ready to import</span></td><td>93</td></tr>
+                <tr><td><span class="st st-dup">Already exists</span></td><td>7</td></tr>
+                <tr><td><span class="st st-bad">Invalid</span></td><td>0</td></tr>
+                <tr><td><strong>Total</strong></td><td><strong>100</strong></td></tr>
+              </tbody>
+            </table>
+            <span class="modal-hint">Duplicates will be skipped. All 93 rows are saved together, or none are.</span>
+            <div class="form-foot"><span class="btn">Back</span><span class="btn-primary">Confirm import</span></div>
+          </div>
+          <div class="modal-card">
+            <div class="modal-head"><span class="modal-title">Import complete</span><span class="icon-btn">✕</span></div>
+            <div class="banner banner-ok"><strong>93 imported</strong>&nbsp;into ₹ INR.</div>
+            <div class="banner banner-warn">⚠&nbsp;<strong>7 duplicates are discarded</strong>&nbsp;— already saved.</div>
+            <table class="mini">
+              <thead><tr><th>Line</th><th>Date</th><th>Holding</th><th class="num">Dividend</th></tr></thead>
+              <tbody>
+                <tr><td class="num">2</td><td>01-01-2020</td><td>TCS</td><td class="num">₹300.00</td></tr>
+                <tr><td class="num">4</td><td>15-03-2020</td><td>Jio Platforms Ltd</td><td class="num">₹1,250.50</td></tr>
+                <tr><td class="muted" colspan="4" style="text-align:center">⋮ 5 more ⋮</td></tr>
+              </tbody>
+            </table>
+            <div class="form-foot"><span class="btn-primary">Done</span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>On confirm, the server re-checks against the database as it is now. Counts in the result can differ from the preview if data changed in between.</span></li>
+      <li><b>2</b><span>The import is atomic: new dividends, confirmed aliases and the recomputed holding totals commit together in one Mongo transaction.</span></li>
+      <li><b>3</b><span>Uploading the same file again shows 0 ready, all "already exists", and imports 0.</span></li>
+    </ol>
+  </section>
+
+  <!-- 09 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">09</span><span class="frame-name">Delete all dividends (INR)</span><span class="frame-viewport">modal 480 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark" style="min-width:560px">
+        <div class="modal-stage"><div class="modal-card" style="max-width:480px">
+          <div class="modal-head"><span class="modal-title">Delete all INR dividends?</span><span class="icon-btn">✕</span></div>
+          <div class="banner banner-err"><strong>342 dividends</strong>&nbsp;will be deleted, including ones entered in a holding's ledger.</div>
+          <span class="modal-hint">Holdings, buys, sells and EUR dividends are not affected. Dividend totals on the dashboard and in History update straight away.</span>
+          <div class="field"><span class="field-label">Type DELETE to confirm</span><span class="control">DELE<span class="ghost">|</span></span></div>
+          <div class="form-foot"><span class="btn">Cancel</span><span class="btn-danger btn-disabled">Delete 342 dividends</span></div>
+        </div></div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The count comes from the tab summary. The button stays disabled until the input is exactly <code>DELETE</code>.</span></li>
+      <li><b>2</b><span>Atomic: the deletion and the holding total recompute run in one transaction.</span></li>
+    </ol>
+  </section>
+
+  <!-- 10 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">10</span><span class="frame-name">History — dividends column</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="table-shell"><div class="table-scroll">
+            <table class="ledger" style="min-width:820px">
+              <thead><tr><th class="l">Date</th><th>INR invested</th><th>INR current</th><th class="sorted">INR dividends (to date)</th><th>EUR invested</th><th>EUR current</th><th class="sorted">EUR dividends</th></tr></thead>
+              <tbody>
+                <tr><td class="l num">16-10-2026</td><td class="num">₹24,10,500</td><td class="num">₹27,98,210</td><td class="num">₹1,82,012.50</td><td class="num">€18,200</td><td class="num">€20,940</td><td class="num">€1,204.10</td></tr>
+                <tr><td class="l num">17-10-2026</td><td class="num">₹24,10,500</td><td class="num">₹28,01,660</td><td class="num">₹1,82,012.50</td><td class="num">€18,200</td><td class="num">€21,015</td><td class="num">€1,204.10</td></tr>
+                <tr><td class="l num">18-10-2026</td><td class="num">₹24,10,500</td><td class="num">₹28,02,680</td><td class="num" style="background:var(--green-dim)">₹1,84,212.50 <span style="color:var(--green);font-size:10px">+₹2,200</span></td><td class="num">€18,200</td><td class="num">€21,102</td><td class="num">€1,204.10</td></tr>
+              </tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>A per-currency <strong>Dividends</strong> column shows the total received up to each row's date, tinted with the day's change when a dividend landed.</span></li>
+      <li><b>2</b><span>Computed when History is read, from the same ledger events (like the gold overlay). Snapshots are never rewritten, so imports and deletes show up immediately.</span></li>
+      <li><b>3</b><span>The per-stock breakdown modal also shows each holding's dividends to date.</span></li>
+    </ol>
+  </section>
+
+  <!-- RULES -->
+  <section class="section">
+    <h2>Duplicate rule — worked examples (occurrence-based)</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Scenario</th><th>Database before</th><th>Sheet</th><th>Imported</th><th>Discarded</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>1 × TCS 300 @ 01-01-2020</td><td>2 × same</td><td>1</td><td>1</td></tr>
+          <tr><td>B</td><td>2 ×</td><td>2 ×</td><td>0</td><td>2</td></tr>
+          <tr><td>C</td><td>0</td><td>2 × same, cumulative 300 / 600</td><td>2</td><td>0</td></tr>
+          <tr><td>D</td><td>after importing file F</td><td>file F again</td><td>0</td><td>all</td></tr>
+          <tr><td>E</td><td>TCS 300 entered in the ledger editor</td><td>TCS 300 same day</td><td>0</td><td>1</td></tr>
+          <tr><td>F</td><td>TCS 300 @ 01-01-2020</td><td>TCS 300 @ 02-01-2020</td><td>1</td><td>0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Identity = holding + calendar day + amount to 2 decimals. Cumulative is never part of it.</p>
+  </section>
+
+  <section class="section">
+    <h2>One record, every view</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>View</th><th>What it shows</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>Dashboard</td><td>Dividends column, Dividend income card</td><td>holding <code>total_dividends</code> (ledger-derived)</td></tr>
+          <tr><td>Dividends page</td><td>table, running totals, analytics</td><td>dividend events</td></tr>
+          <tr><td>History</td><td>dividends to date per currency and per stock</td><td>dividend events, as of each row</td></tr>
+          <tr><td>All transactions</td><td>dividend rows</td><td>dividend events</td></tr>
+          <tr><td>Ledger editor</td><td>dividend rows, add/edit/delete</td><td>dividend events</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>What the frames commit the implementation to</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Frame</th><th>Commitment</th><th>PD-048 task</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>Nav pill (act-as aware), Dividends column, Dividend income card</td><td>16</td></tr>
+          <tr><td>02</td><td>URL tabs, summary, two cumulative columns, filter</td><td>5, 13</td></tr>
+          <tr><td>03</td><td>Yearly / monthly chart, per-holding ranking</td><td>5, 13</td></tr>
+          <tr><td>04</td><td>Add/edit through the ledger write path</td><td>3, 14</td></tr>
+          <tr><td>05–08</td><td>Preview → name popup → confirm, atomic import, duplicates report</td><td>6, 7, 12, 15</td></tr>
+          <tr><td>09</td><td>Delete all per tab, typed DELETE, atomic</td><td>8, 15</td></tr>
+          <tr><td>10</td><td>History dividends overlay</td><td>10, 16</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>PD-048 visual spec v2</span>
+    <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
+    <span>Mockup — not production markup</span>
+  </footer>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('[data-theme-btn]')
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeBtn
+      document.querySelectorAll('.app').forEach(app => { app.dataset.appTheme = theme })
+      buttons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)))
+    })
+  })
+</script>

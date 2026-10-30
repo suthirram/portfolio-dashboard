@@ -38,6 +38,7 @@ a token change that invalidates a frame shows up in a diff.
 | Plan | Spec | Published link | Covers |
 |---|---|---|---|
 | [PD-047](../plans/PD-047-all-transactions-view.md) | [`PD-047-all-transactions-view.html`](PD-047-all-transactions-view.html) | [view](https://claude.ai/code/artifact/f9a60fc0-e8c3-4ae9-9549-02af56e6f52c) | Dashboard entry point, `/transactions` default + filtered states, the reused per-holding editor, empty + admin act-as states, column map |
+| [PD-048](../plans/PD-048-dividend-history.md) | [`PD-048-dividend-history.html`](PD-048-dividend-history.html) | [view](https://claude.ai/artifact/N1DGvkdmVHjUyVG5gxiUv6) | Dashboard dividend figures, Dividends INR/EUR tabs + analytics, add/edit, import (choose file / confirm share names / preview / result), delete all, History dividends column, dedup examples |
 
 Published links are private to the repo owner until shared from the page's
 share menu; the committed HTML is the source of truth either way.
