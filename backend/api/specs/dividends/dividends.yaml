@@ -17,3 +17,24 @@ dividends:
               $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
       "400":
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+dividends_import_preview:
+  post:
+    tags: [Dividends]
+    summary: Evaluate a dividend CSV import without writing anything
+    operationId: previewDividendImport
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: What an import would do now
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

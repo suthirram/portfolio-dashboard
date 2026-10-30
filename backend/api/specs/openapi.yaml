@@ -61,6 +61,8 @@ paths:
     $ref: "./transactions/transactions.yaml#/transactions_id"
   /dividends:
     $ref: "./dividends/dividends.yaml#/dividends"
+  /dividends/import/preview:
+    $ref: "./dividends/dividends.yaml#/dividends_import_preview"
 
   /history:
     $ref: "./history/history.yaml#/history"
@@ -147,6 +149,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_transactions"
   /admin/users/{id}/dividends:
     $ref: "./admin/admin.yaml#/users_id_dividends"
+  /admin/users/{id}/dividends/import/preview:
+    $ref: "./admin/admin.yaml#/users_id_dividends_import_preview"
 
 components:
   securitySchemes:

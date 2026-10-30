@@ -421,3 +421,28 @@ users_id_dividends:
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends_import_preview:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Evaluate a dividend import for a user (act-as)
+    operationId: adminPreviewUserDividendImport
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: What an import would do now
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
