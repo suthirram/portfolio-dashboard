@@ -1,4 +1,7 @@
 ---
+# `pre-commit install` installs both stages, so the commit-msg rule check
+# below runs for every commit without a second install step.
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -31,3 +34,12 @@ repos:
         language: system
         types: [go]
         pass_filenames: false
+  - repo: local
+    hooks:
+      # CLAUDE.md "Project rules": gitmoji prefix, subject <= 50 chars after
+      # the emoji, no AI attribution. Shared logic: scripts/rules/lib.sh.
+      - id: commit-msg-rules
+        name: commit message rules
+        entry: scripts/rules/check-commit-msg.sh
+        language: system
+        stages: [commit-msg]
