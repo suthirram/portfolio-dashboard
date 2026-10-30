@@ -101,9 +101,24 @@ one private `find(ctx, filter, sort)` that every list method calls.
 | `InsertMany(ctx, txns)` | ordered batch insert |
 | `DeleteDividends(ctx, userId, currency) ([]primitive.ObjectID, int64, error)` | delete-all; returns the affected holding ids |
 
-`currencyMatch(currency)` is the currency filter: the INR tab also matches
-`""`, because a blank holding currency means INR (`CurrencyOf`) and ledger
-events copy the holding's currency.
+**One stored currency format.** Every ledger write — hand-entered
+(`TransactionsService.Create`), imported, or synced — stores
+`ledgerCurrency(holding)`: the canonical INR/EUR from `CurrencyOf` (blank →
+INR, case-insensitive), never blank. Legacy rows written before that can carry
+a blank, lowercase, mixed-case or padded code (`""`, `inr`, ` Eur `); the
+idempotent `migrate currencies` command canonicalizes all of them once, for
+holdings and events, with the same rule (trim, upper-case, blank → INR) as a
+server-side pipeline update in `persistence/currency.go`. It runs after PR2
+and **before** PR3 deploys, and only then do the dividend queries,
+delete-all and the History overlay filter on the stored value with no
+normalisation — otherwise a legacy `inr` event would miss the INR tab and form
+an `inr` History bucket the UI never reads (PRD-005 §9).
+
+Because every tab, delete-all and the History overlay filter on that copy,
+the copy must follow the holding: `TransactionStore.SetCurrencyByHolding`
+rewrites it on every event of a holding, and `HoldingsService.Update` calls it
+(with `ledgerCurrency`) whenever an edit sends a currency. The call is
+idempotent, so a failed sync is repaired by saving the same edit again.
 
 `HoldingStore` gains `MoveAliases(ctx, userId, holdingId, keys)`: `$pull`
 the keys from the user's other holdings, `$addToSet` on this one, so a
@@ -164,7 +179,8 @@ func corpKey(s string) string
    * token prefix — every sheet token prefixes a candidate token, or the
      reverse (`jio` → `jio platforms`) → 0.8
    * symbol prefix ≥ 4 chars (`JIOP` ↔ `JIOPLA.NS`) → 0.8
-   * initials (`JPL` ↔ Jio Platforms Limited) → 0.7
+   * initials, in order or with the letters shuffled (`JPL` or the owner's
+     `JLP` ↔ Jio Platforms Ltd) → 0.7 — suggested, never pre-selected
    * trigram Jaccard on `corpKey` (`JLP`, typos) → raw score
 
    Suggestions below 0.3 are dropped. `preselect` = top suggestion only when
@@ -235,7 +251,10 @@ the History overlay are pure functions in their own files
   `recomputeAndPersist` once per affected holding. Returns `{imported,
   duplicates, batch_id}`.
 * **`DeleteAll(ctx, userId, currency) (int64, error)`** — in one transaction:
-  `DeleteDividends`, then `recomputeAndPersist` for each affected holding.
+  `DeleteDividends`, then `recomputeAndPersist` for each affected holding. A
+  holding that no longer exists (an orphan dividend left by a failed cascade)
+  returns `ErrNotFound` from the recompute and is skipped, so one stray row
+  can never block Delete all for the tab.
 * Single add / edit / delete reuse **`TransactionsService.Create/Update/Delete`**
   — no second write path. One change there: a new `healAfter(events...)`
   **skips the snapshot heal when every event involved is a dividend**
@@ -358,7 +377,7 @@ dedups).
 | Need | Existing | Action |
 |---|---|---|
 | Day-first dates | `normaliseDate` (`historyShared.ts`) | move to `lib/formDates.ts`; add real-calendar check (`31/02` rejected) |
-| Amounts with ₹/€/commas | `parseAmount` (`historyShared.ts`) | move to `lib/formNumbers.ts` |
+| Amounts in either number style (`1,250.50` / `1.250,50`) with ₹/€ | `parseDecimalInput` (`lib/formNumbers.ts`, used by every amount input) | new `parseMoneyCell` strips currency signs and delegates to it, so CSV cells and typed amounts read the same. Not History's `parseAmount`, which strips every comma and misreads European amounts |
 | Display date / money | `formatDate`, `formatMoney`, `currencySymbol` | reuse |
 | Tabs | `SUPPORTED_CURRENCIES` (`lib/currency.ts`) | reuse |
 | Amount input | `components/DecimalInput.tsx` | reuse |

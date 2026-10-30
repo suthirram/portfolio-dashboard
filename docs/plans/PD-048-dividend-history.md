@@ -51,9 +51,12 @@
 | Action | File | Responsibility |
 |---|---|---|
 | Create | `backend/internal/services/clock.go` | `istZone`, `istToday` (moved from `gold_prices.go`) |
-| Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go` | call `istToday` |
+| Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go`, `gold_prices_test.go` | call `istToday` |
 | Modify | `backend/internal/services/transactions.go`, `transactions_test.go` | `validateDividend`; `healAfter` skips dividend-only writes |
-| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `currencyMatch` |
+| Modify | `backend/internal/services/holdings.go`, `holdings_test.go` | a holding's currency change rewrites its ledger events' currency |
+| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `SetCurrencyByHolding`; `CanonicalizeCurrency` |
+| Create | `backend/internal/persistence/currency.go` | shared non-canonical filter + canonicalizing update (trim, upper-case, blank → INR) |
+| Modify | `backend/cmd/migrate.go`, `backend/internal/persistence/holdings.go` | `migrate currencies`: canonicalize legacy holding and ledger currencies, once |
 | Modify | `backend/internal/persistence/holdings.go` | `MoveAliases` |
 | Modify | `backend/internal/persistence/persistence.go` | `client` field; `InTransaction` |
 | Modify | `backend/internal/db/mongo.go`, `mongo_test.go` | dividend listing index |
@@ -77,7 +80,7 @@
 | Modify | `backend/internal/config/config.go`, `config_test.go` | default URI with `replicaSet` |
 | Modify | `docker-compose.dev.yml`, `docker-compose.yml` | single-node replica set |
 | Modify | `docs/local-setup.md`, `docs/configuration.md`, `docs/api.md`, `docs/history-and-snapshots.md` | runbook + endpoints |
-| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check), `parseAmount` |
+| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check); new `todayIST` (Task 20) and `parseMoneyCell` over the existing `parseDecimalInput` |
 | Modify | `frontend/src/features/history/historyShared.ts` | import + re-export the moved parsers |
 | Create | `frontend/src/lib/csv.ts`, `csv.test.ts` | RFC-4180 tokenizer |
 | Modify | `frontend/src/lib/api/schema.gen.ts`, `client.ts`, `frontend/src/types.ts` | types, methods, `ApiError.body` |
@@ -101,7 +104,7 @@
 | # | Branch | Tasks | Value (gate 2) | Test that fails without it (gate 3) | No regression (gate 1) |
 |---|---|---|---|---|---|
 | PR1 | `docs/PRD-005-dividend-history` | 0 | agreed design on record | — (docs) | docs only |
-| PR2 | `feat/PD-048-dividend-rules` | 1–3 | future-dated dividends rejected; dividend writes stop rewriting History | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal` | gold tests green after the `istToday` move; buy/sell still heal |
+| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events; every event stores one canonical currency (`migrate currencies` canonicalizes legacy blank, lowercase and padded codes) | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency`, `TestLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
 | PR3 | `feat/PD-048-dividends-view-api` | 4–7 | `GET /dividends` (+ act-as): rows, both running totals, yearly / monthly / per-holding | `TestBuildDividendView_*`, `TestListDividends_*` | additive routes + index |
 | PR4 | `feat/PD-048-dividends-preview-api` | 8–11 | `POST /dividends/import/preview`: name resolution, duplicates, invalid rows, warnings — no writes | `TestResolveNames_*`, `TestPartition_OccurrenceBased`, `TestCumulativeWarnings` | read-only endpoint; `Holding.Aliases` omitempty |
 | PR5 | `feat/PD-048-dividends-import-api` | 12–14 | `POST /dividends/import`: atomic commit, aliases remembered, totals recomputed | `TestImport` | a replica set behaves as a superset of standalone; existing code ignores sessions |
@@ -181,7 +184,7 @@ Expected: PR URL printed; body follows §PR bodies.
 **Files:**
 
 * Create: `backend/internal/services/clock.go`
-* Modify: `backend/internal/services/gold_prices.go`, `backend/internal/services/gold_metrics.go`
+* Modify: `backend/internal/services/gold_prices.go`, `backend/internal/services/gold_metrics.go`, `backend/internal/services/gold_prices_test.go`
 
 * [ ] **Step 1: Create `clock.go`**
 
@@ -231,13 +234,17 @@ Replacement:
 // local jeweler rate, so the calendar rolls on Indian time — see istToday.
 ```
 
-* [ ] **Step 3: Replace the three call sites (Edit)**
+* [ ] **Step 3: Replace the four call sites (Edit)**
+
+WHY: `gold_prices_test.go` also calls `goldToday()`; leaving it would stop
+the whole services test package compiling.
 
 | File:line | Current | Replacement |
 |---|---|---|
 | `gold_prices.go:64` | `today := goldToday()` | `today := istToday()` |
 | `gold_prices.go:97` | `today := goldToday()` | `today := istToday()` |
 | `gold_metrics.go:29` | `today := goldToday()` | `today := istToday()` |
+| `gold_prices_test.go:111` | `{"future date", []api.GoldPrice{{Date: openapi_types.Date{Time: goldToday().AddDate(0, 0, 1)}, PricePerGram: 7000}}},` | `{"future date", []api.GoldPrice{{Date: openapi_types.Date{Time: istToday().AddDate(0, 0, 1)}, PricePerGram: 7000}}},` |
 
 * [ ] **Step 4: Verify**
 
@@ -251,7 +258,7 @@ Expected: build ok; grep prints nothing; `ok  portfolio-dashboard/internal/servi
 
 ```bash
 git checkout -b feat/PD-048-dividend-rules main
-git add backend/internal/services/clock.go backend/internal/services/gold_prices.go backend/internal/services/gold_metrics.go
+git add backend/internal/services/clock.go backend/internal/services/gold_prices.go backend/internal/services/gold_metrics.go backend/internal/services/gold_prices_test.go
 git commit -m "♻️ Share istToday between gold and dividends"
 ```
 
@@ -516,11 +523,347 @@ curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d '{"type":"d
 curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d '{"type":"dividend","date":"2024-03-15T00:00:00Z","amount":300}' $B/holdings/<holding id>/transactions   # 201; backend log has no "snapshot heal" line
 ```
 
-* [ ] **Step 6: Push and open PR2**
+PR2 is opened at the end of Task 3A.
+
+---
+
+## Task 3A: Keep ledger currency in step with the holding (PR2)
+
+**Files:**
+
+* Modify: `backend/internal/persistence/transactions.go`, `backend/internal/persistence/holdings.go`, `backend/internal/services/holdings.go`, `backend/internal/services/holdings_test.go`, `backend/internal/services/transactions.go`, `backend/internal/services/transactions_test.go`, `backend/cmd/migrate.go`
+
+* [ ] **Step 1: `SetCurrencyByHolding` (append to `persistence/transactions.go`)**
+
+WHY: every ledger event copies its holding's currency, and the dividend tab,
+delete-all and the History overlay all filter on that copy. Today
+`HoldingsService.Update` can change a holding's currency without touching its
+events, so an INR → EUR edit would leave the old dividends on the INR tab and
+in the INR History column while the dashboard shows the holding as EUR —
+breaking PRD-005 §9 (every view agrees). The all-transactions view (PD-047)
+already shows this mismatch today, so the fix stands on its own.
+
+```go
+// SetCurrencyByHolding rewrites the denormalised currency on every event of
+// one holding, so the ledger follows a holding's currency change.
+func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, holdingId primitive.ObjectID, currency string) error {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ _, err := s.col.UpdateMany(ctx,
+  scopedFilter(userId, bson.M{"holding_id": holdingId}),
+  bson.M{"$set": bson.M{"currency": currency}})
+ return err
+}
+```
+
+* [ ] **Step 1a: One stored currency format — `ledgerCurrency` (Edit `services/transactions.go`)**
+
+WHY: today `TransactionsService.Create` copies `holding.Currency` as-is, so a
+legacy holding with a blank or lowercase currency writes `""` or `inr` while
+the import (Task 14) would write `"INR"` — the same kind of record stored
+several ways, and every reader then has to normalise. Every ledger write goes
+through one helper instead, so the stored currency is always canonical and the
+dividend queries (Task 4) and History overlay (Task 17) can filter on it
+directly. Legacy rows (blank, lowercase, mixed-case, padded) are canonicalized
+once by `migrate currencies` (Step 5a) before those readers ship.
+
+Append to `transactions.go`:
+
+```go
+// ledgerCurrency is the currency a ledger event stores for holding h: the
+// canonical INR/EUR from CurrencyOf (blank → INR), or the holding's own code
+// upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
+// so readers filter on the stored value without special cases.
+func ledgerCurrency(h domain.Holding) string {
+ if c, ok := CurrencyOf(h); ok {
+  return c
+ }
+ return strings.ToUpper(h.Currency)
+}
+```
+
+In `Create` — current `t.Currency = holding.Currency`, replacement
+`t.Currency = ledgerCurrency(holding)`. Add `"strings"` to the imports.
+
+Test (append to `transactions_test.go`):
+
+```go
+func TestLedgerCurrency(t *testing.T) {
+ cases := map[string]string{"": "INR", "inr": "INR", "EUR": "EUR", "usd": "USD"}
+ for in, want := range cases {
+  if got := ledgerCurrency(domain.Holding{Currency: in}); got != want {
+   t.Errorf("ledgerCurrency(%q) = %q, want %q", in, got, want)
+  }
+ }
+}
+```
+
+* [ ] **Step 2: Call it from `HoldingsService.Update` (Edit)**
+
+WHY: runs after the holding write succeeds, with the holding's canonical
+currency. The call is idempotent, so if it fails the edit returns an error and
+saving the same edit again repairs the ledger. `Update` is edited, so its
+`uid` parameter is renamed `userId` throughout the function (CLAUDE.md naming
+rule).
+
+Current:
+
+```go
+ // Setting the opening date stamps the holding's opening event with the
+ // user-chosen effective date (and syncs the ordering Date to it), then
+ // re-derives the position. No-op when the holding has no opening event.
+ if input.OpeningDate != nil {
+```
+
+Replacement:
+
+```go
+ // The ledger copies the holding's currency onto every event; keep those
+ // copies in step so the dividend tab, History and the all-transactions
+ // view never disagree with the dashboard (PRD-005 §9).
+ if input.Currency != nil && ValidCurrency(*input.Currency) {
+  if err := s.txns.SetCurrencyByHolding(ctx, userId, id, ledgerCurrency(updated)); err != nil {
+   logger.Error("sync ledger currency failed", zap.String("id", idHex), zap.Error(err))
+   return api.Holding{}, false, err
+  }
+ }
+
+ // Setting the opening date stamps the holding's opening event with the
+ // user-chosen effective date (and syncs the ordering Date to it), then
+ // re-derives the position. No-op when the holding has no opening event.
+ if input.OpeningDate != nil {
+```
+
+Signature — current
+`func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {`,
+replacement
+`func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {`;
+the two remaining `uid` uses in the body (`UpdateScopedAndReturn(ctx, uid, …)`
+and `setOpeningDate(ctx, uid, …)`) become `userId`.
+
+* [ ] **Step 3: Test (append to `holdings_test.go`)**
+
+```go
+// A currency change rewrites the currency on the holding's ledger events; an
+// edit that leaves the currency alone does not touch the ledger.
+func TestHoldingsService_Update_SyncsLedgerCurrency(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ run := func(mt *mtest.T, currency *api.HoldingInputCurrency) int {
+  userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+  mt.AddMockResponses(
+   // UpdateScopedAndReturn — findAndModify on holdings.
+   mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+    {Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "EUR"},
+   }}),
+   // SetCurrencyByHolding — updateMany on transactions.
+   mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(3)}, bson.E{Key: "nModified", Value: int32(3)}),
+  )
+  st := persistence.New(mt.DB)
+  svc := NewHoldingsService(st.Holdings, st.Transactions, nil)
+  if _, found, err := svc.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
+   Script: "SAP", Exchange: "XETRA", Type: "stock", Currency: currency,
+  }); err != nil || !found {
+   t.Fatalf("Update: found=%v err=%v", found, err)
+  }
+  n := 0
+  for _, e := range mt.GetAllStartedEvents() {
+   if e.CommandName != "update" || e.Command.Lookup("update").StringValue() != "transactions" {
+    continue
+   }
+   n++
+   set := e.Command.Lookup("updates").Array().Index(0).Document().Lookup("u", "$set").Document()
+   if got := set.Lookup("currency").StringValue(); got != "EUR" {
+    t.Errorf("ledger currency = %q, want EUR", got)
+   }
+  }
+  return n
+ }
+ mt.Run("currency changed", func(mt *mtest.T) {
+  eur := api.HoldingInputCurrency("EUR")
+  if n := run(mt, &eur); n != 1 {
+   t.Errorf("ledger updates = %d, want 1", n)
+  }
+ })
+ mt.Run("currency not sent", func(mt *mtest.T) {
+  if n := run(mt, nil); n != 0 {
+   t.Errorf("ledger updates = %d, want 0", n)
+  }
+ })
+}
+```
+
+(Field names follow the generated `api.HoldingInput`; `Exchange` / `Type`
+take whichever enum values `holdings_test.go` already uses.)
+
+* [ ] **Step 4: Verify**
+
+```bash
+cd backend && go build ./... && go test ./internal/services/ -run 'HoldingsService|LedgerCurrency|TransactionsService' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
+```
+
+Expected: `--- PASS: TestHoldingsService_Update_SyncsLedgerCurrency/currency_changed`, `/currency_not_sent`, `--- PASS: TestLedgerCurrency`; existing holdings and transactions tests PASS.
+
+* [ ] **Step 5: Commit**
+
+```bash
+git add backend/internal/persistence/transactions.go backend/internal/services/holdings.go backend/internal/services/holdings_test.go backend/internal/services/transactions.go backend/internal/services/transactions_test.go
+git commit -m "🐛 Keep ledger currency canonical and in sync"
+```
+
+* [ ] **Step 5a: `migrate currencies` — canonicalize legacy currencies once (Create `persistence/currency.go`; Edit `cmd/migrate.go`; append to `persistence/holdings.go` and `persistence/transactions.go`)**
+
+WHY: new writes are canonical from Step 1a on, but rows written before keep
+whatever the holding had: blank or missing, and also lowercase, mixed-case or
+padded codes (`inr`, `Eur`, ` eur `) — `CurrencyOf` accepts those, and
+`TestLedgerCurrency` covers them. Once Tasks 4 and 17 read the stored value
+directly, a legacy `inr` event would miss the INR tab filter and form its own
+`inr` History bucket, which the UI never reads — breaking PRD-005 §9. So the
+migration applies the **whole** `ledgerCurrency` rule, not just the blank
+case: trim, upper-case, blank/missing → `INR`. It runs once per environment
+right after PR2 merges and **before PR3 deploys** (Task 27 Step 0); readers
+switch to exact stored values only after it.
+
+The rule is written once and shared by both stores — `persistence/currency.go`:
+
+```go
+package persistence
+
+import (
+ "go.mongodb.org/mongo-driver/bson"
+
+ "portfolio-dashboard/internal/domain"
+)
+
+// nonCanonicalCurrency matches documents whose currency is not already a
+// canonical code: missing, blank, lower/mixed case, or padded with spaces.
+// Canonical codes (INR, EUR, a legacy USD) do not match, so a second run of
+// the migration touches nothing.
+var nonCanonicalCurrency = bson.M{"currency": bson.M{"$not": bson.M{"$regex": `^[A-Z]+$`}}}
+
+// canonicalCurrencyUpdate rewrites currency server-side with the same rule
+// as services.ledgerCurrency: trimmed and upper-cased, blank/missing → INR.
+var canonicalCurrencyUpdate = bson.A{bson.M{"$set": bson.M{"currency": bson.M{"$let": bson.M{
+ "vars": bson.M{"c": bson.M{"$toUpper": bson.M{"$trim": bson.M{"input": bson.M{"$ifNull": bson.A{"$currency", ""}}}}}},
+ "in":   bson.M{"$cond": bson.A{bson.M{"$eq": bson.A{"$$c", ""}}, domain.CurrencyINR, "$$c"}},
+}}}}}
+```
+
+Store methods:
+
+```go
+// CanonicalizeCurrency rewrites every non-canonical holding currency to its
+// canonical code (persistence/currency.go). Returns the number changed.
+func (s *HoldingStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+ if err != nil {
+  return 0, err
+ }
+ return res.ModifiedCount, nil
+}
+```
+
+```go
+// CanonicalizeCurrency rewrites every non-canonical ledger event currency to
+// its canonical code (persistence/currency.go). Returns the number changed.
+func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+ ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+ defer cancel()
+ res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+ if err != nil {
+  return 0, err
+ }
+ return res.ModifiedCount, nil
+}
+```
+
+Command (append to `cmd/migrate.go`, next to `migrateTransactionsCmd`):
+
+```go
+var migrateCurrenciesCmd = &cobra.Command{
+ Use:   "currencies",
+ Short: "Canonicalize holding and ledger currencies (PD-048)",
+ Long: `Legacy holdings and ledger events may carry a blank, lowercase, mixed-case
+or padded currency (e.g. "", "inr", " Eur "). This rewrites them to the
+canonical code — trimmed, upper-cased, blank → "INR" — so every reader can
+filter on the stored value. Idempotent: a second run changes nothing.`,
+ RunE: runMigrateCurrencies,
+}
+
+func runMigrateCurrencies(_ *cobra.Command, _ []string) error {
+ cfg := config.Default()
+ cfg.ApplyEnv()
+ logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+ if err != nil {
+  return err
+ }
+ ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
+ defer cancel()
+ st, _, disconnect, err := cliConnect(ctx, logger, cfg)
+ if err != nil {
+  return err
+ }
+ defer disconnect()
+
+ holdings, err := st.Holdings.CanonicalizeCurrency(ctx)
+ if err != nil {
+  return fmt.Errorf("canonicalizing holding currencies: %w", err)
+ }
+ txns, err := st.Transactions.CanonicalizeCurrency(ctx)
+ if err != nil {
+  return fmt.Errorf("canonicalizing ledger currencies: %w", err)
+ }
+ logger.Info("currencies migrated", zap.Int64("holdings", holdings), zap.Int64("transactions", txns))
+ return nil
+}
+```
+
+In `init()` — current `migrateCmd.AddCommand(migrateTransactionsCmd)`,
+replacement:
+
+```go
+ migrateCmd.AddCommand(migrateTransactionsCmd)
+ migrateCmd.AddCommand(migrateCurrenciesCmd)
+```
+
+Verify against the local database with seeded legacy rows (test-only ids,
+removed at the end):
+
+```bash
+M='docker exec portfolio_mongo_dev mongosh portfolio --quiet --eval'
+$M 'db.holdings.insertMany([{_id:"pd048-a",currency:"inr"},{_id:"pd048-b",currency:" Eur "},{_id:"pd048-c",currency:""},{_id:"pd048-d"},{_id:"pd048-e",currency:"USD"}]);
+    db.transactions.insertMany([{_id:"pd048-t1",type:"dividend",currency:"inr"},{_id:"pd048-t2",type:"dividend",currency:"eur"},{_id:"pd048-t3",type:"dividend"}])'
+cd backend && go build ./... && go run . migrate currencies
+$M 'printjson(db.holdings.find({_id:/^pd048-/}).map(d => d.currency)); printjson(db.transactions.find({_id:/^pd048-/}).map(d => d.currency))'
+go run . migrate currencies
+$M 'db.holdings.deleteMany({_id:/^pd048-/}); db.transactions.deleteMany({_id:/^pd048-/})'
+```
+
+Expected: the first run logs `currencies migrated` with `holdings: 4,
+transactions: 3` (plus any real legacy rows); the printed values are
+`["INR","EUR","INR","INR","USD"]` and `["INR","EUR","INR"]`; the second run
+logs `holdings: 0, transactions: 0`.
+
+Commit:
+
+```bash
+git add backend/cmd/migrate.go backend/internal/persistence/currency.go backend/internal/persistence/holdings.go backend/internal/persistence/transactions.go
+git commit -m "🔧 Add migrate currencies to canonicalize codes"
+```
+
+* [ ] **Step 6: curl (PR2 "How to test", appended to Task 3's block)**
+
+```bash
+curl -s -b c.txt -X PUT -H "$H" -H "$J" -d '{"script":"SAP","exchange":"XETRA","type":"stock","currency":"EUR"}' $B/holdings/<holding id> >/dev/null
+curl -s -b c.txt "$B/holdings/<holding id>/transactions" | jq '[.[].currency] | unique'   # ["EUR"]
+```
+
+* [ ] **Step 7: Push and open PR2**
 
 ```bash
 git push -u origin feat/PD-048-dividend-rules
-gh pr create --title "✨ Reject future-dated dividends and stop dividend writes from rewriting History" --body-file pr2.md
+gh pr create --title "✨ Tighten ledger dividend rules and keep event currency in step with the holding" --body-file pr2.md
 ```
 
 Expected: PR URL.
@@ -539,9 +882,11 @@ WHY: `ListByHolding` and `ListByUser` repeat one Find + cursor body; the
 dividend queries would make it five copies, so it is extracted once (reuse
 rule). The dividend order ends on `_id` because one import batch shares one
 `created_at`; the service assigns ObjectIDs in sheet order, so `_id` keeps
-it. A blank holding currency means INR (`CurrencyOf`) and its ledger events
-carry `currency: ""`, so the INR filter must include `""` or those dividends
-disappear from the INR tab.
+it. The currency filter is the stored value as-is: since Task 3A every ledger
+write stores a canonical currency (`ledgerCurrency`) and `migrate currencies`
+has canonicalized every legacy code (blank, `inr`, ` Eur `), so the filter
+needs no normalisation. This ordering is required: PR3 deploys only after the
+migration ran (Task 27 Step 0).
 
 Current:
 
@@ -624,20 +969,11 @@ func (s *TransactionStore) ListByUser(ctx context.Context, userId primitive.Obje
  return s.find(ctx, scopedFilter(userId, nil), replayOrder)
 }
 
-// currencyMatch is the stored-currency filter for a tab. Ledger events copy
-// the holding's currency, and a blank holding currency means INR
-// (CurrencyOf), so the INR tab also matches "".
-func currencyMatch(currency string) any {
- if currency == domain.CurrencyINR {
-  return bson.M{"$in": bson.A{domain.CurrencyINR, ""}}
- }
- return currency
-}
-
 // ListDividends returns userId's dividend events in one currency, in tab order.
+// Stored currencies are canonical (ledgerCurrency), so the filter is exact.
 func (s *TransactionStore) ListDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]domain.Transaction, error) {
  return s.find(ctx, scopedFilter(userId, bson.M{
-  "type": string(domain.TxnDividend), "currency": currencyMatch(currency),
+  "type": string(domain.TxnDividend), "currency": currency,
  }), dividendOrder)
 }
 
@@ -844,6 +1180,8 @@ users_id_dividends:
           application/json:
             schema:
               $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 ```
@@ -1078,6 +1416,7 @@ package services
 
 import (
  "context"
+ "fmt"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
  "go.uber.org/zap"
@@ -1110,6 +1449,11 @@ func (s *DividendsService) List(ctx context.Context, userId primitive.ObjectID, 
  ctx, span := tracer.Start(ctx, "DividendsService.List")
  defer endSpan(span, &retErr)
  logger := s.log(ctx)
+ // No request validator enforces the spec enum, so check it here: an unknown
+ // currency is a 400, not an empty tab that looks like "no dividends".
+ if !ValidCurrency(currency) {
+  return api.DividendView{}, fmt.Errorf("%w: currency must be INR or EUR", ErrValidation)
+ }
  txns, err := s.txns.ListDividends(ctx, userId, currency)
  if err != nil {
   logger.Error("list dividends failed", zap.Error(err))
@@ -1277,8 +1621,10 @@ package controllers
 
 import (
  "context"
+ "errors"
 
  "portfolio-dashboard/api"
+ "portfolio-dashboard/internal/services"
 )
 
 func (h *Controller) ListDividends(ctx context.Context, request api.ListDividendsRequestObject) (api.ListDividendsResponseObject, error) {
@@ -1288,6 +1634,9 @@ func (h *Controller) ListDividends(ctx context.Context, request api.ListDividend
  }
  view, err := h.dividends.List(ctx, currentUserId, string(request.Params.Currency))
  if err != nil {
+  if errors.Is(err, services.ErrValidation) {
+   return api.ListDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.ListDividends200JSONResponse(view), nil
@@ -1308,6 +1657,9 @@ func (h *Controller) AdminListUserDividends(ctx context.Context, request api.Adm
  }
  view, err := h.dividends.List(ctx, target.ID, string(request.Params.Currency))
  if err != nil {
+  if errors.Is(err, services.ErrValidation) {
+   return api.AdminListUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.AdminListUserDividends200JSONResponse(view), nil
@@ -1377,6 +1729,25 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
   }
  })
 }
+
+// No request validator enforces the enum: an unknown currency must be a 400
+// with a message, never an empty 200 that reads as "no dividends".
+func TestListDividends_BadCurrency400(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ mt.Run("USD", func(mt *mtest.T) {
+  h := newIntegrationHandler(mt, &mockPriceFetcher{})
+  resp, err := h.ListDividends(userCtx(regionalAdmin("india")), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "USD"}})
+  if err != nil {
+   t.Fatalf("ListDividends: %v", err)
+  }
+  if _, ok := resp.(api.ListDividends400JSONResponse); !ok {
+   t.Fatalf("response = %T, want 400", resp)
+  }
+  if n := len(mt.GetAllStartedEvents()); n != 0 {
+   t.Errorf("%d database commands issued for an invalid currency; want none", n)
+  }
+ })
+}
 ```
 
 * [ ] **Step 4: `docs/api.md`** — new "Dividends" section listing
@@ -1390,7 +1761,7 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
 cd backend && go build ./... && go test ./internal/controllers/ -run 'Dividends' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
 ```
 
-Expected: `--- PASS: TestListDividends_ScopedToCallerAndCurrency/EUR_tab`, `--- PASS: TestAdminListUserDividends_OutOfRegion404/...`.
+Expected: `--- PASS: TestListDividends_ScopedToCallerAndCurrency/EUR_tab`, `--- PASS: TestAdminListUserDividends_OutOfRegion404/...`, `--- PASS: TestListDividends_BadCurrency400/USD`.
 
 * [ ] **Step 6: curl (PR3 "How to test")**
 
@@ -1400,6 +1771,7 @@ curl -s -c c.txt -H "$H" -H "$J" -d '{"username":"admin","password":"<dev passwo
 curl -s -b c.txt -H "$H" -H "$J" -d '{"type":"dividend","date":"2020-01-01T00:00:00Z","amount":300}' $B/holdings/<TCS holding id>/transactions >/dev/null
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.rows[0].cumulative, .summary.total, .by_year[0].period'   # 300, 300, "2020"
 curl -s -b c.txt "$B/dividends?currency=EUR" | jq '.rows | length'                                           # 0
+curl -s -o /dev/null -w '%{http_code}\n' -b c.txt "$B/dividends?currency=USD"                                 # 400
 ```
 
 * [ ] **Step 7: Commit, push, PR3**
@@ -1845,6 +2217,18 @@ func initials(s string) string {
  return b.String()
 }
 
+// sameLetters reports whether a and b use the same letters in any order, so
+// a shorthand like the owner's "JLP" still matches the initials "jpl".
+func sameLetters(a, b string) bool {
+ if len(a) != len(b) {
+  return false
+ }
+ x, y := []byte(a), []byte(b)
+ slices.Sort(x)
+ slices.Sort(y)
+ return string(x) == string(y)
+}
+
 // trigramJaccard is |A∩B| / |A∪B| over padded character trigrams.
 func trigramJaccard(a, b string) float64 {
  grams := func(s string) map[string]bool {
@@ -1885,7 +2269,9 @@ func suggestionScore(name string, h domain.Holding) float64 {
  if tokenPrefix(s, script) || (len(compact(s)) >= 4 && strings.HasPrefix(symbol, compact(s))) {
   best = max(best, 0.8)
  }
- if len(compact(s)) >= 2 && compact(s) == initials(nameKey(h.Script)) {
+ // Initials in order ("JPL") or as a shuffled shorthand ("JLP", the owner's
+ // example). Kept below preselectScore: a suggestion, not a pre-selection.
+ if ini := initials(nameKey(h.Script)); len(compact(s)) >= 2 && (compact(s) == ini || sameLetters(compact(s), ini)) {
   best = max(best, 0.7)
  }
  return best
@@ -2101,6 +2487,15 @@ func TestResolveNames_InconsistentNamesNeedConfirmation(t *testing.T) {
   if r.view.Preselect == nil || *r.view.Preselect != jio {
    t.Errorf("%q: want Jio Platforms preselected (clear best)", name)
   }
+ }
+ // The owner's shorthand: letters of the initials in another order. Jio is
+ // suggested first but, at 0.7, not pre-selected — the owner picks it.
+ r := resolveOne("JLP", hs, nil)
+ if len(r.view.Suggestions) == 0 || r.view.Suggestions[0].HoldingId != jio {
+  t.Errorf(`"JLP": suggestions %+v, want Jio Platforms first`, r.view.Suggestions)
+ }
+ if r.view.Preselect != nil {
+  t.Error(`"JLP": an initials match must not be pre-selected`)
  }
 }
 
@@ -2321,6 +2716,7 @@ Current:
 ```go
 import (
  "context"
+ "fmt"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
  "go.uber.org/zap"
@@ -2478,29 +2874,7 @@ func (s *DividendsService) Preview(ctx context.Context, userId primitive.ObjectI
 
 * [ ] **Step 3: Controller (Edit `controllers/dividends.go`)**
 
-Current:
-
-```go
-import (
- "context"
-
- "portfolio-dashboard/api"
-)
-```
-
-Replacement:
-
-```go
-import (
- "context"
- "errors"
-
- "portfolio-dashboard/api"
- "portfolio-dashboard/internal/services"
-)
-```
-
-Append:
+`errors` and `services` are already imported (Task 7). Append:
 
 ```go
 func (h *Controller) PreviewDividendImport(ctx context.Context, request api.PreviewDividendImportRequestObject) (api.PreviewDividendImportResponseObject, error) {
@@ -2731,7 +3105,9 @@ cat > imp.json <<'JSON'
  {"line":4,"date":"2020-03-15","share_name":"jio","amount":1250.5,"cumulative":1850.5}]}
 JSON
 curl -s -b c.txt -H "$H" -H "$J" -d @imp.json $B/dividends/import/preview | jq '.counts, [.names[] | {sheet_name, status, preselect}]'
-# counts.invalid 1 (line 4: "jio" needs_confirmation); ready+duplicate = 2
+# after PR3's curl (a hand-entered TCS 300 on 2020-01-01):
+# counts {ready: 1, duplicate: 1, invalid: 1, total: 3} — line 2 matches the stored
+# dividend, line 3 is the second occurrence, line 4 ("jio") needs confirmation
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.summary.count'   # unchanged — preview wrote nothing
 ```
 
@@ -3192,10 +3568,10 @@ func (e *ImportInvalidError) Error() string {
 // toTransaction builds the ledger event for a new imported dividend. The
 // ObjectID is assigned here, in sheet order (DD-005 §2.2).
 func (r importRow) toTransaction(userId primitive.ObjectID, batchId string, now time.Time) domain.Transaction {
- currency, _ := CurrencyOf(*r.holding)
  return domain.Transaction{
   ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
-  Type: domain.TxnDividend, Date: r.day, Amount: r.in.Amount, Currency: currency,
+  // Same helper as hand-entered events, so both store one format (Task 3A).
+  Type: domain.TxnDividend, Date: r.day, Amount: r.in.Amount, Currency: ledgerCurrency(*r.holding),
   Import:    &domain.ImportMeta{BatchId: batchId, Line: r.in.Line, SheetName: r.in.ShareName, SheetCumulative: r.in.Cumulative},
   CreatedAt: now, UpdatedAt: now,
  }
@@ -3473,11 +3849,15 @@ Expected: `--- PASS: TestImport/...` ×3 and every earlier dividend test PASS.
 
 * [ ] **Step 7: curl (PR5 "How to test")**
 
+These steps continue from PR3's and PR4's: the database already holds the
+hand-entered TCS ₹300 dividend dated 2020-01-01 from PR3, which absorbs one of
+the two TCS sheet lines (occurrence matching, PRD-005 §5 scenario A).
+
 ```bash
 JIO=<Jio holding id>
 jq --arg jio "$JIO" '. + {mappings: {"jio": $jio}}' imp.json > imp2.json
-curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 3, dups: 0}
-curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 0, dups: 3}
+curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 2, dups: 1} — line 2 matches PR3's dividend
+curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 0, dups: 3} — idempotent
 curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d @imp.json $B/dividends/import                  # 422 (jio unresolved)
 jq -n '{currency:"INR",rows:[{line:2,date:"2020-05-01",share_name:"jio",amount:10}]}' > imp3.json
 curl -s -b c.txt -H "$H" -H "$J" -d @imp3.json $B/dividends/import/preview | jq '.names[0].status'                  # "auto" (alias remembered)
@@ -3514,7 +3894,7 @@ buys, sells and the other tab are untouched.
 func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]primitive.ObjectID, int64, error) {
  ctx, cancel := context.WithTimeout(ctx, writeTimeout)
  defer cancel()
- filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currencyMatch(currency)})
+ filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currency})
  raw, err := s.col.Distinct(ctx, "holding_id", filter)
  if err != nil {
   return nil, 0, err
@@ -3552,7 +3932,10 @@ func (s *DividendsService) DeleteAll(ctx context.Context, userId primitive.Objec
    return err
   }
   for _, holdingId := range holdingIds {
-   if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil {
+   // An orphan dividend (its holding was deleted and the cascade missed it)
+   // has no holding to recompute; skipping it keeps one stray row from
+   // blocking Delete all for the whole tab.
+   if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil && !errors.Is(err, persistence.ErrNotFound) {
     return err
    }
   }
@@ -3614,6 +3997,8 @@ after its `get`, add:
               required: [deleted]
               properties:
                 deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 ```
@@ -3652,6 +4037,11 @@ func (h *Controller) AdminDeleteUserDividends(ctx context.Context, request api.A
  }
  deleted, err := h.dividends.DeleteAll(ctx, target.ID, string(request.Params.Currency))
  if err != nil {
+  // Same mapping as the own-portfolio route: no request validator runs,
+  // so a bad currency reaches the service and must be a 400, not a 500.
+  if errors.Is(err, services.ErrValidation) {
+   return api.AdminDeleteUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.AdminDeleteUserDividends200JSONResponse{Deleted: int(deleted)}, nil
@@ -3691,6 +4081,23 @@ func TestDeleteAll_ScopedAndRecomputes(t *testing.T) {
    t.Errorf("recomputes = %d, want 1", n)
   }
  })
+
+ // A dividend whose holding no longer exists (ErrNoDocuments on recompute)
+ // must not block Delete all.
+ mt.Run("orphan dividend", func(mt *mtest.T) {
+  userId, gone := primitive.NewObjectID(), primitive.NewObjectID()
+  mt.AddMockResponses(
+   mtest.CreateSuccessResponse(bson.E{Key: "values", Value: bson.A{gone}}), // distinct
+   mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}),          // deleteMany
+   mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+   mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}), // holding not found
+  )
+  st := persistence.New(mt.DB)
+  deleted, err := NewDividendsService(st.Transactions, st.Holdings, directRunner{}, nil).DeleteAll(context.Background(), userId, "INR")
+  if err != nil || deleted != 1 {
+   t.Fatalf("DeleteAll = %d, %v; want 1, nil (orphan skipped)", deleted, err)
+  }
+ })
 }
 ```
 
@@ -3700,11 +4107,44 @@ func TestDeleteAll_ScopedAndRecomputes(t *testing.T) {
 cd backend && go build ./... && go test ./internal/services/ -run DeleteAll -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
 ```
 
-Expected: `--- PASS: TestDeleteAll_ScopedAndRecomputes/INR`.
+Expected: `--- PASS: TestDeleteAll_ScopedAndRecomputes/INR` and `/orphan_dividend`.
+
+* [ ] **Step 6a: Admin route maps a bad currency to 400 (append to `controllers/dividends_test.go`)**
+
+WHY: no OpenAPI request validator runs, so the enum is not enforced; both
+delete routes must turn the service's `ErrValidation` into a 400 the same way.
+
+```go
+func TestAdminDeleteUserDividends_BadCurrency400(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ mt.Run("USD", func(mt *mtest.T) {
+  targetId := primitive.NewObjectID()
+  target := userDocument(t, targetId, "bob", "irrelevant1", domain.RoleUser, "india", nil)
+  mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
+  h := newIntegrationHandler(mt, &mockPriceFetcher{})
+  resp, err := h.AdminDeleteUserDividends(userCtx(regionalAdmin("india")), api.AdminDeleteUserDividendsRequestObject{
+   Id: targetId.Hex(), Params: api.AdminDeleteUserDividendsParams{Currency: "USD"},
+  })
+  if err != nil {
+   t.Fatalf("AdminDeleteUserDividends: %v", err)
+  }
+  if _, ok := resp.(api.AdminDeleteUserDividends400JSONResponse); !ok {
+   t.Fatalf("response = %T, want 400", resp)
+  }
+ })
+}
+```
+
+```bash
+cd backend && go test ./internal/controllers/ -run AdminDeleteUserDividends -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
+```
+
+Expected: `--- PASS: TestAdminDeleteUserDividends_BadCurrency400/USD`.
 
 * [ ] **Step 7: curl (PR6)**
 
 ```bash
+curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -X DELETE -H "$H" "$B/admin/users/<in-region user id>/dividends?currency=USD"   # 400
 curl -s -b c.txt -X DELETE -H "$H" "$B/dividends?currency=INR" | jq    # {"deleted": N}
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.summary.count'     # 0
 curl -s -b c.txt "$B/holdings" | jq '[.[] | select(.currency != "EUR") | .total_dividends] | add'   # 0; buys/sells intact
@@ -3714,7 +4154,7 @@ curl -s -b c.txt "$B/holdings" | jq '[.[] | select(.currency != "EUR") | .total_
 
 ```bash
 git checkout -b feat/PD-048-dividends-delete-all-api main
-git add backend/api/specs/dividends/dividends.yaml backend/api/specs/admin/admin.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/dividends.go backend/internal/services/dividends_test.go backend/internal/controllers/dividends.go docs/api.md
+git add backend/api/specs/dividends/dividends.yaml backend/api/specs/admin/admin.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/dividends.go backend/internal/services/dividends_test.go backend/internal/controllers/dividends.go backend/internal/controllers/dividends_test.go docs/api.md
 git commit -m "✨ Delete all dividends of a currency atomically"
 git push -u origin feat/PD-048-dividends-delete-all-api
 gh pr create --title "✨ Delete all dividends of a currency tab in one atomic step" --body-file pr6.md
@@ -4045,7 +4485,6 @@ package services
 
 import (
  "slices"
- "strings"
  "time"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
@@ -4064,15 +4503,6 @@ type DividendHistoryPoint struct {
 type DividendDay struct {
  ByCurrency map[string]DividendHistoryPoint
  BySymbol   map[string]float64
-}
-
-// canonicalCurrency applies CurrencyOf's blank → INR rule to a stored event
-// currency.
-func canonicalCurrency(c string) string {
- if c == "" {
-  return domain.CurrencyINR
- }
- return strings.ToUpper(c)
 }
 
 // DividendOverlay computes dividends to date per currency and per symbol for
@@ -4097,7 +4527,8 @@ func DividendOverlay(txns []domain.Transaction, holdings []domain.Holding, dates
   onDay := map[string]int64{}
   for ; i < len(txns) && !domain.UTCDate(txns[i].Date).After(cutoff); i++ {
    t := txns[i]
-   c, cents := canonicalCurrency(t.Currency), domain.AmountCents(t.Amount)
+   // Stored currencies are canonical (ledgerCurrency, Task 3A).
+   c, cents := t.Currency, domain.AmountCents(t.Amount)
    toDate[c] += cents
    bySymbol[symbolOf[t.HoldingID]] += cents
    if domain.UTCDate(t.Date).Equal(cutoff) {
@@ -4322,9 +4753,7 @@ func TestDividendOverlay(t *testing.T) {
  holdings := []domain.Holding{{ID: tcs, Symbol: "TCS.NS"}, {ID: sap, Symbol: "SAP.DE"}}
  eur := dividendEvent(sap, "2020-02-10", 40)
  eur.Currency = "EUR"
- blank := dividendEvent(tcs, "2020-03-15", 1250.5)
- blank.Currency = "" // legacy blank currency = INR
- txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, blank}
+ txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, dividendEvent(tcs, "2020-03-15", 1250.5)}
 
  got := DividendOverlay(txns, holdings, []string{"2020-03-15", "2019-12-31", "2020-01-31"})
 
@@ -4335,7 +4764,7 @@ func TestDividendOverlay(t *testing.T) {
   t.Errorf("31 Jan INR = %+v, want to_date 600, on_day 0", p)
  }
  if p := got["2020-03-15"].ByCurrency["INR"]; p.ToDate != 1850.5 || p.OnDay != 1250.5 {
-  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5 (blank currency counted as INR)", p)
+  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5", p)
  }
  if p := got["2020-03-15"].ByCurrency["EUR"]; p.ToDate != 40 {
   t.Errorf("15 Mar EUR = %+v, want 40 (never mixed with INR)", p)
@@ -5061,7 +5490,35 @@ PR3's curl show with both cumulatives; switch to EUR; filter by holding;
 **Files:**
 
 * Create: `frontend/src/features/dividends/DividendModal.tsx`, `DeleteAllDialog.tsx`, `DividendCrud.test.tsx`
-* Modify: `frontend/src/features/dividends/DividendsPage.tsx`
+* Modify: `frontend/src/features/dividends/DividendsPage.tsx`, `frontend/src/lib/formDates.ts`, `frontend/src/lib/formDates.test.ts`
+
+* [ ] **Step 0: `todayIST` (append to `lib/formDates.ts`)**
+
+WHY: the server's "not in the future" rule and the dividend calendar run on
+IST (`istToday`). `new Date().toISOString()` is the UTC day, so between 00:00
+and 05:30 IST a default of "today" would be yesterday and a dividend could be
+saved on the wrong day — shifting the running totals, the History day tint
+and the duplicate key. One shared helper, used by the add-dividend modal here
+and the CSV parser in Task 22.
+
+```ts
+// todayIST is the current IST calendar day as YYYY-MM-DD — the browser twin
+// of the server's istToday.
+export function todayIST(now = new Date()): string {
+  return new Date(now.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
+}
+```
+
+Test (append to `formDates.test.ts`, adding `todayIST` to its import):
+
+```ts
+describe('todayIST', () => {
+  it('rolls over at midnight IST, not UTC', () => {
+    expect(todayIST(new Date('2026-10-30T18:29:00Z'))).toBe('2026-10-30')
+    expect(todayIST(new Date('2026-10-30T18:31:00Z'))).toBe('2026-10-31')
+  })
+})
+```
 
 * [ ] **Step 1: `DividendModal.tsx`**
 
@@ -5078,7 +5535,7 @@ import { api } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
 import { canonicalCurrency, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow, Holding } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
 
@@ -5100,7 +5557,7 @@ interface Props {
 export default function DividendModal({ currency, holdings, editing, userId, onClose, onSaved }: Props) {
   const inTab = holdings.filter(h => canonicalCurrency(h.currency) === currency)
   const [holdingId, setHoldingId] = useState(editing?.holding_id ?? inTab[0]?.id ?? '')
-  const [date, setDate] = useState(editing?.date ?? new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(editing?.date ?? todayIST())
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -5416,16 +5873,16 @@ describe('dividend CRUD', () => {
 * [ ] **Step 5: Verify**
 
 ```bash
-cd frontend && npx tsc --noEmit && npx vitest run src/features/dividends
+cd frontend && npx tsc --noEmit && npx vitest run src/features/dividends src/lib/formDates.test.ts
 ```
 
-Expected: DividendsPage (4) + DividendCrud (3) PASS.
+Expected: DividendsPage (4) + DividendCrud (3) + `todayIST` PASS.
 
 * [ ] **Step 6: Commit, push, PR10**
 
 ```bash
 git checkout -b feat/PD-048-dividends-crud-ui main
-git add frontend/src/features/dividends/DividendModal.tsx frontend/src/features/dividends/DeleteAllDialog.tsx frontend/src/features/dividends/DividendCrud.test.tsx frontend/src/features/dividends/DividendsPage.tsx
+git add frontend/src/features/dividends/DividendModal.tsx frontend/src/features/dividends/DeleteAllDialog.tsx frontend/src/features/dividends/DividendCrud.test.tsx frontend/src/features/dividends/DividendsPage.tsx frontend/src/lib/formDates.ts frontend/src/lib/formDates.test.ts
 git commit -m "✨ Add, edit and delete dividends on the page"
 git push -u origin feat/PD-048-dividends-crud-ui
 gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Dividends page" --body-file pr10.md
@@ -5433,7 +5890,7 @@ gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Divi
 
 ---
 
-## Task 21: Move shared parsers to `lib/` (PR11)
+## Task 21: Shared date and money-cell parsers in `lib/` (PR11)
 
 **Files:**
 
@@ -5441,7 +5898,7 @@ gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Divi
 
 * [ ] **Step 1: Move `normaliseDate` with a real-calendar check (Edit)**
 
-WHY: the dividend CSV needs exactly these parsers; one implementation, two
+WHY: the dividend CSV needs exactly this date parser; one implementation, two
 callers (reuse rule). The calendar check protects both callers — the current
 regex accepts `31/02/2021` and `13/13/2020`.
 
@@ -5487,49 +5944,37 @@ export function normaliseDate(s: string): string {
 }
 ```
 
-* [ ] **Step 2: Move `parseAmount` (Edit)**
-
-Remove from `historyShared.ts` (current):
-
-```ts
-const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
-
-export function parseAmount(s: string): number {
-  if (!s) return 0
-  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
-  if (!cleaned) return 0
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
-}
-```
-
-Append to `lib/formNumbers.ts`:
-
-```ts
-const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
-
-// parseAmount reads a spreadsheet money cell: currency symbols (₹ € $ £) and
-// thousands separators (, _ space) stripped; empty → 0; garbage → NaN.
-export function parseAmount(s: string): number {
-  if (!s) return 0
-  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
-  if (!cleaned) return 0
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
-}
-```
-
 At the top of `historyShared.ts`, after its existing imports, add — so
 `parsePasteText` keeps working and every existing History import is
 unchanged:
 
 ```ts
 import { normaliseDate } from '../../lib/formDates'
-import { parseAmount } from '../../lib/formNumbers'
 
 // Moved to lib/ for the dividend CSV import (PD-048); re-exported so History
 // callers and tests keep importing from here.
-export { normaliseDate, parseAmount }
+export { normaliseDate }
+```
+
+* [ ] **Step 2: `parseMoneyCell` on top of `parseDecimalInput` (append to `lib/formNumbers.ts`)**
+
+WHY: History's `parseAmount` strips every comma, so a European cell on the EUR
+tab is silently misread (`1.250,50` → 1.2505, `40,5` → 405). The app already
+has a parser that reads both number styles — `parseDecimalInput`, used by
+every amount input including the add-dividend modal — so the CSV reuses it
+and a CSV cell and a typed amount always read the same. `parseAmount` stays
+where it is for History's paste, unchanged.
+
+```ts
+const CURRENCY_SIGNS_RE = /[₹€$£]/g
+
+// parseMoneyCell reads a spreadsheet money cell in either number style —
+// 1,250.50 (Indian/English) or 1.250,50 (European) — by stripping currency
+// signs and delegating to parseDecimalInput, the parser the amount inputs
+// use. Empty → 0; unreadable → NaN.
+export function parseMoneyCell(s: string): number {
+  return parseDecimalInput(s.replace(CURRENCY_SIGNS_RE, ''))
+}
 ```
 
 * [ ] **Step 3: Tests (append)**
@@ -5552,15 +5997,22 @@ describe('normaliseDate', () => {
 })
 ```
 
-`formNumbers.test.ts` (add `parseAmount` to its import):
+`formNumbers.test.ts` (add `parseMoneyCell` to its import):
 
 ```ts
-describe('parseAmount', () => {
-  it('strips symbols and separators', () => {
-    expect(parseAmount('₹1,250.50')).toBe(1250.5)
-    expect(parseAmount('€ 40')).toBe(40)
-    expect(parseAmount('')).toBe(0)
-    expect(parseAmount('abc')).toBeNaN()
+describe('parseMoneyCell', () => {
+  it('reads both number styles and strips currency signs', () => {
+    expect(parseMoneyCell('₹1,250.50')).toBe(1250.5)
+    expect(parseMoneyCell('1.250,50')).toBe(1250.5)
+    expect(parseMoneyCell('€ 40,5')).toBe(40.5)
+    expect(parseMoneyCell('12,34,567.89')).toBe(1234567.89)
+    expect(parseMoneyCell('')).toBe(0)
+    expect(parseMoneyCell('abc')).toBeNaN()
+  })
+  it('reads a cell the same way as a typed amount', () => {
+    for (const raw of ['1.250,50', '40,5', '1,250.50']) {
+      expect(parseMoneyCell(raw)).toBe(parseDecimalInput(raw))
+    }
   })
 })
 ```
@@ -5578,7 +6030,7 @@ Expected: all PASS, including every existing History paste test.
 ```bash
 git checkout -b feat/PD-048-dividends-import-ui main
 git add frontend/src/lib/formDates.ts frontend/src/lib/formDates.test.ts frontend/src/lib/formNumbers.ts frontend/src/lib/formNumbers.test.ts frontend/src/features/history/historyShared.ts
-git commit -m "♻️ Move date/amount parsers to lib for reuse"
+git commit -m "♻️ Share date and money-cell parsers in lib"
 ```
 
 ---
@@ -5634,7 +6086,7 @@ browser already rejects are counted as invalid and never sent.
 ```ts
 import { parseCsv } from '../../lib/csv'
 import { normaliseDate } from '../../lib/formDates'
-import { parseAmount } from '../../lib/formNumbers'
+import { parseMoneyCell } from '../../lib/formNumbers'
 import type { DividendImportRow } from '../../types'
 
 export const MAX_ROWS = 5000
@@ -5671,8 +6123,8 @@ export function parseDividendCsv(text: string, today: string): DividendCsv {
     const rawDate = cells[col.date] ?? ''
     const date = normaliseDate(rawDate)
     const share_name = (cells[col.share_name] ?? '').trim().replace(/\s+/g, ' ')
-    const amount = parseAmount(cells[col.amount] ?? '')
-    const cum = col.cumulative >= 0 ? parseAmount(cells[col.cumulative] ?? '') : NaN
+    const amount = parseMoneyCell(cells[col.amount] ?? '')
+    const cum = col.cumulative >= 0 ? parseMoneyCell(cells[col.cumulative] ?? '') : NaN
     const reasons: string[] = []
     if (!date) reasons.push(`Date "${rawDate}" is not a valid DD/MM/YYYY date`)
     else if (date > today) reasons.push('Date is in the future')
@@ -5687,12 +6139,9 @@ export function parseDividendCsv(text: string, today: string): DividendCsv {
   if (total > MAX_ROWS) errors.push({ line: 0, reason: `More than ${MAX_ROWS} rows — split the file` })
   return { rows, errors, total }
 }
-
-// todayIST is the IST calendar day as YYYY-MM-DD — the server's istToday.
-export function todayIST(now = new Date()): string {
-  return new Date(now.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
-}
 ```
+
+(The caller passes `todayIST()` from `lib/formDates.ts`, added in Task 20.)
 
 * [ ] **Step 3: Tests**
 
@@ -5718,7 +6167,7 @@ describe('parseCsv', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { parseDividendCsv, todayIST } from './dividendCsv'
+import { parseDividendCsv } from './dividendCsv'
 
 const TODAY = '2026-10-30'
 
@@ -5733,6 +6182,12 @@ describe('parseDividendCsv', () => {
       { line: 3, date: '2020-01-01', share_name: 'TCS', amount: 300, cumulative: 600 },
       { line: 4, date: '2020-03-15', share_name: 'Jio Platforms', amount: 1250.5, cumulative: 1850.5 },
     ])
+  })
+  it('reads European-style amounts on an EUR sheet', () => {
+    const csv = 'Date,Share Name,Dividend,CUMULATIVE\n10/02/2020,SAP,"1.250,50","1.250,50"\n11/02/2020,SAP,"40,5","1.291,00"\n'
+    const r = parseDividendCsv(csv, TODAY)
+    expect(r.errors).toEqual([])
+    expect(r.rows.map(x => [x.amount, x.cumulative])).toEqual([[1250.5, 1250.5], [40.5, 1291]])
   })
   it('accepts any header case and order, CUMULATIVE optional', () => {
     const r = parseDividendCsv(' dividend , SHARE  NAME,date\n300,TCS,1/2/2020\n', TODAY)
@@ -5750,9 +6205,6 @@ describe('parseDividendCsv', () => {
     expect(r.total).toBe(4)
     expect(r.errors.map(e => e.line)).toEqual([3, 4, 5, 6])
     expect(r.errors[3].reason).toBe('Date is in the future')
-  })
-  it('computes the IST day', () => {
-    expect(todayIST(new Date('2026-10-30T20:00:00Z'))).toBe('2026-10-31')
   })
 })
 ```
@@ -5881,10 +6333,10 @@ one.
 import { useMemo, useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { canonicalCurrency, currencySymbol, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendImportPreview, DividendImportResult, DividendImportRow, Holding } from '../../types'
 import { modalBackdrop, modalCard, td, th } from '../history/historyShared'
-import { parseDividendCsv, todayIST, type DividendCsvError } from './dividendCsv'
+import { parseDividendCsv, type DividendCsvError } from './dividendCsv'
 import NameConfirmDialog, { type Answers } from './NameConfirmDialog'
 
 type Step = 'pick' | 'names' | 'preview' | 'result'
@@ -6800,6 +7252,15 @@ gh pr create --title "✨ Show dividends on the dashboard and in History, and ma
 ## Task 27: End-to-end verification (dev stack, `dev` label)
 
 **Files:** none
+
+* [ ] **Step 0: Migrate legacy currencies** — once PR2 has merged, and before
+  PR3 deploys, run `migrate currencies` (Task 3A Step 5a) against the dev and
+  the prod database (`MONGODB_URI` set to each). Expected: the first run logs
+  the legacy counts; a second run logs zero for both; and
+  `db.transactions.distinct("currency")` / `db.holdings.distinct("currency")`
+  return only upper-case codes (`INR`, `EUR`, any legacy `USD`) — no `""`,
+  `inr` or padded values. From PR3 on, the dividend queries and the History
+  overlay rely on canonical stored currencies.
 
 * [ ] **Step 1: Deploy** — add the `dev` label to PR12 once PR2–PR11 have
   merged (PD-044 flow). Expected: dev Cloud Run + Pages preview updated; the
