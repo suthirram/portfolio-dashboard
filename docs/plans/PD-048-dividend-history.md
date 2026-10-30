@@ -78,7 +78,7 @@
 | Modify | `backend/internal/config/config.go`, `config_test.go` | default URI with `replicaSet` |
 | Modify | `docker-compose.dev.yml`, `docker-compose.yml` | single-node replica set |
 | Modify | `docs/local-setup.md`, `docs/configuration.md`, `docs/api.md`, `docs/history-and-snapshots.md` | runbook + endpoints |
-| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check), `parseAmount` |
+| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check); new `parseMoneyCell` over the existing `parseDecimalInput` |
 | Modify | `frontend/src/features/history/historyShared.ts` | import + re-export the moved parsers |
 | Create | `frontend/src/lib/csv.ts`, `csv.test.ts` | RFC-4180 tokenizer |
 | Modify | `frontend/src/lib/api/schema.gen.ts`, `client.ts`, `frontend/src/types.ts` | types, methods, `ApiError.body` |
@@ -5591,7 +5591,7 @@ gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Divi
 
 ---
 
-## Task 21: Move shared parsers to `lib/` (PR11)
+## Task 21: Shared date and money-cell parsers in `lib/` (PR11)
 
 **Files:**
 
@@ -5599,7 +5599,7 @@ gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Divi
 
 * [ ] **Step 1: Move `normaliseDate` with a real-calendar check (Edit)**
 
-WHY: the dividend CSV needs exactly these parsers; one implementation, two
+WHY: the dividend CSV needs exactly this date parser; one implementation, two
 callers (reuse rule). The calendar check protects both callers — the current
 regex accepts `31/02/2021` and `13/13/2020`.
 
@@ -5645,49 +5645,37 @@ export function normaliseDate(s: string): string {
 }
 ```
 
-* [ ] **Step 2: Move `parseAmount` (Edit)**
-
-Remove from `historyShared.ts` (current):
-
-```ts
-const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
-
-export function parseAmount(s: string): number {
-  if (!s) return 0
-  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
-  if (!cleaned) return 0
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
-}
-```
-
-Append to `lib/formNumbers.ts`:
-
-```ts
-const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
-
-// parseAmount reads a spreadsheet money cell: currency symbols (₹ € $ £) and
-// thousands separators (, _ space) stripped; empty → 0; garbage → NaN.
-export function parseAmount(s: string): number {
-  if (!s) return 0
-  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
-  if (!cleaned) return 0
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
-}
-```
-
 At the top of `historyShared.ts`, after its existing imports, add — so
 `parsePasteText` keeps working and every existing History import is
 unchanged:
 
 ```ts
 import { normaliseDate } from '../../lib/formDates'
-import { parseAmount } from '../../lib/formNumbers'
 
 // Moved to lib/ for the dividend CSV import (PD-048); re-exported so History
 // callers and tests keep importing from here.
-export { normaliseDate, parseAmount }
+export { normaliseDate }
+```
+
+* [ ] **Step 2: `parseMoneyCell` on top of `parseDecimalInput` (append to `lib/formNumbers.ts`)**
+
+WHY: History's `parseAmount` strips every comma, so a European cell on the EUR
+tab is silently misread (`1.250,50` → 1.2505, `40,5` → 405). The app already
+has a parser that reads both number styles — `parseDecimalInput`, used by
+every amount input including the add-dividend modal — so the CSV reuses it
+and a CSV cell and a typed amount always read the same. `parseAmount` stays
+where it is for History's paste, unchanged.
+
+```ts
+const CURRENCY_SIGNS_RE = /[₹€$£]/g
+
+// parseMoneyCell reads a spreadsheet money cell in either number style —
+// 1,250.50 (Indian/English) or 1.250,50 (European) — by stripping currency
+// signs and delegating to parseDecimalInput, the parser the amount inputs
+// use. Empty → 0; unreadable → NaN.
+export function parseMoneyCell(s: string): number {
+  return parseDecimalInput(s.replace(CURRENCY_SIGNS_RE, ''))
+}
 ```
 
 * [ ] **Step 3: Tests (append)**
@@ -5710,15 +5698,22 @@ describe('normaliseDate', () => {
 })
 ```
 
-`formNumbers.test.ts` (add `parseAmount` to its import):
+`formNumbers.test.ts` (add `parseMoneyCell` to its import):
 
 ```ts
-describe('parseAmount', () => {
-  it('strips symbols and separators', () => {
-    expect(parseAmount('₹1,250.50')).toBe(1250.5)
-    expect(parseAmount('€ 40')).toBe(40)
-    expect(parseAmount('')).toBe(0)
-    expect(parseAmount('abc')).toBeNaN()
+describe('parseMoneyCell', () => {
+  it('reads both number styles and strips currency signs', () => {
+    expect(parseMoneyCell('₹1,250.50')).toBe(1250.5)
+    expect(parseMoneyCell('1.250,50')).toBe(1250.5)
+    expect(parseMoneyCell('€ 40,5')).toBe(40.5)
+    expect(parseMoneyCell('12,34,567.89')).toBe(1234567.89)
+    expect(parseMoneyCell('')).toBe(0)
+    expect(parseMoneyCell('abc')).toBeNaN()
+  })
+  it('reads a cell the same way as a typed amount', () => {
+    for (const raw of ['1.250,50', '40,5', '1,250.50']) {
+      expect(parseMoneyCell(raw)).toBe(parseDecimalInput(raw))
+    }
   })
 })
 ```
@@ -5736,7 +5731,7 @@ Expected: all PASS, including every existing History paste test.
 ```bash
 git checkout -b feat/PD-048-dividends-import-ui main
 git add frontend/src/lib/formDates.ts frontend/src/lib/formDates.test.ts frontend/src/lib/formNumbers.ts frontend/src/lib/formNumbers.test.ts frontend/src/features/history/historyShared.ts
-git commit -m "♻️ Move date/amount parsers to lib for reuse"
+git commit -m "♻️ Share date and money-cell parsers in lib"
 ```
 
 ---
@@ -5792,7 +5787,7 @@ browser already rejects are counted as invalid and never sent.
 ```ts
 import { parseCsv } from '../../lib/csv'
 import { normaliseDate } from '../../lib/formDates'
-import { parseAmount } from '../../lib/formNumbers'
+import { parseMoneyCell } from '../../lib/formNumbers'
 import type { DividendImportRow } from '../../types'
 
 export const MAX_ROWS = 5000
@@ -5829,8 +5824,8 @@ export function parseDividendCsv(text: string, today: string): DividendCsv {
     const rawDate = cells[col.date] ?? ''
     const date = normaliseDate(rawDate)
     const share_name = (cells[col.share_name] ?? '').trim().replace(/\s+/g, ' ')
-    const amount = parseAmount(cells[col.amount] ?? '')
-    const cum = col.cumulative >= 0 ? parseAmount(cells[col.cumulative] ?? '') : NaN
+    const amount = parseMoneyCell(cells[col.amount] ?? '')
+    const cum = col.cumulative >= 0 ? parseMoneyCell(cells[col.cumulative] ?? '') : NaN
     const reasons: string[] = []
     if (!date) reasons.push(`Date "${rawDate}" is not a valid DD/MM/YYYY date`)
     else if (date > today) reasons.push('Date is in the future')
@@ -5891,6 +5886,12 @@ describe('parseDividendCsv', () => {
       { line: 3, date: '2020-01-01', share_name: 'TCS', amount: 300, cumulative: 600 },
       { line: 4, date: '2020-03-15', share_name: 'Jio Platforms', amount: 1250.5, cumulative: 1850.5 },
     ])
+  })
+  it('reads European-style amounts on an EUR sheet', () => {
+    const csv = 'Date,Share Name,Dividend,CUMULATIVE\n10/02/2020,SAP,"1.250,50","1.250,50"\n11/02/2020,SAP,"40,5","1.291,00"\n'
+    const r = parseDividendCsv(csv, TODAY)
+    expect(r.errors).toEqual([])
+    expect(r.rows.map(x => [x.amount, x.cumulative])).toEqual([[1250.5, 1250.5], [40.5, 1291]])
   })
   it('accepts any header case and order, CUMULATIVE optional', () => {
     const r = parseDividendCsv(' dividend , SHARE  NAME,date\n300,TCS,1/2/2020\n', TODAY)

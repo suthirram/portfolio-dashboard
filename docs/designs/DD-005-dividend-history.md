@@ -364,7 +364,7 @@ dedups).
 | Need | Existing | Action |
 |---|---|---|
 | Day-first dates | `normaliseDate` (`historyShared.ts`) | move to `lib/formDates.ts`; add real-calendar check (`31/02` rejected) |
-| Amounts with ₹/€/commas | `parseAmount` (`historyShared.ts`) | move to `lib/formNumbers.ts` |
+| Amounts in either number style (`1,250.50` / `1.250,50`) with ₹/€ | `parseDecimalInput` (`lib/formNumbers.ts`, used by every amount input) | new `parseMoneyCell` strips currency signs and delegates to it, so CSV cells and typed amounts read the same. Not History's `parseAmount`, which strips every comma and misreads European amounts |
 | Display date / money | `formatDate`, `formatMoney`, `currencySymbol` | reuse |
 | Tabs | `SUPPORTED_CURRENCIES` (`lib/currency.ts`) | reuse |
 | Amount input | `components/DecimalInput.tsx` | reuse |
