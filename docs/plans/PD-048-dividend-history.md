@@ -78,7 +78,7 @@
 | Modify | `backend/internal/config/config.go`, `config_test.go` | default URI with `replicaSet` |
 | Modify | `docker-compose.dev.yml`, `docker-compose.yml` | single-node replica set |
 | Modify | `docs/local-setup.md`, `docs/configuration.md`, `docs/api.md`, `docs/history-and-snapshots.md` | runbook + endpoints |
-| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check); new `parseMoneyCell` over the existing `parseDecimalInput` |
+| Modify | `frontend/src/lib/formDates.ts`, `formDates.test.ts`, `formNumbers.ts`, `formNumbers.test.ts` | receive `normaliseDate` (+ calendar check); new `todayIST` (Task 20) and `parseMoneyCell` over the existing `parseDecimalInput` |
 | Modify | `frontend/src/features/history/historyShared.ts` | import + re-export the moved parsers |
 | Create | `frontend/src/lib/csv.ts`, `csv.test.ts` | RFC-4180 tokenizer |
 | Modify | `frontend/src/lib/api/schema.gen.ts`, `client.ts`, `frontend/src/types.ts` | types, methods, `ApiError.body` |
@@ -5300,7 +5300,35 @@ PR3's curl show with both cumulatives; switch to EUR; filter by holding;
 **Files:**
 
 * Create: `frontend/src/features/dividends/DividendModal.tsx`, `DeleteAllDialog.tsx`, `DividendCrud.test.tsx`
-* Modify: `frontend/src/features/dividends/DividendsPage.tsx`
+* Modify: `frontend/src/features/dividends/DividendsPage.tsx`, `frontend/src/lib/formDates.ts`, `frontend/src/lib/formDates.test.ts`
+
+* [ ] **Step 0: `todayIST` (append to `lib/formDates.ts`)**
+
+WHY: the server's "not in the future" rule and the dividend calendar run on
+IST (`istToday`). `new Date().toISOString()` is the UTC day, so between 00:00
+and 05:30 IST a default of "today" would be yesterday and a dividend could be
+saved on the wrong day — shifting the running totals, the History day tint
+and the duplicate key. One shared helper, used by the add-dividend modal here
+and the CSV parser in Task 22.
+
+```ts
+// todayIST is the current IST calendar day as YYYY-MM-DD — the browser twin
+// of the server's istToday.
+export function todayIST(now = new Date()): string {
+  return new Date(now.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
+}
+```
+
+Test (append to `formDates.test.ts`, adding `todayIST` to its import):
+
+```ts
+describe('todayIST', () => {
+  it('rolls over at midnight IST, not UTC', () => {
+    expect(todayIST(new Date('2026-10-30T18:29:00Z'))).toBe('2026-10-30')
+    expect(todayIST(new Date('2026-10-30T18:31:00Z'))).toBe('2026-10-31')
+  })
+})
+```
 
 * [ ] **Step 1: `DividendModal.tsx`**
 
@@ -5317,7 +5345,7 @@ import { api } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
 import { canonicalCurrency, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow, Holding } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
 
@@ -5339,7 +5367,7 @@ interface Props {
 export default function DividendModal({ currency, holdings, editing, userId, onClose, onSaved }: Props) {
   const inTab = holdings.filter(h => canonicalCurrency(h.currency) === currency)
   const [holdingId, setHoldingId] = useState(editing?.holding_id ?? inTab[0]?.id ?? '')
-  const [date, setDate] = useState(editing?.date ?? new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(editing?.date ?? todayIST())
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -5655,16 +5683,16 @@ describe('dividend CRUD', () => {
 * [ ] **Step 5: Verify**
 
 ```bash
-cd frontend && npx tsc --noEmit && npx vitest run src/features/dividends
+cd frontend && npx tsc --noEmit && npx vitest run src/features/dividends src/lib/formDates.test.ts
 ```
 
-Expected: DividendsPage (4) + DividendCrud (3) PASS.
+Expected: DividendsPage (4) + DividendCrud (3) + `todayIST` PASS.
 
 * [ ] **Step 6: Commit, push, PR10**
 
 ```bash
 git checkout -b feat/PD-048-dividends-crud-ui main
-git add frontend/src/features/dividends/DividendModal.tsx frontend/src/features/dividends/DeleteAllDialog.tsx frontend/src/features/dividends/DividendCrud.test.tsx frontend/src/features/dividends/DividendsPage.tsx
+git add frontend/src/features/dividends/DividendModal.tsx frontend/src/features/dividends/DeleteAllDialog.tsx frontend/src/features/dividends/DividendCrud.test.tsx frontend/src/features/dividends/DividendsPage.tsx frontend/src/lib/formDates.ts frontend/src/lib/formDates.test.ts
 git commit -m "✨ Add, edit and delete dividends on the page"
 git push -u origin feat/PD-048-dividends-crud-ui
 gh pr create --title "✨ Add, edit, delete and delete-all dividends on the Dividends page" --body-file pr10.md
@@ -5921,12 +5949,9 @@ export function parseDividendCsv(text: string, today: string): DividendCsv {
   if (total > MAX_ROWS) errors.push({ line: 0, reason: `More than ${MAX_ROWS} rows — split the file` })
   return { rows, errors, total }
 }
-
-// todayIST is the IST calendar day as YYYY-MM-DD — the server's istToday.
-export function todayIST(now = new Date()): string {
-  return new Date(now.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
-}
 ```
+
+(The caller passes `todayIST()` from `lib/formDates.ts`, added in Task 20.)
 
 * [ ] **Step 3: Tests**
 
@@ -5952,7 +5977,7 @@ describe('parseCsv', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { parseDividendCsv, todayIST } from './dividendCsv'
+import { parseDividendCsv } from './dividendCsv'
 
 const TODAY = '2026-10-30'
 
@@ -5990,9 +6015,6 @@ describe('parseDividendCsv', () => {
     expect(r.total).toBe(4)
     expect(r.errors.map(e => e.line)).toEqual([3, 4, 5, 6])
     expect(r.errors[3].reason).toBe('Date is in the future')
-  })
-  it('computes the IST day', () => {
-    expect(todayIST(new Date('2026-10-30T20:00:00Z'))).toBe('2026-10-31')
   })
 })
 ```
@@ -6121,10 +6143,10 @@ one.
 import { useMemo, useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { canonicalCurrency, currencySymbol, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendImportPreview, DividendImportResult, DividendImportRow, Holding } from '../../types'
 import { modalBackdrop, modalCard, td, th } from '../history/historyShared'
-import { parseDividendCsv, todayIST, type DividendCsvError } from './dividendCsv'
+import { parseDividendCsv, type DividendCsvError } from './dividendCsv'
 import NameConfirmDialog, { type Answers } from './NameConfirmDialog'
 
 type Step = 'pick' | 'names' | 'preview' | 'result'
