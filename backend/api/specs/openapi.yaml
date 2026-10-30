@@ -143,6 +143,10 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:
     $ref: "./admin/admin.yaml#/users_id_holdings_holdingid"
+  /admin/users/{id}/holdings/{holdingId}/transactions:
+    $ref: "./admin/admin.yaml#/users_id_holdings_holdingid_transactions"
+  /admin/users/{id}/transactions/{transactionId}:
+    $ref: "./admin/admin.yaml#/users_id_transactions_transactionid"
   /admin/users/{id}/prices:
     $ref: "./admin/admin.yaml#/users_id_prices"
   /admin/users/{id}/summary:

@@ -183,11 +183,17 @@ type AdminCreateUserHoldingJSONRequestBody = HoldingInput
 // AdminUpdateUserHoldingJSONRequestBody defines body for AdminUpdateUserHolding for application/json ContentType.
 type AdminUpdateUserHoldingJSONRequestBody = HoldingInput
 
+// AdminCreateUserTransactionJSONRequestBody defines body for AdminCreateUserTransaction for application/json ContentType.
+type AdminCreateUserTransactionJSONRequestBody = TransactionInput
+
 // AdminSetUserPremiumJSONRequestBody defines body for AdminSetUserPremium for application/json ContentType.
 type AdminSetUserPremiumJSONRequestBody = PremiumToggleRequest
 
 // AdminSetUserRegionJSONRequestBody defines body for AdminSetUserRegion for application/json ContentType.
 type AdminSetUserRegionJSONRequestBody = RegionUpdateRequest
+
+// AdminUpdateUserTransactionJSONRequestBody defines body for AdminUpdateUserTransaction for application/json ContentType.
+type AdminUpdateUserTransactionJSONRequestBody = TransactionInput
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -299,6 +305,12 @@ type ServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx echo.Context, id UserID, holdingId string) error
+	// A user's ledger for one holding (act-as)
+	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminListUserHoldingTransactions(ctx echo.Context, id UserID, holdingId string) error
+	// Add a ledger event to a user's holding (act-as)
+	// (POST /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminCreateUserTransaction(ctx echo.Context, id UserID, holdingId string) error
 	// Enable or disable premium features for an account (super admin only)
 	// (PUT /admin/users/{id}/premium)
 	AdminSetUserPremium(ctx echo.Context, id UserID) error
@@ -323,6 +335,12 @@ type ServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx echo.Context, id UserID) error
+	// Delete a user's ledger event (act-as)
+	// (DELETE /admin/users/{id}/transactions/{transactionId})
+	AdminDeleteUserTransaction(ctx echo.Context, id UserID, transactionId string) error
+	// Edit a user's ledger event (act-as)
+	// (PUT /admin/users/{id}/transactions/{transactionId})
+	AdminUpdateUserTransaction(ctx echo.Context, id UserID, transactionId string) error
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx echo.Context) error
@@ -772,6 +790,58 @@ func (w *ServerInterfaceWrapper) AdminUpdateUserHolding(ctx echo.Context) error 
 	return err
 }
 
+// AdminListUserHoldingTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminListUserHoldingTransactions(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holdingId" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdingId", ctx.Param("holdingId"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holdingId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminListUserHoldingTransactions(ctx, id, holdingId)
+	return err
+}
+
+// AdminCreateUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminCreateUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holdingId" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdingId", ctx.Param("holdingId"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holdingId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminCreateUserTransaction(ctx, id, holdingId)
+	return err
+}
+
 // AdminSetUserPremium converts echo context to params.
 func (w *ServerInterfaceWrapper) AdminSetUserPremium(ctx echo.Context) error {
 	var err error
@@ -913,6 +983,58 @@ func (w *ServerInterfaceWrapper) AdminListUserTransactions(ctx echo.Context) err
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminListUserTransactions(ctx, id)
+	return err
+}
+
+// AdminDeleteUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminDeleteUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminDeleteUserTransaction(ctx, id, transactionId)
+	return err
+}
+
+// AdminUpdateUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminUpdateUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminUpdateUserTransaction(ctx, id, transactionId)
 	return err
 }
 
@@ -1601,6 +1723,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminCreateUserHolding, options.OperationMiddlewares["adminCreateUserHolding"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminDeleteUserHolding, options.OperationMiddlewares["adminDeleteUserHolding"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminUpdateUserHolding, options.OperationMiddlewares["adminUpdateUserHolding"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminListUserHoldingTransactions, options.OperationMiddlewares["adminListUserHoldingTransactions"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminCreateUserTransaction, options.OperationMiddlewares["adminCreateUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/premium", wrapper.AdminSetUserPremium, options.OperationMiddlewares["adminSetUserPremium"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/prices", wrapper.AdminGetUserPrices, options.OperationMiddlewares["adminGetUserPrices"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/promote", wrapper.AdminPromoteUser, options.OperationMiddlewares["adminPromoteUser"]...)
@@ -1609,6 +1733,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/reset-lockout", wrapper.AdminResetLockout, options.OperationMiddlewares["adminResetLockout"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/summary", wrapper.AdminGetUserSummary, options.OperationMiddlewares["adminGetUserSummary"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/transactions", wrapper.AdminListUserTransactions, options.OperationMiddlewares["adminListUserTransactions"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminDeleteUserTransaction, options.OperationMiddlewares["adminDeleteUserTransaction"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminUpdateUserTransaction, options.OperationMiddlewares["adminUpdateUserTransaction"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
 	router.GET(options.BaseURL+"/auth/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
@@ -2394,6 +2520,95 @@ func (response AdminUpdateUserHolding404JSONResponse) VisitAdminUpdateUserHoldin
 	return err
 }
 
+type AdminListUserHoldingTransactionsRequestObject struct {
+	Id        UserID `json:"id"`
+	HoldingId string `json:"holdingId"`
+}
+
+type AdminListUserHoldingTransactionsResponseObject interface {
+	VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error
+}
+
+type AdminListUserHoldingTransactions200JSONResponse []Transaction
+
+func (response AdminListUserHoldingTransactions200JSONResponse) VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserHoldingTransactions404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminListUserHoldingTransactions404JSONResponse) VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransactionRequestObject struct {
+	Id        UserID `json:"id"`
+	HoldingId string `json:"holdingId"`
+	Body      *AdminCreateUserTransactionJSONRequestBody
+}
+
+type AdminCreateUserTransactionResponseObject interface {
+	VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateUserTransaction201JSONResponse Transaction
+
+func (response AdminCreateUserTransaction201JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminCreateUserTransaction400JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminCreateUserTransaction404JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type AdminSetUserPremiumRequestObject struct {
 	Id   UserID `json:"id"`
 	Body *AdminSetUserPremiumJSONRequestBody
@@ -2725,6 +2940,111 @@ func (response AdminListUserTransactions200JSONResponse) VisitAdminListUserTrans
 type AdminListUserTransactions404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminListUserTransactions404JSONResponse) VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransactionRequestObject struct {
+	Id            UserID `json:"id"`
+	TransactionId string `json:"transactionId"`
+}
+
+type AdminDeleteUserTransactionResponseObject interface {
+	VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteUserTransaction200JSONResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
+func (response AdminDeleteUserTransaction200JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminDeleteUserTransaction400JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminDeleteUserTransaction404JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransactionRequestObject struct {
+	Id            UserID `json:"id"`
+	TransactionId string `json:"transactionId"`
+	Body          *AdminUpdateUserTransactionJSONRequestBody
+}
+
+type AdminUpdateUserTransactionResponseObject interface {
+	VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateUserTransaction200JSONResponse Transaction
+
+func (response AdminUpdateUserTransaction200JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminUpdateUserTransaction400JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminUpdateUserTransaction404JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -4715,6 +5035,12 @@ type StrictServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx context.Context, request AdminUpdateUserHoldingRequestObject) (AdminUpdateUserHoldingResponseObject, error)
+	// A user's ledger for one holding (act-as)
+	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminListUserHoldingTransactions(ctx context.Context, request AdminListUserHoldingTransactionsRequestObject) (AdminListUserHoldingTransactionsResponseObject, error)
+	// Add a ledger event to a user's holding (act-as)
+	// (POST /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminCreateUserTransaction(ctx context.Context, request AdminCreateUserTransactionRequestObject) (AdminCreateUserTransactionResponseObject, error)
 	// Enable or disable premium features for an account (super admin only)
 	// (PUT /admin/users/{id}/premium)
 	AdminSetUserPremium(ctx context.Context, request AdminSetUserPremiumRequestObject) (AdminSetUserPremiumResponseObject, error)
@@ -4739,6 +5065,12 @@ type StrictServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx context.Context, request AdminListUserTransactionsRequestObject) (AdminListUserTransactionsResponseObject, error)
+	// Delete a user's ledger event (act-as)
+	// (DELETE /admin/users/{id}/transactions/{transactionId})
+	AdminDeleteUserTransaction(ctx context.Context, request AdminDeleteUserTransactionRequestObject) (AdminDeleteUserTransactionResponseObject, error)
+	// Edit a user's ledger event (act-as)
+	// (PUT /admin/users/{id}/transactions/{transactionId})
+	AdminUpdateUserTransaction(ctx context.Context, request AdminUpdateUserTransactionRequestObject) (AdminUpdateUserTransactionResponseObject, error)
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -5321,6 +5653,64 @@ func (sh *strictHandler) AdminUpdateUserHolding(ctx echo.Context, id UserID, hol
 	return nil
 }
 
+// AdminListUserHoldingTransactions operation middleware
+func (sh *strictHandler) AdminListUserHoldingTransactions(ctx echo.Context, id UserID, holdingId string) error {
+	var request AdminListUserHoldingTransactionsRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListUserHoldingTransactions(ctx.Request().Context(), request.(AdminListUserHoldingTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListUserHoldingTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminListUserHoldingTransactionsResponseObject); ok {
+		return validResponse.VisitAdminListUserHoldingTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminCreateUserTransaction operation middleware
+func (sh *strictHandler) AdminCreateUserTransaction(ctx echo.Context, id UserID, holdingId string) error {
+	var request AdminCreateUserTransactionRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	var body AdminCreateUserTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateUserTransaction(ctx.Request().Context(), request.(AdminCreateUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminCreateUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminCreateUserTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // AdminSetUserPremium operation middleware
 func (sh *strictHandler) AdminSetUserPremium(ctx echo.Context, id UserID) error {
 	var request AdminSetUserPremiumRequestObject
@@ -5527,6 +5917,64 @@ func (sh *strictHandler) AdminListUserTransactions(ctx echo.Context, id UserID) 
 		return err
 	} else if validResponse, ok := response.(AdminListUserTransactionsResponseObject); ok {
 		return validResponse.VisitAdminListUserTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminDeleteUserTransaction operation middleware
+func (sh *strictHandler) AdminDeleteUserTransaction(ctx echo.Context, id UserID, transactionId string) error {
+	var request AdminDeleteUserTransactionRequestObject
+
+	request.Id = id
+	request.TransactionId = transactionId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteUserTransaction(ctx.Request().Context(), request.(AdminDeleteUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminDeleteUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminDeleteUserTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminUpdateUserTransaction operation middleware
+func (sh *strictHandler) AdminUpdateUserTransaction(ctx echo.Context, id UserID, transactionId string) error {
+	var request AdminUpdateUserTransactionRequestObject
+
+	request.Id = id
+	request.TransactionId = transactionId
+
+	var body AdminUpdateUserTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateUserTransaction(ctx.Request().Context(), request.(AdminUpdateUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminUpdateUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminUpdateUserTransactionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
