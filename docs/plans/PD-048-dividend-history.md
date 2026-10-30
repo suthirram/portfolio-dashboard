@@ -2174,6 +2174,18 @@ func initials(s string) string {
  return b.String()
 }
 
+// sameLetters reports whether a and b use the same letters in any order, so
+// a shorthand like the owner's "JLP" still matches the initials "jpl".
+func sameLetters(a, b string) bool {
+ if len(a) != len(b) {
+  return false
+ }
+ x, y := []byte(a), []byte(b)
+ slices.Sort(x)
+ slices.Sort(y)
+ return string(x) == string(y)
+}
+
 // trigramJaccard is |A∩B| / |A∪B| over padded character trigrams.
 func trigramJaccard(a, b string) float64 {
  grams := func(s string) map[string]bool {
@@ -2214,7 +2226,9 @@ func suggestionScore(name string, h domain.Holding) float64 {
  if tokenPrefix(s, script) || (len(compact(s)) >= 4 && strings.HasPrefix(symbol, compact(s))) {
   best = max(best, 0.8)
  }
- if len(compact(s)) >= 2 && compact(s) == initials(nameKey(h.Script)) {
+ // Initials in order ("JPL") or as a shuffled shorthand ("JLP", the owner's
+ // example). Kept below preselectScore: a suggestion, not a pre-selection.
+ if ini := initials(nameKey(h.Script)); len(compact(s)) >= 2 && (compact(s) == ini || sameLetters(compact(s), ini)) {
   best = max(best, 0.7)
  }
  return best
@@ -2430,6 +2444,15 @@ func TestResolveNames_InconsistentNamesNeedConfirmation(t *testing.T) {
   if r.view.Preselect == nil || *r.view.Preselect != jio {
    t.Errorf("%q: want Jio Platforms preselected (clear best)", name)
   }
+ }
+ // The owner's shorthand: letters of the initials in another order. Jio is
+ // suggested first but, at 0.7, not pre-selected — the owner picks it.
+ r := resolveOne("JLP", hs, nil)
+ if len(r.view.Suggestions) == 0 || r.view.Suggestions[0].HoldingId != jio {
+  t.Errorf(`"JLP": suggestions %+v, want Jio Platforms first`, r.view.Suggestions)
+ }
+ if r.view.Preselect != nil {
+  t.Error(`"JLP": an initials match must not be pre-selected`)
  }
 }
 

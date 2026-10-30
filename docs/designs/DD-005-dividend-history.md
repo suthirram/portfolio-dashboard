@@ -174,7 +174,8 @@ func corpKey(s string) string
    * token prefix — every sheet token prefixes a candidate token, or the
      reverse (`jio` → `jio platforms`) → 0.8
    * symbol prefix ≥ 4 chars (`JIOP` ↔ `JIOPLA.NS`) → 0.8
-   * initials (`JPL` ↔ Jio Platforms Limited) → 0.7
+   * initials, in order or with the letters shuffled (`JPL` or the owner's
+     `JLP` ↔ Jio Platforms Ltd) → 0.7 — suggested, never pre-selected
    * trigram Jaccard on `corpKey` (`JLP`, typos) → raw score
 
    Suggestions below 0.3 are dropped. `preselect` = top suggestion only when
