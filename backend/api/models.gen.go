@@ -173,16 +173,16 @@ func (e HoldingInputType) Valid() bool {
 
 // Defines values for HoldingWithPriceCurrency.
 const (
-	EUR HoldingWithPriceCurrency = "EUR"
-	INR HoldingWithPriceCurrency = "INR"
+	HoldingWithPriceCurrencyEUR HoldingWithPriceCurrency = "EUR"
+	HoldingWithPriceCurrencyINR HoldingWithPriceCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceCurrency enum.
 func (e HoldingWithPriceCurrency) Valid() bool {
 	switch e {
-	case EUR:
+	case HoldingWithPriceCurrencyEUR:
 		return true
-	case INR:
+	case HoldingWithPriceCurrencyINR:
 		return true
 	default:
 		return false
@@ -354,6 +354,24 @@ func (e UserRole) Valid() bool {
 	}
 }
 
+// Defines values for DividendCurrency.
+const (
+	DividendCurrencyEUR DividendCurrency = "EUR"
+	DividendCurrencyINR DividendCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the DividendCurrency enum.
+func (e DividendCurrency) Valid() bool {
+	switch e {
+	case DividendCurrencyEUR:
+		return true
+	case DividendCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // AddHistoryRowInput defines model for AddHistoryRowInput.
 type AddHistoryRowInput struct {
 	Date    openapi_types.Date            `json:"date"`
@@ -409,6 +427,73 @@ type CurrencyChange struct {
 
 	// PreviousClose Snapshot current value in the native currency.
 	PreviousClose *float64 `json:"previous_close,omitempty"`
+}
+
+// DividendHoldingTotal defines model for DividendHoldingTotal.
+type DividendHoldingTotal struct {
+	Count     int    `json:"count"`
+	HoldingId string `json:"holding_id"`
+	Script    string `json:"script"`
+
+	// Share total ÷ tab total (0–1)
+	Share  float64 `json:"share"`
+	Symbol string  `json:"symbol"`
+	Total  float64 `json:"total"`
+}
+
+// DividendPeriodTotal defines model for DividendPeriodTotal.
+type DividendPeriodTotal struct {
+	Count int `json:"count"`
+
+	// Period YYYY (by_year) or YYYY-MM (by_month)
+	Period string  `json:"period"`
+	Total  float64 `json:"total"`
+}
+
+// DividendRow One dividend ledger event in a currency tab (PRD-005 §8).
+type DividendRow struct {
+	// Amount Cash received
+	Amount float64 `json:"amount"`
+
+	// Cumulative Running total across all holdings in the tab
+	Cumulative float64 `json:"cumulative"`
+
+	// Currency INR | EUR
+	Currency string             `json:"currency"`
+	Date     openapi_types.Date `json:"date"`
+
+	// HoldingCumulative Running total for this holding
+	HoldingCumulative float64 `json:"holding_cumulative"`
+	HoldingId         string  `json:"holding_id"`
+	Id                string  `json:"id"`
+	Notes             *string `json:"notes,omitempty"`
+
+	// Script Owning holding's display name
+	Script string `json:"script"`
+
+	// Symbol Owning holding's ticker
+	Symbol string `json:"symbol"`
+}
+
+// DividendSummary defines model for DividendSummary.
+type DividendSummary struct {
+	Count     int                 `json:"count"`
+	FirstDate *openapi_types.Date `json:"first_date,omitempty"`
+
+	// Holdings Holdings with at least one dividend
+	Holdings int                 `json:"holdings"`
+	LastDate *openapi_types.Date `json:"last_date,omitempty"`
+	Total    float64             `json:"total"`
+}
+
+// DividendView defines model for DividendView.
+type DividendView struct {
+	// ByHolding Biggest total first
+	ByHolding []DividendHoldingTotal `json:"by_holding"`
+	ByMonth   []DividendPeriodTotal  `json:"by_month"`
+	ByYear    []DividendPeriodTotal  `json:"by_year"`
+	Rows      []DividendRow          `json:"rows"`
+	Summary   DividendSummary        `json:"summary"`
 }
 
 // Error defines model for Error.
@@ -1058,6 +1143,9 @@ type User struct {
 
 // UserRole defines model for User.Role.
 type UserRole string
+
+// DividendCurrency defines model for DividendCurrency.
+type DividendCurrency string
 
 // UserID defines model for UserID.
 type UserID = string

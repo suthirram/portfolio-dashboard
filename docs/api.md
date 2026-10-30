@@ -46,6 +46,27 @@ summary are scoped to the logged-in user.
 | GET/POST | `/api/holdings/{id}/transactions` | List / append the holding's ledger events |
 | PUT/DELETE | `/api/transactions/{id}` | Edit / remove a ledger event (holding is recomputed) |
 
+## Dividends (per-user, one currency tab)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/dividends?currency=INR\|EUR` | The caller's dividend ledger events in one currency, oldest first, as a `DividendView` |
+| GET | `/api/admin/users/{id}/dividends?currency=INR\|EUR` | Act-as: a target user's tab (region-scoped; out of scope ⇒ 404) |
+
+Dividends are `transactions` documents with `type = dividend`; add / edit /
+delete one through the ledger endpoints above. Any other `currency` is a 400.
+A `DividendView` is computed on read (integer cents, so totals never drift):
+`rows` (each with `cumulative` across the tab and `holding_cumulative` for its
+holding), `summary` (`total`, `count`, `holdings`, `first_date`, `last_date`),
+`by_year`, `by_month` (`period`, `total`, `count`) and `by_holding` (biggest
+total first, with `share` of the tab total). Example row:
+
+```json
+{"id": "6720…", "holding_id": "6650…", "script": "TCS", "symbol": "TCS.NS",
+ "date": "2020-01-01", "amount": 300, "currency": "INR", "notes": "",
+ "cumulative": 300, "holding_cumulative": 300}
+```
+
 ## History (per-user snapshots)
 
 | Method | Path | Description |
