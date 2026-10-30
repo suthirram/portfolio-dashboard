@@ -2904,7 +2904,9 @@ cat > imp.json <<'JSON'
  {"line":4,"date":"2020-03-15","share_name":"jio","amount":1250.5,"cumulative":1850.5}]}
 JSON
 curl -s -b c.txt -H "$H" -H "$J" -d @imp.json $B/dividends/import/preview | jq '.counts, [.names[] | {sheet_name, status, preselect}]'
-# counts.invalid 1 (line 4: "jio" needs_confirmation); ready+duplicate = 2
+# after PR3's curl (a hand-entered TCS 300 on 2020-01-01):
+# counts {ready: 1, duplicate: 1, invalid: 1, total: 3} — line 2 matches the stored
+# dividend, line 3 is the second occurrence, line 4 ("jio") needs confirmation
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.summary.count'   # unchanged — preview wrote nothing
 ```
 
@@ -3646,11 +3648,15 @@ Expected: `--- PASS: TestImport/...` ×3 and every earlier dividend test PASS.
 
 * [ ] **Step 7: curl (PR5 "How to test")**
 
+These steps continue from PR3's and PR4's: the database already holds the
+hand-entered TCS ₹300 dividend dated 2020-01-01 from PR3, which absorbs one of
+the two TCS sheet lines (occurrence matching, PRD-005 §5 scenario A).
+
 ```bash
 JIO=<Jio holding id>
 jq --arg jio "$JIO" '. + {mappings: {"jio": $jio}}' imp.json > imp2.json
-curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 3, dups: 0}
-curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 0, dups: 3}
+curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 2, dups: 1} — line 2 matches PR3's dividend
+curl -s -b c.txt -H "$H" -H "$J" -d @imp2.json $B/dividends/import | jq '{imported, dups: (.duplicates|length)}'   # {imported: 0, dups: 3} — idempotent
 curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -H "$H" -H "$J" -d @imp.json $B/dividends/import                  # 422 (jio unresolved)
 jq -n '{currency:"INR",rows:[{line:2,date:"2020-05-01",share_name:"jio",amount:10}]}' > imp3.json
 curl -s -b c.txt -H "$H" -H "$J" -d @imp3.json $B/dividends/import/preview | jq '.names[0].status'                  # "auto" (alias remembered)
