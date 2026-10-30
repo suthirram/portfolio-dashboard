@@ -3775,6 +3775,8 @@ after its `get`, add:
               required: [deleted]
               properties:
                 deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 ```
@@ -3813,6 +3815,11 @@ func (h *Controller) AdminDeleteUserDividends(ctx context.Context, request api.A
  }
  deleted, err := h.dividends.DeleteAll(ctx, target.ID, string(request.Params.Currency))
  if err != nil {
+  // Same mapping as the own-portfolio route: no request validator runs,
+  // so a bad currency reaches the service and must be a 400, not a 500.
+  if errors.Is(err, services.ErrValidation) {
+   return api.AdminDeleteUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.AdminDeleteUserDividends200JSONResponse{Deleted: int(deleted)}, nil
@@ -3880,9 +3887,42 @@ cd backend && go build ./... && go test ./internal/services/ -run DeleteAll -v 2
 
 Expected: `--- PASS: TestDeleteAll_ScopedAndRecomputes/INR` and `/orphan_dividend`.
 
+* [ ] **Step 6a: Admin route maps a bad currency to 400 (append to `controllers/dividends_test.go`)**
+
+WHY: no OpenAPI request validator runs, so the enum is not enforced; both
+delete routes must turn the service's `ErrValidation` into a 400 the same way.
+
+```go
+func TestAdminDeleteUserDividends_BadCurrency400(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ mt.Run("USD", func(mt *mtest.T) {
+  targetId := primitive.NewObjectID()
+  target := userDocument(t, targetId, "bob", "irrelevant1", domain.RoleUser, "india", nil)
+  mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
+  h := newIntegrationHandler(mt, &mockPriceFetcher{})
+  resp, err := h.AdminDeleteUserDividends(userCtx(regionalAdmin("india")), api.AdminDeleteUserDividendsRequestObject{
+   Id: targetId.Hex(), Params: api.AdminDeleteUserDividendsParams{Currency: "USD"},
+  })
+  if err != nil {
+   t.Fatalf("AdminDeleteUserDividends: %v", err)
+  }
+  if _, ok := resp.(api.AdminDeleteUserDividends400JSONResponse); !ok {
+   t.Fatalf("response = %T, want 400", resp)
+  }
+ })
+}
+```
+
+```bash
+cd backend && go test ./internal/controllers/ -run AdminDeleteUserDividends -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
+```
+
+Expected: `--- PASS: TestAdminDeleteUserDividends_BadCurrency400/USD`.
+
 * [ ] **Step 7: curl (PR6)**
 
 ```bash
+curl -s -o /dev/null -w '%{http_code}\n' -b c.txt -X DELETE -H "$H" "$B/admin/users/<in-region user id>/dividends?currency=USD"   # 400
 curl -s -b c.txt -X DELETE -H "$H" "$B/dividends?currency=INR" | jq    # {"deleted": N}
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.summary.count'     # 0
 curl -s -b c.txt "$B/holdings" | jq '[.[] | select(.currency != "EUR") | .total_dividends] | add'   # 0; buys/sells intact
@@ -3892,7 +3932,7 @@ curl -s -b c.txt "$B/holdings" | jq '[.[] | select(.currency != "EUR") | .total_
 
 ```bash
 git checkout -b feat/PD-048-dividends-delete-all-api main
-git add backend/api/specs/dividends/dividends.yaml backend/api/specs/admin/admin.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/dividends.go backend/internal/services/dividends_test.go backend/internal/controllers/dividends.go docs/api.md
+git add backend/api/specs/dividends/dividends.yaml backend/api/specs/admin/admin.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/dividends.go backend/internal/services/dividends_test.go backend/internal/controllers/dividends.go backend/internal/controllers/dividends_test.go docs/api.md
 git commit -m "✨ Delete all dividends of a currency atomically"
 git push -u origin feat/PD-048-dividends-delete-all-api
 gh pr create --title "✨ Delete all dividends of a currency tab in one atomic step" --body-file pr6.md
