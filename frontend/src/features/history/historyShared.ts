@@ -8,10 +8,14 @@ import type {
   HistoryRow,
   RegionSnapshot,
 } from '../../lib/api/client'
-import { formatDayMonth } from '../../lib/formDates'
+import { formatDayMonth, normaliseDate } from '../../lib/formDates'
 import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import type { ThemeName } from '../../lib/useTheme'
 import type { HoldingWithPrice } from '../../types'
+
+// Moved to lib/ for the dividend CSV import (PD-048); re-exported so History
+// callers and tests keep importing from here.
+export { normaliseDate }
 
 // Snapshot buckets are keyed by currency after PR7 design-review
 // (2026-06-16); the backend's CurrencyOf decides which bucket a
@@ -654,23 +658,6 @@ export function parseAmount(s: string): number {
   if (!cleaned) return 0
   const n = Number(cleaned)
   return Number.isFinite(n) ? n : NaN
-}
-
-// normaliseDate accepts the common European-style formats users paste
-// from spreadsheets and returns "YYYY-MM-DD". Returns "" when the input
-// can't be parsed as a date.
-export function normaliseDate(s: string): string {
-  const t = s.trim()
-  // Already ISO?
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
-  // dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
-  const m = t.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/)
-  if (m) {
-    const dd = m[1].padStart(2, '0')
-    const mm = m[2].padStart(2, '0')
-    return `${m[3]}-${mm}-${dd}`
-  }
-  return ''
 }
 
 export function parsePasteText(text: string): { date: string; regions: Record<string, { invested: number; current: number }> }[] {
