@@ -3,13 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { HistoryList, HistoryRow } from '../../lib/api/client'
 
-// Recharts' ResponsiveContainer needs ResizeObserver, absent in jsdom.
-globalThis.ResizeObserver ||= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
 // Mock the API client; keep the real ApiError so the 409 branch works.
 const mockApi = vi.hoisted(() => ({
   listHistory: vi.fn(),

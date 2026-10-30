@@ -164,6 +164,12 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             className="btn dash-nav-btn">
             <ListIcon size={14} /> <span className="dash-nav-label-sm">Transactions</span>
           </Link>
+          {/* Own portfolio only until the act-as route lands (PD-048 task 26). */}
+          {!actAsUserId && (
+            <Link to="/dividends" className="btn dash-nav-btn">
+              <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Dividends</span>
+            </Link>
+          )}
           {!actAsUserId && user?.gold_enabled && (
             <Link to="/gold" className="btn dash-nav-btn">
               <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Gold</span>
