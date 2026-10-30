@@ -54,8 +54,9 @@
 | Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go`, `gold_prices_test.go` | call `istToday` |
 | Modify | `backend/internal/services/transactions.go`, `transactions_test.go` | `validateDividend`; `healAfter` skips dividend-only writes |
 | Modify | `backend/internal/services/holdings.go`, `holdings_test.go` | a holding's currency change rewrites its ledger events' currency |
-| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `SetCurrencyByHolding`; `FillBlankCurrency` |
-| Modify | `backend/cmd/migrate.go`, `backend/internal/persistence/holdings.go` | `migrate currencies`: legacy blank currencies → INR, once |
+| Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `SetCurrencyByHolding`; `CanonicalizeCurrency` |
+| Create | `backend/internal/persistence/currency.go` | shared non-canonical filter + canonicalizing update (trim, upper-case, blank → INR) |
+| Modify | `backend/cmd/migrate.go`, `backend/internal/persistence/holdings.go` | `migrate currencies`: canonicalize legacy holding and ledger currencies, once |
 | Modify | `backend/internal/persistence/holdings.go` | `MoveAliases` |
 | Modify | `backend/internal/persistence/persistence.go` | `client` field; `InTransaction` |
 | Modify | `backend/internal/db/mongo.go`, `mongo_test.go` | dividend listing index |
@@ -103,7 +104,7 @@
 | # | Branch | Tasks | Value (gate 2) | Test that fails without it (gate 3) | No regression (gate 1) |
 |---|---|---|---|---|---|
 | PR1 | `docs/PRD-005-dividend-history` | 0 | agreed design on record | — (docs) | docs only |
-| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events; every event stores one canonical currency (`migrate currencies` fixes legacy blanks) | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency`, `TestLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
+| PR2 | `feat/PD-048-dividend-rules` | 1–3A | future-dated dividends rejected; dividend writes stop rewriting History; a holding's currency change carries over to its ledger events; every event stores one canonical currency (`migrate currencies` canonicalizes legacy blank, lowercase and padded codes) | `TestValidateDividend`, `TestTransactionsService_DividendSkipsHeal`, `TestHoldingsService_Update_SyncsLedgerCurrency`, `TestLedgerCurrency` | gold tests green after the `istToday` move; buy/sell still heal; edits without a currency leave the ledger alone |
 | PR3 | `feat/PD-048-dividends-view-api` | 4–7 | `GET /dividends` (+ act-as): rows, both running totals, yearly / monthly / per-holding | `TestBuildDividendView_*`, `TestListDividends_*` | additive routes + index |
 | PR4 | `feat/PD-048-dividends-preview-api` | 8–11 | `POST /dividends/import/preview`: name resolution, duplicates, invalid rows, warnings — no writes | `TestResolveNames_*`, `TestPartition_OccurrenceBased`, `TestCumulativeWarnings` | read-only endpoint; `Holding.Aliases` omitempty |
 | PR5 | `feat/PD-048-dividends-import-api` | 12–14 | `POST /dividends/import`: atomic commit, aliases remembered, totals recomputed | `TestImport` | a replica set behaves as a superset of standalone; existing code ignores sessions |
@@ -558,12 +559,13 @@ func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, hol
 * [ ] **Step 1a: One stored currency format — `ledgerCurrency` (Edit `services/transactions.go`)**
 
 WHY: today `TransactionsService.Create` copies `holding.Currency` as-is, so a
-legacy holding with a blank currency writes `""` while the import (Task 14)
-would write `"INR"` — the same kind of record stored two ways, and every
-reader then has to special-case `""`. Every ledger write goes through one
-helper instead, so the stored currency is always canonical and the dividend
-queries (Task 4) and History overlay (Task 17) can filter on it directly.
-Legacy rows are fixed once by `migrate currencies` (Step 5a).
+legacy holding with a blank or lowercase currency writes `""` or `inr` while
+the import (Task 14) would write `"INR"` — the same kind of record stored
+several ways, and every reader then has to normalise. Every ledger write goes
+through one helper instead, so the stored currency is always canonical and the
+dividend queries (Task 4) and History overlay (Task 17) can filter on it
+directly. Legacy rows (blank, lowercase, mixed-case, padded) are canonicalized
+once by `migrate currencies` (Step 5a) before those readers ship.
 
 Append to `transactions.go`:
 
@@ -708,23 +710,53 @@ git add backend/internal/persistence/transactions.go backend/internal/services/h
 git commit -m "🐛 Keep ledger currency canonical and in sync"
 ```
 
-* [ ] **Step 5a: `migrate currencies` — fix legacy blank currencies once (Edit `cmd/migrate.go`, append to `persistence/holdings.go` and `persistence/transactions.go`)**
+* [ ] **Step 5a: `migrate currencies` — canonicalize legacy currencies once (Create `persistence/currency.go`; Edit `cmd/migrate.go`; append to `persistence/holdings.go` and `persistence/transactions.go`)**
 
 WHY: new writes are canonical from Step 1a on, but rows written before keep
-`""`. One idempotent pass sets them to `INR` (the documented default), so no
-reader needs a blank special case. It runs once per environment right after
-PR2 merges and **before PR3 deploys** (Task 27 Step 0).
+whatever the holding had: blank or missing, and also lowercase, mixed-case or
+padded codes (`inr`, `Eur`, ` eur `) — `CurrencyOf` accepts those, and
+`TestLedgerCurrency` covers them. Once Tasks 4 and 17 read the stored value
+directly, a legacy `inr` event would miss the INR tab filter and form its own
+`inr` History bucket, which the UI never reads — breaking PRD-005 §9. So the
+migration applies the **whole** `ledgerCurrency` rule, not just the blank
+case: trim, upper-case, blank/missing → `INR`. It runs once per environment
+right after PR2 merges and **before PR3 deploys** (Task 27 Step 0); readers
+switch to exact stored values only after it.
+
+The rule is written once and shared by both stores — `persistence/currency.go`:
+
+```go
+package persistence
+
+import (
+ "go.mongodb.org/mongo-driver/bson"
+
+ "portfolio-dashboard/internal/domain"
+)
+
+// nonCanonicalCurrency matches documents whose currency is not already a
+// canonical code: missing, blank, lower/mixed case, or padded with spaces.
+// Canonical codes (INR, EUR, a legacy USD) do not match, so a second run of
+// the migration touches nothing.
+var nonCanonicalCurrency = bson.M{"currency": bson.M{"$not": bson.M{"$regex": `^[A-Z]+$`}}}
+
+// canonicalCurrencyUpdate rewrites currency server-side with the same rule
+// as services.ledgerCurrency: trimmed and upper-cased, blank/missing → INR.
+var canonicalCurrencyUpdate = bson.A{bson.M{"$set": bson.M{"currency": bson.M{"$let": bson.M{
+ "vars": bson.M{"c": bson.M{"$toUpper": bson.M{"$trim": bson.M{"input": bson.M{"$ifNull": bson.A{"$currency", ""}}}}}},
+ "in":   bson.M{"$cond": bson.A{bson.M{"$eq": bson.A{"$$c", ""}}, domain.CurrencyINR, "$$c"}},
+}}}}}
+```
 
 Store methods:
 
 ```go
-// FillBlankCurrency sets currency to INR on every holding whose currency is
-// blank or missing (the documented default). Returns the number changed.
-func (s *HoldingStore) FillBlankCurrency(ctx context.Context) (int64, error) {
+// CanonicalizeCurrency rewrites every non-canonical holding currency to its
+// canonical code (persistence/currency.go). Returns the number changed.
+func (s *HoldingStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
  ctx, cancel := context.WithTimeout(ctx, writeTimeout)
  defer cancel()
- res, err := s.col.UpdateMany(ctx, bson.M{"currency": bson.M{"$in": bson.A{"", nil}}},
-  bson.M{"$set": bson.M{"currency": domain.CurrencyINR}})
+ res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
  if err != nil {
   return 0, err
  }
@@ -733,13 +765,12 @@ func (s *HoldingStore) FillBlankCurrency(ctx context.Context) (int64, error) {
 ```
 
 ```go
-// FillBlankCurrency sets currency to INR on every ledger event whose currency
-// is blank or missing. Returns the number changed.
-func (s *TransactionStore) FillBlankCurrency(ctx context.Context) (int64, error) {
+// CanonicalizeCurrency rewrites every non-canonical ledger event currency to
+// its canonical code (persistence/currency.go). Returns the number changed.
+func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
  ctx, cancel := context.WithTimeout(ctx, writeTimeout)
  defer cancel()
- res, err := s.col.UpdateMany(ctx, bson.M{"currency": bson.M{"$in": bson.A{"", nil}}},
-  bson.M{"$set": bson.M{"currency": domain.CurrencyINR}})
+ res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
  if err != nil {
   return 0, err
  }
@@ -752,10 +783,11 @@ Command (append to `cmd/migrate.go`, next to `migrateTransactionsCmd`):
 ```go
 var migrateCurrenciesCmd = &cobra.Command{
  Use:   "currencies",
- Short: "Set blank holding and ledger currencies to INR (PD-048)",
- Long: `Legacy holdings and ledger events may carry a blank currency, which means
-INR. This sets them to "INR" so every reader can filter on the stored value.
-Idempotent: a second run changes nothing.`,
+ Short: "Canonicalize holding and ledger currencies (PD-048)",
+ Long: `Legacy holdings and ledger events may carry a blank, lowercase, mixed-case
+or padded currency (e.g. "", "inr", " Eur "). This rewrites them to the
+canonical code — trimmed, upper-cased, blank → "INR" — so every reader can
+filter on the stored value. Idempotent: a second run changes nothing.`,
  RunE: runMigrateCurrencies,
 }
 
@@ -774,13 +806,13 @@ func runMigrateCurrencies(_ *cobra.Command, _ []string) error {
  }
  defer disconnect()
 
- holdings, err := st.Holdings.FillBlankCurrency(ctx)
+ holdings, err := st.Holdings.CanonicalizeCurrency(ctx)
  if err != nil {
-  return fmt.Errorf("filling holding currencies: %w", err)
+  return fmt.Errorf("canonicalizing holding currencies: %w", err)
  }
- txns, err := st.Transactions.FillBlankCurrency(ctx)
+ txns, err := st.Transactions.CanonicalizeCurrency(ctx)
  if err != nil {
-  return fmt.Errorf("filling ledger currencies: %w", err)
+  return fmt.Errorf("canonicalizing ledger currencies: %w", err)
  }
  logger.Info("currencies migrated", zap.Int64("holdings", holdings), zap.Int64("transactions", txns))
  return nil
@@ -795,20 +827,29 @@ replacement:
  migrateCmd.AddCommand(migrateCurrenciesCmd)
 ```
 
-Verify against the local database:
+Verify against the local database with seeded legacy rows (test-only ids,
+removed at the end):
 
 ```bash
-cd backend && go build ./... && go run . migrate currencies && go run . migrate currencies
+M='docker exec portfolio_mongo_dev mongosh portfolio --quiet --eval'
+$M 'db.holdings.insertMany([{_id:"pd048-a",currency:"inr"},{_id:"pd048-b",currency:" Eur "},{_id:"pd048-c",currency:""},{_id:"pd048-d"},{_id:"pd048-e",currency:"USD"}]);
+    db.transactions.insertMany([{_id:"pd048-t1",type:"dividend",currency:"inr"},{_id:"pd048-t2",type:"dividend",currency:"eur"},{_id:"pd048-t3",type:"dividend"}])'
+cd backend && go build ./... && go run . migrate currencies
+$M 'printjson(db.holdings.find({_id:/^pd048-/}).map(d => d.currency)); printjson(db.transactions.find({_id:/^pd048-/}).map(d => d.currency))'
+go run . migrate currencies
+$M 'db.holdings.deleteMany({_id:/^pd048-/}); db.transactions.deleteMany({_id:/^pd048-/})'
 ```
 
-Expected: first run logs `currencies migrated` with the counts of legacy rows
-(0 on a fresh database); the second run logs `holdings: 0, transactions: 0`.
+Expected: the first run logs `currencies migrated` with `holdings: 4,
+transactions: 3` (plus any real legacy rows); the printed values are
+`["INR","EUR","INR","INR","USD"]` and `["INR","EUR","INR"]`; the second run
+logs `holdings: 0, transactions: 0`.
 
 Commit:
 
 ```bash
-git add backend/cmd/migrate.go backend/internal/persistence/holdings.go backend/internal/persistence/transactions.go
-git commit -m "🔧 Add migrate currencies for legacy blanks"
+git add backend/cmd/migrate.go backend/internal/persistence/currency.go backend/internal/persistence/holdings.go backend/internal/persistence/transactions.go
+git commit -m "🔧 Add migrate currencies to canonicalize codes"
 ```
 
 * [ ] **Step 6: curl (PR2 "How to test", appended to Task 3's block)**
@@ -843,7 +884,9 @@ rule). The dividend order ends on `_id` because one import batch shares one
 `created_at`; the service assigns ObjectIDs in sheet order, so `_id` keeps
 it. The currency filter is the stored value as-is: since Task 3A every ledger
 write stores a canonical currency (`ledgerCurrency`) and `migrate currencies`
-has fixed the legacy blanks, so no `""` special case is needed.
+has canonicalized every legacy code (blank, `inr`, ` Eur `), so the filter
+needs no normalisation. This ordering is required: PR3 deploys only after the
+migration ran (Task 27 Step 0).
 
 Current:
 
@@ -7213,8 +7256,11 @@ gh pr create --title "✨ Show dividends on the dashboard and in History, and ma
 * [ ] **Step 0: Migrate legacy currencies** — once PR2 has merged, and before
   PR3 deploys, run `migrate currencies` (Task 3A Step 5a) against the dev and
   the prod database (`MONGODB_URI` set to each). Expected: the first run logs
-  the legacy counts; a second run logs zero for both. From PR3 on, the
-  dividend queries rely on canonical stored currencies.
+  the legacy counts; a second run logs zero for both; and
+  `db.transactions.distinct("currency")` / `db.holdings.distinct("currency")`
+  return only upper-case codes (`INR`, `EUR`, any legacy `USD`) — no `""`,
+  `inr` or padded values. From PR3 on, the dividend queries and the History
+  overlay rely on canonical stored currencies.
 
 * [ ] **Step 1: Deploy** — add the `dev` label to PR12 once PR2–PR11 have
   merged (PD-044 flow). Expected: dev Cloud Run + Pages preview updated; the

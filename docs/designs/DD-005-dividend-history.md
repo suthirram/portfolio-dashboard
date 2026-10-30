@@ -104,10 +104,15 @@ one private `find(ctx, filter, sort)` that every list method calls.
 **One stored currency format.** Every ledger write — hand-entered
 (`TransactionsService.Create`), imported, or synced — stores
 `ledgerCurrency(holding)`: the canonical INR/EUR from `CurrencyOf` (blank →
-INR), never blank. Legacy rows written before that are fixed once by the
-idempotent `migrate currencies` command (blank → INR, holdings and events),
-run after PR2 and before PR3 deploys. So the dividend queries, delete-all and
-the History overlay filter on the stored value with no `""` special case.
+INR, case-insensitive), never blank. Legacy rows written before that can carry
+a blank, lowercase, mixed-case or padded code (`""`, `inr`, ` Eur `); the
+idempotent `migrate currencies` command canonicalizes all of them once, for
+holdings and events, with the same rule (trim, upper-case, blank → INR) as a
+server-side pipeline update in `persistence/currency.go`. It runs after PR2
+and **before** PR3 deploys, and only then do the dividend queries,
+delete-all and the History overlay filter on the stored value with no
+normalisation — otherwise a legacy `inr` event would miss the INR tab and form
+an `inr` History bucket the UI never reads (PRD-005 §9).
 
 Because every tab, delete-all and the History overlay filter on that copy,
 the copy must follow the holding: `TransactionStore.SetCurrencyByHolding`
