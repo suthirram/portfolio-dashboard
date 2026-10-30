@@ -60,8 +60,20 @@ type Transaction struct {
 	// TxnOpening.
 	OpeningDate *time.Time `bson:"opening_date,omitempty" json:"opening_date,omitempty"`
 
-	Currency  string    `bson:"currency" json:"currency"` // denormalised from the holding
-	Notes     string    `bson:"notes,omitempty" json:"notes,omitempty"`
-	CreatedAt time.Time `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+	Currency string `bson:"currency" json:"currency"` // denormalised from the holding
+	// Import records where a CSV-imported dividend came from (PRD-005);
+	// nil for events entered by hand.
+	Import    *ImportMeta `bson:"import,omitempty" json:"-"`
+	Notes     string      `bson:"notes,omitempty" json:"notes,omitempty"`
+	CreatedAt time.Time   `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time   `bson:"updated_at" json:"updated_at"`
+}
+
+// ImportMeta is audit metadata on a CSV-imported event (PRD-005). Never part
+// of the duplicate key; the sheet's cumulative is kept only for reference.
+type ImportMeta struct {
+	BatchId         string   `bson:"batch_id"`                   // one per committed import
+	Line            int      `bson:"line"`                       // 1-based file line (header = 1)
+	SheetName       string   `bson:"sheet_name"`                 // Share Name as written in the sheet
+	SheetCumulative *float64 `bson:"sheet_cumulative,omitempty"` // CUMULATIVE cell, when present
 }
