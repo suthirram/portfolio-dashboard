@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  dividendsPath,
   holdingPath,
+  holdingTransactionsPath,
   holdingsPath,
   isActingAs,
   pricesPath,
   summaryPath,
+  transactionPath,
   transactionsPath,
 } from './actAsRouting'
 
@@ -36,5 +39,16 @@ describe('act-as path helpers', () => {
 
   it('isActingAs returns true for a real id', () => {
     expect(isActingAs('u9')).toBe(true)
+  })
+})
+
+describe('dividend + ledger write paths', () => {
+  it('maps own vs act-as', () => {
+    expect(dividendsPath()).toBe('/dividends')
+    expect(dividendsPath('u1')).toBe('/admin/users/u1/dividends')
+    expect(holdingTransactionsPath('h1')).toBe('/holdings/h1/transactions')
+    expect(holdingTransactionsPath('h1', 'u1')).toBe('/admin/users/u1/holdings/h1/transactions')
+    expect(transactionPath('t1', ' ')).toBe('/transactions/t1')
+    expect(transactionPath('t1', 'u1')).toBe('/admin/users/u1/transactions/t1')
   })
 })
