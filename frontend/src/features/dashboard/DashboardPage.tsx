@@ -254,6 +254,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           goldInvestedInr={goldMetrics?.invested ?? null}
           goldNettPL={goldMetrics?.nett_in_bees ?? null}
           stocksInvestedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+          dividendsInr={enriched.filter(h => h.currency !== 'EUR').reduce((s, h) => s + (h.total_dividends ?? 0), 0)}
+          dividendsEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.total_dividends ?? 0), 0)}
           stocksInvestedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0), 0)}
           stocksCurrentInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0) + (h.unrealized_pnl ?? 0), 0)}
           stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}
