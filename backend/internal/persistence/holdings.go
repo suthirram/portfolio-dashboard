@@ -151,3 +151,15 @@ func (s *HoldingStore) AssignUnownedTo(ctx context.Context, uid primitive.Object
 	}
 	return res.MatchedCount, res.ModifiedCount, nil
 }
+
+// CanonicalizeCurrency rewrites every non-canonical holding currency to its
+// canonical code (persistence/currency.go). Returns the number changed.
+func (s *HoldingStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
+}
