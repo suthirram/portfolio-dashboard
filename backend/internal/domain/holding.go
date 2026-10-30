@@ -19,9 +19,13 @@ type Holding struct {
 	RealizedPnL    float64            `bson:"realized_pnl" json:"realized_pnl"`       // DERIVED: profit/loss from sold shares, in Currency
 	TotalDividends float64            `bson:"total_dividends" json:"total_dividends"` // DERIVED: cumulative cash dividend income, in Currency
 	Currency       string             `bson:"currency" json:"currency"`               // "INR" or "EUR"; defaults to "INR"
-	Notes          string             `bson:"notes,omitempty" json:"notes,omitempty"`
-	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
+	// Aliases are sheet names (exactKey: lower-case, spaces collapsed) the owner confirmed as this
+	// holding during a dividend import (PRD-005 §6.3); later imports map them
+	// automatically. Written only by the import commit, never derived.
+	Aliases   []string  `bson:"aliases,omitempty" json:"-"`
+	Notes     string    `bson:"notes,omitempty" json:"notes,omitempty"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 
 // HoldingWithPrice adds live market data to a Holding
