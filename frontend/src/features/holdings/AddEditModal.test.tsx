@@ -34,6 +34,25 @@ describe('AddEditModal numeric input', () => {
     }), undefined)
   })
 
+  // A new purchase must not become an opening event (it would be backdated to
+  // the opening-date default): the opening section reads as optional, and
+  // leaving it blank submits a zero position so the backend seeds no opening.
+  it('marks the opening balance optional and submits blanks as zero', async () => {
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText('(optional)')).toBeInTheDocument()
+    expect(screen.getByText(/For a new purchase/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. TCS, GOLD BEES'), { target: { value: 'Jio Platforms' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Holding' }))
+
+    await waitFor(() => expect(api.createHolding).toHaveBeenCalledTimes(1))
+    expect(api.createHolding).toHaveBeenCalledWith(expect.objectContaining({
+      stocks_owned: 0,
+      avg_cost_price: 0,
+      realized_pnl: 0,
+    }), undefined)
+  })
+
   // PD-045 design-system contract: modals carry the shared chrome classes so
   // the stylesheet supplies backdrop blur and the enter animation.
   it('renders the modal-overlay / modal-card chrome classes', () => {
