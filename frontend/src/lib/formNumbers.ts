@@ -118,3 +118,13 @@ export function groupIndian(raw: string): string {
   const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3
   return (neg ? '-' : '') + grouped + (decPart != null ? '.' + decPart : '')
 }
+
+const CURRENCY_SIGNS_RE = /[₹€$£]/g
+
+// parseMoneyCell reads a spreadsheet money cell in either number style —
+// 1,250.50 (Indian/English) or 1.250,50 (European) — by stripping currency
+// signs and delegating to parseDecimalInput, the parser the amount inputs
+// use. Empty → 0; unreadable → NaN.
+export function parseMoneyCell(s: string): number {
+  return parseDecimalInput(s.replace(CURRENCY_SIGNS_RE, ''))
+}
