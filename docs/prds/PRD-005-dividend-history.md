@@ -109,8 +109,9 @@ alias** of that holding.
 ### 6.2 Confirmation popup (any inconsistency)
 
 Every other name — e.g. the holding is `Jio Platforms Ltd` / `JIOPLA.NS`
-and the sheet says `jio`, `JLP`, `Jio Platforms Limited` or `JIOPLA` — is
-**never auto-accepted**. The preview opens a **"Confirm share names"** popup,
+and the sheet says `jio`, `JLP`, `Jio Platforms Limited` or `JIOP` — is
+**never auto-accepted**. (A sheet name that *is* the symbol, `JIOPLA`, is an
+exact match under §6.1.) The preview opens a **"Confirm share names"** popup,
 one line per distinct sheet name:
 
 * the sheet name and how many rows use it,

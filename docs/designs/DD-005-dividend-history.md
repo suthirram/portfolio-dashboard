@@ -48,7 +48,7 @@ re-implement:
 // only: never a key, never authoritative — the sheet's cumulative in
 // particular is a running total, not an identity.
 type ImportMeta struct {
- BatchID         string   `bson:"batch_id"`                   // one per confirmed import
+ BatchId         string   `bson:"batch_id"`                   // one per confirmed import
  Line            int      `bson:"line"`                       // 1-based file line (header = 1)
  SheetName       string   `bson:"sheet_name"`                 // Share Name as written in the sheet
  SheetCumulative *float64 `bson:"sheet_cumulative,omitempty"` // CUMULATIVE cell, if present
@@ -64,7 +64,7 @@ type ImportMeta struct {
  // Aliases are normalised sheet names the owner confirmed as this holding
  // during a dividend import (PRD-005 §6.3); later imports auto-map them.
  // Not a derived field: written only by the import confirm step.
- Aliases []string `bson:"aliases,omitempty" json:"aliases,omitempty"`
+ Aliases []string `bson:"aliases,omitempty" json:"-"`
 ```
 
 New `internal/domain/dividend.go` — the duplicate identity, shared by
@@ -74,30 +74,40 @@ preview and confirm:
 // DividendKey is the PRD-005 §5 identity: holding + calendar day + amount in
 // minor units. Integer cents so 300 ≡ 300.00 across two parses.
 type DividendKey struct {
- HoldingID primitive.ObjectID
+ HoldingId primitive.ObjectID
  Day       string // YYYY-MM-DD
  Cents     int64
 }
 
 func AmountCents(amount float64) int64 { return int64(math.Round(amount * 100)) }
+func CentsToMoney(cents int64) float64  { return float64(cents) / 100 }
 
 func DividendKeyOf(t Transaction) DividendKey {
- return DividendKey{HoldingID: t.HoldingID, Day: UTCDate(t.Date).Format(time.DateOnly), Cents: AmountCents(t.Amount)}
+ return DividendKey{HoldingId: t.HoldingID, Day: UTCDate(t.Date).Format(time.DateOnly), Cents: AmountCents(t.Amount)}
 }
 ```
 
 ### 2.2 Persistence
 
-`TransactionStore` gains (owner-scoped via `scopedFilter`, like the rest):
+`TransactionStore` gains (owner-scoped via `scopedFilter`, like the rest).
+The Find + cursor body of `ListByHolding` / `ListByUser` is extracted into
+one private `find(ctx, filter, sort)` that every list method calls.
 
 | Method | Purpose |
 |---|---|
 | `ListDividends(ctx, userId, currency)` | tab listing, `date:1, created_at:1, _id:1` |
-| `ListDividendsInRange(ctx, userId, holdingIds, from, to)` | duplicate window for an import |
+| `ListAllDividends(ctx, userId)` | History overlay input |
+| `ListDividendsByHoldings(ctx, userId, holdingIds, from, to)` | duplicate window for an import |
 | `InsertMany(ctx, txns)` | ordered batch insert |
 | `DeleteDividends(ctx, userId, currency) ([]primitive.ObjectID, int64, error)` | delete-all; returns the affected holding ids |
 
-`HoldingStore` gains `AddAliases(ctx, userId, holdingId, aliases)` (`$addToSet`).
+`currencyMatch(currency)` is the currency filter: the INR tab also matches
+`""`, because a blank holding currency means INR (`CurrencyOf`) and ledger
+events copy the holding's currency.
+
+`HoldingStore` gains `MoveAliases(ctx, userId, holdingId, keys)`: `$pull`
+the keys from the user's other holdings, `$addToSet` on this one, so a
+re-pointed name never belongs to two holdings.
 
 New index on `transactions`:
 
@@ -124,28 +134,32 @@ func nameKey(s string) string
 func corpKey(s string) string
 ```
 
-`Resolve(sheetNames, holdings []domain.Holding, currency, overrides map[string]primitive.ObjectID) []NameResolution`:
+`resolveNames(names []nameCount, candidates []domain.Holding, mappings map[string]*string) []nameResolution`:
 
 1. Candidates = holdings whose canonical currency equals the tab.
-2. **Override** (user's answer in this import) → `confirmed`.
+2. **Answer** (the user's popup answer in this import, keyed by sheet name):
+   a candidate's id → `confirmed` (saved as an alias unless it is the exact
+   match anyway); `null` or a non-candidate id → `unresolved`.
 3. **Exact**: `nameKey(sheet)` equals `nameKey(script)`, `nameKey(symbol)`
    or an alias of **exactly one** candidate → `auto` (`matched_by`:
-   `script` | `symbol` | `alias`). Equal to several → `ambiguous`.
+   `script` | `symbol` | `alias`). Equal to several → `ambiguous`. So for a
+   holding `Jio Platforms Ltd` / `JIOPLA.NS`, the sheet name `JIOPLA` maps
+   automatically (it *is* the symbol); `jio`, `JLP`, `Jio Platforms Limited`
+   and `JIOP` go to the popup.
 4. Otherwise → `needs_confirmation` with up to 3 **suggestions**, scored
    0–1 as the max of:
    * `corpKey` equality (`Jio Platforms Limited` ↔ `Jio Platforms Ltd`) → 0.95
    * token prefix — every sheet token prefixes a candidate token, or the
      reverse (`jio` → `jio platforms`) → 0.8
-   * symbol prefix ≥ 4 chars (`JIOPLA` ↔ `JIOPLA.NS`) → 0.8
+   * symbol prefix ≥ 4 chars (`JIOP` ↔ `JIOPLA.NS`) → 0.8
    * initials (`JPL` ↔ Jio Platforms Limited) → 0.7
    * trigram Jaccard on `corpKey` (`JLP`, typos) → raw score
 
    Suggestions below 0.3 are dropped. `preselect` = top suggestion only when
    ≥ 0.8 and ahead of the next by ≥ 0.15. **Fuzzy matches are never applied
    without the user's confirmation** (PRD-005 §6.2).
-5. `unresolved` — the user explicitly left it unmapped, or no override given
-   for a `needs_confirmation`/`ambiguous` name at confirm time → its rows are
-   invalid.
+5. A `needs_confirmation` / `ambiguous` / `unresolved` name has no holding,
+   so its rows are invalid until the popup answers it.
 
 ### 2.4 Duplicate detection — occurrence-based
 
@@ -153,7 +167,7 @@ func corpKey(s string) string
 // partition splits valid rows (sheet order) into new and duplicate by
 // occurrence: each existing DB dividend with the same key absorbs one sheet
 // row. Sheet repeats beyond the DB count are new (PRD-005 §5 A–D).
-func partition(rows []resolvedRow, existing []domain.Transaction) (fresh, dups []resolvedRow) {
+func partition(rows []importRow, existing []domain.Transaction) (fresh, dups []importRow) {
  remaining := make(map[domain.DividendKey]int, len(existing))
  for _, t := range existing {
   remaining[domain.DividendKeyOf(t)]++
@@ -178,8 +192,14 @@ records. Cumulative plays no part.
 
 ### 2.5 Service — `internal/services/dividends.go`
 
-`DividendsService{store *persistence.Store, logger, today func() time.Time}`
-(`today` = shared `istToday`, moved from `gold_prices.go`).
+`DividendsService{txns, holdings, tx txRunner, logger, today func() time.Time}`
+(`today` = shared `istToday`, moved from `gold_prices.go`; `tx` is
+`*persistence.Store` in production and a pass-through runner in tests).
+Every method opens a tracing span and binds `logger := s.log(ctx)` once.
+Analytics, name resolution, duplicate partitioning, the cumulative check and
+the History overlay are pure functions in their own files
+(`dividend_view.go`, `dividend_match.go`, `dividend_import.go`,
+`dividend_history.go`), so they are tested without Mongo.
 
 * **`List(ctx, userId, currency) (api.DividendView, error)`** — one read of
   dividend events + one of holdings (labels). In stored order computes, in
@@ -191,22 +211,23 @@ records. Cumulative plays no part.
   itself; and `by_holding[i].total` equals that holding's `total_dividends`
   (same events, same sum) — asserted in tests.
 * **`Preview(ctx, userId, in api.DividendImportInput) (api.DividendImportPreview, error)`**
-  — read-only: validate rows (shared `validateDividendRow`, §2.7), resolve
+  — read-only: validate rows (shared `validateDividend`, §2.7), resolve
   names (§2.3), load window, `partition` (§2.4), cumulative check (§2.8).
   Returns counts, per-name resolutions, per-row status, warnings.
 * **`Import(ctx, userId, in) (api.DividendImportResult, error)`** — runs the
   same pipeline as `Preview` **inside one Mongo transaction** (§2.6), so it
   re-validates against the database as it is at commit time. Any invalid row
   or unresolved name → `ImportInvalidError` carrying the fresh preview →
-  400, nothing written. Otherwise, in the transaction: `InsertMany(fresh)`
-  (with `ImportMeta`), `AddAliases` for every **confirmed** name, and
+  422, nothing written. Otherwise, in the transaction: `InsertMany(fresh)`
+  (with `ImportMeta`), `MoveAliases` for every **confirmed** name, and
   `recomputeAndPersist` once per affected holding. Returns `{imported,
   duplicates, batch_id}`.
 * **`DeleteAll(ctx, userId, currency) (int64, error)`** — in one transaction:
   `DeleteDividends`, then `recomputeAndPersist` for each affected holding.
 * Single add / edit / delete reuse **`TransactionsService.Create/Update/Delete`**
-  — no second write path. One change there: **skip `healSnapshots` when the
-  event is a dividend** (before and after an update), because snapshot
+  — no second write path. One change there: a new `healAfter(events...)`
+  **skips the snapshot heal when every event involved is a dividend**
+  (an update that changes a buy into a dividend still heals), because snapshot
   buckets and lines carry quantity, cost and close, never dividends; healing
   would rewrite History for nothing.
 
@@ -228,17 +249,26 @@ set** (`--replSet rs0` + one-shot `rs.initiate()` healthcheck, URI
 func (s *Store) InTransaction(ctx context.Context, fn func(ctx context.Context) error) error
 ```
 
+Services depend on a one-method `txRunner` interface rather than on
+`*persistence.Store`, so the service tests (mtest mock driver, no replica
+set) run the transaction body directly. `InTransaction` itself gets no unit
+test — that would test the database, which the repo's test policy excludes;
+it is verified on the dev stack (PD-048 Task 27).
+
 Rejected: compensating delete-by-batch-id on failure. It leaves a window where
 half an import is visible and can itself fail; a transaction is the real
 guarantee and costs one compose change.
 
 ### 2.7 Validation
 
-`validateDividendRow` (shared by preview, confirm, and the existing
-`validateTxnInput` dividend branch so the two paths cannot diverge):
-real calendar date, not after `istToday()`; amount finite, > 0, < 1e12;
-share name non-empty ≤ 100 chars; currency ∈ {INR, EUR} and equal to the
-resolved holding's currency.
+`validateDividend(date, amount, today)` (shared by preview, confirm, and the
+existing `validateTxnInput` dividend branch so the two paths cannot
+diverge): not after `istToday()`; amount finite, > 0, < 1e12. The import
+also requires a non-empty share name and a resolved holding; the currency is
+the tab's (checked by `checkImportInput`) and only same-currency holdings are
+candidates, so a row can never land on another currency's holding. Real
+calendar dates are enforced by the browser parser (`normaliseDate`) and by
+the `format: date` request type.
 
 ### 2.8 Cumulative consistency check
 
@@ -256,10 +286,12 @@ Warnings are returned by `Preview` and `Import` and never change row status.
  Dividends map[string]DividendHistoryPoint `json:"dividends,omitempty"` // per currency, PRD-005 §9
 ```
 
-with `DividendHistoryPoint{ToDate float64, OnDay float64}`. Computed in
-`HistoryService.List` from **one** `ListDividends` read per currency: sort
-once, walk rows by date accumulating cents. `HistoryHolding` gains
-`Dividends float64` (to date, per holding) for the breakdown modal. Same
+with `DividendHistoryPoint{ToDate float64, OnDay float64}`. Computed by
+`DividendsService.HistoryOverlay` (pure `DividendOverlay` walk over **one**
+`ListAllDividends` read, accumulating cents) and attached by the History
+controller's `attachDividendOverlay`, next to `attachGoldOverlay`.
+`HistoryHolding` gains `Dividends float64` (to date) for the breakdown
+modal, keyed by symbol because snapshot lines carry the symbol. Same
 on-read pattern as the gold overlay (DD-003) — nothing is written to
 snapshots, so imports and deletes are reflected immediately and no heal is
 needed.
@@ -273,13 +305,13 @@ schemas inline in `portfolio-api.yaml`.
 |---|---|---|---|
 | GET | `/dividends` | `?currency=` | `200 DividendView` |
 | POST | `/dividends/import/preview` | `DividendImportInput` | `200 DividendImportPreview` |
-| POST | `/dividends/import` | `DividendImportInput` | `200 DividendImportResult` · `400 DividendImportPreview` (invalid at commit) |
+| POST | `/dividends/import` | `DividendImportInput` | `200 DividendImportResult` · `400` malformed · `422 DividendImportPreview` (invalid at commit) |
 | DELETE | `/dividends` | `?currency=` | `200 {deleted}` |
 | GET / POST / DELETE | `/admin/users/{id}/dividends…` | same | same, admin + region scope |
-| POST | `/admin/users/{id}/holdings/{hid}/transactions` | `TransactionInput` | act-as ledger create |
-| PUT / DELETE | `/admin/users/{id}/transactions/{tid}` | | act-as ledger edit / delete |
+| GET / POST | `/admin/users/{id}/holdings/{holdingId}/transactions` | `TransactionInput` | act-as ledger list / create |
+| PUT / DELETE | `/admin/users/{id}/transactions/{transactionId}` | | act-as ledger edit / delete |
 
-The three admin ledger-write endpoints are new: act-as today can read a
+The four admin ledger endpoints are new: act-as today can read a
 user's transactions but not write them (DD-004 §2.4), and PRD-005 §10 needs
 "manage". They delegate to `TransactionsService` with the **target** user id
 after `loadTargetUser` — same pattern as act-as holdings CRUD.
@@ -295,12 +327,15 @@ DividendImportRowStatus: { line, status: ready|duplicate|invalid, holding_id?, r
 DividendImportPreview:  { counts: {ready, duplicate, invalid, total}, names: DividendNameResolution[],
                           rows: DividendImportRowStatus[], warnings: [{line, message}] }
 DividendImportResult:   { imported: int, duplicates: DividendImportRow[], batch_id: string, warnings: [...] }
-DividendRow:            allOf TransactionWithHolding + { cumulative, holding_cumulative }
+DividendRow:            { id, holding_id, script, symbol, date (date), amount, currency, notes?, cumulative, holding_cumulative }
 DividendView:           { rows: DividendRow[], summary, by_year[], by_month[], by_holding[] }
 ```
 
-`mappings` carries the popup answers by sheet name; `null` = deliberately
-unresolved. The client parses the CSV (fast feedback, line numbers) and sends
+All response fields are `required` so the generated Go structs carry plain
+values; response status strings carry a description, not an enum (DD-004
+precedent). `mappings` carries the popup answers by sheet name; `null` =
+deliberately unresolved. The 422 body is a full preview, so the UI re-renders
+it; `ApiError` gains an optional `body` to carry it. The client parses the CSV (fast feedback, line numbers) and sends
 rows; the server is the authority on everything (re-validates, resolves,
 dedups).
 
@@ -360,20 +395,26 @@ true place in the totals.
 
 ## 4. Testing
 
-Meaningful tests only; Go-only backend; real Mongo test DB (now a replica set).
+Behaviour tests only (repo policy): no DB-availability or DB-error tests,
+only `ErrNoDocuments` → 404. Pure functions are tested directly; service and
+controller tests use the `mtest` mock driver like the rest of the suite and
+assert on the commands issued; the transaction runs through a pass-through
+`txRunner`.
 
 * **match**: `nameKey`/`corpKey`; exact by script/symbol/alias → auto; two
-  holdings equal → ambiguous; `jio`, `JLP`, `Jio Platforms Limited`,
-  `JIOPLA` against `Jio Platforms Ltd`/`JIOPLA.NS` → needs_confirmation with
-  that holding first; other-currency holding never suggested.
+  holdings equal → ambiguous; `jio`, `JLP`, `Jio Platforms Limited`, `JIOP`
+  against `Jio Platforms Ltd`/`JIOPLA.NS` → needs_confirmation with that
+  holding first (`JIOPLA` → auto by symbol); other-currency holding never
+  suggested; no pre-selection without a clear best.
 * **partition**: scenarios A–D; hand-entered ledger dividend counts as
   existing; different day / amount / holding not a duplicate.
 * **Preview**: writes nothing; counts; invalid lines with reasons;
   cumulative warnings (mismatch, out-of-order skip) do not change status.
-* **Import**: idempotent re-run; aliases saved only for confirmed names;
-  holding `total_dividends` updated once per holding; injected failure after
-  insert → nothing persisted (transaction rollback); stale preview (row added
-  between preview and confirm) → confirm reflects the new duplicate count.
+* **Import**: unresolved name → `ImportInvalidError`, no insert issued;
+  confirmed import inserts in-sheet repeats, saves the alias, recomputes each
+  holding once; re-import of stored rows → 0 imported, no insert (idempotent).
+  Atomic rollback and the stale-preview case are verified end-to-end on the
+  dev stack (PD-048 Task 27), not with a DB-failure test.
 * **List**: order, both cumulatives, by_year/by_month/by_holding; per-holding
   total == holding `total_dividends`.
 * **DeleteAll**: only that currency's dividends; buys/sells/holdings intact;
