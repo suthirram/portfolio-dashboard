@@ -8,7 +8,9 @@
 package persistence
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,6 +42,8 @@ type Store struct {
 	Snapshots    *SnapshotStore
 	Branding     *BrandingStore
 
+	client *mongo.Client // for InTransaction
+
 	// Gold is the Postgres-backed gold store (DD-003). Nil when Postgres
 	// is not configured or unreachable at boot — callers must treat nil as
 	// "gold features disabled".
@@ -63,7 +67,23 @@ func New(db *mongo.Database) *Store {
 		Sessions:     &SessionStore{col: db.Collection("sessions")},
 		Snapshots:    &SnapshotStore{col: db.Collection("portfolio_snapshots")},
 		Branding:     &BrandingStore{col: db.Collection("app_branding")},
+		client:       db.Client(),
 	}
+}
+
+// InTransaction runs fn in a MongoDB multi-document transaction (DD-005
+// §2.6). Store methods called with the ctx fn receives join it; any error
+// from fn aborts and rolls back every write. Requires a replica set.
+func (s *Store) InTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	session, err := s.client.StartSession()
+	if err != nil {
+		return fmt.Errorf("start session (transactions need a replica set): %w", err)
+	}
+	defer session.EndSession(ctx)
+	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
+		return nil, fn(sc)
+	})
+	return err
 }
 
 // translateFindErr maps the driver's no-documents sentinel to ErrNotFound and
