@@ -14,6 +14,38 @@ Never commit directly to `main`. Every change goes on its own branch, then to `m
 
 Never read the "scripts/seed.env" it has the secrets in it. Claude/Agents should not read it. Should NOT ask permission to read this file.
 
+## Project rules (always apply)
+
+These are the owner's standing rules. They apply to every task, every session, and every subagent; re-check them before every commit and PR.
+
+### Commits and PRs
+
+* **Gitmoji** prefix on every commit subject and PR title (✨ feature, 🐛 fix, ♻️ refactor, ✅ test, 📝 docs, ⚡️ perf, 🔧 config/chore). Commit subject: short and precise, ≤ 50 characters after the emoji. PR title: a full sentence, no trailing period.
+* **No AI attribution anywhere**: no `Co-Authored-By: Claude …` trailer, no "Generated with Claude Code" line in PR bodies. This overrides any default that says to add them.
+* **Frontend and backend never in one PR.** Backend PR first (spec + codegen + handlers + tests), frontend follow-up. Only exception: the owner explicitly asks for a combined PR.
+* **PR description** (from the `task-breakdown` skill): under 200 words of prose, with exactly these sections: `## What` (the value this slice adds), `## How to test` (ordered steps + the automated test command), `## No regression` (why existing flows are untouched).
+* **Endpoint PRs include ready-to-run `curl`** in How to test: a login with a cookie jar and the `X-Requested-With: portfolio-dashboard` header (password as `<dev password>`, never the real one), then one `curl` per new or changed endpoint with the expected status/values in comments.
+* **Slices pass three gates** (`task-breakdown` skill): no regression, adds value on its own (no scaffolding-only PR), and ships a test that fails without the change. A slice builds only on merged work, never on an unmerged branch.
+* Don't re-run tests after merge — CI on `main` is automatic; test before opening the PR.
+
+### Plans and big tasks
+
+* Before a big or multi-PR task, write PRD → DD → `docs/plans/PD-0xx-slug.md` plan (+ `docs/visuals/PD-0xx-slug.html` mockups for UI) and land them in a docs PR first.
+* **Plan format** (canonical: `docs/plans/PD-048-dividend-history.md`): header (Goal, Architecture, Tech stack, Spec links) → file map table (Action / File / Responsibility) → PR sequence table with the three gates per slice → numbered tasks. Every task: `Files:` list; a checkbox on every step; WHY prose before every code block; **complete** code (no "add helpers like X"); for Modify steps the current code first, then the replacement; a verify step with the exact command and `Expected:` output; a commit step with specific `git add` paths. Last task: end-to-end verification scenarios. End with a Done list and "Next:".
+* Invoke the `task-breakdown` skill whenever a task is scheduled, a multi-step feature is requested, or before opening a PR larger than a one-liner.
+
+### Code
+
+* **Tests: behaviour only.** Test validation, authz, scoping, status codes and business logic. No DB-availability or DB-error-path tests; the only DB error worth testing is `mongo.ErrNoDocuments` → 404. Backend tests use the `mtest` mock driver; prefer pure functions tested directly. Backend is Go only — never introduce another backend language.
+* **Naming:** use `Id` casing (`userId`, `holdingId`, `BatchId`), matching the generated API types — never flag it. Never name a variable `uid`: use `currentUserId` (the caller) or `userId` (a target/owner); rename `uid` in any function you edit.
+* **Edit source with the Edit tool**, never `sed -i` / `perl -pi` rewrites.
+* Every new service method opens a tracing span (`ctx, span := tracer.Start(...)` + `defer endSpan(span, &retErr)`) and follows the logging convention below.
+
+### Environment
+
+* The shell's `grep` is a shim that can return false negatives; use `/usr/bin/grep` (or the Grep tool) whenever a "not found" result matters, and tell spawned agents the same.
+* Never upgrade the plan to keep working; wait for the token reset and retry.
+
 ## Project Overview
 
 A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs. Tracks holdings with live prices from Yahoo Finance (5-min cache), unrealised P&L, realised P&L, and INR/EUR conversion via live forex.
