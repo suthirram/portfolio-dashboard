@@ -339,6 +339,7 @@ export function HoldingsModal({ row, prev, region, onClose }: {
                   <th style={{ ...th, textAlign: 'right' }}>Current price</th>
                   <th style={{ ...th, textAlign: 'right' }}>Change value</th>
                   <th style={{ ...th, textAlign: 'right' }}>Daily change</th>
+                  <th style={{ ...th, textAlign: 'right' }}>Dividends to date</th>
                 </tr>
               </thead>
               <tbody>
@@ -363,6 +364,7 @@ export function HoldingsModal({ row, prev, region, onClose }: {
                       <td style={num}>{priceFmt(cur)}</td>
                       <td style={{ ...num, color }}>{change === null ? '—' : priceFmt(change)}</td>
                       <td style={{ ...num, color }}>{pct === null ? '—' : `${pct.toFixed(2)}%`}</td>
+                      <td style={num}>{h.dividends ? priceFmt(h.dividends) : '—'}</td>
                     </tr>
                   )
                 })}

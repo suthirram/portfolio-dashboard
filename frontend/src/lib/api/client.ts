@@ -230,6 +230,14 @@ export interface HistoryHolding {
   close_price: number
   price_date?: string
   current?: number
+  // Dividends from this stock on or before the row date (PRD-005 §9).
+  dividends?: number
+}
+
+// Dividends per currency as of a History row (PRD-005 §9), computed on read.
+export interface DividendHistoryOverlay {
+  to_date: number
+  on_day: number
 }
 
 // Physical-gold overlay on a history row (PRD-003 §8); present only for
@@ -249,6 +257,8 @@ export interface HistoryRow {
   holdings?: HistoryHolding[]
   // Gold position as-of the row date; absent for non-gold users / pre-purchase rows.
   gold?: GoldHistoryOverlay
+  // Dividends to date per currency; absent before the first dividend.
+  dividends?: Record<string, DividendHistoryOverlay>
   // Frontend-only: a synthetic row built client-side from live prices for
   // "today" when no snapshot exists yet (see historyShared.buildLiveRow).
   // Never sent to or returned by the backend.
