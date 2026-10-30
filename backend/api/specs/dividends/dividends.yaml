@@ -1,0 +1,19 @@
+dividends:
+  get:
+    tags: [Dividends]
+    summary: One currency tab of the caller's dividends
+    description: |
+      Dividend ledger events of one currency, oldest first, with running
+      totals and analytics computed on read (PRD-005 §8).
+    operationId: listDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: The tab
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

@@ -400,3 +400,24 @@ users_id_summary:
               $ref: "../portfolio-api.yaml#/components/schemas/Summary"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  get:
+    tags: [Admin]
+    summary: One currency tab of a user's dividends (act-as)
+    operationId: adminListUserDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: The tab
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"

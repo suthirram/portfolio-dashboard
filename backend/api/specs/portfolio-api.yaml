@@ -25,6 +25,14 @@ components:
       schema:
         type: string
       description: MongoDB ObjectID of the target user
+    DividendCurrency:
+      name: currency
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [INR, EUR]
+      description: The currency tab
 
   schemas:
     Region:
@@ -1027,6 +1035,57 @@ components:
                 $ref: "#/components/schemas/HistoryRegionSnapshot"
               incoming:
                 $ref: "#/components/schemas/HistoryRegionInput"
+
+    DividendRow:
+      type: object
+      description: One dividend ledger event in a currency tab (PRD-005 §8).
+      required: [id, holding_id, script, symbol, date, amount, currency, cumulative, holding_cumulative]
+      properties:
+        id: { type: string }
+        holding_id: { type: string }
+        script: { type: string, description: Owning holding's display name }
+        symbol: { type: string, description: Owning holding's ticker }
+        date: { type: string, format: date }
+        amount: { type: number, format: double, description: Cash received, in currency }
+        currency: { type: string, description: INR | EUR }
+        notes: { type: string }
+        cumulative: { type: number, format: double, description: Running total across all holdings in the tab, chronological }
+        holding_cumulative: { type: number, format: double, description: Running total for this holding, chronological }
+    DividendSummary:
+      type: object
+      required: [total, count, holdings]
+      properties:
+        total: { type: number, format: double }
+        count: { type: integer }
+        holdings: { type: integer, description: Holdings with at least one dividend }
+        first_date: { type: string, format: date, nullable: true }
+        last_date: { type: string, format: date, nullable: true }
+    DividendPeriodTotal:
+      type: object
+      required: [period, total, count]
+      properties:
+        period: { type: string, description: YYYY (by_year) or YYYY-MM (by_month) }
+        total: { type: number, format: double }
+        count: { type: integer }
+    DividendHoldingTotal:
+      type: object
+      required: [holding_id, script, symbol, total, count, share]
+      properties:
+        holding_id: { type: string }
+        script: { type: string }
+        symbol: { type: string }
+        total: { type: number, format: double }
+        count: { type: integer }
+        share: { type: number, format: double, description: total ÷ tab total (0–1) }
+    DividendView:
+      type: object
+      required: [rows, summary, by_year, by_month, by_holding]
+      properties:
+        rows: { type: array, items: { $ref: "#/components/schemas/DividendRow" } }
+        summary: { $ref: "#/components/schemas/DividendSummary" }
+        by_year: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
+        by_month: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
+        by_holding: { type: array, description: Biggest total first, items: { $ref: "#/components/schemas/DividendHoldingTotal" } }
 
   responses:
     BadRequest:
