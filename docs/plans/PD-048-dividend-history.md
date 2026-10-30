@@ -51,7 +51,7 @@
 | Action | File | Responsibility |
 |---|---|---|
 | Create | `backend/internal/services/clock.go` | `istZone`, `istToday` (moved from `gold_prices.go`) |
-| Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go` | call `istToday` |
+| Modify | `backend/internal/services/gold_prices.go`, `gold_metrics.go`, `gold_prices_test.go` | call `istToday` |
 | Modify | `backend/internal/services/transactions.go`, `transactions_test.go` | `validateDividend`; `healAfter` skips dividend-only writes |
 | Modify | `backend/internal/persistence/transactions.go` | `find` helper; dividend queries; `InsertMany`; `DeleteDividends`; `currencyMatch` |
 | Modify | `backend/internal/persistence/holdings.go` | `MoveAliases` |
@@ -181,7 +181,7 @@ Expected: PR URL printed; body follows §PR bodies.
 **Files:**
 
 * Create: `backend/internal/services/clock.go`
-* Modify: `backend/internal/services/gold_prices.go`, `backend/internal/services/gold_metrics.go`
+* Modify: `backend/internal/services/gold_prices.go`, `backend/internal/services/gold_metrics.go`, `backend/internal/services/gold_prices_test.go`
 
 * [ ] **Step 1: Create `clock.go`**
 
@@ -231,13 +231,17 @@ Replacement:
 // local jeweler rate, so the calendar rolls on Indian time — see istToday.
 ```
 
-* [ ] **Step 3: Replace the three call sites (Edit)**
+* [ ] **Step 3: Replace the four call sites (Edit)**
+
+WHY: `gold_prices_test.go` also calls `goldToday()`; leaving it would stop
+the whole services test package compiling.
 
 | File:line | Current | Replacement |
 |---|---|---|
 | `gold_prices.go:64` | `today := goldToday()` | `today := istToday()` |
 | `gold_prices.go:97` | `today := goldToday()` | `today := istToday()` |
 | `gold_metrics.go:29` | `today := goldToday()` | `today := istToday()` |
+| `gold_prices_test.go:111` | `{"future date", []api.GoldPrice{{Date: openapi_types.Date{Time: goldToday().AddDate(0, 0, 1)}, PricePerGram: 7000}}},` | `{"future date", []api.GoldPrice{{Date: openapi_types.Date{Time: istToday().AddDate(0, 0, 1)}, PricePerGram: 7000}}},` |
 
 * [ ] **Step 4: Verify**
 
@@ -251,7 +255,7 @@ Expected: build ok; grep prints nothing; `ok  portfolio-dashboard/internal/servi
 
 ```bash
 git checkout -b feat/PD-048-dividend-rules main
-git add backend/internal/services/clock.go backend/internal/services/gold_prices.go backend/internal/services/gold_metrics.go
+git add backend/internal/services/clock.go backend/internal/services/gold_prices.go backend/internal/services/gold_metrics.go backend/internal/services/gold_prices_test.go
 git commit -m "♻️ Share istToday between gold and dividends"
 ```
 
