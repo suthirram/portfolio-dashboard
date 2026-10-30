@@ -129,16 +129,17 @@ describe('TransactionsPage', () => {
 
     // The existing per-holding modal, scoped to that row's holding.
     expect(await screen.findByText('Transactions — Tata Consultancy')).toBeInTheDocument()
-    await waitFor(() => expect(mockApi.listTransactions).toHaveBeenCalledWith('h1'))
+    await waitFor(() => expect(mockApi.listTransactions).toHaveBeenCalledWith('h1', undefined))
   })
 
-  it('renders act-as read-only: target endpoint, no edit path', async () => {
+  // PD-048: act-as ledger writes — the editor opens on the target's ledger.
+  it('renders act-as editable: target endpoint, editor scoped to the target', async () => {
     renderPage({ actAsUserId: 'u9', actAsLabel: "priya.n's transactions" })
 
     await waitFor(() => expect(mockApi.listAllTransactions).toHaveBeenCalledWith('u9'))
-    expect(screen.getByText(/read-only/)).toBeInTheDocument()
-    expect(screen.queryByText('Edit')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Edit in/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/read-only/)).not.toBeInTheDocument()
+    fireEvent.click((await screen.findAllByRole('button', { name: /Edit in .* ledger/ }))[0])
+    await waitFor(() => expect(mockApi.listTransactions).toHaveBeenCalledWith('h1', 'u9'))
   })
 
   it('shows an empty state pointing at the only action that creates a transaction', async () => {
