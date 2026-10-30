@@ -1472,7 +1472,7 @@ Replacement:
 
 ```go
  Currency       string             `bson:"currency" json:"currency"`               // "INR" or "EUR"; defaults to "INR"
- // Aliases are normalised sheet names (nameKey) the owner confirmed as this
+ // Aliases are sheet names (exactKey: lower-case, spaces collapsed) the owner confirmed as this
  // holding during a dividend import (PRD-005 §6.3); later imports map them
  // automatically. Written only by the import commit, never derived.
  Aliases []string `bson:"aliases,omitempty" json:"-"`
@@ -1583,7 +1583,7 @@ parse errors are added to the counts client-side — so `date` is a real date.
         rows: { type: integer }
         status: { type: string, description: auto | confirmed | needs_confirmation | ambiguous | unresolved }
         holding_id: { type: string }
-        matched_by: { type: string, description: script | symbol | alias (auto only) }
+        matched_by: { type: string, description: script | alias (auto only; a symbol never auto-matches) }
         suggestions: { type: array, items: { $ref: "#/components/schemas/DividendSuggestion" } }
         preselect: { type: string, description: Suggested holding id when it is a clear best }
     DividendImportRowStatus:
@@ -1736,9 +1736,14 @@ Expected: `git status` shows the six files staged.
 
 * [ ] **Step 1: `dividend_match.go`**
 
-WHY: an exact match on script, symbol or a saved alias is safe to apply
-silently; anything fuzzy is only a suggestion, and the owner asked that every
-non-exact name be confirmed in a popup (PRD-005 §6.2). Only holdings in the
+WHY: owner decision 13 (PRD-005 §13) — with the holding Jio Platforms Ltd /
+JIOPLA.NS, the sheet names `jio`, `JLP`, `Jio Platforms Limited` and
+`JIOPLA` must all be confirmed in a popup. So the only silent matches are the
+holding's display name (ignoring case and extra spaces) and a name the owner
+confirmed before (alias). Everything else — symbols, punctuation, legal and
+exchange suffixes, fuzzy names — is a suggestion; a symbol match is the
+strongest suggestion and is pre-selected, but still waits for the owner
+(PRD-005 §6.2). Only holdings in the
 tab's currency are candidates, so an INR dividend can never land on an EUR
 holding. Mappings are keyed by the sheet name as displayed (`sheetName`).
 
@@ -1786,8 +1791,14 @@ const (
 // inner whitespace collapsed.
 func sheetName(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// nameKey normalises a name or symbol for exact matching: lower-case,
-// exchange suffix dropped, punctuation → space, whitespace collapsed.
+// exactKey is the only normalisation an automatic match allows: letter case
+// and extra spaces. Punctuation, legal suffixes (Ltd/Limited) and exchange
+// suffixes (.NS/.BO) are differences the owner confirms in the popup
+// (PRD-005 §6, owner decision 13). Aliases are stored as exactKey.
+func exactKey(s string) string { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
+
+// nameKey is the looser key for suggestions only: lower-case, exchange suffix
+// dropped, punctuation → space, whitespace collapsed. Never used to auto-match.
 func nameKey(s string) string {
  k := exchangeSuffix.ReplaceAllString(strings.ToLower(strings.TrimSpace(s)), "")
  return strings.Join(strings.Fields(nonAlnum.ReplaceAllString(k, " ")), " ")
@@ -1859,10 +1870,15 @@ func trigramJaccard(a, b string) float64 {
 }
 
 // suggestionScore rates how likely a sheet name means holding h (0–1). A
-// score is only ever a suggestion; it is never applied without the user.
+// score is only ever a suggestion; it is never applied without the user —
+// not even a sheet name equal to the symbol ("JIOPLA" ↔ "JIOPLA.NS"), which
+// scores highest and is pre-selected but still waits for confirmation.
 func suggestionScore(name string, h domain.Holding) float64 {
  s, script, symbol := corpKey(name), corpKey(h.Script), compact(nameKey(h.Symbol))
  best := trigramJaccard(s, script)
+ if sym := compact(nameKey(name)); sym != "" && sym == symbol {
+  best = max(best, 0.98)
+ }
  if s != "" && s == script {
   best = max(best, 0.95)
  }
@@ -1933,8 +1949,10 @@ func resolveNames(names []nameCount, candidates []domain.Holding, mappings map[s
    }
    exact[key] = append(exact[key], exactMatch{holding: h, by: by})
   }
-  add(nameKey(h.Script), "script")
-  add(nameKey(h.Symbol), "symbol")
+  // Automatic matches: the display name (case/space-insensitive) or a name
+  // the owner confirmed before. The symbol is deliberately absent — a
+  // symbol-shaped sheet name is a suggestion (suggestionScore), not a match.
+  add(exactKey(h.Script), "script")
   for _, alias := range h.Aliases {
    add(alias, "alias")
   }
@@ -1943,7 +1961,7 @@ func resolveNames(names []nameCount, candidates []domain.Holding, mappings map[s
  out := make([]nameResolution, 0, len(names))
  for _, n := range names {
   res := nameResolution{view: api.DividendNameResolution{SheetName: n.name, Rows: n.rows, Suggestions: []api.DividendSuggestion{}}}
-  matches := exact[nameKey(n.name)]
+  matches := exact[exactKey(n.name)]
 
   if answer, answered := mappings[n.name]; answered {
    if h := lookupAnswer(answer, holdingsById); h == nil {
@@ -2012,7 +2030,7 @@ func confirmedAliases(names []nameResolution) map[primitive.ObjectID][]string {
  out := map[primitive.ObjectID][]string{}
  for _, n := range names {
   if n.saveAlias && n.holding != nil {
-   out[n.holding.ID] = append(out[n.holding.ID], nameKey(n.view.SheetName))
+   out[n.holding.ID] = append(out[n.holding.ID], exactKey(n.view.SheetName))
   }
  }
  return out
@@ -2043,30 +2061,39 @@ func resolveOne(name string, candidates []domain.Holding, mappings map[string]*s
  return resolveNames([]nameCount{{name: name, rows: 1}}, candidates, mappings)[0]
 }
 
+// Only the display name (case/space-insensitive) or a confirmed alias maps
+// without the popup.
 func TestResolveNames_ExactIsAuto(t *testing.T) {
  hs := matchHoldings()
- for name, by := range map[string]string{"TCS": "script", " tcs ": "script", "tcs.ns": "symbol", "JIOPLA": "symbol"} {
+ for _, name := range []string{"TCS", " tcs ", "Jio Platforms Ltd", "jio  platforms ltd"} {
   r := resolveOne(sheetName(name), hs, nil)
-  if r.view.Status != nameAuto || r.view.MatchedBy == nil || *r.view.MatchedBy != by {
-   t.Errorf("%q: status %s, want auto by %s", name, r.view.Status, by)
+  if r.view.Status != nameAuto || r.view.MatchedBy == nil || *r.view.MatchedBy != "script" {
+   t.Errorf("%q: status %s, want auto by script", name, r.view.Status)
   }
  }
- hs[0].Aliases = []string{"jlp"}
- if r := resolveOne("JLP", hs, nil); r.view.Status != nameAuto || *r.view.MatchedBy != "alias" {
-  t.Errorf("saved alias: status %s, want auto by alias", r.view.Status)
+ hs[0].Aliases = []string{exactKey("JIOPLA")}
+ if r := resolveOne("JIOPLA", hs, nil); r.view.Status != nameAuto || *r.view.MatchedBy != "alias" {
+  t.Errorf("confirmed alias: status %s, want auto by alias", r.view.Status)
  }
 }
 
+// The owner's own example (decision 13): with the holding Jio Platforms Ltd /
+// JIOPLA.NS, the sheet names jio, JLP, Jio Platforms Limited and JIOPLA all go
+// to the popup — including the symbol-shaped JIOPLA. Punctuation and exchange
+// suffix differences do too.
 func TestResolveNames_InconsistentNamesNeedConfirmation(t *testing.T) {
  hs := matchHoldings()
- jio := hs[0].ID.Hex()
- for _, name := range []string{"jio", "Jio Platforms Limited", "JLP", "JIOP"} {
+ jio, tcs := hs[0].ID.Hex(), hs[1].ID.Hex()
+ for _, name := range []string{"jio", "Jio Platforms Limited", "JLP", "JIOPLA", "JIOPLA.NS", "Jio Platforms Ltd.", "tcs.ns"} {
   r := resolveOne(name, hs, nil)
   if r.view.Status != nameNeedsConfirmation || r.holding != nil {
    t.Errorf("%q: status %s holding %v, want needs_confirmation and no holding", name, r.view.Status, r.holding)
   }
  }
- for _, name := range []string{"jio", "Jio Platforms Limited", "JIOP"} {
+ if r := resolveOne("tcs.ns", hs, nil); r.view.Preselect == nil || *r.view.Preselect != tcs {
+  t.Error(`"tcs.ns": want TCS pre-selected (symbol match), still awaiting confirmation`)
+ }
+ for _, name := range []string{"jio", "Jio Platforms Limited", "JIOPLA", "Jio Platforms Ltd."} {
   r := resolveOne(name, hs, nil)
   if len(r.view.Suggestions) == 0 || r.view.Suggestions[0].HoldingId != jio {
    t.Errorf("%q: suggestions %+v, want Jio Platforms first", name, r.view.Suggestions)

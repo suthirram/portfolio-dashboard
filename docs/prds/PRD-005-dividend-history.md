@@ -101,18 +101,22 @@ rest are new.
 
 ### 6.1 Automatic (no prompt)
 
-A sheet name maps automatically when, after normalising (case, spaces,
-punctuation, exchange suffix `.NS`/`.BO`), it equals exactly one holding of
-the tab's currency by **script**, **symbol**, or a **previously confirmed
-alias** of that holding.
+A sheet name maps automatically only when, ignoring letter case and extra
+spaces, it equals exactly one holding of the tab's currency by its **display
+name** (script), or a name the owner **confirmed before** for that holding
+(alias, §6.3). Nothing else is normalised for an automatic match: punctuation,
+legal suffixes (`Ltd` / `Limited`), exchange suffixes (`.NS` / `.BO`) and a
+name that equals the holding's **symbol** are all inconsistencies that go to
+the popup (§6.2).
 
 ### 6.2 Confirmation popup (any inconsistency)
 
 Every other name — e.g. the holding is `Jio Platforms Ltd` / `JIOPLA.NS`
-and the sheet says `jio`, `JLP`, `Jio Platforms Limited` or `JIOP` — is
-**never auto-accepted**. (A sheet name that *is* the symbol, `JIOPLA`, is an
-exact match under §6.1.) The preview opens a **"Confirm share names"** popup,
-one line per distinct sheet name:
+and the sheet says `jio`, `JLP`, `Jio Platforms Limited` or `JIOPLA` (owner's
+example, decision 13) — is **never auto-accepted**. A name equal to the
+symbol (`JIOPLA`, `JIOPLA.NS`) is the strongest suggestion and is
+pre-selected, but it still waits for the owner's confirmation. The preview
+opens a **"Confirm share names"** popup, one line per distinct sheet name:
 
 * the sheet name and how many rows use it,
 * **suggested** holdings ranked by similarity (best first, pre-selected only
@@ -272,7 +276,7 @@ Act-as reuses the existing admin authorization (region scope, 404 on miss).
 | 10 | Import | Preview → confirm, atomic. |
 | 11 | Cumulative check | Warning only. |
 | 12 | Reuse | As DD-005 §4.1. |
-| 13 | Name mismatches | Any non-exact match is confirmed in a popup during import; answers remembered as aliases. |
+| 13 | Name mismatches | Any inconsistent name is confirmed in a popup during import; answers remembered as aliases. Owner's example: for Jio Platforms, sheet names `jio`, `JLP`, `Jio Platforms Limited` and `JIOPLA` all get the popup. So only the display name (case/space-insensitive) or a confirmed alias maps automatically; a symbol match is a pre-selected suggestion, never automatic (§6.1–6.2). |
 
 Assumed (raise if wrong): delete-all covers hand-entered dividends too (same
 records); zero-share holdings are the way to receive dividends for sold-out

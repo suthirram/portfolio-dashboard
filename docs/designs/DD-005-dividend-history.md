@@ -61,7 +61,7 @@ type ImportMeta struct {
 `internal/domain/holding.go` — confirmed name aliases:
 
 ```go
- // Aliases are normalised sheet names the owner confirmed as this holding
+ // Aliases are sheet names (exactKey) the owner confirmed as this holding
  // during a dividend import (PRD-005 §6.3); later imports auto-map them.
  // Not a derived field: written only by the import confirm step.
  Aliases []string `bson:"aliases,omitempty" json:"-"`
@@ -125,8 +125,13 @@ ObjectIDs in sheet order before inserting, so `_id` preserves sheet order.
 Pure functions, unit-tested without Mongo.
 
 ```go
-// nameKey normalises a share name or symbol: lower-case, exchange suffix
-// (.ns/.bo) dropped, punctuation → space, whitespace collapsed.
+// exactKey is the only normalisation an automatic match allows: lower-case,
+// whitespace collapsed. Aliases are stored as exactKey.
+func exactKey(s string) string
+
+// nameKey is the looser key for suggestions only: lower-case, exchange
+// suffix (.ns/.bo) dropped, punctuation → space, whitespace collapsed.
+// Never used to auto-match.
 func nameKey(s string) string
 
 // corpKey is nameKey minus corporate filler words (limited, ltd, inc, plc,
@@ -140,14 +145,17 @@ func corpKey(s string) string
 2. **Answer** (the user's popup answer in this import, keyed by sheet name):
    a candidate's id → `confirmed` (saved as an alias unless it is the exact
    match anyway); `null` or a non-candidate id → `unresolved`.
-3. **Exact**: `nameKey(sheet)` equals `nameKey(script)`, `nameKey(symbol)`
-   or an alias of **exactly one** candidate → `auto` (`matched_by`:
-   `script` | `symbol` | `alias`). Equal to several → `ambiguous`. So for a
-   holding `Jio Platforms Ltd` / `JIOPLA.NS`, the sheet name `JIOPLA` maps
-   automatically (it *is* the symbol); `jio`, `JLP`, `Jio Platforms Limited`
-   and `JIOP` go to the popup.
+3. **Exact**: `exactKey(sheet)` equals `exactKey(script)` or an alias of
+   **exactly one** candidate → `auto` (`matched_by`: `script` | `alias`).
+   Equal to several → `ambiguous`. The symbol is **not** an exact-match key:
+   owner decision 13 (PRD-005 §13) lists `JIOPLA` — the symbol of
+   `Jio Platforms Ltd` / `JIOPLA.NS` — among the names that must be confirmed,
+   together with `jio`, `JLP` and `Jio Platforms Limited`. Punctuation
+   (`Jio Platforms Ltd.`) and exchange suffixes (`tcs.ns`) likewise go to the
+   popup.
 4. Otherwise → `needs_confirmation` with up to 3 **suggestions**, scored
    0–1 as the max of:
+   * symbol equality after `nameKey` (`JIOPLA` / `JIOPLA.NS` ↔ `JIOPLA.NS`) → 0.98
    * `corpKey` equality (`Jio Platforms Limited` ↔ `Jio Platforms Ltd`) → 0.95
    * token prefix — every sheet token prefixes a candidate token, or the
      reverse (`jio` → `jio platforms`) → 0.8
@@ -156,8 +164,8 @@ func corpKey(s string) string
    * trigram Jaccard on `corpKey` (`JLP`, typos) → raw score
 
    Suggestions below 0.3 are dropped. `preselect` = top suggestion only when
-   ≥ 0.8 and ahead of the next by ≥ 0.15. **Fuzzy matches are never applied
-   without the user's confirmation** (PRD-005 §6.2).
+   ≥ 0.8 and ahead of the next by ≥ 0.15. **No suggestion — not even a
+   symbol match — is applied without the user's confirmation** (PRD-005 §6.2).
 5. A `needs_confirmation` / `ambiguous` / `unresolved` name has no holding,
    so its rows are invalid until the popup answers it.
 
@@ -322,7 +330,7 @@ Key schemas:
 DividendImportRow:      { line: int, date: string, share_name: string, amount: number, cumulative?: number }
 DividendImportInput:    { currency: INR|EUR, rows: DividendImportRow[] (≤5000), mappings?: { <sheet name>: <holding id> | null } }
 DividendNameResolution: { sheet_name, rows: int, status: auto|confirmed|needs_confirmation|ambiguous|unresolved,
-                          holding_id?, matched_by?: script|symbol|alias, suggestions: [{holding_id, script, symbol, score}], preselect? }
+                          holding_id?, matched_by?: script|alias, suggestions: [{holding_id, script, symbol, score}], preselect? }
 DividendImportRowStatus: { line, status: ready|duplicate|invalid, holding_id?, reason? }
 DividendImportPreview:  { counts: {ready, duplicate, invalid, total}, names: DividendNameResolution[],
                           rows: DividendImportRowStatus[], warnings: [{line, message}] }
@@ -401,10 +409,11 @@ controller tests use the `mtest` mock driver like the rest of the suite and
 assert on the commands issued; the transaction runs through a pass-through
 `txRunner`.
 
-* **match**: `nameKey`/`corpKey`; exact by script/symbol/alias → auto; two
-  holdings equal → ambiguous; `jio`, `JLP`, `Jio Platforms Limited`, `JIOP`
-  against `Jio Platforms Ltd`/`JIOPLA.NS` → needs_confirmation with that
-  holding first (`JIOPLA` → auto by symbol); other-currency holding never
+* **match**: `exactKey`/`nameKey`/`corpKey`; exact by script/alias → auto; two
+  holdings equal → ambiguous; `jio`, `JLP`, `Jio Platforms Limited`,
+  `JIOPLA`, `JIOPLA.NS`, `Jio Platforms Ltd.` against `Jio Platforms Ltd` /
+  `JIOPLA.NS` → needs_confirmation with that holding first (`JIOPLA`
+  pre-selected as a symbol match, never auto); other-currency holding never
   suggested; no pre-selection without a clear best.
 * **partition**: scenarios A–D; hand-entered ledger dividend counts as
   existing; different day / amount / holding not a duplicate.
