@@ -1002,6 +1002,8 @@ users_id_dividends:
           application/json:
             schema:
               $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 ```
@@ -1236,6 +1238,7 @@ package services
 
 import (
  "context"
+ "fmt"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
  "go.uber.org/zap"
@@ -1268,6 +1271,11 @@ func (s *DividendsService) List(ctx context.Context, userId primitive.ObjectID, 
  ctx, span := tracer.Start(ctx, "DividendsService.List")
  defer endSpan(span, &retErr)
  logger := s.log(ctx)
+ // No request validator enforces the spec enum, so check it here: an unknown
+ // currency is a 400, not an empty tab that looks like "no dividends".
+ if !ValidCurrency(currency) {
+  return api.DividendView{}, fmt.Errorf("%w: currency must be INR or EUR", ErrValidation)
+ }
  txns, err := s.txns.ListDividends(ctx, userId, currency)
  if err != nil {
   logger.Error("list dividends failed", zap.Error(err))
@@ -1435,8 +1443,10 @@ package controllers
 
 import (
  "context"
+ "errors"
 
  "portfolio-dashboard/api"
+ "portfolio-dashboard/internal/services"
 )
 
 func (h *Controller) ListDividends(ctx context.Context, request api.ListDividendsRequestObject) (api.ListDividendsResponseObject, error) {
@@ -1446,6 +1456,9 @@ func (h *Controller) ListDividends(ctx context.Context, request api.ListDividend
  }
  view, err := h.dividends.List(ctx, currentUserId, string(request.Params.Currency))
  if err != nil {
+  if errors.Is(err, services.ErrValidation) {
+   return api.ListDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.ListDividends200JSONResponse(view), nil
@@ -1466,6 +1479,9 @@ func (h *Controller) AdminListUserDividends(ctx context.Context, request api.Adm
  }
  view, err := h.dividends.List(ctx, target.ID, string(request.Params.Currency))
  if err != nil {
+  if errors.Is(err, services.ErrValidation) {
+   return api.AdminListUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+  }
   return nil, err
  }
  return api.AdminListUserDividends200JSONResponse(view), nil
@@ -1535,6 +1551,25 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
   }
  })
 }
+
+// No request validator enforces the enum: an unknown currency must be a 400
+// with a message, never an empty 200 that reads as "no dividends".
+func TestListDividends_BadCurrency400(t *testing.T) {
+ mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+ mt.Run("USD", func(mt *mtest.T) {
+  h := newIntegrationHandler(mt, &mockPriceFetcher{})
+  resp, err := h.ListDividends(userCtx(regionalAdmin("india")), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "USD"}})
+  if err != nil {
+   t.Fatalf("ListDividends: %v", err)
+  }
+  if _, ok := resp.(api.ListDividends400JSONResponse); !ok {
+   t.Fatalf("response = %T, want 400", resp)
+  }
+  if n := len(mt.GetAllStartedEvents()); n != 0 {
+   t.Errorf("%d database commands issued for an invalid currency; want none", n)
+  }
+ })
+}
 ```
 
 * [ ] **Step 4: `docs/api.md`** — new "Dividends" section listing
@@ -1548,7 +1583,7 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
 cd backend && go build ./... && go test ./internal/controllers/ -run 'Dividends' -v 2>&1 | grep -E -- '--- (PASS|FAIL)'
 ```
 
-Expected: `--- PASS: TestListDividends_ScopedToCallerAndCurrency/EUR_tab`, `--- PASS: TestAdminListUserDividends_OutOfRegion404/...`.
+Expected: `--- PASS: TestListDividends_ScopedToCallerAndCurrency/EUR_tab`, `--- PASS: TestAdminListUserDividends_OutOfRegion404/...`, `--- PASS: TestListDividends_BadCurrency400/USD`.
 
 * [ ] **Step 6: curl (PR3 "How to test")**
 
@@ -1558,6 +1593,7 @@ curl -s -c c.txt -H "$H" -H "$J" -d '{"username":"admin","password":"<dev passwo
 curl -s -b c.txt -H "$H" -H "$J" -d '{"type":"dividend","date":"2020-01-01T00:00:00Z","amount":300}' $B/holdings/<TCS holding id>/transactions >/dev/null
 curl -s -b c.txt "$B/dividends?currency=INR" | jq '.rows[0].cumulative, .summary.total, .by_year[0].period'   # 300, 300, "2020"
 curl -s -b c.txt "$B/dividends?currency=EUR" | jq '.rows | length'                                           # 0
+curl -s -o /dev/null -w '%{http_code}\n' -b c.txt "$B/dividends?currency=USD"                                 # 400
 ```
 
 * [ ] **Step 7: Commit, push, PR3**
@@ -2479,6 +2515,7 @@ Current:
 ```go
 import (
  "context"
+ "fmt"
 
  "go.mongodb.org/mongo-driver/bson/primitive"
  "go.uber.org/zap"
@@ -2636,29 +2673,7 @@ func (s *DividendsService) Preview(ctx context.Context, userId primitive.ObjectI
 
 * [ ] **Step 3: Controller (Edit `controllers/dividends.go`)**
 
-Current:
-
-```go
-import (
- "context"
-
- "portfolio-dashboard/api"
-)
-```
-
-Replacement:
-
-```go
-import (
- "context"
- "errors"
-
- "portfolio-dashboard/api"
- "portfolio-dashboard/internal/services"
-)
-```
-
-Append:
+`errors` and `services` are already imported (Task 7). Append:
 
 ```go
 func (h *Controller) PreviewDividendImport(ctx context.Context, request api.PreviewDividendImportRequestObject) (api.PreviewDividendImportResponseObject, error) {
