@@ -52,6 +52,8 @@ summary are scoped to the logged-in user.
 |---|---|---|
 | GET | `/api/dividends?currency=INR\|EUR` | The caller's dividend ledger events in one currency, oldest first, as a `DividendView` |
 | GET | `/api/admin/users/{id}/dividends?currency=INR\|EUR` | Act-as: a target user's tab (region-scoped; out of scope ⇒ 404) |
+| POST | `/api/dividends/import/preview` | Evaluate a CSV import without writing anything |
+| POST | `/api/admin/users/{id}/dividends/import/preview` | Act-as mirror of the preview |
 
 Dividends are `transactions` documents with `type = dividend`; add / edit /
 delete one through the ledger endpoints above. Any other `currency` is a 400.
@@ -66,6 +68,24 @@ total first, with `share` of the tab total). Example row:
  "date": "2020-01-01", "amount": 300, "currency": "INR", "notes": "",
  "cumulative": 300, "holding_cumulative": 300}
 ```
+
+**Import preview.** The client parses the CSV and sends the rows it could
+read (≤ 5,000) plus the name-popup answers:
+
+```json
+{"currency": "INR",
+ "rows": [{"line": 2, "date": "2020-01-01", "share_name": "TCS", "amount": 300, "cumulative": 300}],
+ "mappings": {"jio": "<holding id>", "JLP": null}}
+```
+
+The response (`DividendImportPreview`) has `counts` (`ready`, `duplicate`,
+`invalid`, `total`), `names` (one per distinct sheet name: `status` =
+`auto` | `confirmed` | `needs_confirmation` | `ambiguous` | `unresolved`,
+with `suggestions` and an optional `preselect`), `rows` (per line: `ready` |
+`duplicate` | `invalid` + `reason`) and `warnings` (CUMULATIVE mismatches).
+Only the holding's display name or a previously confirmed alias matches
+automatically; a duplicate is the same holding, day and amount, counted by
+occurrence against what is already stored.
 
 ## History (per-user snapshots)
 

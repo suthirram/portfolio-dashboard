@@ -2,7 +2,10 @@ package controllers
 
 import (
 	"testing"
+	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
@@ -74,6 +77,39 @@ func TestListDividends_BadCurrency400(t *testing.T) {
 		}
 		if n := len(mt.GetAllStartedEvents()); n != 0 {
 			t.Errorf("%d database commands issued for an invalid currency; want none", n)
+		}
+	})
+}
+
+// Preview never writes: every command it issues is a read.
+func TestPreviewDividendImport_ReadOnly(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("one row", func(mt *mtest.T) {
+		caller := regionalAdmin("india")
+		holdingId := primitive.NewObjectID()
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: caller.ID}, {Key: "script", Value: "TCS"},
+				{Key: "symbol", Value: "TCS.NS"}, {Key: "currency", Value: "INR"},
+			}),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+		)
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		day := openapi_types.Date{Time: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}
+		resp, err := h.PreviewDividendImport(userCtx(caller), api.PreviewDividendImportRequestObject{Body: &api.DividendImportInput{
+			Currency: "INR", Rows: []api.DividendImportRow{{Line: 2, Date: day, ShareName: "TCS", Amount: 300}},
+		}})
+		if err != nil {
+			t.Fatalf("Preview: %v", err)
+		}
+		ok, isOK := resp.(api.PreviewDividendImport200JSONResponse)
+		if !isOK || ok.Counts.Ready != 1 {
+			t.Fatalf("response = %#v, want 200 with 1 ready", resp)
+		}
+		for _, e := range mt.GetAllStartedEvents() {
+			if e.CommandName != "find" {
+				t.Errorf("preview issued %s; want reads only", e.CommandName)
+			}
 		}
 	})
 }

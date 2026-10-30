@@ -114,6 +114,9 @@ type GetMarketPriceParams struct {
 // AdminUpdateBrandingJSONRequestBody defines body for AdminUpdateBranding for application/json ContentType.
 type AdminUpdateBrandingJSONRequestBody = BrandingUpdateRequest
 
+// AdminPreviewUserDividendImportJSONRequestBody defines body for AdminPreviewUserDividendImport for application/json ContentType.
+type AdminPreviewUserDividendImportJSONRequestBody = DividendImportInput
+
 // AdminSetUserGoldJSONRequestBody defines body for AdminSetUserGold for application/json ContentType.
 type AdminSetUserGoldJSONRequestBody = GoldToggleRequest
 
@@ -152,6 +155,9 @@ type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
 
 // SignupJSONRequestBody defines body for Signup for application/json ContentType.
 type SignupJSONRequestBody = SignupRequest
+
+// PreviewDividendImportJSONRequestBody defines body for PreviewDividendImport for application/json ContentType.
+type PreviewDividendImportJSONRequestBody = DividendImportInput
 
 // PutGoldPricesJSONRequestBody defines body for PutGoldPrices for application/json ContentType.
 type PutGoldPricesJSONRequestBody = PutGoldPricesJSONBody
@@ -206,6 +212,9 @@ type ServerInterface interface {
 	// One currency tab of a user's dividends (act-as)
 	// (GET /admin/users/{id}/dividends)
 	AdminListUserDividends(ctx echo.Context, id UserID, params AdminListUserDividendsParams) error
+	// Evaluate a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import/preview)
+	AdminPreviewUserDividendImport(ctx echo.Context, id UserID) error
 	// Enable or disable gold tracking for an account (super admin only)
 	// (PUT /admin/users/{id}/gold)
 	AdminSetUserGold(ctx echo.Context, id UserID) error
@@ -287,6 +296,9 @@ type ServerInterface interface {
 	// One currency tab of the caller's dividends
 	// (GET /dividends)
 	ListDividends(ctx echo.Context, params ListDividendsParams) error
+	// Evaluate a dividend CSV import without writing anything
+	// (POST /dividends/import/preview)
+	PreviewDividendImport(ctx echo.Context) error
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx echo.Context) error
@@ -498,6 +510,24 @@ func (w *ServerInterfaceWrapper) AdminListUserDividends(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminListUserDividends(ctx, id, params)
+	return err
+}
+
+// AdminPreviewUserDividendImport converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminPreviewUserDividendImport(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminPreviewUserDividendImport(ctx, id)
 	return err
 }
 
@@ -906,6 +936,17 @@ func (w *ServerInterfaceWrapper) ListDividends(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.ListDividends(ctx, params)
+	return err
+}
+
+// PreviewDividendImport converts echo context to params.
+func (w *ServerInterfaceWrapper) PreviewDividendImport(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PreviewDividendImport(ctx)
 	return err
 }
 
@@ -1403,6 +1444,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.AdminDemoteUser, options.OperationMiddlewares["adminDemoteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminListUserDividends, options.OperationMiddlewares["adminListUserDividends"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/dividends/import/preview", wrapper.AdminPreviewUserDividendImport, options.OperationMiddlewares["adminPreviewUserDividendImport"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/gold", wrapper.AdminSetUserGold, options.OperationMiddlewares["adminSetUserGold"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/hide", wrapper.AdminHideUser, options.OperationMiddlewares["adminHideUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminListUserHoldings, options.OperationMiddlewares["adminListUserHoldings"]...)
@@ -1430,6 +1472,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
 	router.GET(options.BaseURL+"/branding", wrapper.GetBranding, options.OperationMiddlewares["getBranding"]...)
 	router.GET(options.BaseURL+"/dividends", wrapper.ListDividends, options.OperationMiddlewares["listDividends"]...)
+	router.POST(options.BaseURL+"/dividends/import/preview", wrapper.PreviewDividendImport, options.OperationMiddlewares["previewDividendImport"]...)
 	router.GET(options.BaseURL+"/gold/metrics", wrapper.GetGoldMetrics, options.OperationMiddlewares["getGoldMetrics"]...)
 	router.GET(options.BaseURL+"/gold/missing-dates", wrapper.ListGoldMissingDates, options.OperationMiddlewares["listGoldMissingDates"]...)
 	router.GET(options.BaseURL+"/gold/prices", wrapper.ListGoldPrices, options.OperationMiddlewares["listGoldPrices"]...)
@@ -1780,6 +1823,57 @@ func (response AdminListUserDividends400JSONResponse) VisitAdminListUserDividend
 type AdminListUserDividends404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminListUserDividends404JSONResponse) VisitAdminListUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImportRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminPreviewUserDividendImportJSONRequestBody
+}
+
+type AdminPreviewUserDividendImportResponseObject interface {
+	VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error
+}
+
+type AdminPreviewUserDividendImport200JSONResponse DividendImportPreview
+
+func (response AdminPreviewUserDividendImport200JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminPreviewUserDividendImport400JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminPreviewUserDividendImport404JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2941,6 +3035,42 @@ func (response ListDividends200JSONResponse) VisitListDividendsResponse(w http.R
 type ListDividends400JSONResponse struct{ BadRequestJSONResponse }
 
 func (response ListDividends400JSONResponse) VisitListDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewDividendImportRequestObject struct {
+	Body *PreviewDividendImportJSONRequestBody
+}
+
+type PreviewDividendImportResponseObject interface {
+	VisitPreviewDividendImportResponse(w http.ResponseWriter) error
+}
+
+type PreviewDividendImport200JSONResponse DividendImportPreview
+
+func (response PreviewDividendImport200JSONResponse) VisitPreviewDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewDividendImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PreviewDividendImport400JSONResponse) VisitPreviewDividendImportResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -4200,6 +4330,9 @@ type StrictServerInterface interface {
 	// One currency tab of a user's dividends (act-as)
 	// (GET /admin/users/{id}/dividends)
 	AdminListUserDividends(ctx context.Context, request AdminListUserDividendsRequestObject) (AdminListUserDividendsResponseObject, error)
+	// Evaluate a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import/preview)
+	AdminPreviewUserDividendImport(ctx context.Context, request AdminPreviewUserDividendImportRequestObject) (AdminPreviewUserDividendImportResponseObject, error)
 	// Enable or disable gold tracking for an account (super admin only)
 	// (PUT /admin/users/{id}/gold)
 	AdminSetUserGold(ctx context.Context, request AdminSetUserGoldRequestObject) (AdminSetUserGoldResponseObject, error)
@@ -4281,6 +4414,9 @@ type StrictServerInterface interface {
 	// One currency tab of the caller's dividends
 	// (GET /dividends)
 	ListDividends(ctx context.Context, request ListDividendsRequestObject) (ListDividendsResponseObject, error)
+	// Evaluate a dividend CSV import without writing anything
+	// (POST /dividends/import/preview)
+	PreviewDividendImport(ctx context.Context, request PreviewDividendImportRequestObject) (PreviewDividendImportResponseObject, error)
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx context.Context, request GetGoldMetricsRequestObject) (GetGoldMetricsResponseObject, error)
@@ -4551,6 +4687,37 @@ func (sh *strictHandler) AdminListUserDividends(ctx echo.Context, id UserID, par
 		return err
 	} else if validResponse, ok := response.(AdminListUserDividendsResponseObject); ok {
 		return validResponse.VisitAdminListUserDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminPreviewUserDividendImport operation middleware
+func (sh *strictHandler) AdminPreviewUserDividendImport(ctx echo.Context, id UserID) error {
+	var request AdminPreviewUserDividendImportRequestObject
+
+	request.Id = id
+
+	var body AdminPreviewUserDividendImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminPreviewUserDividendImport(ctx.Request().Context(), request.(AdminPreviewUserDividendImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminPreviewUserDividendImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminPreviewUserDividendImportResponseObject); ok {
+		return validResponse.VisitAdminPreviewUserDividendImportResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -5282,6 +5449,35 @@ func (sh *strictHandler) ListDividends(ctx echo.Context, params ListDividendsPar
 		return err
 	} else if validResponse, ok := response.(ListDividendsResponseObject); ok {
 		return validResponse.VisitListDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PreviewDividendImport operation middleware
+func (sh *strictHandler) PreviewDividendImport(ctx echo.Context) error {
+	var request PreviewDividendImportRequestObject
+
+	var body PreviewDividendImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewDividendImport(ctx.Request().Context(), request.(PreviewDividendImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewDividendImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PreviewDividendImportResponseObject); ok {
+		return validResponse.VisitPreviewDividendImportResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
