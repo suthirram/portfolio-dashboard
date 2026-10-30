@@ -4,7 +4,7 @@
 
 | Var / Flag | Default | Description |
 |---|---|---|
-| `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio` | MongoDB connection string |
+| `MONGODB_URI` / `--mongo-uri` | `mongodb://localhost:27017/portfolio?replicaSet=rs0&directConnection=true` | MongoDB connection string. Must point at a replica set (Atlas is one; the dev container runs a single-node set) — dividend imports use multi-document transactions. Existing dev volume: `docker compose -f docker-compose.dev.yml up -d --force-recreate mongodb` once; data is kept. |
 | `MONGODB_DATABASE` / `--mongo-db` | `portfolio` | Database name |
 | `POSTGRES_URI` | `postgres://portfolio:portfolio@localhost:5432/portfolio?sslmode=disable` | Gold-tracking DB (DD-003). Optional at boot: unreachable/empty ⇒ the server runs with gold features disabled. Embedded migrations apply on connect. |
 | `PORT` / `--port` | `8080` | Server port |
