@@ -54,6 +54,8 @@ summary are scoped to the logged-in user.
 | GET | `/api/admin/users/{id}/dividends?currency=INR\|EUR` | Act-as: a target user's tab (region-scoped; out of scope ⇒ 404) |
 | POST | `/api/dividends/import/preview` | Evaluate a CSV import without writing anything |
 | POST | `/api/admin/users/{id}/dividends/import/preview` | Act-as mirror of the preview |
+| POST | `/api/dividends/import` | Commit the import atomically: 200 `DividendImportResult`, 400 malformed, 422 fresh preview when rows are invalid (nothing written) |
+| POST | `/api/admin/users/{id}/dividends/import` | Act-as mirror of the import |
 
 Dividends are `transactions` documents with `type = dividend`; add / edit /
 delete one through the ledger endpoints above. Any other `currency` is a 400.
@@ -86,6 +88,12 @@ with `suggestions` and an optional `preselect`), `rows` (per line: `ready` |
 Only the holding's display name or a previously confirmed alias matches
 automatically; a duplicate is the same holding, day and amount, counted by
 occurrence against what is already stored.
+
+**Import.** Same request as the preview. The server re-runs the preview inside
+one MongoDB transaction and, when no row is invalid, inserts every new
+dividend, saves confirmed names as aliases and recomputes the affected
+holdings — all or nothing. The result is `{imported, duplicates (the skipped
+rows), batch_id, warnings}`; re-sending the same file imports 0.
 
 ## History (per-user snapshots)
 
