@@ -19,6 +19,24 @@ const (
 	CookieAuthScopes cookieAuthContextKey = "cookieAuth.Scopes"
 )
 
+// Defines values for AdminDeleteUserDividendsParamsCurrency.
+const (
+	AdminDeleteUserDividendsParamsCurrencyEUR AdminDeleteUserDividendsParamsCurrency = "EUR"
+	AdminDeleteUserDividendsParamsCurrencyINR AdminDeleteUserDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeleteUserDividendsParamsCurrency enum.
+func (e AdminDeleteUserDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case AdminDeleteUserDividendsParamsCurrencyEUR:
+		return true
+	case AdminDeleteUserDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminListUserDividendsParamsCurrency.
 const (
 	AdminListUserDividendsParamsCurrencyEUR AdminListUserDividendsParamsCurrency = "EUR"
@@ -31,6 +49,24 @@ func (e AdminListUserDividendsParamsCurrency) Valid() bool {
 	case AdminListUserDividendsParamsCurrencyEUR:
 		return true
 	case AdminListUserDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDividendsParamsCurrency.
+const (
+	DeleteDividendsParamsCurrencyEUR DeleteDividendsParamsCurrency = "EUR"
+	DeleteDividendsParamsCurrencyINR DeleteDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the DeleteDividendsParamsCurrency enum.
+func (e DeleteDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case DeleteDividendsParamsCurrencyEUR:
+		return true
+	case DeleteDividendsParamsCurrencyINR:
 		return true
 	default:
 		return false
@@ -63,6 +99,15 @@ type AdminListUsersParams struct {
 	IncludeHidden *bool `form:"include_hidden,omitempty" json:"include_hidden,omitempty"`
 }
 
+// AdminDeleteUserDividendsParams defines parameters for AdminDeleteUserDividends.
+type AdminDeleteUserDividendsParams struct {
+	// Currency The currency tab
+	Currency AdminDeleteUserDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// AdminDeleteUserDividendsParamsCurrency defines parameters for AdminDeleteUserDividends.
+type AdminDeleteUserDividendsParamsCurrency string
+
 // AdminListUserDividendsParams defines parameters for AdminListUserDividends.
 type AdminListUserDividendsParams struct {
 	// Currency The currency tab
@@ -71,6 +116,15 @@ type AdminListUserDividendsParams struct {
 
 // AdminListUserDividendsParamsCurrency defines parameters for AdminListUserDividends.
 type AdminListUserDividendsParamsCurrency string
+
+// DeleteDividendsParams defines parameters for DeleteDividends.
+type DeleteDividendsParams struct {
+	// Currency The currency tab
+	Currency DeleteDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// DeleteDividendsParamsCurrency defines parameters for DeleteDividends.
+type DeleteDividendsParamsCurrency string
 
 // ListDividendsParams defines parameters for ListDividends.
 type ListDividendsParams struct {
@@ -215,6 +269,9 @@ type ServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx echo.Context, id UserID) error
+	// Delete every dividend of one currency tab for a user (act-as)
+	// (DELETE /admin/users/{id}/dividends)
+	AdminDeleteUserDividends(ctx echo.Context, id UserID, params AdminDeleteUserDividendsParams) error
 	// One currency tab of a user's dividends (act-as)
 	// (GET /admin/users/{id}/dividends)
 	AdminListUserDividends(ctx echo.Context, id UserID, params AdminListUserDividendsParams) error
@@ -302,6 +359,9 @@ type ServerInterface interface {
 	// Get app branding settings
 	// (GET /branding)
 	GetBranding(ctx echo.Context) error
+	// Delete every dividend of one currency tab
+	// (DELETE /dividends)
+	DeleteDividends(ctx echo.Context, params DeleteDividendsParams) error
 	// One currency tab of the caller's dividends
 	// (GET /dividends)
 	ListDividends(ctx echo.Context, params ListDividendsParams) error
@@ -495,6 +555,33 @@ func (w *ServerInterfaceWrapper) AdminDemoteUser(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminDemoteUser(ctx, id)
+	return err
+}
+
+// AdminDeleteUserDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminDeleteUserDividends(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminDeleteUserDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminDeleteUserDividends(ctx, id, params)
 	return err
 }
 
@@ -946,6 +1033,26 @@ func (w *ServerInterfaceWrapper) GetBranding(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetBranding(ctx)
+	return err
+}
+
+// DeleteDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteDividends(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteDividends(ctx, params)
 	return err
 }
 
@@ -1484,6 +1591,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.AdminDeleteUser, options.OperationMiddlewares["adminDeleteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.AdminDemoteUser, options.OperationMiddlewares["adminDemoteUser"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminDeleteUserDividends, options.OperationMiddlewares["adminDeleteUserDividends"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminListUserDividends, options.OperationMiddlewares["adminListUserDividends"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/dividends/import", wrapper.AdminImportUserDividends, options.OperationMiddlewares["adminImportUserDividends"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/dividends/import/preview", wrapper.AdminPreviewUserDividendImport, options.OperationMiddlewares["adminPreviewUserDividendImport"]...)
@@ -1513,6 +1621,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
 	router.GET(options.BaseURL+"/branding", wrapper.GetBranding, options.OperationMiddlewares["getBranding"]...)
+	router.DELETE(options.BaseURL+"/dividends", wrapper.DeleteDividends, options.OperationMiddlewares["deleteDividends"]...)
 	router.GET(options.BaseURL+"/dividends", wrapper.ListDividends, options.OperationMiddlewares["listDividends"]...)
 	router.POST(options.BaseURL+"/dividends/import", wrapper.ImportDividends, options.OperationMiddlewares["importDividends"]...)
 	router.POST(options.BaseURL+"/dividends/import/preview", wrapper.PreviewDividendImport, options.OperationMiddlewares["previewDividendImport"]...)
@@ -1815,6 +1924,59 @@ func (response AdminDemoteUser403JSONResponse) VisitAdminDemoteUserResponse(w ht
 type AdminDemoteUser404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminDemoteUser404JSONResponse) VisitAdminDemoteUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserDividendsRequestObject struct {
+	Id     UserID `json:"id"`
+	Params AdminDeleteUserDividendsParams
+}
+
+type AdminDeleteUserDividendsResponseObject interface {
+	VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteUserDividends200JSONResponse struct {
+	Deleted int `json:"deleted"`
+}
+
+func (response AdminDeleteUserDividends200JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminDeleteUserDividends400JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserDividends404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminDeleteUserDividends404JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -3114,6 +3276,44 @@ func (response GetBranding200JSONResponse) VisitGetBrandingResponse(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDividendsRequestObject struct {
+	Params DeleteDividendsParams
+}
+
+type DeleteDividendsResponseObject interface {
+	VisitDeleteDividendsResponse(w http.ResponseWriter) error
+}
+
+type DeleteDividends200JSONResponse struct {
+	Deleted int `json:"deleted"`
+}
+
+func (response DeleteDividends200JSONResponse) VisitDeleteDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteDividends400JSONResponse) VisitDeleteDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4485,6 +4685,9 @@ type StrictServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx context.Context, request AdminDemoteUserRequestObject) (AdminDemoteUserResponseObject, error)
+	// Delete every dividend of one currency tab for a user (act-as)
+	// (DELETE /admin/users/{id}/dividends)
+	AdminDeleteUserDividends(ctx context.Context, request AdminDeleteUserDividendsRequestObject) (AdminDeleteUserDividendsResponseObject, error)
 	// One currency tab of a user's dividends (act-as)
 	// (GET /admin/users/{id}/dividends)
 	AdminListUserDividends(ctx context.Context, request AdminListUserDividendsRequestObject) (AdminListUserDividendsResponseObject, error)
@@ -4572,6 +4775,9 @@ type StrictServerInterface interface {
 	// Get app branding settings
 	// (GET /branding)
 	GetBranding(ctx context.Context, request GetBrandingRequestObject) (GetBrandingResponseObject, error)
+	// Delete every dividend of one currency tab
+	// (DELETE /dividends)
+	DeleteDividends(ctx context.Context, request DeleteDividendsRequestObject) (DeleteDividendsResponseObject, error)
 	// One currency tab of the caller's dividends
 	// (GET /dividends)
 	ListDividends(ctx context.Context, request ListDividendsRequestObject) (ListDividendsResponseObject, error)
@@ -4825,6 +5031,32 @@ func (sh *strictHandler) AdminDemoteUser(ctx echo.Context, id UserID) error {
 		return err
 	} else if validResponse, ok := response.(AdminDemoteUserResponseObject); ok {
 		return validResponse.VisitAdminDemoteUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminDeleteUserDividends operation middleware
+func (sh *strictHandler) AdminDeleteUserDividends(ctx echo.Context, id UserID, params AdminDeleteUserDividendsParams) error {
+	var request AdminDeleteUserDividendsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteUserDividends(ctx.Request().Context(), request.(AdminDeleteUserDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteUserDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminDeleteUserDividendsResponseObject); ok {
+		return validResponse.VisitAdminDeleteUserDividendsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -5619,6 +5851,31 @@ func (sh *strictHandler) GetBranding(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(GetBrandingResponseObject); ok {
 		return validResponse.VisitGetBrandingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteDividends operation middleware
+func (sh *strictHandler) DeleteDividends(ctx echo.Context, params DeleteDividendsParams) error {
+	var request DeleteDividendsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDividends(ctx.Request().Context(), request.(DeleteDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteDividendsResponseObject); ok {
+		return validResponse.VisitDeleteDividendsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
