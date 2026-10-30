@@ -122,7 +122,11 @@ ObjectIDs in sheet order before inserting, so `_id` preserves sheet order.
 
 ### 2.3 Name resolution — `internal/services/dividend_match.go`
 
-Pure functions, unit-tested without Mongo.
+Pure functions, unit-tested without Mongo. Sheet names are mostly the
+holding's **script name** (owner decision 14), so the automatic match and
+most suggestion signals (corporate-word equality, token prefix, initials,
+trigram similarity) compare against the script; the symbol signals only
+help the occasional symbol-style name.
 
 ```go
 // exactKey is the only normalisation an automatic match allows: lower-case,

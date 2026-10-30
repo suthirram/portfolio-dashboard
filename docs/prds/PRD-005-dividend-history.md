@@ -64,7 +64,7 @@ dividend income, and History does not show it at all.
 | Column | Required | Rule |
 |---|---|---|
 | `Date` | yes | **Day-first** `DD/MM/YYYY`: `1/2/2020` = 1 Feb 2020, `12/5/2023` = 12 May 2023. Also `DD-MM-YYYY`, `DD.MM.YYYY`, ISO `YYYY-MM-DD`. Must be a real calendar date, not in the future (IST). |
-| `Share Name` | yes | Non-empty. Resolved to a holding of the tab's currency (§6). |
+| `Share Name` | yes | Non-empty. Usually the holding's **script name** (display name), occasionally a symbol. Resolved to a holding of the tab's currency (§6). |
 | `Dividend` | yes | Number > 0 — total cash received for that row. `₹`, `€`, thousands separators and spaces are stripped (`"1,250.50"` ok). |
 | `CUMULATIVE` | no | Running total across all holdings in the sheet. **Never authoritative and never a key.** Kept as import metadata and used only for the consistency warning (§7.2). |
 
@@ -277,6 +277,7 @@ Act-as reuses the existing admin authorization (region scope, 404 on miss).
 | 11 | Cumulative check | Warning only. |
 | 12 | Reuse | As DD-005 §4.1. |
 | 13 | Name mismatches | Any inconsistent name is confirmed in a popup during import; answers remembered as aliases. Owner's example: for Jio Platforms, sheet names `jio`, `JLP`, `Jio Platforms Limited` and `JIOPLA` all get the popup. So only the display name (case/space-insensitive) or a confirmed alias maps automatically; a symbol match is a pre-selected suggestion, never automatic (§6.1–6.2). |
+| 14 | Sheet names | Sheet names are mostly the holding's **script name**, not the symbol (owner, 2026-10-30). Matching and suggestions are built around the script name; symbol matching is a secondary hint for the occasional symbol-style name. |
 
 Assumed (raise if wrong): delete-all covers hand-entered dividends too (same
 records); zero-share holdings are the way to receive dividends for sold-out
