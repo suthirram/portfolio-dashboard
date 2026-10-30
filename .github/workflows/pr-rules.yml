@@ -1,0 +1,57 @@
+---
+# Enforces the CLAUDE.md "Project rules" on every pull request, for people
+# and agents alike: PR title/description shape, the frontend/backend split,
+# curl in API PRs, and no `uid` in new Go code. The checks live in
+# scripts/rules/ and are shared with the commit-msg git hook and the
+# Claude Code Bash hook, so all three enforce the same rules.
+name: pr-rules
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Project rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rule-check self-tests
+        run: bash scripts/rules/test.sh
+
+      - name: Changed files
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git diff --name-only "origin/$BASE_REF...HEAD" > "$RUNNER_TEMP/files"
+
+      # Dependabot writes its own titles and bodies; its PRs touch only
+      # manifests, so the description rules are skipped for it.
+      - name: PR title and description
+        if: github.actor != 'dependabot[bot]'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n' "$PR_BODY" > "$RUNNER_TEMP/body"
+          bash scripts/rules/check-pr.sh --title "$PR_TITLE" \
+            --body-file "$RUNNER_TEMP/body" \
+            --files-file "$RUNNER_TEMP/files"
+
+      # CLAUDE.md: never name a variable `uid` in new or edited Go code.
+      - name: No uid in added Go lines
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          added=$(git diff -U0 "origin/$BASE_REF...HEAD" -- '*.go' \
+            | grep -E '^\+[^+]' | grep -wE 'uid' || true)
+          if [ -n "$added" ]; then
+            echo "Added Go lines use 'uid'; name it currentUserId or userId (CLAUDE.md):"
+            echo "$added"
+            exit 1
+          fi
