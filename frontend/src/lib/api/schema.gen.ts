@@ -178,6 +178,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dividends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One currency tab of the caller's dividends
+         * @description Dividend ledger events of one currency, oldest first, with running
+         *     totals and analytics computed on read (PRD-005 §8).
+         */
+        get: operations["listDividends"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete every dividend of one currency tab
+         * @description Removes imported and hand-entered dividends of the currency and recomputes the affected holdings, atomically. Holdings and other transaction types are untouched.
+         */
+        delete: operations["deleteDividends"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dividends/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate a dividend CSV import without writing anything */
+        post: operations["previewDividendImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dividends/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Commit a dividend CSV import atomically
+         * @description Re-runs the preview against the database as it is now and, when no row
+         *     is invalid, inserts every new dividend, saves confirmed name aliases
+         *     and recomputes the affected holdings in one transaction. Duplicates are
+         *     skipped and listed. 422 returns the fresh preview when rows are invalid.
+         */
+        post: operations["importDividends"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/history": {
         parameters: {
             query?: never;
@@ -869,6 +934,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/holdings/{holdingId}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the holding */
+                holdingId: string;
+            };
+            cookie?: never;
+        };
+        /** A user's ledger for one holding (act-as) */
+        get: operations["adminListUserHoldingTransactions"];
+        put?: never;
+        /** Add a ledger event to a user's holding (act-as) */
+        post: operations["adminCreateUserTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/transactions/{transactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the transaction */
+                transactionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit a user's ledger event (act-as) */
+        put: operations["adminUpdateUserTransaction"];
+        post?: never;
+        /** Delete a user's ledger event (act-as) */
+        delete: operations["adminDeleteUserTransaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/prices": {
         parameters: {
             query?: never;
@@ -914,6 +1025,67 @@ export interface paths {
         get: operations["adminListUserTransactions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/dividends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        /** One currency tab of a user's dividends (act-as) */
+        get: operations["adminListUserDividends"];
+        put?: never;
+        post?: never;
+        /** Delete every dividend of one currency tab for a user (act-as) */
+        delete: operations["adminDeleteUserDividends"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/dividends/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate a dividend import for a user (act-as) */
+        post: operations["adminPreviewUserDividendImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/dividends/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit a dividend import for a user (act-as) */
+        post: operations["adminImportUserDividends"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1199,6 +1371,145 @@ export interface components {
             /** @description Owning holding's ticker (e.g. TCS.NS) */
             symbol?: string;
         };
+        /** @description One dividend ledger event in a currency tab (PRD-005 §8). */
+        DividendRow: {
+            id: string;
+            holding_id: string;
+            /** @description Owning holding's display name */
+            script: string;
+            /** @description Owning holding's ticker */
+            symbol: string;
+            /** Format: date */
+            date: string;
+            /**
+             * Format: double
+             * @description Cash received
+             */
+            amount: number;
+            /** @description INR | EUR */
+            currency: string;
+            notes?: string;
+            /**
+             * Format: double
+             * @description Running total across all holdings in the tab
+             */
+            cumulative: number;
+            /**
+             * Format: double
+             * @description Running total for this holding
+             */
+            holding_cumulative: number;
+        };
+        DividendSummary: {
+            /** Format: double */
+            total: number;
+            count: number;
+            /** @description Holdings with at least one dividend */
+            holdings: number;
+            /** Format: date */
+            first_date?: string | null;
+            /** Format: date */
+            last_date?: string | null;
+        };
+        DividendPeriodTotal: {
+            /** @description YYYY (by_year) or YYYY-MM (by_month) */
+            period: string;
+            /** Format: double */
+            total: number;
+            count: number;
+        };
+        DividendHoldingTotal: {
+            holding_id: string;
+            script: string;
+            symbol: string;
+            /** Format: double */
+            total: number;
+            count: number;
+            /**
+             * Format: double
+             * @description total ÷ tab total (0–1)
+             */
+            share: number;
+        };
+        DividendView: {
+            rows: components["schemas"]["DividendRow"][];
+            summary: components["schemas"]["DividendSummary"];
+            by_year: components["schemas"]["DividendPeriodTotal"][];
+            by_month: components["schemas"]["DividendPeriodTotal"][];
+            /** @description Biggest total first */
+            by_holding: components["schemas"]["DividendHoldingTotal"][];
+        };
+        DividendImportRow: {
+            /** @description 1-based file line (header = 1) */
+            line: number;
+            /** Format: date */
+            date: string;
+            share_name: string;
+            /** Format: double */
+            amount: number;
+            /**
+             * Format: double
+             * @description The sheet's CUMULATIVE cell — warnings only
+             */
+            cumulative?: number | null;
+        };
+        DividendImportInput: {
+            /** @enum {string} */
+            currency: "INR" | "EUR";
+            rows: components["schemas"]["DividendImportRow"][];
+            /** @description Popup answers by sheet name — a holding id, or null to leave unresolved */
+            mappings?: {
+                [key: string]: string | null;
+            };
+        };
+        DividendImportCounts: {
+            ready: number;
+            duplicate: number;
+            invalid: number;
+            total: number;
+        };
+        DividendSuggestion: {
+            holding_id: string;
+            script: string;
+            symbol: string;
+            /** Format: double */
+            score: number;
+        };
+        DividendNameResolution: {
+            sheet_name: string;
+            rows: number;
+            /** @description auto | confirmed | needs_confirmation | ambiguous | unresolved */
+            status: string;
+            holding_id?: string;
+            /** @description script | alias (auto only; a symbol never auto-matches) */
+            matched_by?: string;
+            suggestions: components["schemas"]["DividendSuggestion"][];
+            /** @description Suggested holding id when it is a clear best */
+            preselect?: string;
+        };
+        DividendImportRowStatus: {
+            line: number;
+            /** @description ready | duplicate | invalid */
+            status: string;
+            holding_id?: string;
+            reason?: string;
+        };
+        DividendImportWarning: {
+            line: number;
+            message: string;
+        };
+        DividendImportPreview: {
+            counts: components["schemas"]["DividendImportCounts"];
+            names: components["schemas"]["DividendNameResolution"][];
+            rows: components["schemas"]["DividendImportRowStatus"][];
+            warnings: components["schemas"]["DividendImportWarning"][];
+        };
+        DividendImportResult: {
+            imported: number;
+            duplicates: components["schemas"]["DividendImportRow"][];
+            batch_id: string;
+            warnings: components["schemas"]["DividendImportWarning"][];
+        };
         HistoryRegionSnapshot: {
             /** Format: double */
             invested: number;
@@ -1247,6 +1558,11 @@ export interface components {
              * @description quantity × close_price
              */
             current?: number;
+            /**
+             * Format: double
+             * @description Dividends received from this stock on or before the row date (PRD-005 §9)
+             */
+            dividends?: number;
         };
         /**
          * @description Physical-gold position as of a history row's date (PRD-003 §8) —
@@ -1277,6 +1593,12 @@ export interface components {
              */
             pnl_pct?: number | null;
         };
+        DividendHistoryOverlay: {
+            /** Format: double */
+            to_date: number;
+            /** Format: double */
+            on_day: number;
+        };
         HistoryRow: {
             /** Format: date */
             date: string;
@@ -1287,6 +1609,10 @@ export interface components {
             /** @description Per-stock breakdown for cron-sourced rows; absent on manual-only rows. */
             holdings?: components["schemas"]["HistoryHolding"][];
             gold?: components["schemas"]["GoldHistoryOverlay"];
+            /** @description Dividends per currency as of the row date — computed on read, never snapshotted (PRD-005 §9) */
+            dividends?: {
+                [key: string]: components["schemas"]["DividendHistoryOverlay"];
+            };
         };
         HistoryList: {
             currency: string;
@@ -1684,6 +2010,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description The currency tab */
+        DividendCurrency: "INR" | "EUR";
         /** @description MongoDB ObjectID of the target user */
         UserID: string;
     };
@@ -2005,6 +2333,115 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listDividends: {
+        parameters: {
+            query: {
+                /** @description The currency tab */
+                currency: components["parameters"]["DividendCurrency"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tab */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    deleteDividends: {
+        parameters: {
+            query: {
+                /** @description The currency tab */
+                currency: components["parameters"]["DividendCurrency"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: number;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    previewDividendImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DividendImportInput"];
+            };
+        };
+        responses: {
+            /** @description What an import would do now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    importDividends: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DividendImportInput"];
+            };
+        };
+        responses: {
+            /** @description Imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Invalid rows — nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportPreview"];
+                };
+            };
         };
     };
     listHistory: {
@@ -3133,6 +3570,123 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    adminListUserHoldingTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the holding */
+                holdingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions in replay order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"][];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminCreateUserTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the holding */
+                holdingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminUpdateUserTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the transaction */
+                transactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransactionInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminDeleteUserTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the transaction */
+                transactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     adminGetUserPrices: {
         parameters: {
             query?: never;
@@ -3203,6 +3757,131 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminListUserDividends: {
+        parameters: {
+            query: {
+                /** @description The currency tab */
+                currency: components["parameters"]["DividendCurrency"];
+            };
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tab */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendView"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminDeleteUserDividends: {
+        parameters: {
+            query: {
+                /** @description The currency tab */
+                currency: components["parameters"]["DividendCurrency"];
+            };
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deleted: number;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminPreviewUserDividendImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DividendImportInput"];
+            };
+        };
+        responses: {
+            /** @description What an import would do now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminImportUserDividends: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DividendImportInput"];
+            };
+        };
+        responses: {
+            /** @description Imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Invalid rows — nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendImportPreview"];
+                };
+            };
         };
     };
 }
