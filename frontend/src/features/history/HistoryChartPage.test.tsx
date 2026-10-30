@@ -3,13 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { HistoryRow } from '../../lib/api/client'
 
-// Recharts' ResponsiveContainer needs ResizeObserver, absent in jsdom.
-globalThis.ResizeObserver ||= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
 const mockApi = vi.hoisted(() => ({ listHistory: vi.fn() }))
 vi.mock('../../lib/api/client', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api/client')>('../../lib/api/client')
