@@ -446,3 +446,34 @@ users_id_dividends_import_preview:
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends_import:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Commit a dividend import for a user (act-as)
+    operationId: adminImportUserDividends
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: Imported
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportResult"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "422":
+        description: Invalid rows — nothing written
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"

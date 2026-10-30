@@ -487,6 +487,14 @@ type DividendImportPreview struct {
 	Warnings []DividendImportWarning   `json:"warnings"`
 }
 
+// DividendImportResult defines model for DividendImportResult.
+type DividendImportResult struct {
+	BatchId    string                  `json:"batch_id"`
+	Duplicates []DividendImportRow     `json:"duplicates"`
+	Imported   int                     `json:"imported"`
+	Warnings   []DividendImportWarning `json:"warnings"`
+}
+
 // DividendImportRow defines model for DividendImportRow.
 type DividendImportRow struct {
 	Amount float64 `json:"amount"`
