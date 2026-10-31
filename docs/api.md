@@ -110,6 +110,10 @@ rows), batch_id, warnings}`; re-sending the same file imports 0.
 **Admin** (region-scoped; super admin sees all) — `/api/admin/users`,
 `/api/admin/users/{id}` (+ `/hide`, `/reactivate`, `/reset-lockout`,
 `/promote`, `/demote`, `/region`, and act-as `/holdings`, `/prices`,
-`/summary`, `/transactions`), and `/api/admin/admins` (super admin only).
+`/summary`, `/transactions`, `/dividends`), and `/api/admin/admins` (super
+admin only). Act-as ledger writes reuse the user's own write path (validation
+and recompute included): `GET/POST /api/admin/users/{id}/holdings/{holdingId}/transactions`
+and `PUT/DELETE /api/admin/users/{id}/transactions/{transactionId}`; an
+out-of-region target is a 404 and nothing is written.
 
 Full spec: `/api/specs/openapi.yaml`
