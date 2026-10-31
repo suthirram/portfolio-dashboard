@@ -37,7 +37,7 @@ These are the owner's standing rules. They apply to every task, every session, a
 ### Code
 
 * **Tests: behaviour only.** Test validation, authz, scoping, status codes and business logic. No DB-availability or DB-error-path tests; the only DB error worth testing is `mongo.ErrNoDocuments` → 404. Backend tests use the `mtest` mock driver; prefer pure functions tested directly. Backend is Go only — never introduce another backend language.
-* **Naming:** use `Id` casing (`userId`, `holdingId`, `BatchId`), matching the generated API types — never flag it. Never name a variable `uid`: use `currentUserId` (the caller) or `userId` (a target/owner); rename `uid` in any function you edit.
+* **Naming:** use `Id` casing (`userId`, `holdingId`, `BatchId`), matching the generated API types — never flag it. Never name a variable `uid`: use `currentUserId` (the caller) or `userId` (a target/owner); rename `uid` in any function you edit. Use descriptive names for locals, params and callbacks (`holdings.filter(holding => …)`), not single letters or abbreviations. Kept short: receivers, `t`/`mt`, `ctx`, `err`, `ok` in comma-ok checks, `i`/`j` indexes, and in the frontend `e` for event handlers and `_` for unused. The frontend enforces this with ESLint `id-length` on the files a PR changes (`npm run lint:changed`).
 * **Edit source with the Edit tool**, never `sed -i` / `perl -pi` rewrites.
 * Every new service method opens a tracing span (`ctx, span := tracer.Start(...)` + `defer endSpan(span, &retErr)`) and follows the logging convention below.
 
@@ -87,6 +87,7 @@ make down          # stop all containers
 
 ```bash
 cd frontend && npm run build       # outputs to frontend/dist
+cd frontend && npm run lint:changed   # ESLint naming rule on files changed vs origin/main (CI runs it vs the PR base)
 cd frontend && npm run preview     # preview production build locally
 ```
 

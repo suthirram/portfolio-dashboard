@@ -71,6 +71,9 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          # lint:changed diffs against the PR base, so it needs history.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -82,6 +85,11 @@ jobs:
       # respected for version pinning.
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      # Naming rule (ESLint id-length) on the files this PR touches only, so
+      # legacy code converges as it is edited (owner decision, option B).
+      - name: lint changed files
+        if: github.event_name == 'pull_request'
+        run: npm run lint:changed -- "origin/${{ github.base_ref }}"
       - run: npm run test:run
 
   markdown:
