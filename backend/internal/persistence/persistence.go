@@ -71,17 +71,17 @@ func New(db *mongo.Database) *Store {
 	}
 }
 
-// InTransaction runs fn in a MongoDB multi-document transaction (DD-005
-// §2.6). Store methods called with the ctx fn receives join it; any error
-// from fn aborts and rolls back every write. Requires a replica set.
-func (s *Store) InTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
+// InTransaction runs work in a MongoDB multi-document transaction (DD-005
+// §2.6). Store methods called with the ctx work receives join it; any error
+// from work aborts and rolls back every write. Requires a replica set.
+func (s *Store) InTransaction(ctx context.Context, work func(ctx context.Context) error) error {
 	session, err := s.client.StartSession()
 	if err != nil {
 		return fmt.Errorf("start session (transactions need a replica set): %w", err)
 	}
 	defer session.EndSession(ctx)
-	_, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (any, error) {
-		return nil, fn(sc)
+	_, err = session.WithTransaction(ctx, func(sessionCtx mongo.SessionContext) (any, error) {
+		return nil, work(sessionCtx)
 	})
 	return err
 }

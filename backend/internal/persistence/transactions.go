@@ -250,19 +250,19 @@ func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currency})
-	raw, err := s.col.Distinct(ctx, "holding_id", filter)
+	distinctIds, err := s.col.Distinct(ctx, "holding_id", filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	holdingIds := make([]primitive.ObjectID, 0, len(raw))
-	for _, v := range raw {
-		if id, ok := v.(primitive.ObjectID); ok {
-			holdingIds = append(holdingIds, id)
+	holdingIds := make([]primitive.ObjectID, 0, len(distinctIds))
+	for _, value := range distinctIds {
+		if holdingId, isObjectId := value.(primitive.ObjectID); isObjectId {
+			holdingIds = append(holdingIds, holdingId)
 		}
 	}
-	res, err := s.col.DeleteMany(ctx, filter)
+	result, err := s.col.DeleteMany(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	return holdingIds, res.DeletedCount, nil
+	return holdingIds, result.DeletedCount, nil
 }

@@ -16,8 +16,8 @@ type DividendKey struct {
 }
 
 // DividendKeyOf returns the duplicate identity of a stored dividend event.
-func DividendKeyOf(t Transaction) DividendKey {
-	return DividendKey{HoldingId: t.HoldingID, Day: UTCDate(t.Date).Format(time.DateOnly), Cents: AmountCents(t.Amount)}
+func DividendKeyOf(dividend Transaction) DividendKey {
+	return DividendKey{HoldingId: dividend.HoldingID, Day: UTCDate(dividend.Date).Format(time.DateOnly), Cents: AmountCents(dividend.Amount)}
 }
 
 // AmountCents converts a money amount to integer minor units (2 dp). Running

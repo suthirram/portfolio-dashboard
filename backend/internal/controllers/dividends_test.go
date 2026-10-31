@@ -94,21 +94,21 @@ func TestPreviewDividendImport_ReadOnly(t *testing.T) {
 			}),
 			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
 		)
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
 		day := openapi_types.Date{Time: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}
-		resp, err := h.PreviewDividendImport(userCtx(caller), api.PreviewDividendImportRequestObject{Body: &api.DividendImportInput{
+		resp, err := handler.PreviewDividendImport(userCtx(caller), api.PreviewDividendImportRequestObject{Body: &api.DividendImportInput{
 			Currency: "INR", Rows: []api.DividendImportRow{{Line: 2, Date: day, ShareName: "TCS", Amount: 300}},
 		}})
 		if err != nil {
 			t.Fatalf("Preview: %v", err)
 		}
-		ok, isOK := resp.(api.PreviewDividendImport200JSONResponse)
-		if !isOK || ok.Counts.Ready != 1 {
+		preview, isOK := resp.(api.PreviewDividendImport200JSONResponse)
+		if !isOK || preview.Counts.Ready != 1 {
 			t.Fatalf("response = %#v, want 200 with 1 ready", resp)
 		}
-		for _, e := range mt.GetAllStartedEvents() {
-			if e.CommandName != "find" {
-				t.Errorf("preview issued %s; want reads only", e.CommandName)
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "find" {
+				t.Errorf("preview issued %s; want reads only", event.CommandName)
 			}
 		}
 	})
@@ -120,15 +120,15 @@ func TestAdminDeleteUserDividends_BadCurrency400(t *testing.T) {
 		targetId := primitive.NewObjectID()
 		target := userDocument(t, targetId, "bob", "irrelevant1", domain.RoleUser, "india", nil)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
-		resp, err := h.AdminDeleteUserDividends(userCtx(regionalAdmin("india")), api.AdminDeleteUserDividendsRequestObject{
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		response, err := handler.AdminDeleteUserDividends(userCtx(regionalAdmin("india")), api.AdminDeleteUserDividendsRequestObject{
 			Id: targetId.Hex(), Params: api.AdminDeleteUserDividendsParams{Currency: "USD"},
 		})
 		if err != nil {
 			t.Fatalf("AdminDeleteUserDividends: %v", err)
 		}
-		if _, ok := resp.(api.AdminDeleteUserDividends400JSONResponse); !ok {
-			t.Fatalf("response = %T, want 400", resp)
+		if _, isBadRequest := response.(api.AdminDeleteUserDividends400JSONResponse); !isBadRequest {
+			t.Fatalf("response = %T, want 400", response)
 		}
 	})
 }
