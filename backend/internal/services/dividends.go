@@ -93,7 +93,7 @@ func (s *DividendsService) evaluate(ctx context.Context, userId primitive.Object
 	}
 	candidates := make([]domain.Holding, 0, len(holdings))
 	for _, holding := range holdings {
-		if holdingCurrency, known := CurrencyOf(holding); known && holdingCurrency == currency {
+		if holdingCurrency, ok := CurrencyOf(holding); ok && holdingCurrency == currency {
 			candidates = append(candidates, holding)
 		}
 	}
@@ -232,7 +232,7 @@ func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID
 		return nil
 	})
 	if err != nil {
-		if _, invalid := errors.AsType[*ImportInvalidError](err); !invalid {
+		if _, ok := errors.AsType[*ImportInvalidError](err); !ok {
 			logger.Error("dividend import failed", zap.Error(err))
 		}
 		return api.DividendImportResult{}, err

@@ -388,13 +388,13 @@ func TestValidateDividend(t *testing.T) {
 		{"sub-cent rounds to zero", today, 0.004, false},
 		{"fractional cent rounds up to a cent", today, 0.005, true},
 	}
-	for _, c := range cases {
-		err := validateDividend(c.date, c.amount, today)
-		if c.ok && err != nil {
-			t.Errorf("%s: err = %v, want nil", c.name, err)
+	for _, testCase := range cases {
+		err := validateDividend(testCase.date, testCase.amount, today)
+		if testCase.ok && err != nil {
+			t.Errorf("%s: err = %v, want nil", testCase.name, err)
 		}
-		if !c.ok && !errors.Is(err, ErrValidation) {
-			t.Errorf("%s: err = %v, want ErrValidation", c.name, err)
+		if !testCase.ok && !errors.Is(err, ErrValidation) {
+			t.Errorf("%s: err = %v, want ErrValidation", testCase.name, err)
 		}
 	}
 }
@@ -402,8 +402,8 @@ func TestValidateDividend(t *testing.T) {
 // A future-dated dividend through the ledger API is a 400, not a stored row.
 func TestValidateTxnInput_FutureDividendRejected(t *testing.T) {
 	today := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
-	amt := 300.0
-	err := validateTxnInput(api.TransactionInput{Type: "dividend", Date: today.AddDate(0, 0, 2), Amount: &amt}, today)
+	amount := 300.0
+	err := validateTxnInput(api.TransactionInput{Type: "dividend", Date: today.AddDate(0, 0, 2), Amount: &amount}, today)
 	if !errors.Is(err, ErrValidation) {
 		t.Fatalf("err = %v, want ErrValidation", err)
 	}
@@ -422,38 +422,38 @@ func TestTransactionsService_DividendSkipsHeal(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	past := time.Date(2024, time.March, 15, 0, 0, 0, 0, time.UTC)
 
-	create := func(mt *mtest.T, typ string, qty float64) int {
+	create := func(mt *mtest.T, txnType string, quantity float64) int {
 		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
-		holdingsNS, txnsNS := mt.DB.Name()+".holdings", mt.DB.Name()+".transactions"
+		holdingsNamespace, transactionsNamespace := mt.DB.Name()+".holdings", mt.DB.Name()+".transactions"
 		event := bson.D{
-			{Key: "_id", Value: primitive.NewObjectID()}, {Key: "type", Value: typ},
-			{Key: "date", Value: past}, {Key: "quantity", Value: qty}, {Key: "amount", Value: 300.0},
+			{Key: "_id", Value: primitive.NewObjectID()}, {Key: "type", Value: txnType},
+			{Key: "date", Value: past}, {Key: "quantity", Value: quantity}, {Key: "amount", Value: 300.0},
 		}
 		mt.AddMockResponses(
 			// GetScoped(holdings).
-			mtest.CreateCursorResponse(0, holdingsNS, mtest.FirstBatch, bson.D{
+			mtest.CreateCursorResponse(0, holdingsNamespace, mtest.FirstBatch, bson.D{
 				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "INR"},
 			}),
 			// Insert(transactions).
 			mtest.CreateSuccessResponse(),
 			// recompute ListByHolding.
-			mtest.CreateCursorResponse(0, txnsNS, mtest.FirstBatch, event),
+			mtest.CreateCursorResponse(0, transactionsNamespace, mtest.FirstBatch, event),
 			// recompute holdings findAndModify.
 			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: holdingId}}}),
 		)
-		rec := &countingRecomputer{}
-		st := persistence.New(mt.DB)
-		svc := NewTransactionsService(st.Transactions, st.Holdings, rec, nil)
-		svc.now = func() time.Time { return time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC) }
-		amt := 300.0
-		in := api.TransactionInput{Type: api.TransactionInputType(typ), Date: past, Amount: &amt}
-		if qty > 0 {
-			in.Quantity = &qty
+		recomputer := &countingRecomputer{}
+		store := persistence.New(mt.DB)
+		service := NewTransactionsService(store.Transactions, store.Holdings, recomputer, nil)
+		service.now = func() time.Time { return time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC) }
+		amount := 300.0
+		input := api.TransactionInput{Type: api.TransactionInputType(txnType), Date: past, Amount: &amount}
+		if quantity > 0 {
+			input.Quantity = &quantity
 		}
-		if _, found, err := svc.Create(context.Background(), userId, holdingId.Hex(), in); err != nil || !found {
-			t.Fatalf("Create %s: found=%v err=%v", typ, found, err)
+		if _, found, err := service.Create(context.Background(), userId, holdingId.Hex(), input); err != nil || !found {
+			t.Fatalf("Create %s: found=%v err=%v", txnType, found, err)
 		}
-		return rec.calls
+		return recomputer.calls
 	}
 
 	mt.Run("dividend", func(mt *mtest.T) {
@@ -470,9 +470,9 @@ func TestTransactionsService_DividendSkipsHeal(t *testing.T) {
 
 func TestLedgerCurrency(t *testing.T) {
 	cases := map[string]string{"": "INR", "inr": "INR", "EUR": "EUR", "usd": "USD"}
-	for in, want := range cases {
-		if got := ledgerCurrency(domain.Holding{Currency: in}); got != want {
-			t.Errorf("ledgerCurrency(%q) = %q, want %q", in, got, want)
+	for stored, want := range cases {
+		if got := ledgerCurrency(domain.Holding{Currency: stored}); got != want {
+			t.Errorf("ledgerCurrency(%q) = %q, want %q", stored, got, want)
 		}
 	}
 }

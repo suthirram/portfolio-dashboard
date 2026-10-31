@@ -28,9 +28,9 @@ func TestBuildDividendView_RunningTotalsAndAnalytics(t *testing.T) {
 
 	wantCum := []float64{300, 600, 1850.5, 3050.5}
 	wantHoldingCum := []float64{300, 600, 1250.5, 1800}
-	for i, r := range view.Rows {
-		if r.Cumulative != wantCum[i] || r.HoldingCumulative != wantHoldingCum[i] {
-			t.Errorf("row %d: cumulative %v / holding %v, want %v / %v", i, r.Cumulative, r.HoldingCumulative, wantCum[i], wantHoldingCum[i])
+	for i, row := range view.Rows {
+		if row.Cumulative != wantCum[i] || row.HoldingCumulative != wantHoldingCum[i] {
+			t.Errorf("row %d: cumulative %v / holding %v, want %v / %v", i, row.Cumulative, row.HoldingCumulative, wantCum[i], wantHoldingCum[i])
 		}
 	}
 	if view.Rows[2].Script != "Jio Platforms Ltd" {
@@ -69,19 +69,19 @@ func TestBuildDividendView_HoldingTotalMatchesPosition(t *testing.T) {
 		{"fractional cents", 1.004, 3.0},
 		{"fractional cents rounding up", 1.006, 3.03},
 	}
-	for _, c := range cases {
+	for _, testCase := range cases {
 		tcs := primitive.NewObjectID()
-		txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", c.amount), dividendEvent(tcs, "2020-02-01", c.amount), dividendEvent(tcs, "2020-03-01", c.amount)}
-		pos, err := RecomputePosition(txns)
+		txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", testCase.amount), dividendEvent(tcs, "2020-02-01", testCase.amount), dividendEvent(tcs, "2020-03-01", testCase.amount)}
+		position, err := RecomputePosition(txns)
 		if err != nil {
 			t.Fatal(err)
 		}
 		view := buildDividendView(txns, []domain.Holding{{ID: tcs, Script: "TCS"}})
-		if view.ByHolding[0].Total != pos.TotalDividends || view.Summary.Total != pos.TotalDividends {
-			t.Errorf("%s: by_holding %v / summary %v ≠ total_dividends %v", c.name, view.ByHolding[0].Total, view.Summary.Total, pos.TotalDividends)
+		if view.ByHolding[0].Total != position.TotalDividends || view.Summary.Total != position.TotalDividends {
+			t.Errorf("%s: by_holding %v / summary %v ≠ total_dividends %v", testCase.name, view.ByHolding[0].Total, view.Summary.Total, position.TotalDividends)
 		}
-		if pos.TotalDividends != c.want {
-			t.Errorf("%s: total_dividends = %v, want %v", c.name, pos.TotalDividends, c.want)
+		if position.TotalDividends != testCase.want {
+			t.Errorf("%s: total_dividends = %v, want %v", testCase.name, position.TotalDividends, testCase.want)
 		}
 	}
 }

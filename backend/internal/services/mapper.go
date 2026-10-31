@@ -295,21 +295,21 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 }
 
 // DividendRowToAPI maps one dividend event with its holding labels and the two
-// running totals computed by buildDividendView. h may be nil (orphan).
-func DividendRowToAPI(t domain.Transaction, h *domain.Holding, cumulative, holdingCumulative float64) api.DividendRow {
+// running totals computed by buildDividendView. holding may be nil (orphan).
+func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumulative, holdingCumulative float64) api.DividendRow {
 	var script, symbol string
-	if h != nil {
-		script, symbol = h.Script, h.Symbol
+	if holding != nil {
+		script, symbol = holding.Script, holding.Symbol
 	}
 	return api.DividendRow{
-		Id:                t.ID.Hex(),
-		HoldingId:         t.HoldingID.Hex(),
+		Id:                dividend.ID.Hex(),
+		HoldingId:         dividend.HoldingID.Hex(),
 		Script:            script,
 		Symbol:            symbol,
-		Date:              openapi_types.Date{Time: domain.UTCDate(t.Date)},
-		Amount:            t.Amount,
-		Currency:          t.Currency,
-		Notes:             &t.Notes,
+		Date:              openapi_types.Date{Time: domain.UTCDate(dividend.Date)},
+		Amount:            dividend.Amount,
+		Currency:          dividend.Currency,
+		Notes:             &dividend.Notes,
 		Cumulative:        cumulative,
 		HoldingCumulative: holdingCumulative,
 	}
