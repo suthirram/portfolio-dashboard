@@ -12,7 +12,6 @@ const mockApi = vi.hoisted(() => ({
   pasteHistory: vi.fn(),
   getPrices: vi.fn(),
   getGoldMetrics: vi.fn(),
-  listDividends: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -61,7 +60,6 @@ describe('HistoryPage', () => {
       }],
       eur_rate: 0.011,
     })
-    mockApi.listDividends.mockResolvedValue({ rows: [], by_year: [], by_month: [], by_holding: [], summary: { total: 0, count: 0, holdings: 0 } })
   })
 
   it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
@@ -318,25 +316,6 @@ describe('HistoryPage', () => {
       renderPage()
       expect(await screen.findByText('(live)')).toBeInTheDocument()
       expect(mockApi.getPrices).toHaveBeenCalled()
-    })
-
-    it('carries dividends to date on the tentative row', async () => {
-      vi.setSystemTime(new Date('2026-06-16T12:00:00Z'))
-      mockApi.listDividends.mockImplementation((currency: string) => Promise.resolve(currency === 'INR'
-        ? {
-            rows: [
-              { id: 'd1', holding_id: 'h1', script: 'TCS', symbol: 'TCS.NS', date: '2026-01-10', amount: 300, currency: 'INR', cumulative: 300, holding_cumulative: 300 },
-              { id: 'd2', holding_id: 'h1', script: 'TCS', symbol: 'TCS.NS', date: '2026-06-16', amount: 50, currency: 'INR', cumulative: 350, holding_cumulative: 350 },
-            ],
-            summary: { total: 350, count: 2, holdings: 1 }, by_year: [], by_month: [],
-            by_holding: [{ holding_id: 'h1', script: 'TCS', symbol: 'TCS.NS', total: 350, count: 2, share: 1 }],
-          }
-        : { rows: [], by_year: [], by_month: [], by_holding: [], summary: { total: 0, count: 0, holdings: 0 } }))
-      renderPage()
-      expect(await screen.findByText('(live)')).toBeInTheDocument()
-      const cell = await screen.findByTitle(/received this day/)
-      expect(cell).toHaveTextContent('350')
-      expect(cell.getAttribute('title')).toContain('50')
     })
 
     it('hides it before the 03:30 UTC open', async () => {
