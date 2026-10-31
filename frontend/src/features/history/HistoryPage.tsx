@@ -27,8 +27,8 @@ import {
   buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
   fmtCurrency, goldChartData, isLiveWindowOpen, latestGoldOverlay, monthRange,
   msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain, tradingDateIST, yearMonth0,
-  type RegionKey,
+  regionHasData, selectStyle, symmetricDomain, tradingDateIST, withLiveDividends,
+  yearMonth0, type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
 import {
@@ -44,7 +44,7 @@ export {
   parseFormAmount, groupIndian, sanitizeAmount, formToBody, changedRegions,
   regionDailyVolatility, regionPnLPct, regionInvestedWentUp,
   regionCurrentDirection, goldCurrentDirection, holdingRegion, buildLiveRow,
-  buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
+  withLiveDividends, buildLiveGoldOverlay, latestGoldOverlay, tradingDateIST,
   msUntilNextLiveBoundary, isLiveWindowOpen, yearMonth0, bucketCurrency,
   pnlPct, pctChange,
   parseAmount, normaliseDate, parsePasteText,
@@ -176,7 +176,13 @@ export default function HistoryPage() {
     void (async () => {
       try {
         const prices = await api.getPrices()
-        const live = buildLiveRow(todayStr, prices.holdings ?? [])
+        let live = buildLiveRow(todayStr, prices.holdings ?? [])
+        // Dividends to date, like the snapshot rows carry (PRD-005 §9); a
+        // failed fetch leaves them absent, as the backend overlay degrades.
+        try {
+          const [inr, eur] = await Promise.all([api.listDividends('INR'), api.listDividends('EUR')])
+          live = withLiveDividends(live, { INR: inr, EUR: eur })
+        } catch { /* leave dividends absent */ }
         // Gold is a separate store (DD-003) with its own endpoint; only
         // fetch it for gold-enabled users, and degrade silently (gold just
         // stays absent, same as a pre-purchase historical row) if it 503s.

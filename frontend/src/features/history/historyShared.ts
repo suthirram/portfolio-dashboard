@@ -3,6 +3,7 @@
 // all import from this module, so it must never import from them.
 import type { CSSProperties, Dispatch, FocusEvent, SetStateAction } from 'react'
 import type {
+  DividendHistoryOverlay,
   GoldHistoryOverlay,
   HistoryHolding,
   HistoryRow,
@@ -11,7 +12,7 @@ import type {
 import { formatDayMonth, normaliseDate } from '../../lib/formDates'
 import { groupIndian, parseDecimalInput, sanitizeDecimalInput } from '../../lib/formNumbers'
 import type { ThemeName } from '../../lib/useTheme'
-import type { HoldingWithPrice } from '../../types'
+import type { DividendView, HoldingWithPrice } from '../../types'
 
 // Moved to lib/ for the dividend CSV import (PD-048); re-exported so History
 // callers and tests keep importing from here.
@@ -590,6 +591,40 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     holdings: histHoldings,
     tentative: true,
   }
+}
+
+// withLiveDividends adds today's dividends to the live row, the way the
+// backend's DividendOverlay decorates a snapshot row (PRD-005 §9): per
+// currency to_date (every receipt, since future-dated ones are rejected) and
+// on_day (receipts dated today), plus each stock line's to-date total keyed by
+// (currency, symbol) so one symbol held in INR and EUR never mixes. A
+// currency with no dividends stays absent, like the backend's map.
+export function withLiveDividends(row: HistoryRow, views: Partial<Record<'INR' | 'EUR', DividendView>>): HistoryRow {
+  const dividends: Record<string, DividendHistoryOverlay> = {}
+  const byStock = new Map<string, number>()
+  for (const [currency, view] of Object.entries(views)) {
+    if (!view || view.summary.count === 0) continue
+    const onDay = view.rows.filter(dividend => dividend.date === row.date).reduce((sum, dividend) => sum + dividend.amount, 0)
+    dividends[currency] = { to_date: view.summary.total, on_day: roundCents(onDay) }
+    for (const holding of view.by_holding) {
+      const stock = `${currency}|${holding.symbol}`
+      byStock.set(stock, roundCents((byStock.get(stock) ?? 0) + holding.total))
+    }
+  }
+  return {
+    ...row,
+    ...(Object.keys(dividends).length > 0 && { dividends }),
+    holdings: row.holdings?.map(line => {
+      const region = bucketCurrency(line.currency)
+      return { ...line, dividends: region ? byStock.get(`${region}|${line.symbol}`) ?? 0 : 0 }
+    }),
+  }
+}
+
+// roundCents keeps client-side sums of API amounts at the cent precision the
+// backend totals use (domain.AmountCents), so 0.1 + 0.2 shows as 0.30.
+function roundCents(amount: number): number {
+  return Math.round(amount * 100) / 100
 }
 
 // latestGoldOverlay finds the most recent row (by date) that carries a gold

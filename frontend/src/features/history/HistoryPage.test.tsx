@@ -26,6 +26,7 @@ import {
   regionDailyVolatility,
   regionCurrentDirection,
   buildLiveRow,
+  withLiveDividends,
   buildLiveGoldOverlay,
   latestGoldOverlay,
   tradingDateIST,
@@ -40,7 +41,7 @@ import type {
   PasteHistoryReport,
   RegionSnapshot,
 } from '../../lib/api/client'
-import type { HoldingWithPrice } from '../../types'
+import type { DividendView, HoldingWithPrice } from '../../types'
 
 // ---- helpers ----
 
@@ -457,6 +458,44 @@ describe('latestGoldOverlay', () => {
   })
 })
 
+describe('withLiveDividends', () => {
+  const dividendView = (currency: string, rows: { date: string; symbol: string; amount: number }[]): DividendView => {
+    const byHolding = new Map<string, number>()
+    for (const row of rows) byHolding.set(row.symbol, (byHolding.get(row.symbol) ?? 0) + row.amount)
+    const total = rows.reduce((sum, row) => sum + row.amount, 0)
+    return {
+      rows: rows.map((row, i) => ({ id: `d${i}`, holding_id: row.symbol, script: row.symbol, symbol: row.symbol, date: row.date, amount: row.amount, currency, cumulative: 0, holding_cumulative: 0 })),
+      summary: { total, count: rows.length, holdings: byHolding.size },
+      by_year: [], by_month: [],
+      by_holding: [...byHolding].map(([symbol, holdingTotal]) => ({ holding_id: symbol, script: symbol, symbol, total: holdingTotal, count: 1, share: 0 })),
+    }
+  }
+  const live = () => buildLiveRow('2026-06-20', [
+    { symbol: 'AAPL', script: 'Apple', currency: 'INR', cost_price: 0, current_value: 0 },
+    { symbol: 'AAPL', script: 'Apple', currency: 'EUR', cost_price_eur: 0, current_value_eur: 0 },
+    { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', cost_price: 0, current_value: 0 },
+  ] as HoldingWithPrice[])
+
+  it('fills to-date and today per currency and each stock line, never mixing INR and EUR', () => {
+    const row = withLiveDividends(live(), {
+      INR: dividendView('INR', [{ date: '2026-01-10', symbol: 'AAPL', amount: 300 }, { date: '2026-06-20', symbol: 'TCS.NS', amount: 0.1 }, { date: '2026-06-20', symbol: 'TCS.NS', amount: 0.2 }]),
+      EUR: dividendView('EUR', [{ date: '2026-03-01', symbol: 'AAPL', amount: 40 }]),
+    })
+    expect(row.dividends?.INR).toEqual({ to_date: 300.3, on_day: 0.3 })
+    expect(row.dividends?.EUR).toEqual({ to_date: 40, on_day: 0 })
+    expect(row.holdings?.map(line => [line.currency, line.symbol, line.dividends])).toEqual([
+      ['INR', 'AAPL', 300], ['EUR', 'AAPL', 40], ['INR', 'TCS.NS', 0.3],
+    ])
+    expect(row.tentative).toBe(true)
+  })
+
+  it('leaves a currency with no dividends absent, like the backend overlay', () => {
+    const row = withLiveDividends(live(), { INR: dividendView('INR', []), EUR: dividendView('EUR', []) })
+    expect(row.dividends).toBeUndefined()
+    expect(row.holdings?.every(line => line.dividends === 0)).toBe(true)
+  })
+})
+
 describe('buildLiveGoldOverlay', () => {
   it('computes volatility_pct against the previous day close, mirroring the backend walk', () => {
     const overlay = buildLiveGoldOverlay({ invested: 1000, grams: 10, latest_price: 115 }, 1100)
@@ -625,12 +664,23 @@ describe('HistoryTable', () => {
       row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } }), // no overlay
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
-    // Layout: date(1) + 2 currency groups × 4 (8) + gold group (4) + action(1).
-    // The gold cells are indices 9–12; on a pre-purchase row all four are —.
+    // Layout: date(1) + 2 currency groups × 5 (10) + gold group (4) + action(1).
+    // The gold cells are indices 11–14; on a pre-purchase row all four are —.
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === '16-06-2026')!
     const cells = Array.from(tr.querySelectorAll('td'))
-    expect(cells.slice(9, 13).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+    expect(cells.slice(11, 15).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+  })
+
+  it('renders dividends to date per currency with the day tint', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2020-03-15', dividends: { INR: { to_date: 1850.5, on_day: 1250.5 } } }),
+      row({ date: '2020-03-14', dividends: { INR: { to_date: 600, on_day: 0 } } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(screen.getAllByText('Dividends').length).toBeGreaterThan(0)
+    expect(screen.getByText('₹1,850.50')).toHaveAttribute('title', '+₹1,250.50 received this day')
+    expect(screen.getByText('₹600.00')).not.toHaveAttribute('title')
   })
 })
 
@@ -721,8 +771,8 @@ describe('goldCurrentDirection', () => {
 
 describe('HistoryTable gold cell tints', () => {
   const norm = (s: string) => s.replace(/\s/g, '')
-  // Layout: date(0), INR td[1-4], EUR td[5-8], gold td[9]=invested
-  // td[10]=value td[11]=vol td[12]=P/L%.
+  // Layout: date(0), INR td[1-5], EUR td[6-10] (each ends with Dividends),
+  // gold td[11]=invested td[12]=value td[13]=vol td[14]=P/L%.
   const goldCells = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === formatDate(date))!
@@ -737,7 +787,7 @@ describe('HistoryTable gold cell tints', () => {
       row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14400, 100) }),
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-17')[12].style.background)).toBe('rgba(34,197,94,0.18)') // up → green
+    expect(norm(goldCells('2026-06-17')[14].style.background)).toBe('rgba(34,197,94,0.18)') // up → green
   })
 
   it('gold invested cell is purple on a day gold invested rose', () => {
@@ -745,15 +795,15 @@ describe('HistoryTable gold cell tints', () => {
       row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(14400, 20000, 38) }), // 14400 > 7200
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-17')[9].style.background)).toBe('rgba(168,85,247,0.18)') // purple
+    expect(norm(goldCells('2026-06-17')[11].style.background)).toBe('rgba(168,85,247,0.18)') // purple
   })
 
   it('gold cells keep the plain gold tint when nothing changed / no prior', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-16')[9].style.background)).toBe(norm(GOLD_TINT)) // invested, no prior
-    expect(norm(goldCells('2026-06-16')[12].style.background)).toBe(norm(GOLD_TINT)) // P/L, no prior
+    expect(norm(goldCells('2026-06-16')[11].style.background)).toBe(norm(GOLD_TINT)) // invested, no prior
+    expect(norm(goldCells('2026-06-16')[14].style.background)).toBe(norm(GOLD_TINT)) // P/L, no prior
   })
 })
 

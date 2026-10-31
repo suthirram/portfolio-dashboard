@@ -16,6 +16,7 @@ import GoldPage from './features/gold/GoldPage'
 import AdminUserList from './features/admin/AdminUserList'
 import AdminUserView from './features/admin/AdminUserView'
 import AdminUserTransactions from './features/admin/AdminUserTransactions'
+import AdminUserDividends from './features/admin/AdminUserDividends'
 import AdminManageAdmins from './features/admin/AdminManageAdmins'
 import AdminBranding from './features/admin/AdminBranding'
 import { BrandingProvider } from './lib/useBranding'
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/admin" element={<RequireAdmin><AdminUserList /></RequireAdmin>} />
             <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserView /></RequireAdmin>} />
             <Route path="/admin/users/:id/transactions" element={<RequireAdmin><AdminUserTransactions /></RequireAdmin>} />
+            <Route path="/admin/users/:id/dividends" element={<RequireAdmin><AdminUserDividends /></RequireAdmin>} />
             <Route path="/admin/admins" element={<RequireSuperAdmin><AdminManageAdmins /></RequireSuperAdmin>} />
             <Route path="/admin/branding" element={<RequireSuperAdmin><AdminBranding /></RequireSuperAdmin>} />
 
