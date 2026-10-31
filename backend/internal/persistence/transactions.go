@@ -31,14 +31,14 @@ func (s *TransactionStore) find(ctx context.Context, filter bson.M, sort bson.D)
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	cur, err := s.col.Find(ctx, filter, options.Find().SetSort(sort))
+	cursor, err := s.col.Find(ctx, filter, options.Find().SetSort(sort))
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = cur.Close(ctx) }()
+	defer func() { _ = cursor.Close(ctx) }()
 
 	var txns []domain.Transaction
-	if err := cur.All(ctx, &txns); err != nil {
+	if err := cursor.All(ctx, &txns); err != nil {
 		return nil, err
 	}
 	return txns, nil
@@ -221,11 +221,11 @@ func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, hol
 func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	result, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
 	if err != nil {
 		return 0, err
 	}
-	return res.ModifiedCount, nil
+	return result.ModifiedCount, nil
 }
 
 // InsertMany inserts txns in order; ordered so a failure stops at that row

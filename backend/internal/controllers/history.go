@@ -49,8 +49,8 @@ func (h *Controller) attachDividendOverlay(ctx context.Context, userId primitive
 		return
 	}
 	dates := make([]string, 0, len(rows))
-	for _, r := range rows {
-		dates = append(dates, r.Date)
+	for _, row := range rows {
+		dates = append(dates, row.Date)
 	}
 	overlay, err := h.dividends.HistoryOverlay(ctx, userId, dates)
 	if err != nil {
@@ -228,13 +228,13 @@ func toAPIHistoryRow(r services.HistoryRow) api.HistoryRow {
 	}
 }
 
-func toAPIDividendOverlay(in map[string]services.DividendHistoryPoint) *map[string]api.DividendHistoryOverlay {
-	if len(in) == 0 {
+func toAPIDividendOverlay(byCurrency map[string]services.DividendHistoryPoint) *map[string]api.DividendHistoryOverlay {
+	if len(byCurrency) == 0 {
 		return nil
 	}
-	out := make(map[string]api.DividendHistoryOverlay, len(in))
-	for c, p := range in {
-		out[c] = api.DividendHistoryOverlay{ToDate: p.ToDate, OnDay: p.OnDay}
+	out := make(map[string]api.DividendHistoryOverlay, len(byCurrency))
+	for currency, point := range byCurrency {
+		out[currency] = api.DividendHistoryOverlay{ToDate: point.ToDate, OnDay: point.OnDay}
 	}
 	return &out
 }

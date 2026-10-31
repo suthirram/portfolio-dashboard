@@ -63,17 +63,17 @@ func runMigrateCurrencies(_ *cobra.Command, _ []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
 	defer cancel()
-	st, _, disconnect, err := cliConnect(ctx, logger, cfg)
+	store, _, disconnect, err := cliConnect(ctx, logger, cfg)
 	if err != nil {
 		return err
 	}
 	defer disconnect()
 
-	holdings, err := st.Holdings.CanonicalizeCurrency(ctx)
+	holdings, err := store.Holdings.CanonicalizeCurrency(ctx)
 	if err != nil {
 		return fmt.Errorf("canonicalizing holding currencies: %w", err)
 	}
-	txns, err := st.Transactions.CanonicalizeCurrency(ctx)
+	txns, err := store.Transactions.CanonicalizeCurrency(ctx)
 	if err != nil {
 		return fmt.Errorf("canonicalizing ledger currencies: %w", err)
 	}
