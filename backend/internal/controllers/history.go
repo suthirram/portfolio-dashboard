@@ -67,7 +67,8 @@ func (h *Controller) attachDividendOverlay(ctx context.Context, userId primitive
 			rows[i].Dividends = day.ByCurrency
 		}
 		for j := range rows[i].Holdings {
-			rows[i].Holdings[j].Dividends = day.BySymbol[rows[i].Holdings[j].Symbol]
+			line := &rows[i].Holdings[j]
+			line.Dividends = day.ByStock[services.StockKey{Currency: line.Currency, Symbol: line.Symbol}]
 		}
 	}
 }
