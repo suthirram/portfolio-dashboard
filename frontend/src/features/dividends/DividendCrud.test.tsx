@@ -47,6 +47,24 @@ describe('dividend CRUD', () => {
     await waitFor(() => expect(mockApi.listDividends).toHaveBeenCalledTimes(2))
   })
 
+  it('offers no INR row actions on the EUR tab while it loads or after it fails', async () => {
+    let failEur: (reason: Error) => void = () => {}
+    mockApi.listDividends.mockImplementation((currency: string) =>
+      currency === 'INR' ? Promise.resolve(view) : new Promise((_, reject) => { failEur = reject }))
+    renderPage()
+    await screen.findByLabelText('Delete dividend of 01-01-2020')
+
+    fireEvent.click(screen.getByRole('tab', { name: /EUR/ }))
+    expect(screen.queryByLabelText('Delete dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByLabelText('Edit dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByText(/Delete all/)).toBeNull()
+
+    failEur(new Error('network down'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('network down')
+    expect(screen.queryByLabelText('Delete dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByText(/Delete all/)).toBeNull()
+  })
+
   it('deletes one dividend after an in-app confirmation', async () => {
     renderPage()
     fireEvent.click(await screen.findByLabelText('Delete dividend of 01-01-2020'))
