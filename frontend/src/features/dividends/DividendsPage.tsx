@@ -48,10 +48,10 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
   const after = (close: () => void) => () => { close(); void refresh() }
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return view.rows.filter(r =>
-      (!holdingId || r.holding_id === holdingId) &&
-      (!q || r.script.toLowerCase().includes(q) || r.symbol.toLowerCase().includes(q)))
+    const query = search.trim().toLowerCase()
+    return view.rows.filter(row =>
+      (!holdingId || row.holding_id === holdingId) &&
+      (!query || row.script.toLowerCase().includes(query) || row.symbol.toLowerCase().includes(query)))
   }, [view.rows, holdingId, search])
 
   return (
@@ -72,17 +72,17 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
       <main className="page-main" style={{ width: '100%', maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div role="tablist" aria-label="Currency" style={{ display: 'inline-flex', gap: 4 }}>
-            {SUPPORTED_CURRENCIES.map(c => (
-              <button key={c} role="tab" aria-selected={c === currency} className={c === currency ? 'btn btn-current' : 'btn'}
-                onClick={() => { setParams({ currency: c }); setHoldingId('') }}>
-                {currencySymbol(c)} {c}
+            {SUPPORTED_CURRENCIES.map(tabCurrency => (
+              <button key={tabCurrency} role="tab" aria-selected={tabCurrency === currency} className={tabCurrency === currency ? 'btn btn-current' : 'btn'}
+                onClick={() => { setParams({ currency: tabCurrency }); setHoldingId('') }}>
+                {currencySymbol(tabCurrency)} {tabCurrency}
               </button>
             ))}
           </div>
           <span style={{ flex: 1 }} />
           <select aria-label="Holding" style={{ ...INPUT, cursor: 'pointer' }} value={holdingId} onChange={e => setHoldingId(e.target.value)}>
             <option value="">All holdings</option>
-            {view.by_holding.map(h => <option key={h.holding_id} value={h.holding_id}>{h.script || h.symbol}</option>)}
+            {view.by_holding.map(holding => <option key={holding.holding_id} value={holding.holding_id}>{holding.script || holding.symbol}</option>)}
           </select>
           <input aria-label="Search" placeholder="Search holding…" style={{ ...INPUT, minWidth: 200 }} value={search} onChange={e => setSearch(e.target.value)} />
           <button className="btn" onClick={() => setImporting(true)}>⇪ Upload CSV</button>

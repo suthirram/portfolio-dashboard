@@ -38,15 +38,15 @@ export function todayIST(now = new Date()): string {
 // spreadsheets — YYYY-MM-DD, dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy (1-digit day
 // or month allowed) — and returns "YYYY-MM-DD", or "" when the input is not a
 // real calendar date (31/02/2021 and 13/13/2020 are rejected).
-export function normaliseDate(s: string): string {
-  const t = s.trim()
-  let y: number, m: number, d: number
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
-  const dayFirst = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(t)
-  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
-  else if (dayFirst) [d, m, y] = [Number(dayFirst[1]), Number(dayFirst[2]), Number(dayFirst[3])]
+export function normaliseDate(raw: string): string {
+  const trimmed = raw.trim()
+  let year: number, month: number, day: number
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed)
+  const dayFirst = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(trimmed)
+  if (iso) [year, month, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+  else if (dayFirst) [day, month, year] = [Number(dayFirst[1]), Number(dayFirst[2]), Number(dayFirst[3])]
   else return ''
-  const probe = new Date(Date.UTC(y, m - 1, d))
-  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) return ''
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const probe = new Date(Date.UTC(year, month - 1, day))
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return ''
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }

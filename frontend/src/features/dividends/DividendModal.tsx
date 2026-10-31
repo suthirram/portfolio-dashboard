@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function DividendModal({ currency, holdings, editing, userId, onClose, onSaved }: Props) {
-  const inTab = holdings.filter(h => canonicalCurrency(h.currency) === currency)
+  const inTab = holdings.filter(holding => canonicalCurrency(holding.currency) === currency)
   const [holdingId, setHoldingId] = useState(editing?.holding_id ?? inTab[0]?.id ?? '')
   const [date, setDate] = useState(editing?.date ?? todayIST())
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
@@ -45,8 +45,8 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
       if (editing) await api.updateTransaction(editing.id, body, userId)
       else await api.createTransaction(holdingId, body, userId)
       onSaved()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error))
     } finally {
       setSaving(false)
     }
@@ -59,7 +59,7 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
         <div>
           <label style={LABEL} htmlFor="div-holding">Holding ({currency})</label>
           <select id="div-holding" style={INPUT} value={holdingId} disabled={!!editing} onChange={e => setHoldingId(e.target.value)}>
-            {inTab.map(h => <option key={h.id} value={h.id}>{h.script} · {h.symbol}</option>)}
+            {inTab.map(holding => <option key={holding.id} value={holding.id}>{holding.script} · {holding.symbol}</option>)}
           </select>
         </div>
         <div>
@@ -90,8 +90,8 @@ export function DeleteDividendDialog({ row, currency, userId, onClose, onDeleted
     try {
       await api.deleteTransaction(row.id, userId)
       onDeleted()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error))
       setBusy(false)
     }
   }

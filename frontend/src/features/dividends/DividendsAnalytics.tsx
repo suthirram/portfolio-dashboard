@@ -13,8 +13,8 @@ const title: CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--text
 
 export default function DividendsAnalytics({ view, currency }: { view: DividendView; currency: string }) {
   const [period, setPeriod] = useState<'year' | 'month'>('year')
-  const series = (period === 'year' ? view.by_year : view.by_month).map(p => ({ period: p.period, total: p.total }))
-  const money = (n: number) => formatMoney(n, currency)
+  const series = (period === 'year' ? view.by_year : view.by_month).map(periodTotal => ({ period: periodTotal.period, total: periodTotal.total }))
+  const money = (amount: number) => formatMoney(amount, currency)
 
   return (
     <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
@@ -32,7 +32,7 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="period" stroke="var(--text-muted)" fontSize={11} />
               <YAxis stroke="var(--text-muted)" fontSize={11} width={70} />
-              <Tooltip {...chartTooltipProps} formatter={(v: number) => money(v)} />
+              <Tooltip {...chartTooltipProps} formatter={(value: number) => money(value)} />
               <Bar dataKey="total" fill="var(--blue)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -40,11 +40,11 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead><tr><th style={th}>Year</th><th style={{ ...th, textAlign: 'right' }}>Dividends</th><th style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
           <tbody>
-            {[...view.by_year].reverse().map(y => (
-              <tr key={y.period}>
-                <td style={td}>{y.period}</td>
-                <td style={{ ...td, textAlign: 'right' }}>{y.count}</td>
-                <td style={{ ...td, textAlign: 'right' }}>{money(y.total)}</td>
+            {[...view.by_year].reverse().map(year => (
+              <tr key={year.period}>
+                <td style={td}>{year.period}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{year.count}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{money(year.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -55,14 +55,14 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead><tr><th style={th}>Holding</th><th style={th}>Share</th><th style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
           <tbody>
-            {view.by_holding.map(h => (
-              <tr key={h.holding_id}>
-                <td style={td}>{h.script || h.symbol}</td>
+            {view.by_holding.map(holding => (
+              <tr key={holding.holding_id}>
+                <td style={td}>{holding.script || holding.symbol}</td>
                 <td style={td}>
-                  <div style={{ height: 8, borderRadius: 4, background: 'var(--green)', width: `${Math.max(2, h.share * 100)}%` }} />
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{(h.share * 100).toFixed(1)}%</span>
+                  <div style={{ height: 8, borderRadius: 4, background: 'var(--green)', width: `${Math.max(2, holding.share * 100)}%` }} />
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{(holding.share * 100).toFixed(1)}%</span>
                 </td>
-                <td style={{ ...td, textAlign: 'right' }}>{money(h.total)}</td>
+                <td style={{ ...td, textAlign: 'right' }}>{money(holding.total)}</td>
               </tr>
             ))}
           </tbody>

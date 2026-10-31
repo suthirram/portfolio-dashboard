@@ -630,7 +630,7 @@ describe('HistoryTable', () => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === '16-06-2026')!
     const cells = Array.from(tr.querySelectorAll('td'))
-    expect(cells.slice(11, 15).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+    expect(cells.slice(11, 15).map(cell => cell.textContent)).toEqual(['—', '—', '—', '—'])
   })
 
   it('renders dividends to date per currency with the day tint', () => {

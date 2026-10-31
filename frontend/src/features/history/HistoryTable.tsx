@@ -166,7 +166,7 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   const r = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
   const rs = r.regions[region]
-  const div = r.dividends?.[CURRENCY_BY_REGION[region]]
+  const dividends = r.dividends?.[CURRENCY_BY_REGION[region]]
   const invested = rs?.invested ?? 0
   const current  = rs?.current  ?? 0
   const vol      = regionDailyVolatility(rows, i, region)
@@ -216,7 +216,7 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   const divStyle: React.CSSProperties = {
     ...base,
     ...sep,
-    background: div && div.on_day > 0 ? 'var(--green-dim)' : tint,
+    background: dividends && dividends.on_day > 0 ? 'var(--green-dim)' : tint,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
@@ -230,8 +230,8 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
       </td>
       <td {...mouseProps} style={divStyle}
-        title={div && div.on_day > 0 ? `+${fmtCurrency(div.on_day, sym)} received this day` : undefined}>
-        {div ? fmtCurrency(div.to_date, sym) : '—'}
+        title={dividends && dividends.on_day > 0 ? `+${fmtCurrency(dividends.on_day, sym)} received this day` : undefined}>
+        {dividends ? fmtCurrency(dividends.to_date, sym) : '—'}
       </td>
     </>
   )
