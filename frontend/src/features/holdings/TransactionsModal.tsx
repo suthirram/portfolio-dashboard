@@ -4,7 +4,7 @@ import { api } from '../../lib/api/client'
 import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput } from '../../lib/formNumbers'
+import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
 import { currencySymbol } from '../../lib/currency'
 
@@ -115,11 +115,14 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 
     const quantity = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
     if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return }
-    const amount = parseDecimalInput(form.amount)
+    // Untouched fields keep the stored number: re-parsing String(1.234) under
+    // the default rule would save the grouped integer 1234.
+    const editing = editingId ? txns.find(txn => txn.id === editingId) : undefined
+    const amount = parseSeededDecimal(form.amount, editing?.amount)
     if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return }
     const ratio = parseDecimalInput(form.ratio, { singleSeparator: 'decimal' })
     if (!Number.isFinite(ratio) || ratio < 0) { setErr('Enter a valid ratio'); return }
-    const realizedSeed = parseDecimalInput(form.realized, { allowNegative: true })
+    const realizedSeed = parseSeededDecimal(form.realized, editing?.realized_seed, { allowNegative: true })
     if (!Number.isFinite(realizedSeed)) { setErr('Enter a valid realised P&L seed'); return }
 
     const payload: TransactionInput = {

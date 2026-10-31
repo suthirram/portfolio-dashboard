@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AddEditModal from './AddEditModal'
 import { api } from '../../lib/api/client'
+import type { HoldingWithPrice } from '../../types'
 
 vi.mock('../../lib/api/client', () => ({
   api: {
@@ -32,6 +33,14 @@ describe('AddEditModal numeric input', () => {
       avg_cost_price: 30.68,
       realized_pnl: -1.5,
     }), undefined)
+  })
+
+  it('keeps a stored 1.234 realised P&L on a notes-only edit', async () => {
+    const holding: HoldingWithPrice = { id: 'h1', script: 'TCS', symbol: 'TCS.NS', currency: 'INR', stocks_owned: 10, avg_cost_price: 100, realized_pnl: 1.234 }
+    render(<AddEditModal holding={holding} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByPlaceholderText('Optional notes…'), { target: { value: 'kept' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Update' }))
+    await waitFor(() => expect(api.updateHolding).toHaveBeenCalledWith('h1', expect.objectContaining({ realized_pnl: 1.234, notes: 'kept' }), undefined))
   })
 
   // A new purchase must not become an opening event (it would be backdated to

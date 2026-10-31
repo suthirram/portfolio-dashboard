@@ -61,6 +61,17 @@ describe('TransactionsModal numeric input', () => {
     expect(api.createTransaction).not.toHaveBeenCalled()
   })
 
+  it('keeps a stored 1.234 amount on a notes-only edit', async () => {
+    vi.mocked(api.listTransactions).mockResolvedValue([
+      { id: 't1', type: 'dividend', date: '2026-01-05', quantity: 0, amount: 1.234 },
+    ])
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
+    fireEvent.click(await screen.findByTitle('Edit'))
+    fireEvent.change(screen.getByPlaceholderText('Optional'), { target: { value: 'tax refund' } })
+    fireEvent.click(screen.getByRole('button', { name: /Update transaction/ }))
+    await waitFor(() => expect(api.updateTransaction).toHaveBeenCalledWith('t1', expect.objectContaining({ amount: 1.234, notes: 'tax refund' }), undefined))
+  })
+
   it('reads and writes the target ledger in act-as', async () => {
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} userId="u1" />)
     await waitFor(() => expect(api.listTransactions).toHaveBeenCalledWith('holding-1', 'u1'))
