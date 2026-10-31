@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,14 +19,19 @@ type TransactionStore struct {
 	col *mongo.Collection
 }
 
-// ListByHolding returns uid's transactions for one holding, ordered by trade
-// date then insertion time — the order the ledger replays in.
-func (s *TransactionStore) ListByHolding(ctx context.Context, uid, holdingID primitive.ObjectID) ([]domain.Transaction, error) {
+// replayOrder is the ledger's replay order: trade date, then insertion time.
+var replayOrder = bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}}
+
+// dividendOrder extends replayOrder with _id: one import batch shares one
+// created_at, and _id (assigned in sheet order) keeps the sheet's order.
+var dividendOrder = bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}, {Key: "_id", Value: 1}}
+
+// find runs a query and decodes every match in the given order.
+func (s *TransactionStore) find(ctx context.Context, filter bson.M, sort bson.D) ([]domain.Transaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	opts := options.Find().SetSort(bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}})
-	cur, err := s.col.Find(ctx, scopedFilter(uid, bson.M{"holding_id": holdingID}), opts)
+	cur, err := s.col.Find(ctx, filter, options.Find().SetSort(sort))
 	if err != nil {
 		return nil, err
 	}
@@ -38,23 +44,38 @@ func (s *TransactionStore) ListByHolding(ctx context.Context, uid, holdingID pri
 	return txns, nil
 }
 
-// ListByUser returns every transaction owned by uid (date-ordered).
-func (s *TransactionStore) ListByUser(ctx context.Context, uid primitive.ObjectID) ([]domain.Transaction, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
+// ListByHolding returns userId's transactions for one holding in replay order.
+func (s *TransactionStore) ListByHolding(ctx context.Context, userId, holdingId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{"holding_id": holdingId}), replayOrder)
+}
 
-	opts := options.Find().SetSort(bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}})
-	cur, err := s.col.Find(ctx, scopedFilter(uid, nil), opts)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = cur.Close(ctx) }()
+// ListByUser returns every transaction owned by userId in replay order.
+func (s *TransactionStore) ListByUser(ctx context.Context, userId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, nil), replayOrder)
+}
 
-	var txns []domain.Transaction
-	if err := cur.All(ctx, &txns); err != nil {
-		return nil, err
-	}
-	return txns, nil
+// ListDividends returns userId's dividend events in one currency, in tab order.
+// Stored currencies are canonical (ledgerCurrency), so the filter is exact.
+func (s *TransactionStore) ListDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{
+		"type": string(domain.TxnDividend), "currency": currency,
+	}), dividendOrder)
+}
+
+// ListAllDividends returns every dividend event of userId in tab order — the
+// History overlay's input.
+func (s *TransactionStore) ListAllDividends(ctx context.Context, userId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{"type": string(domain.TxnDividend)}), dividendOrder)
+}
+
+// ListDividendsByHoldings returns the dividend events of the given holdings
+// with from ≤ date ≤ to — the duplicate window of an import.
+func (s *TransactionStore) ListDividendsByHoldings(ctx context.Context, userId primitive.ObjectID, holdingIds []primitive.ObjectID, from, to time.Time) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{
+		"type":       string(domain.TxnDividend),
+		"holding_id": bson.M{"$in": holdingIds},
+		"date":       bson.M{"$gte": from, "$lte": to},
+	}), dividendOrder)
 }
 
 // OpeningsByUser returns uid's opening events keyed by holding id (one per

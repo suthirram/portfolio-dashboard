@@ -37,6 +37,8 @@ tags:
     description: Physical gold tracking — purchases, daily prices, metrics (gold-enabled users only)
   - name: Branding
     description: Deployment-wide visual branding settings
+  - name: Dividends
+    description: Dividend history per currency tab — table, running totals, analytics
 
 paths:
   /branding:
@@ -57,6 +59,8 @@ paths:
     $ref: "./transactions/transactions.yaml#/transactions"
   /transactions/{id}:
     $ref: "./transactions/transactions.yaml#/transactions_id"
+  /dividends:
+    $ref: "./dividends/dividends.yaml#/dividends"
 
   /history:
     $ref: "./history/history.yaml#/history"
@@ -141,6 +145,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_summary"
   /admin/users/{id}/transactions:
     $ref: "./admin/admin.yaml#/users_id_transactions"
+  /admin/users/{id}/dividends:
+    $ref: "./admin/admin.yaml#/users_id_dividends"
 
 components:
   securitySchemes:

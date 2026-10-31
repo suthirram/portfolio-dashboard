@@ -385,6 +385,8 @@ func TestValidateDividend(t *testing.T) {
 		{"zero", today, 0, false},
 		{"negative", today, -5, false},
 		{"absurd", today, 1e12, false},
+		{"sub-cent rounds to zero", today, 0.004, false},
+		{"fractional cent rounds up to a cent", today, 0.005, true},
 	}
 	for _, c := range cases {
 		err := validateDividend(c.date, c.amount, today)

@@ -59,6 +59,9 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Lo
 			// the index instead of blocking-sorting same-day events. Both
 			// descend so the index reverse-scans for the ascending sort.
 			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}, {Key: "created_at", Value: -1}}},
+			// dividend tab + import window (DD-005 §2.2): equality on
+			// user_id, type, currency, then dividendOrder's keys in order.
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "type", Value: 1}, {Key: "currency", Value: 1}, {Key: "date", Value: 1}, {Key: "created_at", Value: 1}, {Key: "_id", Value: 1}}},
 		},
 		"portfolio_snapshots": {
 			// at most one row per (user, UTC midnight). Also powers the
