@@ -19,6 +19,78 @@ const (
 	CookieAuthScopes cookieAuthContextKey = "cookieAuth.Scopes"
 )
 
+// Defines values for AdminDeleteUserDividendsParamsCurrency.
+const (
+	AdminDeleteUserDividendsParamsCurrencyEUR AdminDeleteUserDividendsParamsCurrency = "EUR"
+	AdminDeleteUserDividendsParamsCurrencyINR AdminDeleteUserDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeleteUserDividendsParamsCurrency enum.
+func (e AdminDeleteUserDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case AdminDeleteUserDividendsParamsCurrencyEUR:
+		return true
+	case AdminDeleteUserDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminListUserDividendsParamsCurrency.
+const (
+	AdminListUserDividendsParamsCurrencyEUR AdminListUserDividendsParamsCurrency = "EUR"
+	AdminListUserDividendsParamsCurrencyINR AdminListUserDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the AdminListUserDividendsParamsCurrency enum.
+func (e AdminListUserDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case AdminListUserDividendsParamsCurrencyEUR:
+		return true
+	case AdminListUserDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDividendsParamsCurrency.
+const (
+	DeleteDividendsParamsCurrencyEUR DeleteDividendsParamsCurrency = "EUR"
+	DeleteDividendsParamsCurrencyINR DeleteDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the DeleteDividendsParamsCurrency enum.
+func (e DeleteDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case DeleteDividendsParamsCurrencyEUR:
+		return true
+	case DeleteDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListDividendsParamsCurrency.
+const (
+	ListDividendsParamsCurrencyEUR ListDividendsParamsCurrency = "EUR"
+	ListDividendsParamsCurrencyINR ListDividendsParamsCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the ListDividendsParamsCurrency enum.
+func (e ListDividendsParamsCurrency) Valid() bool {
+	switch e {
+	case ListDividendsParamsCurrencyEUR:
+		return true
+	case ListDividendsParamsCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // cookieAuthContextKey is the context key for cookieAuth security scheme
 type cookieAuthContextKey string
 
@@ -26,6 +98,42 @@ type cookieAuthContextKey string
 type AdminListUsersParams struct {
 	IncludeHidden *bool `form:"include_hidden,omitempty" json:"include_hidden,omitempty"`
 }
+
+// AdminDeleteUserDividendsParams defines parameters for AdminDeleteUserDividends.
+type AdminDeleteUserDividendsParams struct {
+	// Currency The currency tab
+	Currency AdminDeleteUserDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// AdminDeleteUserDividendsParamsCurrency defines parameters for AdminDeleteUserDividends.
+type AdminDeleteUserDividendsParamsCurrency string
+
+// AdminListUserDividendsParams defines parameters for AdminListUserDividends.
+type AdminListUserDividendsParams struct {
+	// Currency The currency tab
+	Currency AdminListUserDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// AdminListUserDividendsParamsCurrency defines parameters for AdminListUserDividends.
+type AdminListUserDividendsParamsCurrency string
+
+// DeleteDividendsParams defines parameters for DeleteDividends.
+type DeleteDividendsParams struct {
+	// Currency The currency tab
+	Currency DeleteDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// DeleteDividendsParamsCurrency defines parameters for DeleteDividends.
+type DeleteDividendsParamsCurrency string
+
+// ListDividendsParams defines parameters for ListDividends.
+type ListDividendsParams struct {
+	// Currency The currency tab
+	Currency ListDividendsParamsCurrency `form:"currency" json:"currency"`
+}
+
+// ListDividendsParamsCurrency defines parameters for ListDividends.
+type ListDividendsParamsCurrency string
 
 // ListGoldPricesParams defines parameters for ListGoldPrices.
 type ListGoldPricesParams struct {
@@ -60,6 +168,12 @@ type GetMarketPriceParams struct {
 // AdminUpdateBrandingJSONRequestBody defines body for AdminUpdateBranding for application/json ContentType.
 type AdminUpdateBrandingJSONRequestBody = BrandingUpdateRequest
 
+// AdminImportUserDividendsJSONRequestBody defines body for AdminImportUserDividends for application/json ContentType.
+type AdminImportUserDividendsJSONRequestBody = DividendImportInput
+
+// AdminPreviewUserDividendImportJSONRequestBody defines body for AdminPreviewUserDividendImport for application/json ContentType.
+type AdminPreviewUserDividendImportJSONRequestBody = DividendImportInput
+
 // AdminSetUserGoldJSONRequestBody defines body for AdminSetUserGold for application/json ContentType.
 type AdminSetUserGoldJSONRequestBody = GoldToggleRequest
 
@@ -69,11 +183,17 @@ type AdminCreateUserHoldingJSONRequestBody = HoldingInput
 // AdminUpdateUserHoldingJSONRequestBody defines body for AdminUpdateUserHolding for application/json ContentType.
 type AdminUpdateUserHoldingJSONRequestBody = HoldingInput
 
+// AdminCreateUserTransactionJSONRequestBody defines body for AdminCreateUserTransaction for application/json ContentType.
+type AdminCreateUserTransactionJSONRequestBody = TransactionInput
+
 // AdminSetUserPremiumJSONRequestBody defines body for AdminSetUserPremium for application/json ContentType.
 type AdminSetUserPremiumJSONRequestBody = PremiumToggleRequest
 
 // AdminSetUserRegionJSONRequestBody defines body for AdminSetUserRegion for application/json ContentType.
 type AdminSetUserRegionJSONRequestBody = RegionUpdateRequest
+
+// AdminUpdateUserTransactionJSONRequestBody defines body for AdminUpdateUserTransaction for application/json ContentType.
+type AdminUpdateUserTransactionJSONRequestBody = TransactionInput
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
@@ -98,6 +218,12 @@ type UpdateSecurityQuestionsJSONRequestBody = UpdateSecurityQuestionsRequest
 
 // SignupJSONRequestBody defines body for Signup for application/json ContentType.
 type SignupJSONRequestBody = SignupRequest
+
+// ImportDividendsJSONRequestBody defines body for ImportDividends for application/json ContentType.
+type ImportDividendsJSONRequestBody = DividendImportInput
+
+// PreviewDividendImportJSONRequestBody defines body for PreviewDividendImport for application/json ContentType.
+type PreviewDividendImportJSONRequestBody = DividendImportInput
 
 // PutGoldPricesJSONRequestBody defines body for PutGoldPrices for application/json ContentType.
 type PutGoldPricesJSONRequestBody = PutGoldPricesJSONBody
@@ -149,6 +275,18 @@ type ServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx echo.Context, id UserID) error
+	// Delete every dividend of one currency tab for a user (act-as)
+	// (DELETE /admin/users/{id}/dividends)
+	AdminDeleteUserDividends(ctx echo.Context, id UserID, params AdminDeleteUserDividendsParams) error
+	// One currency tab of a user's dividends (act-as)
+	// (GET /admin/users/{id}/dividends)
+	AdminListUserDividends(ctx echo.Context, id UserID, params AdminListUserDividendsParams) error
+	// Commit a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import)
+	AdminImportUserDividends(ctx echo.Context, id UserID) error
+	// Evaluate a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import/preview)
+	AdminPreviewUserDividendImport(ctx echo.Context, id UserID) error
 	// Enable or disable gold tracking for an account (super admin only)
 	// (PUT /admin/users/{id}/gold)
 	AdminSetUserGold(ctx echo.Context, id UserID) error
@@ -167,6 +305,12 @@ type ServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx echo.Context, id UserID, holdingId string) error
+	// A user's ledger for one holding (act-as)
+	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminListUserHoldingTransactions(ctx echo.Context, id UserID, holdingId string) error
+	// Add a ledger event to a user's holding (act-as)
+	// (POST /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminCreateUserTransaction(ctx echo.Context, id UserID, holdingId string) error
 	// Enable or disable premium features for an account (super admin only)
 	// (PUT /admin/users/{id}/premium)
 	AdminSetUserPremium(ctx echo.Context, id UserID) error
@@ -191,6 +335,12 @@ type ServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx echo.Context, id UserID) error
+	// Delete a user's ledger event (act-as)
+	// (DELETE /admin/users/{id}/transactions/{transactionId})
+	AdminDeleteUserTransaction(ctx echo.Context, id UserID, transactionId string) error
+	// Edit a user's ledger event (act-as)
+	// (PUT /admin/users/{id}/transactions/{transactionId})
+	AdminUpdateUserTransaction(ctx echo.Context, id UserID, transactionId string) error
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx echo.Context) error
@@ -227,6 +377,18 @@ type ServerInterface interface {
 	// Get app branding settings
 	// (GET /branding)
 	GetBranding(ctx echo.Context) error
+	// Delete every dividend of one currency tab
+	// (DELETE /dividends)
+	DeleteDividends(ctx echo.Context, params DeleteDividendsParams) error
+	// One currency tab of the caller's dividends
+	// (GET /dividends)
+	ListDividends(ctx echo.Context, params ListDividendsParams) error
+	// Commit a dividend CSV import atomically
+	// (POST /dividends/import)
+	ImportDividends(ctx echo.Context) error
+	// Evaluate a dividend CSV import without writing anything
+	// (POST /dividends/import/preview)
+	PreviewDividendImport(ctx echo.Context) error
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx echo.Context) error
@@ -414,6 +576,96 @@ func (w *ServerInterfaceWrapper) AdminDemoteUser(ctx echo.Context) error {
 	return err
 }
 
+// AdminDeleteUserDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminDeleteUserDividends(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminDeleteUserDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminDeleteUserDividends(ctx, id, params)
+	return err
+}
+
+// AdminListUserDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminListUserDividends(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminListUserDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminListUserDividends(ctx, id, params)
+	return err
+}
+
+// AdminImportUserDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminImportUserDividends(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminImportUserDividends(ctx, id)
+	return err
+}
+
+// AdminPreviewUserDividendImport converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminPreviewUserDividendImport(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminPreviewUserDividendImport(ctx, id)
+	return err
+}
+
 // AdminSetUserGold converts echo context to params.
 func (w *ServerInterfaceWrapper) AdminSetUserGold(ctx echo.Context) error {
 	var err error
@@ -535,6 +787,58 @@ func (w *ServerInterfaceWrapper) AdminUpdateUserHolding(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminUpdateUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// AdminListUserHoldingTransactions converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminListUserHoldingTransactions(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holdingId" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdingId", ctx.Param("holdingId"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holdingId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminListUserHoldingTransactions(ctx, id, holdingId)
+	return err
+}
+
+// AdminCreateUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminCreateUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holdingId" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdingId", ctx.Param("holdingId"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holdingId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminCreateUserTransaction(ctx, id, holdingId)
 	return err
 }
 
@@ -682,6 +986,58 @@ func (w *ServerInterfaceWrapper) AdminListUserTransactions(ctx echo.Context) err
 	return err
 }
 
+// AdminDeleteUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminDeleteUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminDeleteUserTransaction(ctx, id, transactionId)
+	return err
+}
+
+// AdminUpdateUserTransaction converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminUpdateUserTransaction(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "transactionId" -------------
+	var transactionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "transactionId", ctx.Param("transactionId"), &transactionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter transactionId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminUpdateUserTransaction(ctx, id, transactionId)
+	return err
+}
+
 // Login converts echo context to params.
 func (w *ServerInterfaceWrapper) Login(ctx echo.Context) error {
 	var err error
@@ -799,6 +1155,68 @@ func (w *ServerInterfaceWrapper) GetBranding(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetBranding(ctx)
+	return err
+}
+
+// DeleteDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) DeleteDividends(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.DeleteDividends(ctx, params)
+	return err
+}
+
+// ListDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) ListDividends(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDividendsParams
+	// ------------- Required query parameter "currency" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "currency", ctx.QueryParams(), &params.Currency, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter currency: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListDividends(ctx, params)
+	return err
+}
+
+// ImportDividends converts echo context to params.
+func (w *ServerInterfaceWrapper) ImportDividends(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ImportDividends(ctx)
+	return err
+}
+
+// PreviewDividendImport converts echo context to params.
+func (w *ServerInterfaceWrapper) PreviewDividendImport(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PreviewDividendImport(ctx)
 	return err
 }
 
@@ -1295,12 +1713,18 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.AdminDeleteUser, options.OperationMiddlewares["adminDeleteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.AdminDemoteUser, options.OperationMiddlewares["adminDemoteUser"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminDeleteUserDividends, options.OperationMiddlewares["adminDeleteUserDividends"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminListUserDividends, options.OperationMiddlewares["adminListUserDividends"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/dividends/import", wrapper.AdminImportUserDividends, options.OperationMiddlewares["adminImportUserDividends"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/dividends/import/preview", wrapper.AdminPreviewUserDividendImport, options.OperationMiddlewares["adminPreviewUserDividendImport"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/gold", wrapper.AdminSetUserGold, options.OperationMiddlewares["adminSetUserGold"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/hide", wrapper.AdminHideUser, options.OperationMiddlewares["adminHideUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminListUserHoldings, options.OperationMiddlewares["adminListUserHoldings"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminCreateUserHolding, options.OperationMiddlewares["adminCreateUserHolding"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminDeleteUserHolding, options.OperationMiddlewares["adminDeleteUserHolding"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminUpdateUserHolding, options.OperationMiddlewares["adminUpdateUserHolding"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminListUserHoldingTransactions, options.OperationMiddlewares["adminListUserHoldingTransactions"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminCreateUserTransaction, options.OperationMiddlewares["adminCreateUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/premium", wrapper.AdminSetUserPremium, options.OperationMiddlewares["adminSetUserPremium"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/prices", wrapper.AdminGetUserPrices, options.OperationMiddlewares["adminGetUserPrices"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/promote", wrapper.AdminPromoteUser, options.OperationMiddlewares["adminPromoteUser"]...)
@@ -1309,6 +1733,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/reset-lockout", wrapper.AdminResetLockout, options.OperationMiddlewares["adminResetLockout"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/summary", wrapper.AdminGetUserSummary, options.OperationMiddlewares["adminGetUserSummary"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/transactions", wrapper.AdminListUserTransactions, options.OperationMiddlewares["adminListUserTransactions"]...)
+	router.DELETE(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminDeleteUserTransaction, options.OperationMiddlewares["adminDeleteUserTransaction"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminUpdateUserTransaction, options.OperationMiddlewares["adminUpdateUserTransaction"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
 	router.GET(options.BaseURL+"/auth/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
@@ -1321,6 +1747,10 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/auth/security-questions/answers", wrapper.UpdateSecurityQuestions, options.OperationMiddlewares["updateSecurityQuestions"]...)
 	router.POST(options.BaseURL+"/auth/signup", wrapper.Signup, options.OperationMiddlewares["signup"]...)
 	router.GET(options.BaseURL+"/branding", wrapper.GetBranding, options.OperationMiddlewares["getBranding"]...)
+	router.DELETE(options.BaseURL+"/dividends", wrapper.DeleteDividends, options.OperationMiddlewares["deleteDividends"]...)
+	router.GET(options.BaseURL+"/dividends", wrapper.ListDividends, options.OperationMiddlewares["listDividends"]...)
+	router.POST(options.BaseURL+"/dividends/import", wrapper.ImportDividends, options.OperationMiddlewares["importDividends"]...)
+	router.POST(options.BaseURL+"/dividends/import/preview", wrapper.PreviewDividendImport, options.OperationMiddlewares["previewDividendImport"]...)
 	router.GET(options.BaseURL+"/gold/metrics", wrapper.GetGoldMetrics, options.OperationMiddlewares["getGoldMetrics"]...)
 	router.GET(options.BaseURL+"/gold/missing-dates", wrapper.ListGoldMissingDates, options.OperationMiddlewares["listGoldMissingDates"]...)
 	router.GET(options.BaseURL+"/gold/prices", wrapper.ListGoldPrices, options.OperationMiddlewares["listGoldPrices"]...)
@@ -1631,6 +2061,226 @@ func (response AdminDemoteUser404JSONResponse) VisitAdminDemoteUserResponse(w ht
 	return err
 }
 
+type AdminDeleteUserDividendsRequestObject struct {
+	Id     UserID `json:"id"`
+	Params AdminDeleteUserDividendsParams
+}
+
+type AdminDeleteUserDividendsResponseObject interface {
+	VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteUserDividends200JSONResponse struct {
+	Deleted int `json:"deleted"`
+}
+
+func (response AdminDeleteUserDividends200JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminDeleteUserDividends400JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserDividends404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminDeleteUserDividends404JSONResponse) VisitAdminDeleteUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserDividendsRequestObject struct {
+	Id     UserID `json:"id"`
+	Params AdminListUserDividendsParams
+}
+
+type AdminListUserDividendsResponseObject interface {
+	VisitAdminListUserDividendsResponse(w http.ResponseWriter) error
+}
+
+type AdminListUserDividends200JSONResponse DividendView
+
+func (response AdminListUserDividends200JSONResponse) VisitAdminListUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminListUserDividends400JSONResponse) VisitAdminListUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserDividends404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminListUserDividends404JSONResponse) VisitAdminListUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserDividendsRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminImportUserDividendsJSONRequestBody
+}
+
+type AdminImportUserDividendsResponseObject interface {
+	VisitAdminImportUserDividendsResponse(w http.ResponseWriter) error
+}
+
+type AdminImportUserDividends200JSONResponse DividendImportResult
+
+func (response AdminImportUserDividends200JSONResponse) VisitAdminImportUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminImportUserDividends400JSONResponse) VisitAdminImportUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserDividends404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminImportUserDividends404JSONResponse) VisitAdminImportUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserDividends422JSONResponse DividendImportPreview
+
+func (response AdminImportUserDividends422JSONResponse) VisitAdminImportUserDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImportRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminPreviewUserDividendImportJSONRequestBody
+}
+
+type AdminPreviewUserDividendImportResponseObject interface {
+	VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error
+}
+
+type AdminPreviewUserDividendImport200JSONResponse DividendImportPreview
+
+func (response AdminPreviewUserDividendImport200JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminPreviewUserDividendImport400JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserDividendImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminPreviewUserDividendImport404JSONResponse) VisitAdminPreviewUserDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type AdminSetUserGoldRequestObject struct {
 	Id   UserID `json:"id"`
 	Body *AdminSetUserGoldJSONRequestBody
@@ -1859,6 +2509,95 @@ func (response AdminUpdateUserHolding200JSONResponse) VisitAdminUpdateUserHoldin
 type AdminUpdateUserHolding404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminUpdateUserHolding404JSONResponse) VisitAdminUpdateUserHoldingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserHoldingTransactionsRequestObject struct {
+	Id        UserID `json:"id"`
+	HoldingId string `json:"holdingId"`
+}
+
+type AdminListUserHoldingTransactionsResponseObject interface {
+	VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error
+}
+
+type AdminListUserHoldingTransactions200JSONResponse []Transaction
+
+func (response AdminListUserHoldingTransactions200JSONResponse) VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminListUserHoldingTransactions404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminListUserHoldingTransactions404JSONResponse) VisitAdminListUserHoldingTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransactionRequestObject struct {
+	Id        UserID `json:"id"`
+	HoldingId string `json:"holdingId"`
+	Body      *AdminCreateUserTransactionJSONRequestBody
+}
+
+type AdminCreateUserTransactionResponseObject interface {
+	VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateUserTransaction201JSONResponse Transaction
+
+func (response AdminCreateUserTransaction201JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminCreateUserTransaction400JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminCreateUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminCreateUserTransaction404JSONResponse) VisitAdminCreateUserTransactionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2201,6 +2940,111 @@ func (response AdminListUserTransactions200JSONResponse) VisitAdminListUserTrans
 type AdminListUserTransactions404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminListUserTransactions404JSONResponse) VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransactionRequestObject struct {
+	Id            UserID `json:"id"`
+	TransactionId string `json:"transactionId"`
+}
+
+type AdminDeleteUserTransactionResponseObject interface {
+	VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminDeleteUserTransaction200JSONResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
+func (response AdminDeleteUserTransaction200JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminDeleteUserTransaction400JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminDeleteUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminDeleteUserTransaction404JSONResponse) VisitAdminDeleteUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransactionRequestObject struct {
+	Id            UserID `json:"id"`
+	TransactionId string `json:"transactionId"`
+	Body          *AdminUpdateUserTransactionJSONRequestBody
+}
+
+type AdminUpdateUserTransactionResponseObject interface {
+	VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateUserTransaction200JSONResponse Transaction
+
+func (response AdminUpdateUserTransaction200JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransaction400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminUpdateUserTransaction400JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminUpdateUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminUpdateUserTransaction404JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2752,6 +3596,166 @@ func (response GetBranding200JSONResponse) VisitGetBrandingResponse(w http.Respo
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDividendsRequestObject struct {
+	Params DeleteDividendsParams
+}
+
+type DeleteDividendsResponseObject interface {
+	VisitDeleteDividendsResponse(w http.ResponseWriter) error
+}
+
+type DeleteDividends200JSONResponse struct {
+	Deleted int `json:"deleted"`
+}
+
+func (response DeleteDividends200JSONResponse) VisitDeleteDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response DeleteDividends400JSONResponse) VisitDeleteDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDividendsRequestObject struct {
+	Params ListDividendsParams
+}
+
+type ListDividendsResponseObject interface {
+	VisitListDividendsResponse(w http.ResponseWriter) error
+}
+
+type ListDividends200JSONResponse DividendView
+
+func (response ListDividends200JSONResponse) VisitListDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListDividends400JSONResponse) VisitListDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportDividendsRequestObject struct {
+	Body *ImportDividendsJSONRequestBody
+}
+
+type ImportDividendsResponseObject interface {
+	VisitImportDividendsResponse(w http.ResponseWriter) error
+}
+
+type ImportDividends200JSONResponse DividendImportResult
+
+func (response ImportDividends200JSONResponse) VisitImportDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportDividends400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ImportDividends400JSONResponse) VisitImportDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportDividends422JSONResponse DividendImportPreview
+
+func (response ImportDividends422JSONResponse) VisitImportDividendsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewDividendImportRequestObject struct {
+	Body *PreviewDividendImportJSONRequestBody
+}
+
+type PreviewDividendImportResponseObject interface {
+	VisitPreviewDividendImportResponse(w http.ResponseWriter) error
+}
+
+type PreviewDividendImport200JSONResponse DividendImportPreview
+
+func (response PreviewDividendImport200JSONResponse) VisitPreviewDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewDividendImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PreviewDividendImport400JSONResponse) VisitPreviewDividendImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -4001,6 +5005,18 @@ type StrictServerInterface interface {
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx context.Context, request AdminDemoteUserRequestObject) (AdminDemoteUserResponseObject, error)
+	// Delete every dividend of one currency tab for a user (act-as)
+	// (DELETE /admin/users/{id}/dividends)
+	AdminDeleteUserDividends(ctx context.Context, request AdminDeleteUserDividendsRequestObject) (AdminDeleteUserDividendsResponseObject, error)
+	// One currency tab of a user's dividends (act-as)
+	// (GET /admin/users/{id}/dividends)
+	AdminListUserDividends(ctx context.Context, request AdminListUserDividendsRequestObject) (AdminListUserDividendsResponseObject, error)
+	// Commit a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import)
+	AdminImportUserDividends(ctx context.Context, request AdminImportUserDividendsRequestObject) (AdminImportUserDividendsResponseObject, error)
+	// Evaluate a dividend import for a user (act-as)
+	// (POST /admin/users/{id}/dividends/import/preview)
+	AdminPreviewUserDividendImport(ctx context.Context, request AdminPreviewUserDividendImportRequestObject) (AdminPreviewUserDividendImportResponseObject, error)
 	// Enable or disable gold tracking for an account (super admin only)
 	// (PUT /admin/users/{id}/gold)
 	AdminSetUserGold(ctx context.Context, request AdminSetUserGoldRequestObject) (AdminSetUserGoldResponseObject, error)
@@ -4019,6 +5035,12 @@ type StrictServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx context.Context, request AdminUpdateUserHoldingRequestObject) (AdminUpdateUserHoldingResponseObject, error)
+	// A user's ledger for one holding (act-as)
+	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminListUserHoldingTransactions(ctx context.Context, request AdminListUserHoldingTransactionsRequestObject) (AdminListUserHoldingTransactionsResponseObject, error)
+	// Add a ledger event to a user's holding (act-as)
+	// (POST /admin/users/{id}/holdings/{holdingId}/transactions)
+	AdminCreateUserTransaction(ctx context.Context, request AdminCreateUserTransactionRequestObject) (AdminCreateUserTransactionResponseObject, error)
 	// Enable or disable premium features for an account (super admin only)
 	// (PUT /admin/users/{id}/premium)
 	AdminSetUserPremium(ctx context.Context, request AdminSetUserPremiumRequestObject) (AdminSetUserPremiumResponseObject, error)
@@ -4043,6 +5065,12 @@ type StrictServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx context.Context, request AdminListUserTransactionsRequestObject) (AdminListUserTransactionsResponseObject, error)
+	// Delete a user's ledger event (act-as)
+	// (DELETE /admin/users/{id}/transactions/{transactionId})
+	AdminDeleteUserTransaction(ctx context.Context, request AdminDeleteUserTransactionRequestObject) (AdminDeleteUserTransactionResponseObject, error)
+	// Edit a user's ledger event (act-as)
+	// (PUT /admin/users/{id}/transactions/{transactionId})
+	AdminUpdateUserTransaction(ctx context.Context, request AdminUpdateUserTransactionRequestObject) (AdminUpdateUserTransactionResponseObject, error)
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -4079,6 +5107,18 @@ type StrictServerInterface interface {
 	// Get app branding settings
 	// (GET /branding)
 	GetBranding(ctx context.Context, request GetBrandingRequestObject) (GetBrandingResponseObject, error)
+	// Delete every dividend of one currency tab
+	// (DELETE /dividends)
+	DeleteDividends(ctx context.Context, request DeleteDividendsRequestObject) (DeleteDividendsResponseObject, error)
+	// One currency tab of the caller's dividends
+	// (GET /dividends)
+	ListDividends(ctx context.Context, request ListDividendsRequestObject) (ListDividendsResponseObject, error)
+	// Commit a dividend CSV import atomically
+	// (POST /dividends/import)
+	ImportDividends(ctx context.Context, request ImportDividendsRequestObject) (ImportDividendsResponseObject, error)
+	// Evaluate a dividend CSV import without writing anything
+	// (POST /dividends/import/preview)
+	PreviewDividendImport(ctx context.Context, request PreviewDividendImportRequestObject) (PreviewDividendImportResponseObject, error)
 	// The live gold metrics table incl. XIRR
 	// (GET /gold/metrics)
 	GetGoldMetrics(ctx context.Context, request GetGoldMetricsRequestObject) (GetGoldMetricsResponseObject, error)
@@ -4329,6 +5369,120 @@ func (sh *strictHandler) AdminDemoteUser(ctx echo.Context, id UserID) error {
 	return nil
 }
 
+// AdminDeleteUserDividends operation middleware
+func (sh *strictHandler) AdminDeleteUserDividends(ctx echo.Context, id UserID, params AdminDeleteUserDividendsParams) error {
+	var request AdminDeleteUserDividendsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteUserDividends(ctx.Request().Context(), request.(AdminDeleteUserDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteUserDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminDeleteUserDividendsResponseObject); ok {
+		return validResponse.VisitAdminDeleteUserDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminListUserDividends operation middleware
+func (sh *strictHandler) AdminListUserDividends(ctx echo.Context, id UserID, params AdminListUserDividendsParams) error {
+	var request AdminListUserDividendsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListUserDividends(ctx.Request().Context(), request.(AdminListUserDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListUserDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminListUserDividendsResponseObject); ok {
+		return validResponse.VisitAdminListUserDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminImportUserDividends operation middleware
+func (sh *strictHandler) AdminImportUserDividends(ctx echo.Context, id UserID) error {
+	var request AdminImportUserDividendsRequestObject
+
+	request.Id = id
+
+	var body AdminImportUserDividendsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminImportUserDividends(ctx.Request().Context(), request.(AdminImportUserDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminImportUserDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminImportUserDividendsResponseObject); ok {
+		return validResponse.VisitAdminImportUserDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminPreviewUserDividendImport operation middleware
+func (sh *strictHandler) AdminPreviewUserDividendImport(ctx echo.Context, id UserID) error {
+	var request AdminPreviewUserDividendImportRequestObject
+
+	request.Id = id
+
+	var body AdminPreviewUserDividendImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminPreviewUserDividendImport(ctx.Request().Context(), request.(AdminPreviewUserDividendImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminPreviewUserDividendImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminPreviewUserDividendImportResponseObject); ok {
+		return validResponse.VisitAdminPreviewUserDividendImportResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // AdminSetUserGold operation middleware
 func (sh *strictHandler) AdminSetUserGold(ctx echo.Context, id UserID) error {
 	var request AdminSetUserGoldRequestObject
@@ -4493,6 +5647,64 @@ func (sh *strictHandler) AdminUpdateUserHolding(ctx echo.Context, id UserID, hol
 		return err
 	} else if validResponse, ok := response.(AdminUpdateUserHoldingResponseObject); ok {
 		return validResponse.VisitAdminUpdateUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminListUserHoldingTransactions operation middleware
+func (sh *strictHandler) AdminListUserHoldingTransactions(ctx echo.Context, id UserID, holdingId string) error {
+	var request AdminListUserHoldingTransactionsRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListUserHoldingTransactions(ctx.Request().Context(), request.(AdminListUserHoldingTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListUserHoldingTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminListUserHoldingTransactionsResponseObject); ok {
+		return validResponse.VisitAdminListUserHoldingTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminCreateUserTransaction operation middleware
+func (sh *strictHandler) AdminCreateUserTransaction(ctx echo.Context, id UserID, holdingId string) error {
+	var request AdminCreateUserTransactionRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	var body AdminCreateUserTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateUserTransaction(ctx.Request().Context(), request.(AdminCreateUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminCreateUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminCreateUserTransactionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -4705,6 +5917,64 @@ func (sh *strictHandler) AdminListUserTransactions(ctx echo.Context, id UserID) 
 		return err
 	} else if validResponse, ok := response.(AdminListUserTransactionsResponseObject); ok {
 		return validResponse.VisitAdminListUserTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminDeleteUserTransaction operation middleware
+func (sh *strictHandler) AdminDeleteUserTransaction(ctx echo.Context, id UserID, transactionId string) error {
+	var request AdminDeleteUserTransactionRequestObject
+
+	request.Id = id
+	request.TransactionId = transactionId
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminDeleteUserTransaction(ctx.Request().Context(), request.(AdminDeleteUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminDeleteUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminDeleteUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminDeleteUserTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminUpdateUserTransaction operation middleware
+func (sh *strictHandler) AdminUpdateUserTransaction(ctx echo.Context, id UserID, transactionId string) error {
+	var request AdminUpdateUserTransactionRequestObject
+
+	request.Id = id
+	request.TransactionId = transactionId
+
+	var body AdminUpdateUserTransactionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateUserTransaction(ctx.Request().Context(), request.(AdminUpdateUserTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateUserTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminUpdateUserTransactionResponseObject); ok {
+		return validResponse.VisitAdminUpdateUserTransactionResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -5029,6 +6299,114 @@ func (sh *strictHandler) GetBranding(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(GetBrandingResponseObject); ok {
 		return validResponse.VisitGetBrandingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteDividends operation middleware
+func (sh *strictHandler) DeleteDividends(ctx echo.Context, params DeleteDividendsParams) error {
+	var request DeleteDividendsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDividends(ctx.Request().Context(), request.(DeleteDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteDividendsResponseObject); ok {
+		return validResponse.VisitDeleteDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListDividends operation middleware
+func (sh *strictHandler) ListDividends(ctx echo.Context, params ListDividendsParams) error {
+	var request ListDividendsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDividends(ctx.Request().Context(), request.(ListDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListDividendsResponseObject); ok {
+		return validResponse.VisitListDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ImportDividends operation middleware
+func (sh *strictHandler) ImportDividends(ctx echo.Context) error {
+	var request ImportDividendsRequestObject
+
+	var body ImportDividendsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ImportDividends(ctx.Request().Context(), request.(ImportDividendsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ImportDividends")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ImportDividendsResponseObject); ok {
+		return validResponse.VisitImportDividendsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PreviewDividendImport operation middleware
+func (sh *strictHandler) PreviewDividendImport(ctx echo.Context) error {
+	var request PreviewDividendImportRequestObject
+
+	var body PreviewDividendImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewDividendImport(ctx.Request().Context(), request.(PreviewDividendImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewDividendImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PreviewDividendImportResponseObject); ok {
+		return validResponse.VisitPreviewDividendImportResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -151,3 +151,34 @@ func (s *HoldingStore) AssignUnownedTo(ctx context.Context, uid primitive.Object
 	}
 	return res.MatchedCount, res.ModifiedCount, nil
 }
+
+// CanonicalizeCurrency rewrites every non-canonical holding currency to its
+// canonical code (persistence/currency.go). Returns the number changed.
+func (s *HoldingStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	result, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
+}
+
+// MoveAliases makes keys aliases of holdingId only: pulled from userId's
+// other holdings, added to this one (DD-005 §2.3).
+func (s *HoldingStore) MoveAliases(ctx context.Context, userId, holdingId primitive.ObjectID, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	if _, err := s.col.UpdateMany(ctx,
+		scopedFilter(userId, bson.M{"_id": bson.M{"$ne": holdingId}}),
+		bson.M{"$pull": bson.M{"aliases": bson.M{"$in": keys}}}); err != nil {
+		return err
+	}
+	_, err := s.col.UpdateOne(ctx,
+		scopedFilter(userId, bson.M{"_id": holdingId}),
+		bson.M{"$addToSet": bson.M{"aliases": bson.M{"$each": keys}}})
+	return err
+}

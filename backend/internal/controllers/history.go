@@ -23,21 +23,54 @@ import (
 // + api/specs/portfolio-api.yaml schemas via `go generate -tags tools ./...`.
 
 func (h *Controller) ListHistory(ctx context.Context, req api.ListHistoryRequestObject) (api.ListHistoryResponseObject, error) {
-	uid, err := currentUserID(ctx)
+	currentUserId, err := currentUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
 	from := req.Params.From.Time
 	to := req.Params.To.Time
-	list, err := h.history.List(ctx, uid, from, to)
+	list, err := h.history.List(ctx, currentUserId, from, to)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidDate) {
 			return api.ListHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
 		}
 		return nil, err
 	}
-	h.attachGoldOverlay(ctx, uid, list.Rows)
+	h.attachGoldOverlay(ctx, currentUserId, list.Rows)
+	h.attachDividendOverlay(ctx, currentUserId, list.Rows)
 	return api.ListHistory200JSONResponse(toAPIHistoryList(list)), nil
+}
+
+// attachDividendOverlay decorates rows with dividends to date per currency
+// and per stock (PRD-005 §9). Failure degrades to rows without dividends,
+// like the gold overlay.
+func (h *Controller) attachDividendOverlay(ctx context.Context, userId primitive.ObjectID, rows []services.HistoryRow) {
+	if len(rows) == 0 {
+		return
+	}
+	dates := make([]string, 0, len(rows))
+	for _, row := range rows {
+		dates = append(dates, row.Date)
+	}
+	overlay, err := h.dividends.HistoryOverlay(ctx, userId, dates)
+	if err != nil {
+		logger := h.reqLog(ctx)
+		logger.Warn("dividend history overlay failed", zap.Error(err))
+		return
+	}
+	for i := range rows {
+		day, ok := overlay[rows[i].Date]
+		if !ok {
+			continue
+		}
+		if len(day.ByCurrency) > 0 {
+			rows[i].Dividends = day.ByCurrency
+		}
+		for j := range rows[i].Holdings {
+			line := &rows[i].Holdings[j]
+			line.Dividends = day.ByStock[services.StockKey{Currency: line.Currency, Symbol: line.Symbol}]
+		}
+	}
 }
 
 // attachGoldOverlay decorates history rows with the physical-gold position
@@ -186,12 +219,24 @@ func toAPIHistoryList(list services.HistoryList) api.HistoryList {
 
 func toAPIHistoryRow(r services.HistoryRow) api.HistoryRow {
 	return api.HistoryRow{
-		Date:     mustParseAPIDate(r.Date),
-		Regions:  toAPIRegionMap(r.Regions),
-		Totals:   toAPITotals(r.Totals),
-		Holdings: toAPIHistoryHoldings(r.Holdings),
-		Gold:     toAPIGoldOverlay(r.Gold),
+		Date:      mustParseAPIDate(r.Date),
+		Regions:   toAPIRegionMap(r.Regions),
+		Totals:    toAPITotals(r.Totals),
+		Holdings:  toAPIHistoryHoldings(r.Holdings),
+		Gold:      toAPIGoldOverlay(r.Gold),
+		Dividends: toAPIDividendOverlay(r.Dividends),
 	}
+}
+
+func toAPIDividendOverlay(byCurrency map[string]services.DividendHistoryPoint) *map[string]api.DividendHistoryOverlay {
+	if len(byCurrency) == 0 {
+		return nil
+	}
+	out := make(map[string]api.DividendHistoryOverlay, len(byCurrency))
+	for currency, point := range byCurrency {
+		out[currency] = api.DividendHistoryOverlay{ToDate: point.ToDate, OnDay: point.OnDay}
+	}
+	return &out
 }
 
 func toAPIGoldOverlay(p *domain.GoldHistoryPoint) *api.GoldHistoryOverlay {
@@ -222,6 +267,7 @@ func toAPIHistoryHoldings(hs []services.HistoryHolding) *[]api.HistoryHolding {
 			ClosePrice: h.ClosePrice,
 			PriceDate:  new(h.PriceDate),
 			Current:    new(h.Current),
+			Dividends:  new(h.Dividends),
 		})
 	}
 	return &out

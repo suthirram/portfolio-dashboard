@@ -117,3 +117,18 @@ describe('SummaryCards grouped change card', () => {
     expect(screen.getByText('+16.67%')).toBeInTheDocument()
   })
 })
+
+describe('SummaryCards dividend income', () => {
+  it('shows dividend income per currency and leaves Total P&L unchanged', () => {
+    render(<SummaryCards summary={base} loading={false} dividendsInr={1850.5} dividendsEur={40} />)
+    expect(screen.getByText('Dividend Income')).toBeInTheDocument()
+    expect(screen.getByText('₹1,850.50')).toBeInTheDocument()
+    expect(screen.getByText('€40.00')).toBeInTheDocument()
+    expect(screen.getByText('Total P&L').parentElement).not.toHaveTextContent('1,850.50')
+  })
+
+  it('hides the card when there is no dividend income', () => {
+    render(<SummaryCards summary={base} loading={false} dividendsInr={0} dividendsEur={0} />)
+    expect(screen.queryByText('Dividend Income')).toBeNull()
+  })
+})

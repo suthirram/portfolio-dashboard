@@ -42,3 +42,21 @@ export function transactionsPath(userId?: string): string {
 export function isActingAs(userId?: string): boolean {
   return actingAs(userId) !== null
 }
+
+/** Dividend tab + import + delete-all base path (PD-048). */
+export function dividendsPath(userId?: string): string {
+  const id = actingAs(userId)
+  return id ? `/admin/users/${id}/dividends` : '/dividends'
+}
+
+/** Per-holding ledger list/create (PD-048: writable in act-as). */
+export function holdingTransactionsPath(holdingId: string, userId?: string): string {
+  const id = actingAs(userId)
+  return id ? `/admin/users/${id}/holdings/${holdingId}/transactions` : `/holdings/${holdingId}/transactions`
+}
+
+/** One ledger event, for update/delete (PD-048: writable in act-as). */
+export function transactionPath(transactionId: string, userId?: string): string {
+  const id = actingAs(userId)
+  return id ? `/admin/users/${id}/transactions/${transactionId}` : `/transactions/${transactionId}`
+}

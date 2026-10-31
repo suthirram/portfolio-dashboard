@@ -27,6 +27,24 @@ func (e BrandingFont) Valid() bool {
 	}
 }
 
+// Defines values for DividendImportInputCurrency.
+const (
+	DividendImportInputCurrencyEUR DividendImportInputCurrency = "EUR"
+	DividendImportInputCurrencyINR DividendImportInputCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the DividendImportInputCurrency enum.
+func (e DividendImportInputCurrency) Valid() bool {
+	switch e {
+	case DividendImportInputCurrencyEUR:
+		return true
+	case DividendImportInputCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HistoryRegionSnapshotSource.
 const (
 	Cron   HistoryRegionSnapshotSource = "cron"
@@ -173,16 +191,16 @@ func (e HoldingInputType) Valid() bool {
 
 // Defines values for HoldingWithPriceCurrency.
 const (
-	EUR HoldingWithPriceCurrency = "EUR"
-	INR HoldingWithPriceCurrency = "INR"
+	HoldingWithPriceCurrencyEUR HoldingWithPriceCurrency = "EUR"
+	HoldingWithPriceCurrencyINR HoldingWithPriceCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceCurrency enum.
 func (e HoldingWithPriceCurrency) Valid() bool {
 	switch e {
-	case EUR:
+	case HoldingWithPriceCurrencyEUR:
 		return true
-	case INR:
+	case HoldingWithPriceCurrencyINR:
 		return true
 	default:
 		return false
@@ -354,6 +372,24 @@ func (e UserRole) Valid() bool {
 	}
 }
 
+// Defines values for DividendCurrency.
+const (
+	EUR DividendCurrency = "EUR"
+	INR DividendCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the DividendCurrency enum.
+func (e DividendCurrency) Valid() bool {
+	switch e {
+	case EUR:
+		return true
+	case INR:
+		return true
+	default:
+		return false
+	}
+}
+
 // AddHistoryRowInput defines model for AddHistoryRowInput.
 type AddHistoryRowInput struct {
 	Date    openapi_types.Date            `json:"date"`
@@ -409,6 +445,169 @@ type CurrencyChange struct {
 
 	// PreviousClose Snapshot current value in the native currency.
 	PreviousClose *float64 `json:"previous_close,omitempty"`
+}
+
+// DividendHistoryOverlay defines model for DividendHistoryOverlay.
+type DividendHistoryOverlay struct {
+	OnDay  float64 `json:"on_day"`
+	ToDate float64 `json:"to_date"`
+}
+
+// DividendHoldingTotal defines model for DividendHoldingTotal.
+type DividendHoldingTotal struct {
+	Count     int    `json:"count"`
+	HoldingId string `json:"holding_id"`
+	Script    string `json:"script"`
+
+	// Share total ÷ tab total (0–1)
+	Share  float64 `json:"share"`
+	Symbol string  `json:"symbol"`
+	Total  float64 `json:"total"`
+}
+
+// DividendImportCounts defines model for DividendImportCounts.
+type DividendImportCounts struct {
+	Duplicate int `json:"duplicate"`
+	Invalid   int `json:"invalid"`
+	Ready     int `json:"ready"`
+	Total     int `json:"total"`
+}
+
+// DividendImportInput defines model for DividendImportInput.
+type DividendImportInput struct {
+	Currency DividendImportInputCurrency `json:"currency"`
+
+	// Mappings Popup answers by sheet name — a holding id, or null to leave unresolved
+	Mappings *map[string]*string `json:"mappings,omitempty"`
+	Rows     []DividendImportRow `json:"rows"`
+}
+
+// DividendImportInputCurrency defines model for DividendImportInput.Currency.
+type DividendImportInputCurrency string
+
+// DividendImportPreview defines model for DividendImportPreview.
+type DividendImportPreview struct {
+	Counts   DividendImportCounts      `json:"counts"`
+	Names    []DividendNameResolution  `json:"names"`
+	Rows     []DividendImportRowStatus `json:"rows"`
+	Warnings []DividendImportWarning   `json:"warnings"`
+}
+
+// DividendImportResult defines model for DividendImportResult.
+type DividendImportResult struct {
+	BatchId    string                  `json:"batch_id"`
+	Duplicates []DividendImportRow     `json:"duplicates"`
+	Imported   int                     `json:"imported"`
+	Warnings   []DividendImportWarning `json:"warnings"`
+}
+
+// DividendImportRow defines model for DividendImportRow.
+type DividendImportRow struct {
+	Amount float64 `json:"amount"`
+
+	// Cumulative The sheet's CUMULATIVE cell — warnings only
+	Cumulative *float64           `json:"cumulative,omitempty"`
+	Date       openapi_types.Date `json:"date"`
+
+	// Line 1-based file line (header = 1)
+	Line      int    `json:"line"`
+	ShareName string `json:"share_name"`
+}
+
+// DividendImportRowStatus defines model for DividendImportRowStatus.
+type DividendImportRowStatus struct {
+	HoldingId *string `json:"holding_id,omitempty"`
+	Line      int     `json:"line"`
+	Reason    *string `json:"reason,omitempty"`
+
+	// Status ready | duplicate | invalid
+	Status string `json:"status"`
+}
+
+// DividendImportWarning defines model for DividendImportWarning.
+type DividendImportWarning struct {
+	Line    int    `json:"line"`
+	Message string `json:"message"`
+}
+
+// DividendNameResolution defines model for DividendNameResolution.
+type DividendNameResolution struct {
+	HoldingId *string `json:"holding_id,omitempty"`
+
+	// MatchedBy script | alias (auto only; a symbol never auto-matches)
+	MatchedBy *string `json:"matched_by,omitempty"`
+
+	// Preselect Suggested holding id when it is a clear best
+	Preselect *string `json:"preselect,omitempty"`
+	Rows      int     `json:"rows"`
+	SheetName string  `json:"sheet_name"`
+
+	// Status auto | confirmed | needs_confirmation | ambiguous | unresolved
+	Status      string               `json:"status"`
+	Suggestions []DividendSuggestion `json:"suggestions"`
+}
+
+// DividendPeriodTotal defines model for DividendPeriodTotal.
+type DividendPeriodTotal struct {
+	Count int `json:"count"`
+
+	// Period YYYY (by_year) or YYYY-MM (by_month)
+	Period string  `json:"period"`
+	Total  float64 `json:"total"`
+}
+
+// DividendRow One dividend ledger event in a currency tab (PRD-005 §8).
+type DividendRow struct {
+	// Amount Cash received
+	Amount float64 `json:"amount"`
+
+	// Cumulative Running total across all holdings in the tab
+	Cumulative float64 `json:"cumulative"`
+
+	// Currency INR | EUR
+	Currency string             `json:"currency"`
+	Date     openapi_types.Date `json:"date"`
+
+	// HoldingCumulative Running total for this holding
+	HoldingCumulative float64 `json:"holding_cumulative"`
+	HoldingId         string  `json:"holding_id"`
+	Id                string  `json:"id"`
+	Notes             *string `json:"notes,omitempty"`
+
+	// Script Owning holding's display name
+	Script string `json:"script"`
+
+	// Symbol Owning holding's ticker
+	Symbol string `json:"symbol"`
+}
+
+// DividendSuggestion defines model for DividendSuggestion.
+type DividendSuggestion struct {
+	HoldingId string  `json:"holding_id"`
+	Score     float64 `json:"score"`
+	Script    string  `json:"script"`
+	Symbol    string  `json:"symbol"`
+}
+
+// DividendSummary defines model for DividendSummary.
+type DividendSummary struct {
+	Count     int                 `json:"count"`
+	FirstDate *openapi_types.Date `json:"first_date,omitempty"`
+
+	// Holdings Holdings with at least one dividend
+	Holdings int                 `json:"holdings"`
+	LastDate *openapi_types.Date `json:"last_date,omitempty"`
+	Total    float64             `json:"total"`
+}
+
+// DividendView defines model for DividendView.
+type DividendView struct {
+	// ByHolding Biggest total first
+	ByHolding []DividendHoldingTotal `json:"by_holding"`
+	ByMonth   []DividendPeriodTotal  `json:"by_month"`
+	ByYear    []DividendPeriodTotal  `json:"by_year"`
+	Rows      []DividendRow          `json:"rows"`
+	Summary   DividendSummary        `json:"summary"`
 }
 
 // Error defines model for Error.
@@ -578,6 +777,9 @@ type HistoryHolding struct {
 	// Current quantity × close_price
 	Current *float64 `json:"current,omitempty"`
 
+	// Dividends Dividends received from this stock on or before the row date (PRD-005 §9)
+	Dividends *float64 `json:"dividends,omitempty"`
+
 	// PriceDate Trading date the close_price belongs to (YYYY-MM-DD)
 	PriceDate *string `json:"price_date,omitempty"`
 	Quantity  float64 `json:"quantity"`
@@ -617,6 +819,9 @@ type HistoryRegionSnapshotSource string
 // HistoryRow defines model for HistoryRow.
 type HistoryRow struct {
 	Date openapi_types.Date `json:"date"`
+
+	// Dividends Dividends per currency as of the row date — computed on read, never snapshotted (PRD-005 §9)
+	Dividends *map[string]DividendHistoryOverlay `json:"dividends,omitempty"`
 
 	// Gold Physical-gold position as of a history row's date (PRD-003 §8) —
 	// present only for gold-enabled users, only on dates on/after their
@@ -1058,6 +1263,9 @@ type User struct {
 
 // UserRole defines model for User.Role.
 type UserRole string
+
+// DividendCurrency defines model for DividendCurrency.
+type DividendCurrency string
 
 // UserID defines model for UserID.
 type UserID = string

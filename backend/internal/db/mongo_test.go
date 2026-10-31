@@ -43,5 +43,15 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 				t.Errorf("log output missing collection %q: %s", col, buf.String())
 			}
 		}
+		// transactions: replay, cascade, user listing, dividend tab (DD-005 §2.2).
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "createIndexes" || event.Command.Lookup("createIndexes").StringValue() != "transactions" {
+				continue
+			}
+			indexes, _ := event.Command.Lookup("indexes").Array().Values()
+			if len(indexes) != 4 {
+				t.Errorf("transactions indexes = %d, want 4", len(indexes))
+			}
+		}
 	})
 }

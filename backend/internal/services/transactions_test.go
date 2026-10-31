@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
 )
 
@@ -367,4 +368,111 @@ func TestTransactionsService_ListAll(t *testing.T) {
 			t.Fatalf("rows = %#v, want empty non-nil slice (serialises as [])", rows)
 		}
 	})
+}
+
+// The ledger and the CSV import share one dividend rule (PRD-005 §4).
+func TestValidateDividend(t *testing.T) {
+	today := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name   string
+		date   time.Time
+		amount float64
+		ok     bool
+	}{
+		{"today, positive", today, 300, true},
+		{"past, positive", today.AddDate(-6, 0, 0), 1250.5, true},
+		{"tomorrow", today.AddDate(0, 0, 1), 300, false},
+		{"zero", today, 0, false},
+		{"negative", today, -5, false},
+		{"absurd", today, 1e12, false},
+		{"sub-cent rounds to zero", today, 0.004, false},
+		{"fractional cent rounds up to a cent", today, 0.005, true},
+	}
+	for _, testCase := range cases {
+		err := validateDividend(testCase.date, testCase.amount, today)
+		if testCase.ok && err != nil {
+			t.Errorf("%s: err = %v, want nil", testCase.name, err)
+		}
+		if !testCase.ok && !errors.Is(err, ErrValidation) {
+			t.Errorf("%s: err = %v, want ErrValidation", testCase.name, err)
+		}
+	}
+}
+
+// A future-dated dividend through the ledger API is a 400, not a stored row.
+func TestValidateTxnInput_FutureDividendRejected(t *testing.T) {
+	today := time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC)
+	amount := 300.0
+	err := validateTxnInput(api.TransactionInput{Type: "dividend", Date: today.AddDate(0, 0, 2), Amount: &amount}, today)
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("err = %v, want ErrValidation", err)
+	}
+}
+
+// countingRecomputer records RecomputeFrom calls (the snapshot heal).
+type countingRecomputer struct{ calls int }
+
+func (c *countingRecomputer) RecomputeFrom(context.Context, primitive.ObjectID, time.Time) error {
+	c.calls++
+	return nil
+}
+
+// A back-dated dividend must not heal snapshots; a back-dated buy still must.
+func TestTransactionsService_DividendSkipsHeal(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	past := time.Date(2024, time.March, 15, 0, 0, 0, 0, time.UTC)
+
+	create := func(mt *mtest.T, txnType string, quantity float64) int {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		holdingsNamespace, transactionsNamespace := mt.DB.Name()+".holdings", mt.DB.Name()+".transactions"
+		event := bson.D{
+			{Key: "_id", Value: primitive.NewObjectID()}, {Key: "type", Value: txnType},
+			{Key: "date", Value: past}, {Key: "quantity", Value: quantity}, {Key: "amount", Value: 300.0},
+		}
+		mt.AddMockResponses(
+			// GetScoped(holdings).
+			mtest.CreateCursorResponse(0, holdingsNamespace, mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "INR"},
+			}),
+			// Insert(transactions).
+			mtest.CreateSuccessResponse(),
+			// recompute ListByHolding.
+			mtest.CreateCursorResponse(0, transactionsNamespace, mtest.FirstBatch, event),
+			// recompute holdings findAndModify.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: holdingId}}}),
+		)
+		recomputer := &countingRecomputer{}
+		store := persistence.New(mt.DB)
+		service := NewTransactionsService(store.Transactions, store.Holdings, recomputer, nil)
+		service.now = func() time.Time { return time.Date(2026, time.October, 30, 0, 0, 0, 0, time.UTC) }
+		amount := 300.0
+		input := api.TransactionInput{Type: api.TransactionInputType(txnType), Date: past, Amount: &amount}
+		if quantity > 0 {
+			input.Quantity = &quantity
+		}
+		if _, found, err := service.Create(context.Background(), userId, holdingId.Hex(), input); err != nil || !found {
+			t.Fatalf("Create %s: found=%v err=%v", txnType, found, err)
+		}
+		return recomputer.calls
+	}
+
+	mt.Run("dividend", func(mt *mtest.T) {
+		if calls := create(mt, "dividend", 0); calls != 0 {
+			t.Errorf("heal calls = %d, want 0 for a dividend", calls)
+		}
+	})
+	mt.Run("buy", func(mt *mtest.T) {
+		if calls := create(mt, "buy", 10); calls != 1 {
+			t.Errorf("heal calls = %d, want 1 for a buy", calls)
+		}
+	})
+}
+
+func TestLedgerCurrency(t *testing.T) {
+	cases := map[string]string{"": "INR", "inr": "INR", "EUR": "EUR", "usd": "USD"}
+	for stored, want := range cases {
+		if got := ledgerCurrency(domain.Holding{Currency: stored}); got != want {
+			t.Errorf("ledgerCurrency(%q) = %q, want %q", stored, got, want)
+		}
+	}
 }

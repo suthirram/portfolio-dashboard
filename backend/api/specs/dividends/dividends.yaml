@@ -1,0 +1,91 @@
+dividends:
+  get:
+    tags: [Dividends]
+    summary: One currency tab of the caller's dividends
+    description: |
+      Dividend ledger events of one currency, oldest first, with running
+      totals and analytics computed on read (PRD-005 §8).
+    operationId: listDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: The tab
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+  delete:
+    tags: [Dividends]
+    summary: Delete every dividend of one currency tab
+    description: Removes imported and hand-entered dividends of the currency and recomputes the affected holdings, atomically. Holdings and other transaction types are untouched.
+    operationId: deleteDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: Deleted count
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deleted]
+              properties:
+                deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+dividends_import_preview:
+  post:
+    tags: [Dividends]
+    summary: Evaluate a dividend CSV import without writing anything
+    operationId: previewDividendImport
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: What an import would do now
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+dividends_import:
+  post:
+    tags: [Dividends]
+    summary: Commit a dividend CSV import atomically
+    description: |
+      Re-runs the preview against the database as it is now and, when no row
+      is invalid, inserts every new dividend, saves confirmed name aliases
+      and recomputes the affected holdings in one transaction. Duplicates are
+      skipped and listed. 422 returns the fresh preview when rows are invalid.
+    operationId: importDividends
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: Imported
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportResult"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "422":
+        description: Invalid rows — nothing written
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"

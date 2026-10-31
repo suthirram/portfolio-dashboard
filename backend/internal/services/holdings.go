@@ -173,7 +173,7 @@ func openingFromInput(input api.HoldingInput) (qty, amount, seed float64, ok boo
 
 // Update applies input to the holding owned by uid. found=false when the id is
 // invalid, missing, or owned by someone else.
-func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {
+func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID, idHex string, input api.HoldingInput) (_ api.Holding, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "HoldingsService.Update")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
@@ -204,7 +204,7 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		update = append(update, bson.E{Key: "notes", Value: *input.Notes})
 	}
 
-	updated, err := s.store.UpdateScopedAndReturn(ctx, uid, id, update)
+	updated, err := s.store.UpdateScopedAndReturn(ctx, userId, id, update)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Holding{}, false, nil
@@ -214,11 +214,21 @@ func (s *HoldingsService) Update(ctx context.Context, uid primitive.ObjectID, id
 		return api.Holding{}, false, err
 	}
 
+	// The ledger copies the holding's currency onto every event; keep those
+	// copies in step so the dividend tab, History and the all-transactions
+	// view never disagree with the dashboard (PRD-005 §9).
+	if input.Currency != nil && ValidCurrency(*input.Currency) {
+		if err := s.txns.SetCurrencyByHolding(ctx, userId, id, ledgerCurrency(updated)); err != nil {
+			logger.Error("sync ledger currency failed", zap.String("id", idHex), zap.Error(err))
+			return api.Holding{}, false, err
+		}
+	}
+
 	// Setting the opening date stamps the holding's opening event with the
 	// user-chosen effective date (and syncs the ordering Date to it), then
 	// re-derives the position. No-op when the holding has no opening event.
 	if input.OpeningDate != nil {
-		if err := s.setOpeningDate(ctx, uid, id, input.OpeningDate.Time); err != nil {
+		if err := s.setOpeningDate(ctx, userId, id, input.OpeningDate.Time); err != nil {
 			logger.Error("set opening date failed",
 				zap.String("id", idHex), zap.String("error", err.Error()))
 			return api.Holding{}, false, err

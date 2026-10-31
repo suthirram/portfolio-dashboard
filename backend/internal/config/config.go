@@ -56,8 +56,10 @@ const defaultPostgresURI = "postgres://portfolio:portfolio@localhost:5432/portfo
 // Default returns the baseline configuration.
 func Default() Config {
 	return Config{
-		Port:            "8080",
-		MongoURI:        "mongodb://localhost:27017/portfolio",
+		Port: "8080",
+		// directConnection: the one-node set advertises "localhost", which is
+		// right from the host machine (DD-005 §2.6).
+		MongoURI:        "mongodb://localhost:27017/portfolio?replicaSet=rs0&directConnection=true",
 		MongoDB:         "portfolio",
 		PostgresURI:     defaultPostgresURI,
 		LogLevel:        "info",

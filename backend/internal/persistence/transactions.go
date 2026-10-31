@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,43 +19,63 @@ type TransactionStore struct {
 	col *mongo.Collection
 }
 
-// ListByHolding returns uid's transactions for one holding, ordered by trade
-// date then insertion time — the order the ledger replays in.
-func (s *TransactionStore) ListByHolding(ctx context.Context, uid, holdingID primitive.ObjectID) ([]domain.Transaction, error) {
+// replayOrder is the ledger's replay order: trade date, then insertion time.
+var replayOrder = bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}}
+
+// dividendOrder extends replayOrder with _id: one import batch shares one
+// created_at, and _id (assigned in sheet order) keeps the sheet's order.
+var dividendOrder = bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}, {Key: "_id", Value: 1}}
+
+// find runs a query and decodes every match in the given order.
+func (s *TransactionStore) find(ctx context.Context, filter bson.M, sort bson.D) ([]domain.Transaction, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	opts := options.Find().SetSort(bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}})
-	cur, err := s.col.Find(ctx, scopedFilter(uid, bson.M{"holding_id": holdingID}), opts)
+	cursor, err := s.col.Find(ctx, filter, options.Find().SetSort(sort))
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = cur.Close(ctx) }()
+	defer func() { _ = cursor.Close(ctx) }()
 
 	var txns []domain.Transaction
-	if err := cur.All(ctx, &txns); err != nil {
+	if err := cursor.All(ctx, &txns); err != nil {
 		return nil, err
 	}
 	return txns, nil
 }
 
-// ListByUser returns every transaction owned by uid (date-ordered).
-func (s *TransactionStore) ListByUser(ctx context.Context, uid primitive.ObjectID) ([]domain.Transaction, error) {
-	ctx, cancel := context.WithTimeout(ctx, readTimeout)
-	defer cancel()
+// ListByHolding returns userId's transactions for one holding in replay order.
+func (s *TransactionStore) ListByHolding(ctx context.Context, userId, holdingId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{"holding_id": holdingId}), replayOrder)
+}
 
-	opts := options.Find().SetSort(bson.D{{Key: "date", Value: 1}, {Key: "created_at", Value: 1}})
-	cur, err := s.col.Find(ctx, scopedFilter(uid, nil), opts)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = cur.Close(ctx) }()
+// ListByUser returns every transaction owned by userId in replay order.
+func (s *TransactionStore) ListByUser(ctx context.Context, userId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, nil), replayOrder)
+}
 
-	var txns []domain.Transaction
-	if err := cur.All(ctx, &txns); err != nil {
-		return nil, err
-	}
-	return txns, nil
+// ListDividends returns userId's dividend events in one currency, in tab order.
+// Stored currencies are canonical (ledgerCurrency), so the filter is exact.
+func (s *TransactionStore) ListDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{
+		"type": string(domain.TxnDividend), "currency": currency,
+	}), dividendOrder)
+}
+
+// ListAllDividends returns every dividend event of userId in tab order — the
+// History overlay's input.
+func (s *TransactionStore) ListAllDividends(ctx context.Context, userId primitive.ObjectID) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{"type": string(domain.TxnDividend)}), dividendOrder)
+}
+
+// ListDividendsByHoldings returns the dividend events of the given holdings
+// with from ≤ date ≤ to — the duplicate window of an import.
+func (s *TransactionStore) ListDividendsByHoldings(ctx context.Context, userId primitive.ObjectID, holdingIds []primitive.ObjectID, from, to time.Time) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{
+		"type":       string(domain.TxnDividend),
+		"holding_id": bson.M{"$in": holdingIds},
+		"date":       bson.M{"$gte": from, "$lte": to},
+	}), dividendOrder)
 }
 
 // OpeningsByUser returns uid's opening events keyed by holding id (one per
@@ -182,4 +203,66 @@ func (s *TransactionStore) HasAny(ctx context.Context, uid, holdingID primitive.
 		return false, err
 	}
 	return true, nil
+}
+
+// SetCurrencyByHolding rewrites the denormalised currency on every event of
+// one holding, so the ledger follows a holding's currency change.
+func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, holdingId primitive.ObjectID, currency string) error {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	_, err := s.col.UpdateMany(ctx,
+		scopedFilter(userId, bson.M{"holding_id": holdingId}),
+		bson.M{"$set": bson.M{"currency": currency}})
+	return err
+}
+
+// CanonicalizeCurrency rewrites every non-canonical ledger event currency to
+// its canonical code (persistence/currency.go). Returns the number changed.
+func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	result, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
+}
+
+// InsertMany inserts txns in order; ordered so a failure stops at that row
+// (inside the import transaction the whole batch then rolls back).
+func (s *TransactionStore) InsertMany(ctx context.Context, txns []domain.Transaction) error {
+	if len(txns) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	docs := make([]any, len(txns))
+	for i := range txns {
+		docs[i] = txns[i]
+	}
+	_, err := s.col.InsertMany(ctx, docs, options.InsertMany().SetOrdered(true))
+	return err
+}
+
+// DeleteDividends removes userId's dividend events in one currency and
+// returns the holdings they belonged to, for recompute.
+func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]primitive.ObjectID, int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currency})
+	distinctIds, err := s.col.Distinct(ctx, "holding_id", filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	holdingIds := make([]primitive.ObjectID, 0, len(distinctIds))
+	for _, value := range distinctIds {
+		if holdingId, ok := value.(primitive.ObjectID); ok {
+			holdingIds = append(holdingIds, holdingId)
+		}
+	}
+	result, err := s.col.DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	return holdingIds, result.DeletedCount, nil
 }

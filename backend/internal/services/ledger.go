@@ -48,6 +48,10 @@ func RecomputePosition(txns []domain.Transaction) (Position, error) {
 
 	var pos Position
 	var totalQty, totalBasis float64
+	// Dividends sum in integer cents — the same policy as the Dividends view
+	// (buildDividendView) — so a legacy sub-cent amount can never make
+	// total_dividends disagree with the per-holding total (DD-005 §2.5).
+	var dividendCents int64
 	var oversell error
 
 	for _, t := range ordered {
@@ -84,12 +88,13 @@ func RecomputePosition(txns []domain.Transaction) (Position, error) {
 				totalQty *= t.Ratio
 			}
 		case domain.TxnDividend:
-			pos.TotalDividends += t.Amount
+			dividendCents += domain.AmountCents(t.Amount)
 		case domain.TxnMerger:
 			// no-op on the position; recorded for audit only
 		}
 	}
 
+	pos.TotalDividends = domain.CentsToMoney(dividendCents)
 	pos.StocksOwned = totalQty
 	if totalQty > 0 {
 		pos.AvgCostPrice = totalBasis / totalQty

@@ -193,6 +193,9 @@ func TransactionFromInput(input api.TransactionInput) domain.Transaction {
 	}
 	if input.Amount != nil {
 		t.Amount = *input.Amount
+		if t.Type == domain.TxnDividend {
+			t.Amount = domain.RoundCents(t.Amount)
+		}
 	}
 	if input.Ratio != nil {
 		t.Ratio = *input.Ratio
@@ -289,4 +292,25 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 		out.SecurityQuestionIds = &ids
 	}
 	return out
+}
+
+// DividendRowToAPI maps one dividend event with its holding labels and the two
+// running totals computed by buildDividendView. holding may be nil (orphan).
+func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumulative, holdingCumulative float64) api.DividendRow {
+	var script, symbol string
+	if holding != nil {
+		script, symbol = holding.Script, holding.Symbol
+	}
+	return api.DividendRow{
+		Id:                dividend.ID.Hex(),
+		HoldingId:         dividend.HoldingID.Hex(),
+		Script:            script,
+		Symbol:            symbol,
+		Date:              openapi_types.Date{Time: domain.UTCDate(dividend.Date)},
+		Amount:            dividend.Amount,
+		Currency:          dividend.Currency,
+		Notes:             &dividend.Notes,
+		Cumulative:        cumulative,
+		HoldingCumulative: holdingCumulative,
+	}
 }

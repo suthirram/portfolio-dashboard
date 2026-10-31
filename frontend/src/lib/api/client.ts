@@ -10,12 +10,20 @@ import type {
   Transaction,
   TransactionInput,
   TransactionWithHolding,
+  DividendCurrency,
+  DividendImportInput,
+  DividendImportPreview,
+  DividendImportResult,
+  DividendView,
 } from '../../types'
 import {
+  dividendsPath,
   holdingPath,
+  holdingTransactionsPath,
   holdingsPath,
   pricesPath,
   summaryPath,
+  transactionPath,
   transactionsPath,
 } from '../../features/admin/actAsRouting'
 
@@ -54,7 +62,9 @@ const CSRF_HEADER = 'X-Requested-With'
 const CSRF_VALUE = 'portfolio-dashboard'
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  // body is the parsed JSON error payload, when there was one (e.g. the
+  // dividend import's 422 preview).
+  constructor(public status: number, message: string, public body?: unknown) {
     super(message)
   }
 }
@@ -82,7 +92,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       (data && typeof data === 'object' && 'error' in data && typeof (data as { error: unknown }).error === 'string')
         ? (data as { error: string }).error
         : text || `HTTP ${res.status}`
-    throw new ApiError(res.status, msg)
+    throw new ApiError(res.status, msg, data ?? undefined)
   }
 
   return data as T
@@ -127,19 +137,30 @@ export const api = {
 
   // Transactions — per-holding ledger. The holding's position is recomputed
   // server-side after every write, so callers should refresh holdings/prices.
-  listTransactions:   (holdingId: string) =>
-    request<Transaction[]>('GET', `/holdings/${holdingId}/transactions`),
-  createTransaction:  (holdingId: string, body: TransactionInput) =>
-    request<Transaction>('POST', `/holdings/${holdingId}/transactions`, body),
-  updateTransaction:  (id: string, body: TransactionInput) =>
-    request<Transaction>('PUT', `/transactions/${id}`, body),
-  deleteTransaction:  (id: string) =>
-    request<DeleteResponse>('DELETE', `/transactions/${id}`),
+  listTransactions:   (holdingId: string, userId?: string) =>
+    request<Transaction[]>('GET', holdingTransactionsPath(holdingId, userId)),
+  createTransaction:  (holdingId: string, body: TransactionInput, userId?: string) =>
+    request<Transaction>('POST', holdingTransactionsPath(holdingId, userId), body),
+  updateTransaction:  (id: string, body: TransactionInput, userId?: string) =>
+    request<Transaction>('PUT', transactionPath(id, userId), body),
+  deleteTransaction:  (id: string, userId?: string) =>
+    request<DeleteResponse>('DELETE', transactionPath(id, userId)),
 
   // Portfolio-wide ledger (PD-047). Same act-as shape as listHoldings: the
   // path mapping lives in actAsRouting, so the view never builds it inline.
   listAllTransactions: (userId?: string) =>
     request<TransactionWithHolding[]>('GET', transactionsPath(userId)),
+
+  // Dividends (PD-048): one currency tab, CSV import, delete-all. Single
+  // dividends are written through the ledger methods above.
+  listDividends: (currency: DividendCurrency, userId?: string) =>
+    request<DividendView>('GET', `${dividendsPath(userId)}?currency=${currency}`),
+  previewDividendImport: (body: DividendImportInput, userId?: string) =>
+    request<DividendImportPreview>('POST', `${dividendsPath(userId)}/import/preview`, body),
+  importDividends: (body: DividendImportInput, userId?: string) =>
+    request<DividendImportResult>('POST', `${dividendsPath(userId)}/import`, body),
+  deleteAllDividends: (currency: DividendCurrency, userId?: string) =>
+    request<{ deleted: number }>('DELETE', `${dividendsPath(userId)}?currency=${currency}`),
 
   // Market.
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),
@@ -209,6 +230,14 @@ export interface HistoryHolding {
   close_price: number
   price_date?: string
   current?: number
+  // Dividends from this stock on or before the row date (PRD-005 §9).
+  dividends?: number
+}
+
+// Dividends per currency as of a History row (PRD-005 §9), computed on read.
+export interface DividendHistoryOverlay {
+  to_date: number
+  on_day: number
 }
 
 // Physical-gold overlay on a history row (PRD-003 §8); present only for
@@ -228,6 +257,8 @@ export interface HistoryRow {
   holdings?: HistoryHolding[]
   // Gold position as-of the row date; absent for non-gold users / pre-purchase rows.
   gold?: GoldHistoryOverlay
+  // Dividends to date per currency; absent before the first dividend.
+  dividends?: Record<string, DividendHistoryOverlay>
   // Frontend-only: a synthetic row built client-side from live prices for
   // "today" when no snapshot exists yet (see historyShared.buildLiveRow).
   // Never sent to or returned by the backend.

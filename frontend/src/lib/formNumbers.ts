@@ -94,6 +94,15 @@ export function parseDecimalInput(raw: string, options: DecimalInputOptions = {}
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
+// parseSeededDecimal parses a field that was pre-filled with String(seeded),
+// an API number. Left untouched it returns seeded itself: re-parsing would
+// read "1.234" as the grouped integer 1234 under the default single-separator
+// rule. Anything the user typed is parsed as usual.
+export function parseSeededDecimal(raw: string, seeded: number | undefined, options: DecimalInputOptions = {}): number {
+  if (seeded != null && raw === String(seeded)) return seeded
+  return parseDecimalInput(raw, options)
+}
+
 export function sanitizeDecimalInput(raw: string, options: DecimalInputOptions = {}): string {
   const cleaned = raw.replace(/[^\d.,\s-]/g, '')
   if (!options.allowNegative) return cleaned.replace(/-/g, '')
@@ -117,4 +126,14 @@ export function groupIndian(raw: string): string {
   const rest = intPart.slice(0, -3)
   const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3
   return (neg ? '-' : '') + grouped + (decPart != null ? '.' + decPart : '')
+}
+
+const CURRENCY_SIGNS_RE = /[₹€$£]/g
+
+// parseMoneyCell reads a spreadsheet money cell in either number style —
+// 1,250.50 (Indian/English) or 1.250,50 (European) — by stripping currency
+// signs and delegating to parseDecimalInput, the parser the amount inputs
+// use. Empty → 0; unreadable → NaN.
+export function parseMoneyCell(cell: string): number {
+  return parseDecimalInput(cell.replace(CURRENCY_SIGNS_RE, ''))
 }

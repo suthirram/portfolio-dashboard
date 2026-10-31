@@ -594,3 +594,105 @@ func (h *Controller) AdminListUserTransactions(ctx context.Context, request api.
 	}
 	return api.AdminListUserTransactions200JSONResponse(txns), nil
 }
+
+// Act-as ledger editing (PRD-005 §10). Each handler resolves the target under
+// region scope, then calls the same TransactionsService method the user's own
+// route uses — one write path, recompute and validation included.
+
+func (h *Controller) AdminListUserHoldingTransactions(ctx context.Context, request api.AdminListUserHoldingTransactionsRequestObject) (api.AdminListUserHoldingTransactionsResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminListUserHoldingTransactions404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	txns, found, err := h.transactions.List(ctx, target.ID, request.HoldingId)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminListUserHoldingTransactions404JSONResponse{}, nil
+	}
+	return api.AdminListUserHoldingTransactions200JSONResponse(txns), nil
+}
+
+func (h *Controller) AdminCreateUserTransaction(ctx context.Context, request api.AdminCreateUserTransactionRequestObject) (api.AdminCreateUserTransactionResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminCreateUserTransaction404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	created, found, err := h.transactions.Create(ctx, target.ID, request.HoldingId, *request.Body)
+	if err != nil {
+		if badTransaction(err) {
+			return api.AdminCreateUserTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+		}
+		return nil, err
+	}
+	if !found {
+		return api.AdminCreateUserTransaction404JSONResponse{}, nil
+	}
+	return api.AdminCreateUserTransaction201JSONResponse(created), nil
+}
+
+func (h *Controller) AdminUpdateUserTransaction(ctx context.Context, request api.AdminUpdateUserTransactionRequestObject) (api.AdminUpdateUserTransactionResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminUpdateUserTransaction404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	updated, found, err := h.transactions.Update(ctx, target.ID, request.TransactionId, *request.Body)
+	if err != nil {
+		if badTransaction(err) {
+			return api.AdminUpdateUserTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+		}
+		return nil, err
+	}
+	if !found {
+		return api.AdminUpdateUserTransaction404JSONResponse{}, nil
+	}
+	return api.AdminUpdateUserTransaction200JSONResponse(updated), nil
+}
+
+func (h *Controller) AdminDeleteUserTransaction(ctx context.Context, request api.AdminDeleteUserTransactionRequestObject) (api.AdminDeleteUserTransactionResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminDeleteUserTransaction404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	deleted, err := h.transactions.Delete(ctx, target.ID, request.TransactionId)
+	if err != nil {
+		if badTransaction(err) {
+			return api.AdminDeleteUserTransaction400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+		}
+		return nil, err
+	}
+	if !deleted {
+		return api.AdminDeleteUserTransaction404JSONResponse{}, nil
+	}
+	message := "deleted"
+	return api.AdminDeleteUserTransaction200JSONResponse{Message: &message}, nil
+}

@@ -27,6 +27,7 @@ type Controller struct {
 	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
 	history      *services.HistoryService
+	dividends    *services.DividendsService
 	gold         *services.GoldService // nil when Postgres is not configured (DD-003 §1) — gold routes answer 503
 	logger       *zap.Logger
 	cookieSecure bool
@@ -63,6 +64,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 			services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger), logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
+		dividends:    services.NewDividendsService(store.Transactions, store.Holdings, store, logger),
 		logger:       logger,
 		cookieSecure: cookieSecure,
 	}

@@ -400,3 +400,164 @@ users_id_summary:
               $ref: "../portfolio-api.yaml#/components/schemas/Summary"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  get:
+    tags: [Admin]
+    summary: One currency tab of a user's dividends (act-as)
+    operationId: adminListUserDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: The tab
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+  delete:
+    tags: [Admin]
+    summary: Delete every dividend of one currency tab for a user (act-as)
+    operationId: adminDeleteUserDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: Deleted count
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deleted]
+              properties:
+                deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends_import_preview:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Evaluate a dividend import for a user (act-as)
+    operationId: adminPreviewUserDividendImport
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: What an import would do now
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_dividends_import:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Commit a dividend import for a user (act-as)
+    operationId: adminImportUserDividends
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/DividendImportInput"
+    responses:
+      "200":
+        description: Imported
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportResult"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "422":
+        description: Invalid rows — nothing written
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/DividendImportPreview"
+
+users_id_holdings_holdingid_transactions:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    - name: holdingId
+      in: path
+      required: true
+      schema: { type: string }
+      description: MongoDB ObjectID of the holding
+  get:
+    tags: [Admin]
+    summary: A user's ledger for one holding (act-as)
+    operationId: adminListUserHoldingTransactions
+    responses:
+      "200":
+        description: Transactions in replay order
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: "../portfolio-api.yaml#/components/schemas/Transaction" } }
+      "404": { $ref: "../portfolio-api.yaml#/components/responses/NotFound" }
+  post:
+    tags: [Admin]
+    summary: Add a ledger event to a user's holding (act-as)
+    operationId: adminCreateUserTransaction
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: "../portfolio-api.yaml#/components/schemas/TransactionInput" } } }
+    responses:
+      "201":
+        description: Created
+        content: { application/json: { schema: { $ref: "../portfolio-api.yaml#/components/schemas/Transaction" } } }
+      "400": { $ref: "../portfolio-api.yaml#/components/responses/BadRequest" }
+      "404": { $ref: "../portfolio-api.yaml#/components/responses/NotFound" }
+users_id_transactions_transactionid:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    - name: transactionId
+      in: path
+      required: true
+      schema: { type: string }
+      description: MongoDB ObjectID of the transaction
+  put:
+    tags: [Admin]
+    summary: Edit a user's ledger event (act-as)
+    operationId: adminUpdateUserTransaction
+    requestBody:
+      required: true
+      content: { application/json: { schema: { $ref: "../portfolio-api.yaml#/components/schemas/TransactionInput" } } }
+    responses:
+      "200":
+        description: Updated
+        content: { application/json: { schema: { $ref: "../portfolio-api.yaml#/components/schemas/Transaction" } } }
+      "400": { $ref: "../portfolio-api.yaml#/components/responses/BadRequest" }
+      "404": { $ref: "../portfolio-api.yaml#/components/responses/NotFound" }
+  delete:
+    tags: [Admin]
+    summary: Delete a user's ledger event (act-as)
+    operationId: adminDeleteUserTransaction
+    responses:
+      "200":
+        description: Deleted
+        content: { application/json: { schema: { type: object, properties: { message: { type: string } } } } }
+      "400": { $ref: "../portfolio-api.yaml#/components/responses/BadRequest" }
+      "404": { $ref: "../portfolio-api.yaml#/components/responses/NotFound" }

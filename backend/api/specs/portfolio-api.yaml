@@ -25,6 +25,14 @@ components:
       schema:
         type: string
       description: MongoDB ObjectID of the target user
+    DividendCurrency:
+      name: currency
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [INR, EUR]
+      description: The currency tab
 
   schemas:
     Region:
@@ -889,6 +897,10 @@ components:
           type: number
           format: double
           description: quantity × close_price
+        dividends:
+          type: number
+          format: double
+          description: Dividends received from this stock on or before the row date (PRD-005 §9)
 
     HistoryRow:
       type: object
@@ -910,6 +922,11 @@ components:
             $ref: "#/components/schemas/HistoryHolding"
         gold:
           $ref: "#/components/schemas/GoldHistoryOverlay"
+        dividends:
+          type: object
+          description: Dividends per currency as of the row date — computed on read, never snapshotted (PRD-005 §9)
+          additionalProperties:
+            $ref: "#/components/schemas/DividendHistoryOverlay"
 
     HistoryList:
       type: object
@@ -1027,6 +1044,139 @@ components:
                 $ref: "#/components/schemas/HistoryRegionSnapshot"
               incoming:
                 $ref: "#/components/schemas/HistoryRegionInput"
+
+    DividendRow:
+      type: object
+      description: One dividend ledger event in a currency tab (PRD-005 §8).
+      required: [id, holding_id, script, symbol, date, amount, currency, cumulative, holding_cumulative]
+      properties:
+        id: { type: string }
+        holding_id: { type: string }
+        script: { type: string, description: Owning holding's display name }
+        symbol: { type: string, description: Owning holding's ticker }
+        date: { type: string, format: date }
+        amount: { type: number, format: double, description: Cash received, in currency }
+        currency: { type: string, description: INR | EUR }
+        notes: { type: string }
+        cumulative: { type: number, format: double, description: Running total across all holdings in the tab, chronological }
+        holding_cumulative: { type: number, format: double, description: Running total for this holding, chronological }
+    DividendSummary:
+      type: object
+      required: [total, count, holdings]
+      properties:
+        total: { type: number, format: double }
+        count: { type: integer }
+        holdings: { type: integer, description: Holdings with at least one dividend }
+        first_date: { type: string, format: date, nullable: true }
+        last_date: { type: string, format: date, nullable: true }
+    DividendPeriodTotal:
+      type: object
+      required: [period, total, count]
+      properties:
+        period: { type: string, description: YYYY (by_year) or YYYY-MM (by_month) }
+        total: { type: number, format: double }
+        count: { type: integer }
+    DividendHoldingTotal:
+      type: object
+      required: [holding_id, script, symbol, total, count, share]
+      properties:
+        holding_id: { type: string }
+        script: { type: string }
+        symbol: { type: string }
+        total: { type: number, format: double }
+        count: { type: integer }
+        share: { type: number, format: double, description: total ÷ tab total (0–1) }
+    DividendView:
+      type: object
+      required: [rows, summary, by_year, by_month, by_holding]
+      properties:
+        rows: { type: array, items: { $ref: "#/components/schemas/DividendRow" } }
+        summary: { $ref: "#/components/schemas/DividendSummary" }
+        by_year: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
+        by_month: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
+        by_holding: { type: array, description: Biggest total first, items: { $ref: "#/components/schemas/DividendHoldingTotal" } }
+    DividendImportRow:
+      type: object
+      required: [line, date, share_name, amount]
+      properties:
+        line: { type: integer, description: 1-based file line (header = 1) }
+        date: { type: string, format: date }
+        share_name: { type: string }
+        amount: { type: number, format: double }
+        cumulative: { type: number, format: double, nullable: true, description: The sheet's CUMULATIVE cell — warnings only }
+    DividendImportInput:
+      type: object
+      required: [currency, rows]
+      properties:
+        currency: { type: string, enum: [INR, EUR] }
+        rows: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/DividendImportRow" } }
+        mappings:
+          type: object
+          description: Popup answers by sheet name — a holding id, or null to leave unresolved
+          additionalProperties: { type: string, nullable: true }
+    DividendSuggestion:
+      type: object
+      required: [holding_id, script, symbol, score]
+      properties:
+        holding_id: { type: string }
+        script: { type: string }
+        symbol: { type: string }
+        score: { type: number, format: double }
+    DividendNameResolution:
+      type: object
+      required: [sheet_name, rows, status, suggestions]
+      properties:
+        sheet_name: { type: string }
+        rows: { type: integer }
+        status: { type: string, description: auto | confirmed | needs_confirmation | ambiguous | unresolved }
+        holding_id: { type: string }
+        matched_by: { type: string, description: script | alias (auto only; a symbol never auto-matches) }
+        suggestions: { type: array, items: { $ref: "#/components/schemas/DividendSuggestion" } }
+        preselect: { type: string, description: Suggested holding id when it is a clear best }
+    DividendImportRowStatus:
+      type: object
+      required: [line, status]
+      properties:
+        line: { type: integer }
+        status: { type: string, description: ready | duplicate | invalid }
+        holding_id: { type: string }
+        reason: { type: string }
+    DividendImportWarning:
+      type: object
+      required: [line, message]
+      properties:
+        line: { type: integer }
+        message: { type: string }
+    DividendImportCounts:
+      type: object
+      required: [ready, duplicate, invalid, total]
+      properties:
+        ready: { type: integer }
+        duplicate: { type: integer }
+        invalid: { type: integer }
+        total: { type: integer }
+    DividendImportPreview:
+      type: object
+      required: [counts, names, rows, warnings]
+      properties:
+        counts: { $ref: "#/components/schemas/DividendImportCounts" }
+        names: { type: array, items: { $ref: "#/components/schemas/DividendNameResolution" } }
+        rows: { type: array, items: { $ref: "#/components/schemas/DividendImportRowStatus" } }
+        warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    DividendImportResult:
+      type: object
+      required: [imported, duplicates, batch_id, warnings]
+      properties:
+        imported: { type: integer }
+        duplicates: { type: array, items: { $ref: "#/components/schemas/DividendImportRow" } }
+        batch_id: { type: string }
+        warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    DividendHistoryOverlay:
+      type: object
+      required: [to_date, on_day]
+      properties:
+        to_date: { type: number, format: double }
+        on_day: { type: number, format: double }
 
   responses:
     BadRequest:

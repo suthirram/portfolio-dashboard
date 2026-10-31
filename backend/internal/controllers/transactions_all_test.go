@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"testing"
+	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
@@ -91,6 +93,71 @@ func TestAdminListUserTransactions(t *testing.T) {
 		}
 		if _, ok := resp.(api.AdminListUserTransactions404JSONResponse); !ok {
 			t.Fatalf("response = %T, want 404", resp)
+		}
+	})
+}
+
+// Act-as ledger writes are region-scoped: out-of-region targets read as 404
+// and nothing is written; in-region writes land on the target's ledger.
+func TestAdminUserTransactionWrites(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
+
+	mt.Run("out-of-region create is 404, no insert", func(mt *mtest.T) {
+		target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		amount := 300.0
+		response, err := handler.AdminCreateUserTransaction(userCtx(regionalAdmin("india")), api.AdminCreateUserTransactionRequestObject{
+			Id: primitive.NewObjectID().Hex(), HoldingId: primitive.NewObjectID().Hex(),
+			Body: &api.TransactionInput{Type: "dividend", Date: date, Amount: &amount},
+		})
+		if err != nil {
+			t.Fatalf("AdminCreateUserTransaction: %v", err)
+		}
+		if _, ok := response.(api.AdminCreateUserTransaction404JSONResponse); !ok {
+			t.Fatalf("response = %T, want 404", response)
+		}
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "insert" {
+				t.Error("insert issued for an out-of-region target")
+			}
+		}
+	})
+
+	mt.Run("in-region create writes the target's ledger", func(mt *mtest.T) {
+		targetId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		target := userDocument(t, targetId, "bob", "irrelevant1", domain.RoleUser, "india", nil)
+		dividend := bson.D{{Key: "_id", Value: primitive.NewObjectID()}, {Key: "type", Value: "dividend"}, {Key: "amount", Value: 300.0}}
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, bson.D{
+				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: targetId}, {Key: "currency", Value: "INR"},
+			}),
+			mtest.CreateSuccessResponse(),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch, dividend),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: holdingId}}}),
+		)
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		amount := 300.0
+		response, err := handler.AdminCreateUserTransaction(userCtx(regionalAdmin("india")), api.AdminCreateUserTransactionRequestObject{
+			Id: targetId.Hex(), HoldingId: holdingId.Hex(),
+			Body: &api.TransactionInput{Type: "dividend", Date: date, Amount: &amount},
+		})
+		if err != nil {
+			t.Fatalf("AdminCreateUserTransaction: %v", err)
+		}
+		if _, ok := response.(api.AdminCreateUserTransaction201JSONResponse); !ok {
+			t.Fatalf("response = %T, want 201", response)
+		}
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "insert" {
+				continue
+			}
+			inserted := event.Command.Lookup("documents").Array().Index(0).Value().Document()
+			if inserted.Lookup("user_id").ObjectID() != targetId {
+				t.Errorf("inserted user_id = %s, want the target", inserted.Lookup("user_id").ObjectID().Hex())
+			}
 		}
 	})
 }

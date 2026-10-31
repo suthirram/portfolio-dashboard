@@ -13,11 +13,26 @@ import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
+import { canonicalCurrency } from '../../lib/currency'
 import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
 import {
   ChartLineIcon, CoinsIcon, ListIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon,
   UserCheckIcon, UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
 } from '../../components/Icon'
+
+// dividendIncome sums ledger-derived dividends per native currency for the
+// income card (PRD-005 §9). It buckets holdings like the backend's CurrencyOf
+// (blank → INR), so a legacy USD holding lands in neither line instead of
+// being added into the INR one, which keeps the card in step with the tabs.
+export function dividendIncome(holdings: HoldingWithPrice[]): { inr: number; eur: number } {
+  const income = { inr: 0, eur: 0 }
+  for (const holding of holdings) {
+    const currency = canonicalCurrency(holding.currency)
+    if (currency === 'INR') income.inr += holding.total_dividends ?? 0
+    else if (currency === 'EUR') income.eur += holding.total_dividends ?? 0
+  }
+  return income
+}
 
 type ModalState = 'add' | HoldingWithPrice | null
 type Tab = 'table' | 'charts'
@@ -114,6 +129,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
     }
   }, [actAsUserId, enriched])
+  const income = useMemo(() => dividendIncome(enriched), [enriched])
 
   const TAB = (key: Tab, label: string) => (
     <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
@@ -163,6 +179,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <Link to={actAsUserId ? `/admin/users/${actAsUserId}/transactions` : '/transactions'}
             className="btn dash-nav-btn">
             <ListIcon size={14} /> <span className="dash-nav-label-sm">Transactions</span>
+          </Link>
+          {/* Target-aware for act-as, same rule as Transactions above. */}
+          <Link to={actAsUserId ? `/admin/users/${actAsUserId}/dividends` : '/dividends'}
+            className="btn dash-nav-btn">
+            <CoinsIcon size={14} /> <span className="dash-nav-label-sm">Dividends</span>
           </Link>
           {!actAsUserId && user?.gold_enabled && (
             <Link to="/gold" className="btn dash-nav-btn">
@@ -248,6 +269,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           goldInvestedInr={goldMetrics?.invested ?? null}
           goldNettPL={goldMetrics?.nett_in_bees ?? null}
           stocksInvestedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+          dividendsInr={income.inr}
+          dividendsEur={income.eur}
           stocksInvestedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0), 0)}
           stocksCurrentInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0) + (h.unrealized_pnl ?? 0), 0)}
           stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}

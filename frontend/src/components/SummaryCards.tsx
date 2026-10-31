@@ -274,6 +274,22 @@ function PnLBreakdownCard({stocksInr, stocksEur, goldNettPL, onClick}: {
     )
 }
 
+// DividendIncomeCard shows ledger-derived dividend income per currency
+// (PRD-005 §9). Displayed beside P&L, never added to it; INR and EUR are
+// separate lines, never summed.
+function DividendIncomeCard({inr, eur}: { inr?: number; eur?: number }) {
+    const rows: BreakdownRow[] = [
+        ...(inr != null && inr > 0 ? [{name: 'INR', symbol: '₹', value: inr, bg: 'var(--breakdown-inr-bg)'}] : []),
+        ...(eur != null && eur > 0 ? [{name: 'EUR', symbol: '€', value: eur, bg: 'var(--breakdown-eur-bg)'}] : []),
+    ]
+    return (
+        <div className="card" style={cardStyle}>
+            <div style={cardLabelStyle}>Dividend Income</div>
+            {rows.map(row => <BreakdownLine key={row.name} row={row}/>)}
+        </div>
+    )
+}
+
 // FlipCard wraps a toggleable card: rotates out (0→90°), swaps content at the
 // midpoint, then rotates in (−90→0°), giving a realistic single-axis flip.
 function FlipCard({onFlip, children}: { onFlip: () => void; children: React.ReactNode }) {
@@ -354,6 +370,9 @@ interface SummaryCardsProps {
     // matching the ChangeStat values shown in each currency group card.
     computedDayGainInr?: number | null
     computedDayGainEur?: number | null
+    // Ledger-derived dividend income per native currency (PRD-005 §9).
+    dividendsInr?: number
+    dividendsEur?: number
 }
 
 export default function SummaryCards({
@@ -369,7 +388,9 @@ export default function SummaryCards({
                                          stocksUnrealisedInr,
                                          stocksUnrealisedEur,
                                          computedDayGainInr,
-                                         computedDayGainEur
+                                         computedDayGainEur,
+                                         dividendsInr,
+                                         dividendsEur
                                      }: SummaryCardsProps) {
     const [showInvestedBreakdown, setShowInvestedBreakdown] = useState(false)
     const [showCurrentBreakdown, setShowCurrentBreakdown] = useState(false)
@@ -476,6 +497,9 @@ export default function SummaryCards({
                 </FlipCard>
                 <Card label="Total P&L" inr={totalPnL} eur={totalPnLEur}
                       positive={totalPnL >= 0} negative={totalPnL < 0}/>
+                {(dividendsInr ?? 0) + (dividendsEur ?? 0) > 0 && (
+                    <DividendIncomeCard inr={dividendsInr} eur={dividendsEur}/>
+                )}
             </div>
         </div>
     )
