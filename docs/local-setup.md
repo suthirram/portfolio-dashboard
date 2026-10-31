@@ -16,6 +16,14 @@ MongoDB (portfolio) and Postgres (gold tracking):
 docker compose -f docker-compose.dev.yml up -d
 ```
 
+MongoDB runs as a single-node replica set (`rs0`) because dividend imports
+use multi-document transactions; the container's healthcheck initiates the
+set on first boot. The backend's default URI is
+`mongodb://localhost:27017/portfolio?replicaSet=rs0&directConnection=true`.
+An existing dev volume from before the switch: run
+`docker compose -f docker-compose.dev.yml up -d --force-recreate mongodb`
+once; data is kept.
+
 ### 2. Start the backend
 
 ```bash
