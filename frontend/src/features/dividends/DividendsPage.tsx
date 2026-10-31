@@ -37,7 +37,7 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const [params, setParams] = useSearchParams()
   const currency = tabFrom(params.get('currency'))
-  const { view, holdings, loading, error, refresh } = useDividends(currency, actAsUserId)
+  const { view, ready, holdings, loading, error, refresh } = useDividends(currency, actAsUserId)
   const [holdingId, setHoldingId] = useState('')
   const [search, setSearch] = useState('')
   const [editor, setEditor] = useState<{ row: DividendRow | null } | null>(null)
@@ -95,7 +95,8 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
         {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
         {loading && <div className="spinner" style={{ width: 16, height: 16 }} />}
 
-        {!loading && view.summary.count === 0 ? (
+        {/* Nothing tab-specific (rows, totals, edit/delete) until the view is this tab's. */}
+        {!ready ? null : view.summary.count === 0 ? (
           <section style={{ ...card, textAlign: 'center', padding: 40 }}>
             <p style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>No {currency} dividends yet</p>
             <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Upload a CSV with this header, or add a dividend by hand.</p>

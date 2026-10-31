@@ -94,6 +94,15 @@ export function parseDecimalInput(raw: string, options: DecimalInputOptions = {}
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
+// parseSeededDecimal parses a field that was pre-filled with String(seeded),
+// an API number. Left untouched it returns seeded itself: re-parsing would
+// read "1.234" as the grouped integer 1234 under the default single-separator
+// rule. Anything the user typed is parsed as usual.
+export function parseSeededDecimal(raw: string, seeded: number | undefined, options: DecimalInputOptions = {}): number {
+  if (seeded != null && raw === String(seeded)) return seeded
+  return parseDecimalInput(raw, options)
+}
+
 export function sanitizeDecimalInput(raw: string, options: DecimalInputOptions = {}): string {
   const cleaned = raw.replace(/[^\d.,\s-]/g, '')
   if (!options.allowNegative) return cleaned.replace(/-/g, '')

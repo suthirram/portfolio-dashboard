@@ -47,6 +47,35 @@ describe('dividend CRUD', () => {
     await waitFor(() => expect(mockApi.listDividends).toHaveBeenCalledTimes(2))
   })
 
+  it('offers no INR row actions on the EUR tab while it loads or after it fails', async () => {
+    let failEur: (reason: Error) => void = () => {}
+    mockApi.listDividends.mockImplementation((currency: string) =>
+      currency === 'INR' ? Promise.resolve(view) : new Promise((_, reject) => { failEur = reject }))
+    renderPage()
+    await screen.findByLabelText('Delete dividend of 01-01-2020')
+
+    fireEvent.click(screen.getByRole('tab', { name: /EUR/ }))
+    expect(screen.queryByLabelText('Delete dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByLabelText('Edit dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByText(/Delete all/)).toBeNull()
+
+    failEur(new Error('network down'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('network down')
+    expect(screen.queryByLabelText('Delete dividend of 01-01-2020')).toBeNull()
+    expect(screen.queryByText(/Delete all/)).toBeNull()
+  })
+
+  it('keeps a stored 1.234 amount on a date-only edit', async () => {
+    mockApi.listDividends.mockResolvedValue({ ...view, rows: [{ ...view.rows[0], amount: 1.234 }] })
+    mockApi.updateTransaction.mockResolvedValue({})
+    renderPage()
+    fireEvent.click(await screen.findByLabelText('Edit dividend of 01-01-2020'))
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2020-01-02' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(mockApi.updateTransaction).toHaveBeenCalledWith('d1',
+      { type: 'dividend', date: '2020-01-02T00:00:00Z', quantity: 0, amount: 1.234, notes: undefined }, undefined))
+  })
+
   it('deletes one dividend after an in-app confirmation', async () => {
     renderPage()
     fireEvent.click(await screen.findByLabelText('Delete dividend of 01-01-2020'))
