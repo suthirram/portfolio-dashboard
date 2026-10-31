@@ -54,27 +54,27 @@ func buildDividendView(txns []domain.Transaction, holdings []domain.Holding) api
 	var holdingOrder []primitive.ObjectID
 	years, months := newPeriodTotals(), newPeriodTotals()
 
-	for _, t := range txns {
-		cents := domain.AmountCents(t.Amount)
+	for _, dividend := range txns {
+		cents := domain.AmountCents(dividend.Amount)
 		totalCents += cents
-		if _, seen := holdingCents[t.HoldingID]; !seen {
-			holdingOrder = append(holdingOrder, t.HoldingID)
+		if _, seen := holdingCents[dividend.HoldingID]; !seen {
+			holdingOrder = append(holdingOrder, dividend.HoldingID)
 		}
-		holdingCents[t.HoldingID] += cents
-		holdingCount[t.HoldingID]++
-		day := domain.UTCDate(t.Date)
+		holdingCents[dividend.HoldingID] += cents
+		holdingCount[dividend.HoldingID]++
+		day := domain.UTCDate(dividend.Date)
 		years.add(day.Format("2006"), cents)
 		months.add(day.Format("2006-01"), cents)
-		view.Rows = append(view.Rows, DividendRowToAPI(t, holdingsById[t.HoldingID],
-			domain.CentsToMoney(totalCents), domain.CentsToMoney(holdingCents[t.HoldingID])))
+		view.Rows = append(view.Rows, DividendRowToAPI(dividend, holdingsById[dividend.HoldingID],
+			domain.CentsToMoney(totalCents), domain.CentsToMoney(holdingCents[dividend.HoldingID])))
 	}
 
 	view.ByYear, view.ByMonth = years.toAPI(), months.toAPI()
 	view.ByHolding = make([]api.DividendHoldingTotal, 0, len(holdingOrder))
 	for _, holdingId := range holdingOrder {
 		var script, symbol string
-		if h := holdingsById[holdingId]; h != nil {
-			script, symbol = h.Script, h.Symbol
+		if holding := holdingsById[holdingId]; holding != nil {
+			script, symbol = holding.Script, holding.Symbol
 		}
 		share := 0.0
 		if totalCents > 0 {
@@ -85,7 +85,7 @@ func buildDividendView(txns []domain.Transaction, holdings []domain.Holding) api
 			Total: domain.CentsToMoney(holdingCents[holdingId]), Count: holdingCount[holdingId], Share: share,
 		})
 	}
-	slices.SortStableFunc(view.ByHolding, func(a, b api.DividendHoldingTotal) int { return cmp.Compare(b.Total, a.Total) })
+	slices.SortStableFunc(view.ByHolding, func(first, second api.DividendHoldingTotal) int { return cmp.Compare(second.Total, first.Total) })
 
 	view.Summary = api.DividendSummary{Total: domain.CentsToMoney(totalCents), Count: len(txns), Holdings: len(holdingOrder)}
 	if len(txns) > 0 {

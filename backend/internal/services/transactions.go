@@ -93,9 +93,9 @@ func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.O
 // values (DD-005 §2.5). Dividends reach History via the on-read overlay.
 func (s *TransactionsService) healAfter(ctx context.Context, userId primitive.ObjectID, events ...domain.Transaction) {
 	dates := make([]time.Time, 0, len(events))
-	for _, e := range events {
-		if e.Type != domain.TxnDividend {
-			dates = append(dates, e.Date)
+	for _, event := range events {
+		if event.Type != domain.TxnDividend {
+			dates = append(dates, event.Date)
 		}
 	}
 	if len(dates) == 0 {
@@ -404,9 +404,9 @@ func validateTxnInput(input api.TransactionInput, today time.Time) error {
 // canonical INR/EUR from CurrencyOf (blank → INR), or the holding's own code
 // upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
 // so readers filter on the stored value without special cases.
-func ledgerCurrency(h domain.Holding) string {
-	if c, ok := CurrencyOf(h); ok {
-		return c
+func ledgerCurrency(holding domain.Holding) string {
+	if currency, known := CurrencyOf(holding); known {
+		return currency
 	}
-	return strings.ToUpper(h.Currency)
+	return strings.ToUpper(holding.Currency)
 }

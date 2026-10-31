@@ -19,8 +19,8 @@ func TestListDividends_ScopedToCallerAndCurrency(t *testing.T) {
 			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
 			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch),
 		)
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
-		resp, err := h.ListDividends(userCtx(caller), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "EUR"}})
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := handler.ListDividends(userCtx(caller), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "EUR"}})
 		if err != nil {
 			t.Fatalf("ListDividends: %v", err)
 		}
@@ -46,8 +46,8 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
 	mt.Run("europe target, india admin", func(mt *mtest.T) {
 		target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
-		resp, err := h.AdminListUserDividends(userCtx(regionalAdmin("india")), api.AdminListUserDividendsRequestObject{
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := handler.AdminListUserDividends(userCtx(regionalAdmin("india")), api.AdminListUserDividendsRequestObject{
 			Id: primitive.NewObjectID().Hex(), Params: api.AdminListUserDividendsParams{Currency: "INR"},
 		})
 		if err != nil {
@@ -64,16 +64,16 @@ func TestAdminListUserDividends_OutOfRegion404(t *testing.T) {
 func TestListDividends_BadCurrency400(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("USD", func(mt *mtest.T) {
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
-		resp, err := h.ListDividends(userCtx(regionalAdmin("india")), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "USD"}})
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := handler.ListDividends(userCtx(regionalAdmin("india")), api.ListDividendsRequestObject{Params: api.ListDividendsParams{Currency: "USD"}})
 		if err != nil {
 			t.Fatalf("ListDividends: %v", err)
 		}
 		if _, ok := resp.(api.ListDividends400JSONResponse); !ok {
 			t.Fatalf("response = %T, want 400", resp)
 		}
-		if n := len(mt.GetAllStartedEvents()); n != 0 {
-			t.Errorf("%d database commands issued for an invalid currency; want none", n)
+		if commands := len(mt.GetAllStartedEvents()); commands != 0 {
+			t.Errorf("%d database commands issued for an invalid currency; want none", commands)
 		}
 	})
 }

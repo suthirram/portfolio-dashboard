@@ -112,35 +112,35 @@ func TestHoldingsService_Update_SyncsLedgerCurrency(t *testing.T) {
 			// SetCurrencyByHolding — updateMany on transactions.
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(3)}, bson.E{Key: "nModified", Value: int32(3)}),
 		)
-		st := persistence.New(mt.DB)
-		svc := NewHoldingsService(st.Holdings, st.Transactions, nil)
-		if _, found, err := svc.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil)
+		if _, found, err := service.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
 			Script: "SAP", Exchange: "OTHER", Type: "stock", Currency: currency,
 		}); err != nil || !found {
 			t.Fatalf("Update: found=%v err=%v", found, err)
 		}
-		n := 0
-		for _, e := range mt.GetAllStartedEvents() {
-			if e.CommandName != "update" || e.Command.Lookup("update").StringValue() != "transactions" {
+		ledgerUpdates := 0
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "update" || event.Command.Lookup("update").StringValue() != "transactions" {
 				continue
 			}
-			n++
-			set := e.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
+			ledgerUpdates++
+			set := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
 			if got := set.Lookup("currency").StringValue(); got != "EUR" {
 				t.Errorf("ledger currency = %q, want EUR", got)
 			}
 		}
-		return n
+		return ledgerUpdates
 	}
 	mt.Run("currency changed", func(mt *mtest.T) {
 		eur := api.HoldingInputCurrency("EUR")
-		if n := run(mt, &eur); n != 1 {
-			t.Errorf("ledger updates = %d, want 1", n)
+		if ledgerUpdates := run(mt, &eur); ledgerUpdates != 1 {
+			t.Errorf("ledger updates = %d, want 1", ledgerUpdates)
 		}
 	})
 	mt.Run("currency not sent", func(mt *mtest.T) {
-		if n := run(mt, nil); n != 0 {
-			t.Errorf("ledger updates = %d, want 0", n)
+		if ledgerUpdates := run(mt, nil); ledgerUpdates != 0 {
+			t.Errorf("ledger updates = %d, want 0", ledgerUpdates)
 		}
 	})
 }
