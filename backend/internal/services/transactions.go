@@ -405,7 +405,7 @@ func validateTxnInput(input api.TransactionInput, today time.Time) error {
 // upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
 // so readers filter on the stored value without special cases.
 func ledgerCurrency(holding domain.Holding) string {
-	if currency, known := CurrencyOf(holding); known {
+	if currency, ok := CurrencyOf(holding); ok {
 		return currency
 	}
 	return strings.ToUpper(holding.Currency)
