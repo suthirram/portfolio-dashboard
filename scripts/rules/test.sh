@@ -61,6 +61,13 @@ expect fail "over 200 words"     "$here/check-pr.sh" --title "✨ X" --body-file
 { good_body >/dev/null; printf '```bash\n' >> "$tmp/body"; for _ in $(seq 1 60); do echo 'curl -s one two three four' >> "$tmp/body"; done; printf '```\n' >> "$tmp/body"; }
 expect ok   "long code block is not prose" "$here/check-pr.sh" --title "✨ X" --body-file "$tmp/body" --files-file "$(files docs/a.md)"
 
+# ---- PR diff range (stacked PRs check only their own slice) ----
+range() { bash -c 'source "$1/lib.sh"; [[ "$(pr_diff_range "$2")" == "$3" ]]' _ "$here" "$1" "$2"; }
+expect ok   "range defaults to main...HEAD" range "create --title x" "origin/main...HEAD"
+expect ok   "range honours --base/--head"   range "create --base feat/a --head feat/b --title x" "origin/feat/a...origin/feat/b"
+expect ok   "range honours -B=base"         range "create -B=feat/a" "origin/feat/a...HEAD"
+expect ok   "range strips shell quotes"     range "create --base \"main\" --head 'feat/x'" "origin/main...origin/feat/x"
+
 # ---- Claude Code Bash guard ----
 guard() { # guard <ok|fail> <name> <command>
   local out
@@ -79,6 +86,7 @@ guard fail "create without body"    "gh pr create --title '✨ X'"
 guard ok   "checkout -b then create" "git checkout -b docs/x && gh pr create --title '📝 Add docs' --body-file $(good_body)"
 guard fail "bad title"              "gh pr create --title 'Add docs' --body-file $(good_body)"
 guard ok   "edit labels only"       "gh pr edit 12 --add-label dev"
+guard fail "unresolved range"       "gh pr create --base \"no-such-branch-xyz\" --title '✨ X' --body-file $(good_body)"
 
 echo "rules tests: $pass passed, $fail failed"
 (( fail == 0 ))
