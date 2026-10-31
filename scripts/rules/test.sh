@@ -83,7 +83,9 @@ guard ok   "sed read-only"          "sed -n 1,20p backend/x.go"
 guard fail "Claude trailer in commit" $'git commit -m "✨ X\n\nCo-Authored-By: Claude <noreply@anthropic.com>"'
 guard fail "inline --body"          "gh pr create --title '✨ X' --body 'hi'"
 guard fail "create without body"    "gh pr create --title '✨ X'"
-guard ok   "checkout -b then create" "git checkout -b docs/x && gh pr create --title '📝 Add docs' --body-file $(good_body)"
+# --base/--head pin an empty range: without them the guard diffs the CI
+# checkout (origin/main...HEAD), so this case would judge the PR under test.
+guard ok   "checkout -b then create" "git checkout -b docs/x && gh pr create --base main --head main --title '📝 Add docs' --body-file $(good_body)"
 guard fail "bad title"              "gh pr create --title 'Add docs' --body-file $(good_body)"
 guard ok   "edit labels only"       "gh pr edit 12 --add-label dev"
 guard fail "unresolved range"       "gh pr create --base \"no-such-branch-xyz\" --title '✨ X' --body-file $(good_body)"
