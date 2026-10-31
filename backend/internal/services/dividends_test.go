@@ -12,37 +12,38 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 	"portfolio-dashboard/internal/persistence"
 )
 
 // directRunner runs the transaction body without a replica set.
 type directRunner struct{}
 
-func (directRunner) InTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
-	return fn(ctx)
+func (directRunner) InTransaction(ctx context.Context, work func(ctx context.Context) error) error {
+	return work(ctx)
 }
 
 func commandCount(mt *mtest.T, name, collection string) int {
-	n := 0
-	for _, e := range mt.GetAllStartedEvents() {
-		if e.CommandName == name && e.Command.Lookup(name).StringValue() == collection {
-			n++
+	count := 0
+	for _, event := range mt.GetAllStartedEvents() {
+		if event.CommandName == name && event.Command.Lookup(name).StringValue() == collection {
+			count++
 		}
 	}
-	return n
+	return count
 }
 
 func importInput(mappings map[string]*string) api.DividendImportInput {
 	day := openapi_types.Date{Time: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)}
-	in := api.DividendImportInput{Currency: "INR", Rows: []api.DividendImportRow{
+	input := api.DividendImportInput{Currency: "INR", Rows: []api.DividendImportRow{
 		{Line: 2, Date: day, ShareName: "TCS", Amount: 300},
 		{Line: 3, Date: day, ShareName: "TCS", Amount: 300},
 		{Line: 4, Date: day, ShareName: "JLP", Amount: 500},
 	}}
 	if mappings != nil {
-		in.Mappings = &mappings
+		input.Mappings = &mappings
 	}
-	return in
+	return input
 }
 
 func TestImport(t *testing.T) {
@@ -55,10 +56,10 @@ func TestImport(t *testing.T) {
 		)
 	}
 	service := func(mt *mtest.T) *DividendsService {
-		st := persistence.New(mt.DB)
-		svc := NewDividendsService(st.Transactions, st.Holdings, directRunner{}, nil)
-		svc.today = func() time.Time { return time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC) }
-		return svc
+		store := persistence.New(mt.DB)
+		dividendsService := NewDividendsService(store.Transactions, store.Holdings, directRunner{}, nil)
+		dividendsService.today = func() time.Time { return time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC) }
+		return dividendsService
 	}
 
 	mt.Run("unresolved name blocks the import, nothing written", func(mt *mtest.T) {
@@ -68,8 +69,8 @@ func TestImport(t *testing.T) {
 		if !errors.As(err, &invalid) || invalid.Preview.Counts.Invalid != 1 {
 			t.Fatalf("err = %v, want ImportInvalidError with 1 invalid row (JLP)", err)
 		}
-		if n := commandCount(mt, "insert", "transactions"); n != 0 {
-			t.Errorf("%d inserts issued; want none", n)
+		if inserts := commandCount(mt, "insert", "transactions"); inserts != 0 {
+			t.Errorf("%d inserts issued; want none", inserts)
 		}
 	})
 
@@ -93,11 +94,11 @@ func TestImport(t *testing.T) {
 		if result.Imported != 3 || len(result.Duplicates) != 0 {
 			t.Errorf("imported %d dups %d, want 3 / 0 (in-sheet repeats kept)", result.Imported, len(result.Duplicates))
 		}
-		if n := commandCount(mt, "findAndModify", "holdings"); n != 2 {
-			t.Errorf("holding recomputes = %d, want 2 (once per holding)", n)
+		if recomputes := commandCount(mt, "findAndModify", "holdings"); recomputes != 2 {
+			t.Errorf("holding recomputes = %d, want 2 (once per holding)", recomputes)
 		}
-		if n := commandCount(mt, "update", "holdings"); n != 2 {
-			t.Errorf("alias writes = %d, want 2 (pull + addToSet for JLP)", n)
+		if aliasWrites := commandCount(mt, "update", "holdings"); aliasWrites != 2 {
+			t.Errorf("alias writes = %d, want 2 (pull + addToSet for JLP)", aliasWrites)
 		}
 	})
 
@@ -119,8 +120,18 @@ func TestImport(t *testing.T) {
 		if result.Imported != 0 || len(result.Duplicates) != 3 {
 			t.Errorf("imported %d dups %d, want 0 / 3 (idempotent)", result.Imported, len(result.Duplicates))
 		}
-		if n := commandCount(mt, "insert", "transactions"); n != 0 {
-			t.Errorf("%d inserts issued; want none", n)
+		if inserts := commandCount(mt, "insert", "transactions"); inserts != 0 {
+			t.Errorf("%d inserts issued; want none", inserts)
 		}
 	})
+}
+
+// An imported dividend is stored at cent precision, like a hand-entered one,
+// so the holding's total_dividends equals the Dividends view (DD-005 §2.5).
+func TestImportRow_ToTransactionRoundsToCents(t *testing.T) {
+	holding := &domain.Holding{ID: primitive.NewObjectID(), Currency: "INR"}
+	row := importRow{sheetRow: api.DividendImportRow{Line: 2, ShareName: "TCS", Amount: 1.004}, day: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), holding: holding}
+	if got := row.toTransaction(primitive.NewObjectID(), "batch", time.Now()).Amount; got != 1.0 {
+		t.Errorf("imported amount = %v, want 1 (rounded to cents)", got)
+	}
 }

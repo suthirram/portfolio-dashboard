@@ -169,33 +169,34 @@ func (e *ImportInvalidError) Error() string {
 func (r importRow) toTransaction(userId primitive.ObjectID, batchId string, now time.Time) domain.Transaction {
 	return domain.Transaction{
 		ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
-		// Same helper as hand-entered events, so both store one format (Task 3A).
-		Type: domain.TxnDividend, Date: r.day, Amount: r.in.Amount, Currency: ledgerCurrency(*r.holding),
-		Import:    &domain.ImportMeta{BatchId: batchId, Line: r.in.Line, SheetName: r.in.ShareName, SheetCumulative: r.in.Cumulative},
+		// Same helpers as hand-entered events, so both store one format (Task 3A)
+		// and one precision: cents, exactly what every total sums.
+		Type: domain.TxnDividend, Date: r.day, Amount: domain.RoundCents(r.sheetRow.Amount), Currency: ledgerCurrency(*r.holding),
+		Import:    &domain.ImportMeta{BatchId: batchId, Line: r.sheetRow.Line, SheetName: r.sheetRow.ShareName, SheetCumulative: r.sheetRow.Cumulative},
 		CreatedAt: now, UpdatedAt: now,
 	}
 }
 
 func importRowsOf(rows []importRow) []api.DividendImportRow {
 	out := make([]api.DividendImportRow, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.in)
+	for _, row := range rows {
+		out = append(out, row.sheetRow)
 	}
 	return out
 }
 
 // Import commits every eligible row, the confirmed aliases and the
 // recomputed holding totals together, or nothing (PRD-005 §7.7).
-func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID, in api.DividendImportInput) (_ api.DividendImportResult, retErr error) {
+func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID, input api.DividendImportInput) (_ api.DividendImportResult, retErr error) {
 	ctx, span := tracer.Start(ctx, "DividendsService.Import")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
-	if err := checkImportInput(in); err != nil {
+	if err := checkImportInput(input); err != nil {
 		return api.DividendImportResult{}, err
 	}
 	var result api.DividendImportResult
 	err := s.tx.InTransaction(ctx, func(ctx context.Context) error {
-		plan, err := s.evaluate(ctx, userId, in)
+		plan, err := s.evaluate(ctx, userId, input)
 		if err != nil {
 			return err
 		}
@@ -204,17 +205,17 @@ func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID
 		}
 		batchId := primitive.NewObjectID().Hex()
 		now := time.Now().UTC()
-		txns := make([]domain.Transaction, 0, len(plan.fresh))
+		dividends := make([]domain.Transaction, 0, len(plan.fresh))
 		var affected []primitive.ObjectID
 		seen := map[primitive.ObjectID]bool{}
-		for _, r := range plan.fresh {
-			txns = append(txns, r.toTransaction(userId, batchId, now))
-			if !seen[r.holding.ID] {
-				seen[r.holding.ID] = true
-				affected = append(affected, r.holding.ID)
+		for _, row := range plan.fresh {
+			dividends = append(dividends, row.toTransaction(userId, batchId, now))
+			if !seen[row.holding.ID] {
+				seen[row.holding.ID] = true
+				affected = append(affected, row.holding.ID)
 			}
 		}
-		if err := s.txns.InsertMany(ctx, txns); err != nil {
+		if err := s.txns.InsertMany(ctx, dividends); err != nil {
 			return err
 		}
 		for holdingId, keys := range plan.aliases {
@@ -227,12 +228,11 @@ func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID
 				return err
 			}
 		}
-		result = api.DividendImportResult{Imported: len(txns), Duplicates: importRowsOf(plan.dups), BatchId: batchId, Warnings: plan.preview.Warnings}
+		result = api.DividendImportResult{Imported: len(dividends), Duplicates: importRowsOf(plan.duplicates), BatchId: batchId, Warnings: plan.preview.Warnings}
 		return nil
 	})
 	if err != nil {
-		var invalid *ImportInvalidError
-		if !errors.As(err, &invalid) {
+		if _, invalid := errors.AsType[*ImportInvalidError](err); !invalid {
 			logger.Error("dividend import failed", zap.Error(err))
 		}
 		return api.DividendImportResult{}, err
