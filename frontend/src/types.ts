@@ -14,6 +14,14 @@ export type CurrencyChange = Schemas['CurrencyChange']
 export type Transaction = Schemas['Transaction']
 export type TransactionInput = Schemas['TransactionInput']
 export type TransactionWithHolding = Schemas['TransactionWithHolding']
+export type DividendView = Schemas['DividendView']
+export type DividendRow = Schemas['DividendRow']
+export type DividendImportRow = Schemas['DividendImportRow']
+export type DividendImportInput = Schemas['DividendImportInput']
+export type DividendImportPreview = Schemas['DividendImportPreview']
+export type DividendImportResult = Schemas['DividendImportResult']
+export type DividendNameResolution = Schemas['DividendNameResolution']
+export type DividendCurrency = DividendImportInput['currency']
 
 export type Exchange = NonNullable<Holding['exchange']>
 export type HoldingType = NonNullable<Holding['type']>
