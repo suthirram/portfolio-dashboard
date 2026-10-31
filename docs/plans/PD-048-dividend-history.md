@@ -4498,26 +4498,34 @@ type DividendHistoryPoint struct {
  OnDay  float64 `json:"on_day"`  // received on the row date
 }
 
-// DividendDay is the overlay for one row date: per currency, and per symbol
+// StockKey identifies one stock line of a History row. The same symbol can
+// be held in INR and in EUR, so the currency is part of the key: the two
+// amounts never mix (PRD-005 §3, §12).
+type StockKey struct {
+ Currency string
+ Symbol   string
+}
+
+// DividendDay is the overlay for one row date: per currency, and per stock
 // (to date) for the per-stock breakdown.
 type DividendDay struct {
  ByCurrency map[string]DividendHistoryPoint
- BySymbol   map[string]float64
+ ByStock    map[StockKey]float64
 }
 
-// DividendOverlay computes dividends to date per currency and per symbol for
-// each row date (YYYY-MM-DD). txns are in tab order.
-func DividendOverlay(txns []domain.Transaction, holdings []domain.Holding, dates []string) map[string]DividendDay {
+// DividendOverlay computes dividends to date per currency and per stock for
+// each row date (YYYY-MM-DD). dividends are in tab order.
+func DividendOverlay(dividends []domain.Transaction, holdings []domain.Holding, dates []string) map[string]DividendDay {
  symbolOf := make(map[primitive.ObjectID]string, len(holdings))
- for _, h := range holdings {
-  symbolOf[h.ID] = h.Symbol
+ for _, holding := range holdings {
+  symbolOf[holding.ID] = holding.Symbol
  }
  sorted := slices.Clone(dates)
  slices.Sort(sorted)
 
  out := make(map[string]DividendDay, len(sorted))
  toDate := map[string]int64{}
- bySymbol := map[string]int64{}
+ byStock := map[StockKey]int64{}
  i := 0
  for _, date := range sorted {
   cutoff, err := time.Parse(time.DateOnly, date)
@@ -4525,22 +4533,23 @@ func DividendOverlay(txns []domain.Transaction, holdings []domain.Holding, dates
    continue
   }
   onDay := map[string]int64{}
-  for ; i < len(txns) && !domain.UTCDate(txns[i].Date).After(cutoff); i++ {
-   t := txns[i]
-   // Stored currencies are canonical (ledgerCurrency, Task 3A).
-   c, cents := t.Currency, domain.AmountCents(t.Amount)
-   toDate[c] += cents
-   bySymbol[symbolOf[t.HoldingID]] += cents
-   if domain.UTCDate(t.Date).Equal(cutoff) {
-    onDay[c] += cents
+  for ; i < len(dividends) && !domain.UTCDate(dividends[i].Date).After(cutoff); i++ {
+   dividend := dividends[i]
+   // Stored currencies are canonical (ledgerCurrency, Task 3A), the same
+   // code a snapshot line carries (CurrencyOf), so the keys line up.
+   currency, cents := dividend.Currency, domain.AmountCents(dividend.Amount)
+   toDate[currency] += cents
+   byStock[StockKey{Currency: currency, Symbol: symbolOf[dividend.HoldingID]}] += cents
+   if domain.UTCDate(dividend.Date).Equal(cutoff) {
+    onDay[currency] += cents
    }
   }
-  day := DividendDay{ByCurrency: map[string]DividendHistoryPoint{}, BySymbol: map[string]float64{}}
-  for c, cents := range toDate {
-   day.ByCurrency[c] = DividendHistoryPoint{ToDate: domain.CentsToMoney(cents), OnDay: domain.CentsToMoney(onDay[c])}
+  day := DividendDay{ByCurrency: map[string]DividendHistoryPoint{}, ByStock: map[StockKey]float64{}}
+  for currency, cents := range toDate {
+   day.ByCurrency[currency] = DividendHistoryPoint{ToDate: domain.CentsToMoney(cents), OnDay: domain.CentsToMoney(onDay[currency])}
   }
-  for s, cents := range bySymbol {
-   day.BySymbol[s] = domain.CentsToMoney(cents)
+  for stock, cents := range byStock {
+   day.ByStock[stock] = domain.CentsToMoney(cents)
   }
   out[date] = day
  }
@@ -4680,7 +4689,8 @@ func (h *Controller) attachDividendOverlay(ctx context.Context, userId primitive
    rows[i].Dividends = day.ByCurrency
   }
   for j := range rows[i].Holdings {
-   rows[i].Holdings[j].Dividends = day.BySymbol[rows[i].Holdings[j].Symbol]
+   line := &rows[i].Holdings[j]
+   line.Dividends = day.ByStock[services.StockKey{Currency: line.Currency, Symbol: line.Symbol}]
   }
  }
 }
@@ -4753,24 +4763,44 @@ func TestDividendOverlay(t *testing.T) {
  holdings := []domain.Holding{{ID: tcs, Symbol: "TCS.NS"}, {ID: sap, Symbol: "SAP.DE"}}
  eur := dividendEvent(sap, "2020-02-10", 40)
  eur.Currency = "EUR"
- txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, dividendEvent(tcs, "2020-03-15", 1250.5)}
+ dividends := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 300), dividendEvent(tcs, "2020-01-01", 300), eur, dividendEvent(tcs, "2020-03-15", 1250.5)}
 
- got := DividendOverlay(txns, holdings, []string{"2020-03-15", "2019-12-31", "2020-01-31"})
+ got := DividendOverlay(dividends, holdings, []string{"2020-03-15", "2019-12-31", "2020-01-31"})
 
  if len(got["2019-12-31"].ByCurrency) != 0 {
   t.Error("no dividends before the first payout")
  }
- if p := got["2020-01-31"].ByCurrency["INR"]; p.ToDate != 600 || p.OnDay != 0 {
-  t.Errorf("31 Jan INR = %+v, want to_date 600, on_day 0", p)
+ if point := got["2020-01-31"].ByCurrency["INR"]; point.ToDate != 600 || point.OnDay != 0 {
+  t.Errorf("31 Jan INR = %+v, want to_date 600, on_day 0", point)
  }
- if p := got["2020-03-15"].ByCurrency["INR"]; p.ToDate != 1850.5 || p.OnDay != 1250.5 {
-  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5", p)
+ if point := got["2020-03-15"].ByCurrency["INR"]; point.ToDate != 1850.5 || point.OnDay != 1250.5 {
+  t.Errorf("15 Mar INR = %+v, want 1850.5 / 1250.5", point)
  }
- if p := got["2020-03-15"].ByCurrency["EUR"]; p.ToDate != 40 {
-  t.Errorf("15 Mar EUR = %+v, want 40 (never mixed with INR)", p)
+ if point := got["2020-03-15"].ByCurrency["EUR"]; point.ToDate != 40 {
+  t.Errorf("15 Mar EUR = %+v, want 40 (never mixed with INR)", point)
  }
- if got["2020-03-15"].BySymbol["TCS.NS"] != 1850.5 || got["2020-03-15"].BySymbol["SAP.DE"] != 40 {
-  t.Errorf("per symbol = %v", got["2020-03-15"].BySymbol)
+ byStock := got["2020-03-15"].ByStock
+ if byStock[StockKey{Currency: "INR", Symbol: "TCS.NS"}] != 1850.5 || byStock[StockKey{Currency: "EUR", Symbol: "SAP.DE"}] != 40 {
+  t.Errorf("per stock = %v", byStock)
+ }
+}
+
+// One symbol held in INR and in EUR is two stock lines: each gets only its
+// own currency's dividends (PRD-005 §3, §12).
+func TestDividendOverlay_SameSymbolInTwoCurrencies(t *testing.T) {
+ inrHolding, eurHolding := primitive.NewObjectID(), primitive.NewObjectID()
+ holdings := []domain.Holding{{ID: inrHolding, Symbol: "AAPL", Currency: "INR"}, {ID: eurHolding, Symbol: "AAPL", Currency: "EUR"}}
+ eur := dividendEvent(eurHolding, "2020-01-01", 40)
+ eur.Currency = "EUR"
+ dividends := []domain.Transaction{dividendEvent(inrHolding, "2020-01-01", 300), eur}
+
+ byStock := DividendOverlay(dividends, holdings, []string{"2020-01-31"})["2020-01-31"].ByStock
+
+ if inr := byStock[StockKey{Currency: "INR", Symbol: "AAPL"}]; inr != 300 {
+  t.Errorf("INR AAPL = %v, want 300 (EUR not mixed in)", inr)
+ }
+ if eurTotal := byStock[StockKey{Currency: "EUR", Symbol: "AAPL"}]; eurTotal != 40 {
+  t.Errorf("EUR AAPL = %v, want 40 (INR not mixed in)", eurTotal)
  }
 }
 ```

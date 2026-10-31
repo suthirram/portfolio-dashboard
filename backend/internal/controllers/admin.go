@@ -693,6 +693,6 @@ func (h *Controller) AdminDeleteUserTransaction(ctx context.Context, request api
 	if !deleted {
 		return api.AdminDeleteUserTransaction404JSONResponse{}, nil
 	}
-	msg := "deleted"
-	return api.AdminDeleteUserTransaction200JSONResponse{Message: &msg}, nil
+	message := "deleted"
+	return api.AdminDeleteUserTransaction200JSONResponse{Message: &message}, nil
 }

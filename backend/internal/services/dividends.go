@@ -21,20 +21,20 @@ import (
 type DividendsService struct {
 	txns     *persistence.TransactionStore
 	holdings *persistence.HoldingStore
-	tx       txRunner
+	runner   txRunner
 	logger   *zap.Logger
 	today    func() time.Time // IST calendar day; tests pin it
 }
 
-// txRunner runs fn atomically. *persistence.Store implements it; tests pass
-// a runner that calls fn directly.
+// txRunner runs work atomically. *persistence.Store implements it; tests pass
+// a runner that calls work directly.
 type txRunner interface {
-	InTransaction(ctx context.Context, fn func(ctx context.Context) error) error
+	InTransaction(ctx context.Context, work func(ctx context.Context) error) error
 }
 
 // NewDividendsService wires a DividendsService.
-func NewDividendsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, tx txRunner, logger *zap.Logger) *DividendsService {
-	return &DividendsService{txns: txns, holdings: holdings, tx: tx, logger: logger, today: istToday}
+func NewDividendsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, runner txRunner, logger *zap.Logger) *DividendsService {
+	return &DividendsService{txns: txns, holdings: holdings, runner: runner, logger: logger, today: istToday}
 }
 
 func (s *DividendsService) log(ctx context.Context) *zap.Logger {
@@ -195,7 +195,7 @@ func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID
 		return api.DividendImportResult{}, err
 	}
 	var result api.DividendImportResult
-	err := s.tx.InTransaction(ctx, func(ctx context.Context) error {
+	err := s.runner.InTransaction(ctx, func(ctx context.Context) error {
 		plan, err := s.evaluate(ctx, userId, input)
 		if err != nil {
 			return err
@@ -252,7 +252,7 @@ func (s *DividendsService) DeleteAll(ctx context.Context, userId primitive.Objec
 		return 0, fmt.Errorf("%w: currency must be INR or EUR", ErrValidation)
 	}
 	var deleted int64
-	err := s.tx.InTransaction(ctx, func(ctx context.Context) error {
+	err := s.runner.InTransaction(ctx, func(ctx context.Context) error {
 		holdingIds, count, err := s.txns.DeleteDividends(ctx, userId, currency)
 		if err != nil {
 			return err

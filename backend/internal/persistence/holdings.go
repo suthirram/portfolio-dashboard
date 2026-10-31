@@ -157,11 +157,11 @@ func (s *HoldingStore) AssignUnownedTo(ctx context.Context, uid primitive.Object
 func (s *HoldingStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	result, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
 	if err != nil {
 		return 0, err
 	}
-	return res.ModifiedCount, nil
+	return result.ModifiedCount, nil
 }
 
 // MoveAliases makes keys aliases of holdingId only: pulled from userId's
