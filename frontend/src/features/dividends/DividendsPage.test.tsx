@@ -58,6 +58,21 @@ describe('DividendsPage', () => {
     expect(await screen.findByText('No EUR dividends yet')).toBeInTheDocument()
   })
 
+  it('ignores a slower response from the tab it left', async () => {
+    let resolveInr: (view: DividendView) => void = () => {}
+    mockApi.listDividends.mockImplementation((currency: string) =>
+      currency === 'INR' ? new Promise<DividendView>(resolve => { resolveInr = resolve }) : Promise.resolve(empty))
+    renderAt()
+    fireEvent.click(screen.getByRole('tab', { name: /EUR/ }))
+    expect(await screen.findByText('No EUR dividends yet')).toBeInTheDocument()
+
+    resolveInr(inr) // the INR request lands after EUR's
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(screen.getByText('No EUR dividends yet')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
   it('filters by holding but keeps the full-tab cumulative', async () => {
     renderAt()
     await screen.findAllByRole('table')
