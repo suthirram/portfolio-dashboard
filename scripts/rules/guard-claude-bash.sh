@@ -68,7 +68,7 @@ if [[ "$cmd" =~ (^|[^[:alnum:]_])gh[[:space:]]+pr[[:space:]]+(create|edit) ]]; t
   files_file=$(mktemp)
   trap 'rm -f "$files_file"' EXIT
   if [[ "$action" == "create" ]]; then
-    git diff --name-only origin/main...HEAD > "$files_file" 2>/dev/null || true
+    git diff --name-only "$(pr_diff_range "$seg")" > "$files_file" 2>/dev/null || true
   elif [[ "$seg" =~ ^edit[[:space:]]+([0-9]+) ]]; then
     gh pr view "${BASH_REMATCH[1]}" --json files --jq '.files[].path' > "$files_file" 2>/dev/null || true
   fi

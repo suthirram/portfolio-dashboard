@@ -54,3 +54,14 @@ prose_word_count() {
        /^[[:space:]]*```/ { fence = !fence; next }
        !fence { print }' | wc -w | tr -d ' '
 }
+
+# pr_diff_range prints the git range of a PR-create segment ($1, the text
+# after "gh pr "): origin/<--base>...<--head>, defaulting to origin/main and
+# HEAD. Honouring --base/--head keeps a stacked PR's file list to its own
+# slice instead of everything since main.
+pr_diff_range() {
+  local base=main head=HEAD
+  [[ "$1" =~ (--base|-B)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && base="${BASH_REMATCH[2]}"
+  [[ "$1" =~ (--head|-H)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && head="origin/${BASH_REMATCH[2]}"
+  echo "origin/$base...$head"
+}
