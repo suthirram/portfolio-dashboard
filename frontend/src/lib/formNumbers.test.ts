@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseDecimalInput, parseSeededDecimal } from './formNumbers'
+import { parseDecimalInput, parseMoneyCell, parseSeededDecimal } from './formNumbers'
 
 describe('parseDecimalInput', () => {
   it('reads a single dot as decimal in decimal mode (fractional shares)', () => {
@@ -31,5 +31,21 @@ describe('parseSeededDecimal', () => {
     expect(parseSeededDecimal('1.235', 1.234)).toBe(1235)
     expect(parseSeededDecimal('12,50', 1.234)).toBe(12.5)
     expect(parseSeededDecimal('300', undefined)).toBe(300)
+  })
+})
+
+describe('parseMoneyCell', () => {
+  it('reads both number styles and strips currency signs', () => {
+    expect(parseMoneyCell('₹1,250.50')).toBe(1250.5)
+    expect(parseMoneyCell('1.250,50')).toBe(1250.5)
+    expect(parseMoneyCell('€ 40,5')).toBe(40.5)
+    expect(parseMoneyCell('12,34,567.89')).toBe(1234567.89)
+    expect(parseMoneyCell('')).toBe(0)
+    expect(parseMoneyCell('abc')).toBeNaN()
+  })
+  it('reads a cell the same way as a typed amount', () => {
+    for (const raw of ['1.250,50', '40,5', '1,250.50']) {
+      expect(parseMoneyCell(raw)).toBe(parseDecimalInput(raw))
+    }
   })
 })

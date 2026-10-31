@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayMonth, todayIST } from './formDates'
+import { formatDate, formatDayMonth, normaliseDate, todayIST } from './formDates'
 
 describe('formatDate', () => {
   it('converts YYYY-MM-DD to dd-MM-yyyy', () => {
@@ -49,5 +49,19 @@ describe('todayIST', () => {
   it('rolls over at midnight IST, not UTC', () => {
     expect(todayIST(new Date('2026-10-30T18:29:00Z'))).toBe('2026-10-30')
     expect(todayIST(new Date('2026-10-30T18:31:00Z'))).toBe('2026-10-31')
+  })
+})
+
+describe('normaliseDate', () => {
+  it('reads day-first dates', () => {
+    expect(normaliseDate('1/2/2020')).toBe('2020-02-01')
+    expect(normaliseDate('12/5/2023')).toBe('2023-05-12')
+    expect(normaliseDate('15-03-2020')).toBe('2020-03-15')
+    expect(normaliseDate('2020-03-15')).toBe('2020-03-15')
+  })
+  it('rejects impossible dates', () => {
+    expect(normaliseDate('31/02/2021')).toBe('')
+    expect(normaliseDate('13/13/2020')).toBe('')
+    expect(normaliseDate('abc')).toBe('')
   })
 })
