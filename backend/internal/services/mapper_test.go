@@ -12,7 +12,7 @@ import (
 )
 
 func TestHoldingWithPriceToAPI_PriceErrorAssumesZero(t *testing.T) {
-	hld := domain.Holding{
+	holding := domain.Holding{
 		Script:       "IDFC",
 		Symbol:       "IDFC.NS",
 		Currency:     "INR",
@@ -21,7 +21,7 @@ func TestHoldingWithPriceToAPI_PriceErrorAssumesZero(t *testing.T) {
 	}
 	ps := &stubPriceFetcher{priceErr: errors.New("yahoo status 404"), rate: 0.011}
 
-	got := HoldingWithPriceToAPI(context.Background(), hld, ps, 0.011)
+	got := HoldingWithPriceToAPI(context.Background(), holding, ps, 0.011)
 
 	if got.PriceError == nil {
 		t.Fatalf("PriceError = nil, want the 404 surfaced")
@@ -39,7 +39,7 @@ func TestHoldingWithPriceToAPI_PriceErrorAssumesZero(t *testing.T) {
 }
 
 func TestHoldingWithPriceToAPI_RoundsToTwoDecimals(t *testing.T) {
-	hld := domain.Holding{
+	holding := domain.Holding{
 		Script:       "Vanguard S&P 500",
 		Symbol:       "IE00BFMXXD54.SG",
 		Currency:     "INR",
@@ -48,7 +48,7 @@ func TestHoldingWithPriceToAPI_RoundsToTwoDecimals(t *testing.T) {
 	}
 	ps := &stubPriceFetcher{price: 125.9, priceCur: "INR", rate: 0.011}
 
-	got := HoldingWithPriceToAPI(context.Background(), hld, ps, 0.011)
+	got := HoldingWithPriceToAPI(context.Background(), holding, ps, 0.011)
 
 	// 1.949558 × 102.59 = 200.00515… → 200.01
 	if got.CostPrice == nil || *got.CostPrice != 200.01 {

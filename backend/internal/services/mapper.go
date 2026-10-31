@@ -101,22 +101,22 @@ func HoldingToAPI(h domain.Holding) api.Holding {
 // HoldingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
 // All monetary values are normalised to INR; EUR equivalents are also populated.
 // eurRate = 1 INR → X EUR, so 1 EUR = 1/eurRate INR.
-func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetcher, eurRate float64) api.HoldingWithPrice {
-	isEUR := hld.Currency == "EUR"
-	currency := api.HoldingWithPriceCurrency(hld.Currency)
+func HoldingWithPriceToAPI(ctx context.Context, holding domain.Holding, ps PriceFetcher, eurRate float64) api.HoldingWithPrice {
+	isEUR := holding.Currency == "EUR"
+	currency := api.HoldingWithPriceCurrency(holding.Currency)
 	if currency == "" {
 		currency = api.HoldingWithPriceCurrency("INR")
 	}
 
 	var costPrice, costPriceEUR, realizedPnLEUR float64
 	if isEUR {
-		costPriceEUR = hld.StocksOwned * hld.AvgCostPrice
+		costPriceEUR = holding.StocksOwned * holding.AvgCostPrice
 		costPrice = costPriceEUR / eurRate
-		realizedPnLEUR = hld.RealizedPnL
+		realizedPnLEUR = holding.RealizedPnL
 	} else {
-		costPrice = hld.StocksOwned * hld.AvgCostPrice
+		costPrice = holding.StocksOwned * holding.AvgCostPrice
 		costPriceEUR = costPrice * eurRate
-		realizedPnLEUR = hld.RealizedPnL * eurRate
+		realizedPnLEUR = holding.RealizedPnL * eurRate
 	}
 	// Round monetary table values to two decimals at the response boundary.
 	costPrice = round(costPrice)
@@ -124,26 +124,26 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 	realizedPnLEUR = round(realizedPnLEUR)
 
 	hwp := api.HoldingWithPrice{
-		Id:             new(hld.ID.Hex()),
-		Script:         &hld.Script,
-		Symbol:         &hld.Symbol,
-		Exchange:       (*api.HoldingWithPriceExchange)(&hld.Exchange),
-		Type:           (*api.HoldingWithPriceType)(&hld.Type),
-		StocksOwned:    &hld.StocksOwned,
-		AvgCostPrice:   &hld.AvgCostPrice,
-		RealizedPnl:    &hld.RealizedPnL,
-		TotalDividends: &hld.TotalDividends,
+		Id:             new(holding.ID.Hex()),
+		Script:         &holding.Script,
+		Symbol:         &holding.Symbol,
+		Exchange:       (*api.HoldingWithPriceExchange)(&holding.Exchange),
+		Type:           (*api.HoldingWithPriceType)(&holding.Type),
+		StocksOwned:    &holding.StocksOwned,
+		AvgCostPrice:   &holding.AvgCostPrice,
+		RealizedPnl:    &holding.RealizedPnL,
+		TotalDividends: &holding.TotalDividends,
 		Currency:       &currency,
-		Notes:          &hld.Notes,
-		CreatedAt:      &hld.CreatedAt,
-		UpdatedAt:      &hld.UpdatedAt,
+		Notes:          &holding.Notes,
+		CreatedAt:      &holding.CreatedAt,
+		UpdatedAt:      &holding.UpdatedAt,
 		CostPrice:      &costPrice,
 		CostPriceEur:   &costPriceEUR,
 		RealizedPnlEur: &realizedPnLEUR,
 	}
 
-	if hld.Symbol != "" {
-		price, _, priceErr := ps.GetPrice(ctx, hld.Symbol)
+	if holding.Symbol != "" {
+		price, _, priceErr := ps.GetPrice(ctx, holding.Symbol)
 		if priceErr != nil {
 			// A failed/delisted price (Yahoo 404) is treated as a market
 			// price of 0: current value 0, full cost as unrealized loss.
@@ -155,12 +155,12 @@ func HoldingWithPriceToAPI(ctx context.Context, hld domain.Holding, ps PriceFetc
 		}
 		var currentValue, currentValueEUR, unrealizedPnL, unrealizedPnLEUR float64
 		if isEUR {
-			currentValueEUR = hld.StocksOwned * price
+			currentValueEUR = holding.StocksOwned * price
 			currentValue = currentValueEUR / eurRate
 			unrealizedPnLEUR = currentValueEUR - costPriceEUR
 			unrealizedPnL = unrealizedPnLEUR / eurRate
 		} else {
-			currentValue = hld.StocksOwned * price
+			currentValue = holding.StocksOwned * price
 			unrealizedPnL = currentValue - costPrice
 			currentValueEUR = currentValue * eurRate
 			unrealizedPnLEUR = unrealizedPnL * eurRate

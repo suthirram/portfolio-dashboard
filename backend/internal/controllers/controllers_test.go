@@ -302,7 +302,7 @@ func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 		prices:     map[string]float64{"TCS.NS": 3600.0},
 		currencies: map[string]string{"TCS.NS": "INR"},
 	}
-	hld := domain.Holding{
+	holding := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "TCS.NS",
 		Currency:     "INR",
@@ -310,7 +310,7 @@ func TestHoldingWithPriceToAPI_INRHolding_PriceAndPnLInINR(t *testing.T) {
 		AvgCostPrice: 3000.0,
 		RealizedPnL:  500.0,
 	}
-	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), holding, ps, testEurRate)
 
 	// cost_price  = 10 × 3000 = 30 000 INR
 	// cost_eur    = 30 000 × 0.011 = 330 EUR
@@ -344,7 +344,7 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 		prices:     map[string]float64{"VWCE.DE": 120.0},
 		currencies: map[string]string{"VWCE.DE": "EUR"},
 	}
-	hld := domain.Holding{
+	holding := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "VWCE.DE",
 		Currency:     "EUR",
@@ -352,7 +352,7 @@ func TestHoldingWithPriceToAPI_EURHolding_NormalisedToINR(t *testing.T) {
 		AvgCostPrice: 100.0, // EUR per share
 		RealizedPnL:  50.0,  // EUR
 	}
-	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), holding, ps, testEurRate)
 
 	// cost_eur  = 5 × 100 = 500 EUR  (native)
 	// cost_inr  = 500 / 0.011 ≈ 45 454.5 INR
@@ -390,14 +390,14 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 		prices:     map[string]float64{"INFY.NS": 1800.0},
 		currencies: map[string]string{"INFY.NS": "INR"},
 	}
-	hld := domain.Holding{
+	holding := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "INFY.NS",
 		Currency:     "", // legacy document without currency field
 		StocksOwned:  2,
 		AvgCostPrice: 1500.0,
 	}
-	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), holding, ps, testEurRate)
 
 	if *got.Currency != "INR" {
 		t.Errorf("Currency = %q, want INR for empty currency", *got.Currency)
@@ -410,12 +410,12 @@ func TestHoldingWithPriceToAPI_LegacyEmptyCurrencyTreatedAsINR(t *testing.T) {
 
 func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 	ps := &mockPriceFetcher{prices: map[string]float64{}}
-	hld := domain.Holding{
+	holding := domain.Holding{
 		ID:       primitive.NewObjectID(),
 		Symbol:   "",
 		Currency: "INR",
 	}
-	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), holding, ps, testEurRate)
 
 	if got.CurrentPrice != nil {
 		t.Errorf("CurrentPrice should be nil for empty symbol, got %v", *got.CurrentPrice)
@@ -430,14 +430,14 @@ func TestHoldingWithPriceToAPI_EmptySymbolProducesNoPriceFields(t *testing.T) {
 
 func TestHoldingWithPriceToAPI_PriceErrorAssumesZero(t *testing.T) {
 	ps := &mockPriceFetcher{prices: map[string]float64{}} // no price → error
-	hld := domain.Holding{
+	holding := domain.Holding{
 		ID:           primitive.NewObjectID(),
 		Symbol:       "UNKNOWN.NS",
 		Currency:     "INR",
 		StocksOwned:  100,
 		AvgCostPrice: 50,
 	}
-	got := services.HoldingWithPriceToAPI(context.Background(), hld, ps, testEurRate)
+	got := services.HoldingWithPriceToAPI(context.Background(), holding, ps, testEurRate)
 
 	// The error is still surfaced, but a failed/delisted price is assumed
 	// worthless: current price/value 0 and the whole cost as unrealized loss.

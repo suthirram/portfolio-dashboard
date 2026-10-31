@@ -60,8 +60,8 @@ func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain
 	seen := make(map[string]struct{}, len(holdings))
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(8)
-	for _, hld := range holdings {
-		symbol := hld.Symbol
+	for _, holding := range holdings {
+		symbol := holding.Symbol
 		if symbol == "" {
 			continue
 		}
@@ -77,13 +77,13 @@ func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain
 	_ = g.Wait()
 }
 
-// Prices returns the holdings owned by uid enriched with live market data,
+// Prices returns the holdings owned by userId enriched with live market data,
 // plus the live INR→EUR rate. Errors fetching the EUR rate fail the call;
 // per-symbol price failures are surfaced inline on each HoldingWithPrice.
-func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (_ []api.HoldingWithPrice, _ float64, retErr error) {
+func (s *PortfolioService) Prices(ctx context.Context, userId primitive.ObjectID) (_ []api.HoldingWithPrice, _ float64, retErr error) {
 	ctx, span := tracer.Start(ctx, "PortfolioService.Prices")
 	defer endSpan(span, &retErr)
-	holdings, err := s.store.ListByUser(ctx, uid)
+	holdings, err := s.store.ListByUser(ctx, userId)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -100,19 +100,19 @@ func (s *PortfolioService) Prices(ctx context.Context, uid primitive.ObjectID) (
 
 	s.prefetchPrices(ctx, holdings)
 	results := make([]api.HoldingWithPrice, 0, len(holdings))
-	for _, hld := range holdings {
-		results = append(results, HoldingWithPriceToAPI(ctx, hld, s.priceService, eurRate))
+	for _, holding := range holdings {
+		results = append(results, HoldingWithPriceToAPI(ctx, holding, s.priceService, eurRate))
 	}
 	return results, eurRate, nil
 }
 
-// Summary aggregates the portfolio of uid into total cost / current value /
+// Summary aggregates the portfolio of userId into total cost / current value /
 // realized / unrealized, with EUR equivalents. When the EUR rate is
 // unavailable Summary uses a fixed fallback so the totals stay computable.
-func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) (_ api.Summary, retErr error) {
+func (s *PortfolioService) Summary(ctx context.Context, userId primitive.ObjectID) (_ api.Summary, retErr error) {
 	ctx, span := tracer.Start(ctx, "PortfolioService.Summary")
 	defer endSpan(span, &retErr)
-	holdings, err := s.store.ListByUser(ctx, uid)
+	holdings, err := s.store.ListByUser(ctx, userId)
 	if err != nil {
 		return api.Summary{}, err
 	}
@@ -134,36 +134,36 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 	// sold-out position (StocksOwned == 0) is skipped there, so warming its
 	// price would be a wasted Yahoo round-trip.
 	active := make([]domain.Holding, 0, len(holdings))
-	for _, hld := range holdings {
-		if hld.StocksOwned > 0 {
-			active = append(active, hld)
+	for _, holding := range holdings {
+		if holding.StocksOwned > 0 {
+			active = append(active, holding)
 		}
 	}
 	s.prefetchPrices(ctx, active)
-	for _, hld := range holdings {
-		isEUR := hld.Currency == "EUR"
+	for _, holding := range holdings {
+		isEUR := holding.Currency == "EUR"
 
 		var cost, realized float64
 		if isEUR {
-			cost = (hld.StocksOwned * hld.AvgCostPrice) / eurRate
-			realized = hld.RealizedPnL / eurRate
+			cost = (holding.StocksOwned * holding.AvgCostPrice) / eurRate
+			realized = holding.RealizedPnL / eurRate
 		} else {
-			cost = hld.StocksOwned * hld.AvgCostPrice
-			realized = hld.RealizedPnL
+			cost = holding.StocksOwned * holding.AvgCostPrice
+			realized = holding.RealizedPnL
 		}
 		totalCost += cost
 		totalRealized += realized
 
-		if hld.Symbol != "" && hld.StocksOwned > 0 {
+		if holding.Symbol != "" && holding.StocksOwned > 0 {
 			// A failed/delisted price (Yahoo 404) is treated as a market
 			// price of 0: native value 0, full cost shows as unrealized
 			// loss. Keeps the dashboard in lock-step with the cron snapshot
 			// (SnapshotService.BuildSnapshot).
 			var native float64
-			if price, _, pErr := s.priceService.GetPrice(ctx, hld.Symbol); pErr == nil && price > 0 {
-				native = hld.StocksOwned * price
+			if price, _, pErr := s.priceService.GetPrice(ctx, holding.Symbol); pErr == nil && price > 0 {
+				native = holding.StocksOwned * price
 			}
-			nativeCurrent[currencyOf(hld.Currency)] += native
+			nativeCurrent[currencyOf(holding.Currency)] += native
 			var cv float64
 			if isEUR {
 				cv = native / eurRate
@@ -191,7 +191,7 @@ func (s *PortfolioService) Summary(ctx context.Context, uid primitive.ObjectID) 
 		TotalRealizedEur:     &totalRealizedEUR,
 		EurRate:              &eurRate,
 	}
-	s.attachPreviousClose(ctx, uid, &summary, nativeCurrent, totalCurrentValue, eurRate)
+	s.attachPreviousClose(ctx, userId, &summary, nativeCurrent, totalCurrentValue, eurRate)
 	return summary, nil
 }
 
@@ -211,13 +211,13 @@ func currencyOf(c string) string {
 // uses the INR base (same conversion as totalCurrentValue: EUR ÷ rate,
 // other currencies treated as base); per-currency entries stay native.
 func (s *PortfolioService) attachPreviousClose(
-	ctx context.Context, uid primitive.ObjectID, summary *api.Summary,
+	ctx context.Context, userId primitive.ObjectID, summary *api.Summary,
 	nativeCurrent map[string]float64, totalCurrentValue, eurRate float64,
 ) {
 	if s.snapshots == nil {
 		return
 	}
-	snap, err := s.snapshots.LatestBefore(ctx, uid, s.Now())
+	snap, err := s.snapshots.LatestBefore(ctx, userId, s.Now())
 	if err != nil {
 		if !errors.Is(err, persistence.ErrNotFound) {
 			logger := s.log(ctx)
