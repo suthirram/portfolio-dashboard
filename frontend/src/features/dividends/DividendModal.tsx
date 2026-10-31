@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput } from '../../lib/formNumbers'
+import { parseSeededDecimal } from '../../lib/formNumbers'
 import { canonicalCurrency, formatMoney } from '../../lib/currency'
 import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow, Holding } from '../../types'
@@ -32,7 +32,7 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
   const [err, setErr] = useState('')
 
   const save = async () => {
-    const value = parseDecimalInput(amount)
+    const value = parseSeededDecimal(amount, editing?.amount)
     if (!holdingId || !date || !(value > 0)) {
       setErr('Choose a holding, a date and a positive amount.')
       return

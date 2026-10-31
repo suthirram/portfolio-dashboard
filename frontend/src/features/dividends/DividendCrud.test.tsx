@@ -65,6 +65,17 @@ describe('dividend CRUD', () => {
     expect(screen.queryByText(/Delete all/)).toBeNull()
   })
 
+  it('keeps a stored 1.234 amount on a date-only edit', async () => {
+    mockApi.listDividends.mockResolvedValue({ ...view, rows: [{ ...view.rows[0], amount: 1.234 }] })
+    mockApi.updateTransaction.mockResolvedValue({})
+    renderPage()
+    fireEvent.click(await screen.findByLabelText('Edit dividend of 01-01-2020'))
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2020-01-02' } })
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(mockApi.updateTransaction).toHaveBeenCalledWith('d1',
+      { type: 'dividend', date: '2020-01-02T00:00:00Z', quantity: 0, amount: 1.234, notes: undefined }, undefined))
+  })
+
   it('deletes one dividend after an in-app confirmation', async () => {
     renderPage()
     fireEvent.click(await screen.findByLabelText('Delete dividend of 01-01-2020'))
