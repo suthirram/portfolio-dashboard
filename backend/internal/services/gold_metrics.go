@@ -26,7 +26,7 @@ func (s *GoldService) Metrics(ctx context.Context, uid string) (api.GoldMetrics,
 		return api.GoldMetrics{}, err
 	}
 
-	today := goldToday()
+	today := istToday()
 	var latest *float64
 	price, err := s.store.LatestPriceOnOrBefore(ctx, uid, today)
 	switch {

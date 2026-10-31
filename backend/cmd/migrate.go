@@ -44,6 +44,43 @@ have any transaction are skipped, so it is safe to re-run.`,
 	RunE: runMigrateTransactions,
 }
 
+var migrateCurrenciesCmd = &cobra.Command{
+	Use:   "currencies",
+	Short: "Canonicalize holding and ledger currencies (PD-048)",
+	Long: `Legacy holdings and ledger events may carry a blank, lowercase, mixed-case
+or padded currency (e.g. "", "inr", " Eur "). This rewrites them to the
+canonical code — trimmed, upper-cased, blank → "INR" — so every reader can
+filter on the stored value. Idempotent: a second run changes nothing.`,
+	RunE: runMigrateCurrencies,
+}
+
+func runMigrateCurrencies(_ *cobra.Command, _ []string) error {
+	cfg := config.Default()
+	cfg.ApplyEnv()
+	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.StartupTimeout)
+	defer cancel()
+	st, _, disconnect, err := cliConnect(ctx, logger, cfg)
+	if err != nil {
+		return err
+	}
+	defer disconnect()
+
+	holdings, err := st.Holdings.CanonicalizeCurrency(ctx)
+	if err != nil {
+		return fmt.Errorf("canonicalizing holding currencies: %w", err)
+	}
+	txns, err := st.Transactions.CanonicalizeCurrency(ctx)
+	if err != nil {
+		return fmt.Errorf("canonicalizing ledger currencies: %w", err)
+	}
+	logger.Info("currencies migrated", zap.Int64("holdings", holdings), zap.Int64("transactions", txns))
+	return nil
+}
+
 // cliConnect dials Mongo for a one-shot command and returns the store, the
 // underlying database (for index maintenance), and a disconnect func.
 // Centralises the boilerplate shared by every CLI command.
@@ -304,6 +341,7 @@ func init() {
 	migrateUsersCmd.Flags().StringVar(&migrateOwner, "owner", "", "username (case-insensitive) to assume ownership of legacy holdings")
 	migrateCmd.AddCommand(migrateUsersCmd)
 	migrateCmd.AddCommand(migrateTransactionsCmd)
+	migrateCmd.AddCommand(migrateCurrenciesCmd)
 	rootCmd.AddCommand(migrateCmd)
 
 	resetLockoutCmd.Flags().StringVar(&resetLockoutUser, "username", "", "username to unlock")

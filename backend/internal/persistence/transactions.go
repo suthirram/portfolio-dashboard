@@ -183,3 +183,26 @@ func (s *TransactionStore) HasAny(ctx context.Context, uid, holdingID primitive.
 	}
 	return true, nil
 }
+
+// SetCurrencyByHolding rewrites the denormalised currency on every event of
+// one holding, so the ledger follows a holding's currency change.
+func (s *TransactionStore) SetCurrencyByHolding(ctx context.Context, userId, holdingId primitive.ObjectID, currency string) error {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	_, err := s.col.UpdateMany(ctx,
+		scopedFilter(userId, bson.M{"holding_id": holdingId}),
+		bson.M{"$set": bson.M{"currency": currency}})
+	return err
+}
+
+// CanonicalizeCurrency rewrites every non-canonical ledger event currency to
+// its canonical code (persistence/currency.go). Returns the number changed.
+func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	res, err := s.col.UpdateMany(ctx, nonCanonicalCurrency, canonicalCurrencyUpdate)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
+}

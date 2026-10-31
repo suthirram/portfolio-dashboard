@@ -16,17 +16,8 @@ import (
 // rules (PRD-003 §7); controllers map it to 400.
 var ErrInvalidGoldPrice = errors.New("gold: invalid price")
 
-// istZone matters because "today" bounds the missing-day window (PRD-003
-// §7): the owner enters the local jeweler rate, so the calendar rolls on
-// Indian time, not UTC — same zone the snapshot job keys on.
-var istZone = time.FixedZone("IST", 5*60*60+30*60)
-
-// goldToday returns the current IST calendar day, normalized to a bare
-// UTC-midnight date so it compares cleanly with stored DATE values.
-func goldToday() time.Time {
-	now := time.Now().In(istZone)
-	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-}
+// "Today" bounds the missing-day window (PRD-003 §7): the owner enters the
+// local jeweler rate, so the calendar rolls on Indian time — see istToday.
 
 // Prices returns uid's price rows with from ≤ date ≤ to (either bound open
 // when nil), oldest first.
@@ -61,7 +52,7 @@ func (s *GoldService) PutPrices(ctx context.Context, uid string, prices []api.Go
 	if len(prices) == 0 {
 		return fmt.Errorf("%w: empty payload", ErrInvalidGoldPrice)
 	}
-	today := goldToday()
+	today := istToday()
 	seen := make(map[string]bool, len(prices))
 	rows := make([]domain.GoldPrice, 0, len(prices))
 	for _, p := range prices {
@@ -94,7 +85,7 @@ func (s *GoldService) MissingDates(ctx context.Context, uid string) ([]openapi_t
 	if err != nil {
 		return nil, err
 	}
-	today := goldToday()
+	today := istToday()
 	if !ok || first.After(today) {
 		return []openapi_types.Date{}, nil
 	}

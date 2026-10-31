@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -85,6 +87,23 @@ func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.O
 	}
 }
 
+// healAfter heals stored snapshots after a ledger write unless every event
+// involved is a dividend: snapshots carry quantity, cost and close, never
+// dividends, so a dividend-only change would rewrite History to the same
+// values (DD-005 §2.5). Dividends reach History via the on-read overlay.
+func (s *TransactionsService) healAfter(ctx context.Context, userId primitive.ObjectID, events ...domain.Transaction) {
+	dates := make([]time.Time, 0, len(events))
+	for _, e := range events {
+		if e.Type != domain.TxnDividend {
+			dates = append(dates, e.Date)
+		}
+	}
+	if len(dates) == 0 {
+		return
+	}
+	s.healSnapshots(ctx, userId, dates...)
+}
+
 func (s *TransactionsService) log(ctx context.Context) *zap.Logger {
 	return logging.FromContextOr(ctx, s.logger)
 }
@@ -150,7 +169,7 @@ func (s *TransactionsService) ListAll(ctx context.Context, userId primitive.Obje
 
 // Create appends a transaction to a holding and recomputes its position.
 // found=false ⇒ 404 (bad holding); a returned ErrValidation/ErrOversell ⇒ 400.
-func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID, holdingHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
+func (s *TransactionsService) Create(ctx context.Context, userId primitive.ObjectID, holdingHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Create")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
@@ -158,22 +177,22 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 	if err != nil {
 		return api.Transaction{}, false, nil
 	}
-	holding, err := s.holdings.GetScoped(ctx, uid, hid)
+	holding, err := s.holdings.GetScoped(ctx, userId, hid)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Transaction{}, false, nil
 		}
 		return api.Transaction{}, false, err
 	}
-	if err := validateTxnInput(input); err != nil {
+	if err := validateTxnInput(input, istToday()); err != nil {
 		return api.Transaction{}, true, err
 	}
 
 	t := TransactionFromInput(input)
 	t.ID = primitive.NewObjectID()
-	t.UserID = uid
+	t.UserID = userId
 	t.HoldingID = hid
-	t.Currency = holding.Currency
+	t.Currency = ledgerCurrency(holding)
 	now := time.Now()
 	t.CreatedAt = now
 	t.UpdatedAt = now
@@ -182,9 +201,9 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 		logger.Error("insert transaction failed", zap.String("error", err.Error()))
 		return api.Transaction{}, true, err
 	}
-	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, hid); err != nil {
+	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, hid); err != nil {
 		// Roll back the just-inserted event (e.g. it oversold).
-		_, _ = s.txns.DeleteScoped(ctx, uid, t.ID)
+		_, _ = s.txns.DeleteScoped(ctx, userId, t.ID)
 		if errors.Is(err, ErrOversell) {
 			return api.Transaction{}, true, err
 		}
@@ -192,28 +211,28 @@ func (s *TransactionsService) Create(ctx context.Context, uid primitive.ObjectID
 	}
 	logger.Info("transaction created",
 		zap.String("id", t.ID.Hex()), zap.String("holding", hid.Hex()), zap.String("type", string(t.Type)))
-	s.healSnapshots(ctx, uid, t.Date)
+	s.healAfter(ctx, userId, t)
 	return TransactionToAPI(t), true, nil
 }
 
 // Update edits a transaction by its id and recomputes the holding. found=false
 // ⇒ 404; ErrValidation/ErrOversell ⇒ 400. On oversell the prior values are
 // restored so the ledger never lands in a rejected state.
-func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID, idHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
+func (s *TransactionsService) Update(ctx context.Context, userId primitive.ObjectID, idHex string, input api.TransactionInput) (_ api.Transaction, _ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Update")
 	defer endSpan(span, &retErr)
 	id, err := primitive.ObjectIDFromHex(idHex)
 	if err != nil {
 		return api.Transaction{}, false, nil
 	}
-	prev, err := s.txns.GetScoped(ctx, uid, id)
+	prev, err := s.txns.GetScoped(ctx, userId, id)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Transaction{}, false, nil
 		}
 		return api.Transaction{}, false, err
 	}
-	if err := validateTxnInput(input); err != nil {
+	if err := validateTxnInput(input, istToday()); err != nil {
 		return api.Transaction{}, true, err
 	}
 
@@ -239,30 +258,30 @@ func (s *TransactionsService) Update(ctx context.Context, uid primitive.ObjectID
 	if patch.Type == domain.TxnOpening && !domain.UTCDate(patch.Date).Equal(domain.UTCDate(prev.Date)) {
 		set = append(set, bson.E{Key: "opening_date", Value: patch.Date})
 	}
-	updated, err := s.txns.UpdateScopedAndReturn(ctx, uid, id, set)
+	updated, err := s.txns.UpdateScopedAndReturn(ctx, userId, id, set)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return api.Transaction{}, false, nil
 		}
 		return api.Transaction{}, false, err
 	}
-	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
+	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, prev.HoldingID); err != nil {
 		// Restore the prior values and re-derive the holding.
-		s.restore(ctx, uid, prev)
+		s.restore(ctx, userId, prev)
 		return api.Transaction{}, true, err
 	}
 	logger := s.log(ctx)
 	logger.Info("transaction updated", zap.String("id", idHex))
 	// Heal from the earliest of the old and new dates — moving a txn earlier
 	// or later both invalidate the range between them.
-	s.healSnapshots(ctx, uid, prev.Date, updated.Date)
+	s.healAfter(ctx, userId, prev, updated)
 	return TransactionToAPI(updated), true, nil
 }
 
 // Delete removes a transaction and recomputes the holding. Removing a buy can
 // leave a later sell oversold; in that case the transaction is re-inserted and
 // the delete rejected with ErrOversell.
-func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID, idHex string) (_ bool, retErr error) {
+func (s *TransactionsService) Delete(ctx context.Context, userId primitive.ObjectID, idHex string) (_ bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "TransactionsService.Delete")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
@@ -270,35 +289,35 @@ func (s *TransactionsService) Delete(ctx context.Context, uid primitive.ObjectID
 	if err != nil {
 		return false, nil
 	}
-	prev, err := s.txns.GetScoped(ctx, uid, id)
+	prev, err := s.txns.GetScoped(ctx, userId, id)
 	if err != nil {
 		if errors.Is(err, persistence.ErrNotFound) {
 			return false, nil
 		}
 		return false, err
 	}
-	deleted, err := s.txns.DeleteScoped(ctx, uid, id)
+	deleted, err := s.txns.DeleteScoped(ctx, userId, id)
 	if err != nil {
 		return false, err
 	}
 	if !deleted {
 		return false, nil
 	}
-	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
+	if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, prev.HoldingID); err != nil {
 		// Re-insert and re-derive so the ledger stays consistent. Best-effort:
 		// a failed rollback must still surface the original error, but leaves
 		// the ledger inconsistent, so log it loudly.
 		if insErr := s.txns.Insert(ctx, prev); insErr != nil {
 			logger.Error("delete rollback: re-insert failed, ledger missing transaction",
 				zap.String("transaction_id", idHex), zap.Error(insErr))
-		} else if _, rcErr := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); rcErr != nil {
+		} else if _, rcErr := recomputeAndPersist(ctx, s.holdings, s.txns, userId, prev.HoldingID); rcErr != nil {
 			logger.Error("delete rollback: recompute failed, holding position stale",
 				zap.String("transaction_id", idHex), zap.Error(rcErr))
 		}
 		return false, err
 	}
 	logger.Info("transaction deleted", zap.String("id", idHex))
-	s.healSnapshots(ctx, uid, prev.Date)
+	s.healAfter(ctx, userId, prev)
 	return true, nil
 }
 
@@ -330,8 +349,26 @@ func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectI
 	}
 }
 
+// maxDividendAmount bounds one dividend so a mistyped cell (an account number
+// pasted into the amount) is rejected instead of stored.
+const maxDividendAmount = 1e12
+
+// validateDividend is the dividend rule shared by the ledger form and the CSV
+// import (PRD-005 §4): a positive finite amount below the bound, dated no
+// later than today (IST).
+func validateDividend(date time.Time, amount float64, today time.Time) error {
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount <= 0 || amount >= maxDividendAmount {
+		return fmt.Errorf("%w: dividend must be a positive amount", ErrValidation)
+	}
+	if domain.UTCDate(date).After(today) {
+		return fmt.Errorf("%w: dividend date is in the future", ErrValidation)
+	}
+	return nil
+}
+
 // validateTxnInput enforces the shape required by each transaction type.
-func validateTxnInput(input api.TransactionInput) error {
+// today is the IST calendar day (istToday), a parameter so tests pin it.
+func validateTxnInput(input api.TransactionInput, today time.Time) error {
 	typ := domain.TxnType(input.Type)
 	switch typ {
 	case domain.TxnBuy, domain.TxnSell:
@@ -346,9 +383,10 @@ func validateTxnInput(input api.TransactionInput) error {
 			return fmt.Errorf("%w: opening quantity cannot be negative", ErrValidation)
 		}
 	case domain.TxnDividend:
-		if input.Amount == nil || *input.Amount <= 0 {
-			return fmt.Errorf("%w: dividend requires a positive amount", ErrValidation)
+		if input.Amount == nil {
+			return fmt.Errorf("%w: dividend must be a positive amount", ErrValidation)
 		}
+		return validateDividend(input.Date, *input.Amount, today)
 	case domain.TxnSplit, domain.TxnBonus:
 		if input.Ratio == nil || *input.Ratio <= 0 {
 			return fmt.Errorf("%w: %s requires a positive ratio", ErrValidation, typ)
@@ -359,4 +397,15 @@ func validateTxnInput(input api.TransactionInput) error {
 		return fmt.Errorf("%w: unknown type %q", ErrValidation, input.Type)
 	}
 	return nil
+}
+
+// ledgerCurrency is the currency a ledger event stores for holding h: the
+// canonical INR/EUR from CurrencyOf (blank → INR), or the holding's own code
+// upper-cased for a legacy currency CurrencyOf does not bucket. Never blank,
+// so readers filter on the stored value without special cases.
+func ledgerCurrency(h domain.Holding) string {
+	if c, ok := CurrencyOf(h); ok {
+		return c
+	}
+	return strings.ToUpper(h.Currency)
 }

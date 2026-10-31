@@ -35,7 +35,7 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 				{Key: "type", Value: "stock"},
 				{Key: "currency", Value: "INR"},
 			}},
-		))
+		), mtest.CreateSuccessResponse()) // ledger currency sync when currency is sent
 	}
 
 	tests := []struct {
@@ -94,6 +94,53 @@ func TestHoldingsService_Update_StoreNotFoundIsNotFound(t *testing.T) {
 		}
 		if found {
 			t.Fatal("expected found=false when store returns ErrNotFound")
+		}
+	})
+}
+
+// A currency change rewrites the currency on the holding's ledger events; an
+// edit that leaves the currency alone does not touch the ledger.
+func TestHoldingsService_Update_SyncsLedgerCurrency(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	run := func(mt *mtest.T, currency *api.HoldingInputCurrency) int {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		mt.AddMockResponses(
+			// UpdateScopedAndReturn — findAndModify on holdings.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{
+				{Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}, {Key: "currency", Value: "EUR"},
+			}}),
+			// SetCurrencyByHolding — updateMany on transactions.
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(3)}, bson.E{Key: "nModified", Value: int32(3)}),
+		)
+		st := persistence.New(mt.DB)
+		svc := NewHoldingsService(st.Holdings, st.Transactions, nil)
+		if _, found, err := svc.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
+			Script: "SAP", Exchange: "OTHER", Type: "stock", Currency: currency,
+		}); err != nil || !found {
+			t.Fatalf("Update: found=%v err=%v", found, err)
+		}
+		n := 0
+		for _, e := range mt.GetAllStartedEvents() {
+			if e.CommandName != "update" || e.Command.Lookup("update").StringValue() != "transactions" {
+				continue
+			}
+			n++
+			set := e.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
+			if got := set.Lookup("currency").StringValue(); got != "EUR" {
+				t.Errorf("ledger currency = %q, want EUR", got)
+			}
+		}
+		return n
+	}
+	mt.Run("currency changed", func(mt *mtest.T) {
+		eur := api.HoldingInputCurrency("EUR")
+		if n := run(mt, &eur); n != 1 {
+			t.Errorf("ledger updates = %d, want 1", n)
+		}
+	})
+	mt.Run("currency not sent", func(mt *mtest.T) {
+		if n := run(mt, nil); n != 0 {
+			t.Errorf("ledger updates = %d, want 0", n)
 		}
 	})
 }
