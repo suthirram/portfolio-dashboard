@@ -1086,6 +1086,74 @@ components:
         by_year: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
         by_month: { type: array, items: { $ref: "#/components/schemas/DividendPeriodTotal" } }
         by_holding: { type: array, description: Biggest total first, items: { $ref: "#/components/schemas/DividendHoldingTotal" } }
+    DividendImportRow:
+      type: object
+      required: [line, date, share_name, amount]
+      properties:
+        line: { type: integer, description: 1-based file line (header = 1) }
+        date: { type: string, format: date }
+        share_name: { type: string }
+        amount: { type: number, format: double }
+        cumulative: { type: number, format: double, nullable: true, description: The sheet's CUMULATIVE cell — warnings only }
+    DividendImportInput:
+      type: object
+      required: [currency, rows]
+      properties:
+        currency: { type: string, enum: [INR, EUR] }
+        rows: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/DividendImportRow" } }
+        mappings:
+          type: object
+          description: Popup answers by sheet name — a holding id, or null to leave unresolved
+          additionalProperties: { type: string, nullable: true }
+    DividendSuggestion:
+      type: object
+      required: [holding_id, script, symbol, score]
+      properties:
+        holding_id: { type: string }
+        script: { type: string }
+        symbol: { type: string }
+        score: { type: number, format: double }
+    DividendNameResolution:
+      type: object
+      required: [sheet_name, rows, status, suggestions]
+      properties:
+        sheet_name: { type: string }
+        rows: { type: integer }
+        status: { type: string, description: auto | confirmed | needs_confirmation | ambiguous | unresolved }
+        holding_id: { type: string }
+        matched_by: { type: string, description: script | alias (auto only; a symbol never auto-matches) }
+        suggestions: { type: array, items: { $ref: "#/components/schemas/DividendSuggestion" } }
+        preselect: { type: string, description: Suggested holding id when it is a clear best }
+    DividendImportRowStatus:
+      type: object
+      required: [line, status]
+      properties:
+        line: { type: integer }
+        status: { type: string, description: ready | duplicate | invalid }
+        holding_id: { type: string }
+        reason: { type: string }
+    DividendImportWarning:
+      type: object
+      required: [line, message]
+      properties:
+        line: { type: integer }
+        message: { type: string }
+    DividendImportCounts:
+      type: object
+      required: [ready, duplicate, invalid, total]
+      properties:
+        ready: { type: integer }
+        duplicate: { type: integer }
+        invalid: { type: integer }
+        total: { type: integer }
+    DividendImportPreview:
+      type: object
+      required: [counts, names, rows, warnings]
+      properties:
+        counts: { $ref: "#/components/schemas/DividendImportCounts" }
+        names: { type: array, items: { $ref: "#/components/schemas/DividendNameResolution" } }
+        rows: { type: array, items: { $ref: "#/components/schemas/DividendImportRowStatus" } }
+        warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
 
   responses:
     BadRequest:

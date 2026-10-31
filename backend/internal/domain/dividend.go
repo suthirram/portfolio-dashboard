@@ -1,6 +1,24 @@
 package domain
 
-import "math"
+import (
+	"math"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+// DividendKey is the PRD-005 §5 duplicate identity: holding, calendar day and
+// amount in minor units. The sheet's cumulative is never part of it.
+type DividendKey struct {
+	HoldingId primitive.ObjectID
+	Day       string // YYYY-MM-DD
+	Cents     int64
+}
+
+// DividendKeyOf returns the duplicate identity of a stored dividend event.
+func DividendKeyOf(dividend Transaction) DividendKey {
+	return DividendKey{HoldingId: dividend.HoldingID, Day: UTCDate(dividend.Date).Format(time.DateOnly), Cents: AmountCents(dividend.Amount)}
+}
 
 // AmountCents converts a money amount to integer minor units (2 dp). Running
 // totals and duplicate keys use it so float noise never changes a result.
