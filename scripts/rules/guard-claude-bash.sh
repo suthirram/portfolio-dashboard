@@ -53,9 +53,7 @@ if [[ "$cmd" =~ (^|[^[:alnum:]_])gh[[:space:]]+pr[[:space:]]+(create|edit) ]]; t
 
   body_file=""
   if [[ "$seg" =~ (--body-file|-F)[[:space:]]+([^[:space:]\;\&\|]+) ]]; then
-    body_file="${BASH_REMATCH[2]}"
-    body_file="${body_file%\"}"; body_file="${body_file#\"}"
-    body_file="${body_file%\'}"; body_file="${body_file#\'}"
+    body_file="$(unquote "${BASH_REMATCH[2]}")"
     if [[ ! -r "$body_file" ]]; then
       deny "PR body file '$body_file' is not readable here; pass a literal path to an existing file with --body-file."
     fi
@@ -67,10 +65,19 @@ if [[ "$cmd" =~ (^|[^[:alnum:]_])gh[[:space:]]+pr[[:space:]]+(create|edit) ]]; t
 
   files_file=$(mktemp)
   trap 'rm -f "$files_file"' EXIT
-  if [[ "$action" == "create" ]]; then
-    git diff --name-only "$(pr_diff_range "$seg")" > "$files_file" 2>/dev/null || true
+  # Fail closed: an unresolved range is not an empty diff, or the FE/BE split
+  # and curl checks would silently pass. Files only matter with a body.
+  if [[ -z "$body_file" ]]; then
+    :
+  elif [[ "$action" == "create" ]]; then
+    range="$(pr_diff_range "$seg")"
+    if ! git diff --name-only "$range" > "$files_file" 2>/dev/null; then
+      deny "Cannot list the PR's changed files ($range does not resolve); push both branches and git fetch first."
+    fi
   elif [[ "$seg" =~ ^edit[[:space:]]+([0-9]+) ]]; then
-    gh pr view "${BASH_REMATCH[1]}" --json files --jq '.files[].path' > "$files_file" 2>/dev/null || true
+    if ! gh pr view "${BASH_REMATCH[1]}" --json files --jq '.files[].path' > "$files_file" 2>/dev/null; then
+      deny "Cannot list PR #${BASH_REMATCH[1]}'s changed files; check gh auth and retry."
+    fi
   fi
 
   args=()

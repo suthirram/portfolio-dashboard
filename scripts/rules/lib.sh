@@ -58,10 +58,17 @@ prose_word_count() {
 # pr_diff_range prints the git range of a PR-create segment ($1, the text
 # after "gh pr "): origin/<--base>...<--head>, defaulting to origin/main and
 # HEAD. Honouring --base/--head keeps a stacked PR's file list to its own
-# slice instead of everything since main.
+# slice instead of everything since main. Shell quotes around a branch
+# ("main", 'feat/x') are stripped so the refs resolve.
 pr_diff_range() {
   local base=main head=HEAD
-  [[ "$1" =~ (--base|-B)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && base="${BASH_REMATCH[2]}"
-  [[ "$1" =~ (--head|-H)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && head="origin/${BASH_REMATCH[2]}"
+  [[ "$1" =~ (--base|-B)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && base="$(unquote "${BASH_REMATCH[2]}")"
+  [[ "$1" =~ (--head|-H)[[:space:]=]+([^[:space:]\;\&\|]+) ]] && head="origin/$(unquote "${BASH_REMATCH[2]}")"
   echo "origin/$base...$head"
+}
+
+# unquote prints $1 without the shell quote characters around or inside it.
+unquote() {
+  local v="${1//\"/}"
+  echo "${v//\'/}"
 }
