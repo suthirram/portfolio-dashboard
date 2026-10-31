@@ -135,3 +135,52 @@ func TestImportRow_ToTransactionRoundsToCents(t *testing.T) {
 		t.Errorf("imported amount = %v, want 1 (rounded to cents)", got)
 	}
 }
+
+// Delete-all is scoped to dividends of one currency and recomputes each
+// affected holding.
+func TestDeleteAll_ScopedAndRecomputes(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("INR", func(mt *mtest.T) {
+		userId, tcs := primitive.NewObjectID(), primitive.NewObjectID()
+		mt.AddMockResponses(
+			mtest.CreateSuccessResponse(bson.E{Key: "values", Value: bson.A{tcs}}), // distinct
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(4)}),         // deleteMany
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: tcs}}}),
+		)
+		store := persistence.New(mt.DB)
+		deleted, err := NewDividendsService(store.Transactions, store.Holdings, directRunner{}, nil).DeleteAll(context.Background(), userId, "INR")
+		if err != nil || deleted != 4 {
+			t.Fatalf("DeleteAll = %d, %v; want 4, nil", deleted, err)
+		}
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "delete" {
+				continue
+			}
+			filter := event.Command.Lookup("deletes").Array().Index(0).Value().Document().Lookup("q").Document()
+			if filter.Lookup("type").StringValue() != "dividend" || filter.Lookup("user_id").ObjectID() != userId {
+				t.Errorf("delete filter = %s; want type=dividend for the user", filter)
+			}
+		}
+		if recomputes := commandCount(mt, "findAndModify", "holdings"); recomputes != 1 {
+			t.Errorf("recomputes = %d, want 1", recomputes)
+		}
+	})
+
+	// A dividend whose holding no longer exists (ErrNoDocuments on recompute)
+	// must not block Delete all.
+	mt.Run("orphan dividend", func(mt *mtest.T) {
+		userId, gone := primitive.NewObjectID(), primitive.NewObjectID()
+		mt.AddMockResponses(
+			mtest.CreateSuccessResponse(bson.E{Key: "values", Value: bson.A{gone}}), // distinct
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}),          // deleteMany
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".transactions", mtest.FirstBatch),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}), // holding not found
+		)
+		store := persistence.New(mt.DB)
+		deleted, err := NewDividendsService(store.Transactions, store.Holdings, directRunner{}, nil).DeleteAll(context.Background(), userId, "INR")
+		if err != nil || deleted != 1 {
+			t.Fatalf("DeleteAll = %d, %v; want 1, nil (orphan skipped)", deleted, err)
+		}
+	})
+}

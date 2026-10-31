@@ -17,6 +17,25 @@ dividends:
               $ref: "../portfolio-api.yaml#/components/schemas/DividendView"
       "400":
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+  delete:
+    tags: [Dividends]
+    summary: Delete every dividend of one currency tab
+    description: Removes imported and hand-entered dividends of the currency and recomputes the affected holdings, atomically. Holdings and other transaction types are untouched.
+    operationId: deleteDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: Deleted count
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deleted]
+              properties:
+                deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
 
 dividends_import_preview:
   post:

@@ -125,3 +125,42 @@ func (h *Controller) AdminImportUserDividends(ctx context.Context, request api.A
 	}
 	return api.AdminImportUserDividends200JSONResponse(result), nil
 }
+
+func (h *Controller) DeleteDividends(ctx context.Context, request api.DeleteDividendsRequestObject) (api.DeleteDividendsResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	deleted, err := h.dividends.DeleteAll(ctx, currentUserId, string(request.Params.Currency))
+	if err != nil {
+		if errors.Is(err, services.ErrValidation) {
+			return api.DeleteDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+		}
+		return nil, err
+	}
+	return api.DeleteDividends200JSONResponse{Deleted: int(deleted)}, nil
+}
+
+func (h *Controller) AdminDeleteUserDividends(ctx context.Context, request api.AdminDeleteUserDividendsRequestObject) (api.AdminDeleteUserDividendsResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminDeleteUserDividends404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	deleted, err := h.dividends.DeleteAll(ctx, target.ID, string(request.Params.Currency))
+	if err != nil {
+		// Same mapping as the own-portfolio route: no request validator runs,
+		// so a bad currency reaches the service and must be a 400, not a 500.
+		if errors.Is(err, services.ErrValidation) {
+			return api.AdminDeleteUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+		}
+		return nil, err
+	}
+	return api.AdminDeleteUserDividends200JSONResponse{Deleted: int(deleted)}, nil
+}

@@ -243,3 +243,26 @@ func (s *TransactionStore) InsertMany(ctx context.Context, txns []domain.Transac
 	_, err := s.col.InsertMany(ctx, docs, options.InsertMany().SetOrdered(true))
 	return err
 }
+
+// DeleteDividends removes userId's dividend events in one currency and
+// returns the holdings they belonged to, for recompute.
+func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive.ObjectID, currency string) ([]primitive.ObjectID, int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	filter := scopedFilter(userId, bson.M{"type": string(domain.TxnDividend), "currency": currency})
+	distinctIds, err := s.col.Distinct(ctx, "holding_id", filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	holdingIds := make([]primitive.ObjectID, 0, len(distinctIds))
+	for _, value := range distinctIds {
+		if holdingId, ok := value.(primitive.ObjectID); ok {
+			holdingIds = append(holdingIds, holdingId)
+		}
+	}
+	result, err := s.col.DeleteMany(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	return holdingIds, result.DeletedCount, nil
+}

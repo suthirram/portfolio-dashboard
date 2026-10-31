@@ -113,3 +113,22 @@ func TestPreviewDividendImport_ReadOnly(t *testing.T) {
 		}
 	})
 }
+
+func TestAdminDeleteUserDividends_BadCurrency400(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("USD", func(mt *mtest.T) {
+		targetId := primitive.NewObjectID()
+		target := userDocument(t, targetId, "bob", "irrelevant1", domain.RoleUser, "india", nil)
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target))
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{})
+		response, err := handler.AdminDeleteUserDividends(userCtx(regionalAdmin("india")), api.AdminDeleteUserDividendsRequestObject{
+			Id: targetId.Hex(), Params: api.AdminDeleteUserDividendsParams{Currency: "USD"},
+		})
+		if err != nil {
+			t.Fatalf("AdminDeleteUserDividends: %v", err)
+		}
+		if _, ok := response.(api.AdminDeleteUserDividends400JSONResponse); !ok {
+			t.Fatalf("response = %T, want 400", response)
+		}
+	})
+}

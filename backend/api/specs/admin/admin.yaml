@@ -421,6 +421,26 @@ users_id_dividends:
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+  delete:
+    tags: [Admin]
+    summary: Delete every dividend of one currency tab for a user (act-as)
+    operationId: adminDeleteUserDividends
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/DividendCurrency"
+    responses:
+      "200":
+        description: Deleted count
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deleted]
+              properties:
+                deleted: { type: integer }
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
 users_id_dividends_import_preview:
   parameters:
