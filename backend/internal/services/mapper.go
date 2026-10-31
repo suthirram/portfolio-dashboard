@@ -193,6 +193,9 @@ func TransactionFromInput(input api.TransactionInput) domain.Transaction {
 	}
 	if input.Amount != nil {
 		t.Amount = *input.Amount
+		if t.Type == domain.TxnDividend {
+			t.Amount = domain.RoundCents(t.Amount)
+		}
 	}
 	if input.Ratio != nil {
 		t.Ratio = *input.Ratio

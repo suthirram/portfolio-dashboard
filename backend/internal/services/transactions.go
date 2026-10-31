@@ -357,7 +357,8 @@ const maxDividendAmount = 1e12
 // import (PRD-005 §4): a positive finite amount below the bound, dated no
 // later than today (IST).
 func validateDividend(date time.Time, amount float64, today time.Time) error {
-	if math.IsNaN(amount) || math.IsInf(amount, 0) || amount <= 0 || amount >= maxDividendAmount {
+	// Judged at cent precision (the stored precision): 0.004 rounds to 0.
+	if math.IsNaN(amount) || math.IsInf(amount, 0) || domain.AmountCents(amount) <= 0 || amount >= maxDividendAmount {
 		return fmt.Errorf("%w: dividend must be a positive amount", ErrValidation)
 	}
 	if domain.UTCDate(date).After(today) {

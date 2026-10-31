@@ -6,6 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/domain"
 )
 
@@ -57,16 +58,43 @@ func TestBuildDividendView_RunningTotalsAndAnalytics(t *testing.T) {
 
 // The per-holding total must equal what RecomputePosition stores as the
 // holding's total_dividends — the no-double-counting guarantee (PRD-005 §9).
+// Legacy sub-cent amounts (1.004 ×3) must not split the two: both sum cents.
 func TestBuildDividendView_HoldingTotalMatchesPosition(t *testing.T) {
-	tcs := primitive.NewObjectID()
-	txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", 0.1), dividendEvent(tcs, "2020-02-01", 0.1), dividendEvent(tcs, "2020-03-01", 0.1)}
-	pos, err := RecomputePosition(txns)
-	if err != nil {
-		t.Fatal(err)
+	cases := []struct {
+		name   string
+		amount float64
+		want   float64
+	}{
+		{"float noise", 0.1, 0.3},
+		{"fractional cents", 1.004, 3.0},
+		{"fractional cents rounding up", 1.006, 3.03},
 	}
-	view := buildDividendView(txns, []domain.Holding{{ID: tcs, Script: "TCS"}})
-	if domain.AmountCents(view.ByHolding[0].Total) != domain.AmountCents(pos.TotalDividends) {
-		t.Errorf("by_holding %v ≠ total_dividends %v", view.ByHolding[0].Total, pos.TotalDividends)
+	for _, c := range cases {
+		tcs := primitive.NewObjectID()
+		txns := []domain.Transaction{dividendEvent(tcs, "2020-01-01", c.amount), dividendEvent(tcs, "2020-02-01", c.amount), dividendEvent(tcs, "2020-03-01", c.amount)}
+		pos, err := RecomputePosition(txns)
+		if err != nil {
+			t.Fatal(err)
+		}
+		view := buildDividendView(txns, []domain.Holding{{ID: tcs, Script: "TCS"}})
+		if view.ByHolding[0].Total != pos.TotalDividends || view.Summary.Total != pos.TotalDividends {
+			t.Errorf("%s: by_holding %v / summary %v ≠ total_dividends %v", c.name, view.ByHolding[0].Total, view.Summary.Total, pos.TotalDividends)
+		}
+		if pos.TotalDividends != c.want {
+			t.Errorf("%s: total_dividends = %v, want %v", c.name, pos.TotalDividends, c.want)
+		}
+	}
+}
+
+// A dividend is stored at cent precision, so the stored amount is exactly
+// what every total sums; other types keep their full amount.
+func TestTransactionFromInput_RoundsDividendToCents(t *testing.T) {
+	amount := 1.004
+	if got := TransactionFromInput(api.TransactionInput{Type: "dividend", Amount: &amount}).Amount; got != 1.0 {
+		t.Errorf("dividend amount = %v, want 1", got)
+	}
+	if got := TransactionFromInput(api.TransactionInput{Type: "buy", Amount: &amount}).Amount; got != 1.004 {
+		t.Errorf("buy amount = %v, want 1.004", got)
 	}
 }
 
