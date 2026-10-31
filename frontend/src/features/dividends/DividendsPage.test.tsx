@@ -33,7 +33,7 @@ const empty: DividendView = { rows: [], by_year: [], by_month: [], by_holding: [
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockApi.listDividends.mockImplementation((c: string) => Promise.resolve(c === 'INR' ? inr : empty))
+  mockApi.listDividends.mockImplementation((currency: string) => Promise.resolve(currency === 'INR' ? inr : empty))
   mockApi.listHoldings.mockResolvedValue([])
 })
 

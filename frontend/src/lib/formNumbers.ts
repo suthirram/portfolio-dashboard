@@ -134,6 +134,6 @@ const CURRENCY_SIGNS_RE = /[₹€$£]/g
 // 1,250.50 (Indian/English) or 1.250,50 (European) — by stripping currency
 // signs and delegating to parseDecimalInput, the parser the amount inputs
 // use. Empty → 0; unreadable → NaN.
-export function parseMoneyCell(s: string): number {
-  return parseDecimalInput(s.replace(CURRENCY_SIGNS_RE, ''))
+export function parseMoneyCell(cell: string): number {
+  return parseDecimalInput(cell.replace(CURRENCY_SIGNS_RE, ''))
 }

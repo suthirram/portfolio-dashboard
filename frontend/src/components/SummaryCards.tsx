@@ -285,7 +285,7 @@ function DividendIncomeCard({inr, eur}: { inr?: number; eur?: number }) {
     return (
         <div className="card" style={cardStyle}>
             <div style={cardLabelStyle}>Dividend Income</div>
-            {rows.map(r => <BreakdownLine key={r.name} row={r}/>)}
+            {rows.map(row => <BreakdownLine key={row.name} row={row}/>)}
         </div>
     )
 }

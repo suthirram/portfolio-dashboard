@@ -20,8 +20,8 @@ export default function DeleteAllDialog({ currency, count, userId, onClose, onDe
     try {
       await api.deleteAllDividends(currency, userId)
       onDeleted()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error))
       setBusy(false)
     }
   }

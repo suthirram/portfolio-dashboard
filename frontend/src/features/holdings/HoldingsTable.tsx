@@ -129,7 +129,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
     acc.value += nativeValue(h) || 0
     acc.unreal += nativeUnrealized(h) || 0
     acc.real += h.realized_pnl || 0
-    acc.div += h.total_dividends || 0
+    acc.dividends += h.total_dividends || 0
     // Fall back to avg_cost_price as baseline for holdings without a snapshot yet.
     const baseline = h.previous_close_price ?? h.avg_cost_price
     const m = priceMovement(h.current_price, baseline)
@@ -140,7 +140,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
       acc.dayGainPartial = true
     }
     return acc
-  }, { cost: 0, value: 0, unreal: 0, real: 0, div: 0, dayGain: null as number | null, dayGainPartial: false })
+  }, { cost: 0, value: 0, unreal: 0, real: 0, dividends: 0, dayGain: null as number | null, dayGainPartial: false })
   const TOTAL_MONEY = nativeCurrency === 'EUR' ? EUR : INR
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
@@ -355,7 +355,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
               </TD>
               <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.unreal)}</TD>
               <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.real)}</TD>
-              <TD className={`mono col-hide-sm ${totals.div > 0 ? 'pos' : 'neutral'}`}>{TOTAL_MONEY(totals.div)}</TD>
+              <TD className={`mono col-hide-sm ${totals.dividends > 0 ? 'pos' : 'neutral'}`}>{TOTAL_MONEY(totals.dividends)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
             </tr>
           </tfoot>

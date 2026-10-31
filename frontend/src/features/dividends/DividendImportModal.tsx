@@ -9,8 +9,8 @@ import NameConfirmDialog, { type Answers } from './NameConfirmDialog'
 
 type Step = 'pick' | 'names' | 'preview' | 'result'
 const MAX_BYTES = 1024 * 1024
-const open = (p: DividendImportPreview, answers: Answers) =>
-  p.names.filter(n => (n.status === 'needs_confirmation' || n.status === 'ambiguous') && !(n.sheet_name in answers))
+const open = (preview: DividendImportPreview, answers: Answers) =>
+  preview.names.filter(name => (name.status === 'needs_confirmation' || name.status === 'ambiguous') && !(name.sheet_name in answers))
 
 export default function DividendImportModal({ currency, holdings, userId, onClose, onImported }: {
   currency: DividendCurrency; holdings: Holding[]; userId?: string; onClose: () => void; onImported: () => void
@@ -25,18 +25,18 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
   const [result, setResult] = useState<DividendImportResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const inTab = useMemo(() => holdings.filter(h => canonicalCurrency(h.currency) === currency), [holdings, currency])
+  const inTab = useMemo(() => holdings.filter(holding => canonicalCurrency(holding.currency) === currency), [holdings, currency])
   const label = `${currencySymbol(currency)} ${currency}`
 
-  const runPreview = async (r: DividendImportRow[], a: Answers) => {
+  const runPreview = async (sheetRows: DividendImportRow[], mappings: Answers) => {
     setBusy(true)
     setErr('')
     try {
-      const p = await api.previewDividendImport({ currency, rows: r, mappings: a }, userId)
-      setPreview(p)
-      setStep(open(p, a).length > 0 ? 'names' : 'preview')
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
+      const evaluated = await api.previewDividendImport({ currency, rows: sheetRows, mappings }, userId)
+      setPreview(evaluated)
+      setStep(open(evaluated, mappings).length > 0 ? 'names' : 'preview')
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error))
     } finally {
       setBusy(false)
     }
@@ -66,9 +66,9 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
     total: Math.max(total, preview.counts.total + localErrors.length),
   }
   const invalidLines = [
-    ...localErrors.map(e => ({ line: e.line, reason: e.reason })),
-    ...(preview?.rows.filter(r => r.status === 'invalid').map(r => ({ line: r.line, reason: r.reason ?? '' })) ?? []),
-  ].sort((a, b) => a.line - b.line)
+    ...localErrors.map(localError => ({ line: localError.line, reason: localError.reason })),
+    ...(preview?.rows.filter(row => row.status === 'invalid').map(row => ({ line: row.line, reason: row.reason ?? '' })) ?? []),
+  ].sort((first, second) => first.line - second.line)
 
   const confirm = async () => {
     setBusy(true)
@@ -76,12 +76,12 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
     try {
       setResult(await api.importDividends({ currency, rows, mappings: answers }, userId))
       setStep('result')
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 422 && e.body) {
-        setPreview(e.body as DividendImportPreview)
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 422 && error.body) {
+        setPreview(error.body as DividendImportPreview)
         setErr('The data changed since the preview — review it again.')
       } else {
-        setErr(e instanceof Error ? e.message : String(e))
+        setErr(error instanceof Error ? error.message : String(error))
       }
     } finally {
       setBusy(false)
@@ -91,7 +91,7 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
   if (step === 'names' && preview) {
     return (
       <NameConfirmDialog names={open(preview, answers)} holdings={inTab} currencyLabel={label} onBack={() => setStep('pick')}
-        onConfirm={a => { const next = { ...answers, ...a }; setAnswers(next); void runPreview(rows, next) }} />
+        onConfirm={confirmed => { const next = { ...answers, ...confirmed }; setAnswers(next); void runPreview(rows, next) }} />
     )
   }
 
@@ -129,12 +129,12 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
                 <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}><strong>{counts.invalid} rows need fixing</strong> before you can import. Nothing has been saved.</p>
                 <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr><th style={th}>Line</th><th style={th}>Problem</th></tr></thead>
-                  <tbody>{invalidLines.map(l => <tr key={l.line}><td style={td}>{l.line}</td><td style={td}>{l.reason}</td></tr>)}</tbody>
+                  <tbody>{invalidLines.map(invalidLine => <tr key={invalidLine.line}><td style={td}>{invalidLine.line}</td><td style={td}>{invalidLine.reason}</td></tr>)}</tbody>
                 </table>
               </>
             )}
-            {preview.warnings.map(w => (
-              <p key={w.line} style={{ color: 'var(--yellow)', fontSize: 12, margin: 0 }}>⚠ Line {w.line}: {w.message}. Import is still allowed.</p>
+            {preview.warnings.map(warning => (
+              <p key={warning.line} style={{ color: 'var(--yellow)', fontSize: 12, margin: 0 }}>⚠ Line {warning.line}: {warning.message}. Import is still allowed.</p>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               {Object.keys(answers).length > 0 && <button className="btn" onClick={() => { setAnswers({}); void runPreview(rows, {}) }}>Change names</button>}
@@ -152,8 +152,8 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
                 <p role="status" style={{ color: 'var(--yellow)', margin: 0 }}>⚠ <strong>{result.duplicates.length} duplicates are discarded</strong> — already saved.</p>
                 <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr><th style={th}>Line</th><th style={th}>Date</th><th style={th}>Share</th><th style={{ ...th, textAlign: 'right' }}>Dividend</th></tr></thead>
-                  <tbody>{result.duplicates.map(d => (
-                    <tr key={d.line}><td style={td}>{d.line}</td><td style={td}>{formatDate(d.date)}</td><td style={td}>{d.share_name}</td><td style={{ ...td, textAlign: 'right' }}>{formatMoney(d.amount, currency)}</td></tr>
+                  <tbody>{result.duplicates.map(duplicate => (
+                    <tr key={duplicate.line}><td style={td}>{duplicate.line}</td><td style={td}>{formatDate(duplicate.date)}</td><td style={td}>{duplicate.share_name}</td><td style={{ ...td, textAlign: 'right' }}>{formatMoney(duplicate.amount, currency)}</td></tr>
                   ))}</tbody>
                 </table>
               </>
