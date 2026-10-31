@@ -8,12 +8,21 @@ services:
   mongodb:
     image: mongo:7
     container_name: portfolio_mongo_dev
+    # Single-node replica set: dividend imports use multi-document
+    # transactions (DD-005 §2.6), which need one.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data_dev:/data/db
     environment:
       MONGO_INITDB_DATABASE: portfolio
+    healthcheck:
+      # Initiates the set on first boot; healthy once this node is PRIMARY.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok }"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
 
   # Gold tracking data (PRD-003 / DD-003) lives in Postgres.
   postgres:

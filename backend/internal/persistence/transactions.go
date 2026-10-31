@@ -227,3 +227,19 @@ func (s *TransactionStore) CanonicalizeCurrency(ctx context.Context) (int64, err
 	}
 	return res.ModifiedCount, nil
 }
+
+// InsertMany inserts txns in order; ordered so a failure stops at that row
+// (inside the import transaction the whole batch then rolls back).
+func (s *TransactionStore) InsertMany(ctx context.Context, txns []domain.Transaction) error {
+	if len(txns) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	docs := make([]any, len(txns))
+	for i := range txns {
+		docs[i] = txns[i]
+	}
+	_, err := s.col.InsertMany(ctx, docs, options.InsertMany().SetOrdered(true))
+	return err
+}

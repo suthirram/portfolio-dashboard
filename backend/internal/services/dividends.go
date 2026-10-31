@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,13 +21,20 @@ import (
 type DividendsService struct {
 	txns     *persistence.TransactionStore
 	holdings *persistence.HoldingStore
+	tx       txRunner
 	logger   *zap.Logger
 	today    func() time.Time // IST calendar day; tests pin it
 }
 
+// txRunner runs fn atomically. *persistence.Store implements it; tests pass
+// a runner that calls fn directly.
+type txRunner interface {
+	InTransaction(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 // NewDividendsService wires a DividendsService.
-func NewDividendsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, logger *zap.Logger) *DividendsService {
-	return &DividendsService{txns: txns, holdings: holdings, logger: logger, today: istToday}
+func NewDividendsService(txns *persistence.TransactionStore, holdings *persistence.HoldingStore, tx txRunner, logger *zap.Logger) *DividendsService {
+	return &DividendsService{txns: txns, holdings: holdings, tx: tx, logger: logger, today: istToday}
 }
 
 func (s *DividendsService) log(ctx context.Context) *zap.Logger {
@@ -146,4 +154,90 @@ func (s *DividendsService) Preview(ctx context.Context, userId primitive.ObjectI
 		return api.DividendImportPreview{}, err
 	}
 	return plan.preview, nil
+}
+
+// ImportInvalidError carries the fresh preview when a confirm finds invalid
+// rows; nothing was written. Controllers map it to 422.
+type ImportInvalidError struct{ Preview api.DividendImportPreview }
+
+func (e *ImportInvalidError) Error() string {
+	return fmt.Sprintf("dividend import: %d invalid rows", e.Preview.Counts.Invalid)
+}
+
+// toTransaction builds the ledger event for a new imported dividend. The
+// ObjectID is assigned here, in sheet order (DD-005 §2.2).
+func (r importRow) toTransaction(userId primitive.ObjectID, batchId string, now time.Time) domain.Transaction {
+	return domain.Transaction{
+		ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
+		// Same helpers as hand-entered events, so both store one format (Task 3A)
+		// and one precision: cents, exactly what every total sums.
+		Type: domain.TxnDividend, Date: r.day, Amount: domain.RoundCents(r.sheetRow.Amount), Currency: ledgerCurrency(*r.holding),
+		Import:    &domain.ImportMeta{BatchId: batchId, Line: r.sheetRow.Line, SheetName: r.sheetRow.ShareName, SheetCumulative: r.sheetRow.Cumulative},
+		CreatedAt: now, UpdatedAt: now,
+	}
+}
+
+func importRowsOf(rows []importRow) []api.DividendImportRow {
+	out := make([]api.DividendImportRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.sheetRow)
+	}
+	return out
+}
+
+// Import commits every eligible row, the confirmed aliases and the
+// recomputed holding totals together, or nothing (PRD-005 §7.7).
+func (s *DividendsService) Import(ctx context.Context, userId primitive.ObjectID, input api.DividendImportInput) (_ api.DividendImportResult, retErr error) {
+	ctx, span := tracer.Start(ctx, "DividendsService.Import")
+	defer endSpan(span, &retErr)
+	logger := s.log(ctx)
+	if err := checkImportInput(input); err != nil {
+		return api.DividendImportResult{}, err
+	}
+	var result api.DividendImportResult
+	err := s.tx.InTransaction(ctx, func(ctx context.Context) error {
+		plan, err := s.evaluate(ctx, userId, input)
+		if err != nil {
+			return err
+		}
+		if plan.preview.Counts.Invalid > 0 {
+			return &ImportInvalidError{Preview: plan.preview}
+		}
+		batchId := primitive.NewObjectID().Hex()
+		now := time.Now().UTC()
+		dividends := make([]domain.Transaction, 0, len(plan.fresh))
+		var affected []primitive.ObjectID
+		seen := map[primitive.ObjectID]bool{}
+		for _, row := range plan.fresh {
+			dividends = append(dividends, row.toTransaction(userId, batchId, now))
+			if !seen[row.holding.ID] {
+				seen[row.holding.ID] = true
+				affected = append(affected, row.holding.ID)
+			}
+		}
+		if err := s.txns.InsertMany(ctx, dividends); err != nil {
+			return err
+		}
+		for holdingId, keys := range plan.aliases {
+			if err := s.holdings.MoveAliases(ctx, userId, holdingId, keys); err != nil {
+				return err
+			}
+		}
+		for _, holdingId := range affected {
+			if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, holdingId); err != nil {
+				return err
+			}
+		}
+		result = api.DividendImportResult{Imported: len(dividends), Duplicates: importRowsOf(plan.duplicates), BatchId: batchId, Warnings: plan.preview.Warnings}
+		return nil
+	})
+	if err != nil {
+		if _, invalid := errors.AsType[*ImportInvalidError](err); !invalid {
+			logger.Error("dividend import failed", zap.Error(err))
+		}
+		return api.DividendImportResult{}, err
+	}
+	logger.Info("dividends imported", zap.Int("imported", result.Imported),
+		zap.Int("duplicates", len(result.Duplicates)), zap.String("batch_id", result.BatchId))
+	return result, nil
 }

@@ -82,3 +82,46 @@ func (h *Controller) AdminPreviewUserDividendImport(ctx context.Context, request
 	}
 	return api.AdminPreviewUserDividendImport200JSONResponse(preview), nil
 }
+
+func (h *Controller) ImportDividends(ctx context.Context, request api.ImportDividendsRequestObject) (api.ImportDividendsResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := h.dividends.Import(ctx, currentUserId, *request.Body)
+	var invalid *services.ImportInvalidError
+	switch {
+	case errors.As(err, &invalid):
+		return api.ImportDividends422JSONResponse(invalid.Preview), nil
+	case errors.Is(err, services.ErrValidation):
+		return api.ImportDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+	case err != nil:
+		return nil, err
+	}
+	return api.ImportDividends200JSONResponse(result), nil
+}
+
+func (h *Controller) AdminImportUserDividends(ctx context.Context, request api.AdminImportUserDividendsRequestObject) (api.AdminImportUserDividendsResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminImportUserDividends404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	result, err := h.dividends.Import(ctx, target.ID, *request.Body)
+	var invalid *services.ImportInvalidError
+	switch {
+	case errors.As(err, &invalid):
+		return api.AdminImportUserDividends422JSONResponse(invalid.Preview), nil
+	case errors.Is(err, services.ErrValidation):
+		return api.AdminImportUserDividends400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+	case err != nil:
+		return nil, err
+	}
+	return api.AdminImportUserDividends200JSONResponse(result), nil
+}
