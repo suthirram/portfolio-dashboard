@@ -27,3 +27,9 @@ export function formatDayMonth(iso: string | null | undefined): string {
   const p = splitISO(iso)
   return p ? `${p.d}-${p.m}` : iso ?? ''
 }
+
+// todayIST is the current IST calendar day as YYYY-MM-DD — the browser twin
+// of the server's istToday.
+export function todayIST(now = new Date()): string {
+  return new Date(now.getTime() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)
+}

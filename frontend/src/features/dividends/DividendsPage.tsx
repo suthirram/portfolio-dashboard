@@ -7,10 +7,12 @@ import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
-import type { DividendCurrency } from '../../types'
+import type { DividendCurrency, DividendRow } from '../../types'
 import { useDividends } from './useDividends'
 import DividendsTable from './DividendsTable'
 import DividendsAnalytics from './DividendsAnalytics'
+import DividendModal, { DeleteDividendDialog } from './DividendModal'
+import DeleteAllDialog from './DeleteAllDialog'
 
 const INPUT: CSSProperties = {
   background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
@@ -34,9 +36,14 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const [params, setParams] = useSearchParams()
   const currency = tabFrom(params.get('currency'))
-  const { view, loading, error } = useDividends(currency, actAsUserId)
+  const { view, ready, holdings, loading, error, refresh } = useDividends(currency, actAsUserId)
   const [holdingId, setHoldingId] = useState('')
   const [search, setSearch] = useState('')
+  const [editor, setEditor] = useState<{ row: DividendRow | null } | null>(null)
+  const [deleting, setDeleting] = useState<DividendRow | null>(null)
+  const [deletingAll, setDeletingAll] = useState(false)
+  // after closes the dialog and refetches the tab.
+  const after = (close: () => void) => () => { close(); void refresh() }
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -76,12 +83,17 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
             {view.by_holding.map(h => <option key={h.holding_id} value={h.holding_id}>{h.script || h.symbol}</option>)}
           </select>
           <input aria-label="Search" placeholder="Search holding…" style={{ ...INPUT, minWidth: 200 }} value={search} onChange={e => setSearch(e.target.value)} />
+          <button className="btn-primary" onClick={() => setEditor({ row: null })}>+ Add dividend</button>
+          {view.summary.count > 0 && (
+            <button className="btn btn-row-danger" onClick={() => setDeletingAll(true)}>Delete all {currency}</button>
+          )}
         </div>
 
         {error && <p role="alert" style={{ color: 'var(--red)' }}>{error}</p>}
         {loading && <div className="spinner" style={{ width: 16, height: 16 }} />}
 
-        {!loading && view.summary.count === 0 ? (
+        {/* Nothing tab-specific (rows, totals, edit/delete) until the view is this tab's. */}
+        {!ready ? null : view.summary.count === 0 ? (
           <section style={{ ...card, textAlign: 'center', padding: 40 }}>
             <p style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>No {currency} dividends yet</p>
             <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Upload a CSV with this header, or add a dividend by hand.</p>
@@ -98,11 +110,23 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
             {visible.length !== view.rows.length && (
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Showing {visible.length} of {view.rows.length}</p>
             )}
-            <DividendsTable rows={visible} currency={currency} />
+            <DividendsTable rows={visible} currency={currency} onEdit={row => setEditor({ row })} onDelete={setDeleting} />
             <DividendsAnalytics view={view} currency={currency} />
           </>
         )}
       </main>
+      {editor && (
+        <DividendModal currency={currency} holdings={holdings} editing={editor.row} userId={actAsUserId}
+          onClose={() => setEditor(null)} onSaved={after(() => setEditor(null))} />
+      )}
+      {deleting && (
+        <DeleteDividendDialog row={deleting} currency={currency} userId={actAsUserId}
+          onClose={() => setDeleting(null)} onDeleted={after(() => setDeleting(null))} />
+      )}
+      {deletingAll && (
+        <DeleteAllDialog currency={currency} count={view.summary.count} userId={actAsUserId}
+          onClose={() => setDeletingAll(false)} onDeleted={after(() => setDeletingAll(false))} />
+      )}
     </div>
   )
 }
