@@ -22,16 +22,16 @@ func resolveOne(name string, candidates []domain.Holding, mappings map[string]*s
 // Only the display name (case/space-insensitive) or a confirmed alias maps
 // without the popup.
 func TestResolveNames_ExactIsAuto(t *testing.T) {
-	hs := matchHoldings()
+	holdings := matchHoldings()
 	for _, name := range []string{"TCS", " tcs ", "Jio Platforms Ltd", "jio  platforms ltd"} {
-		r := resolveOne(sheetName(name), hs, nil)
-		if r.view.Status != nameAuto || r.view.MatchedBy == nil || *r.view.MatchedBy != "script" {
-			t.Errorf("%q: status %s, want auto by script", name, r.view.Status)
+		resolution := resolveOne(sheetName(name), holdings, nil)
+		if resolution.view.Status != nameAuto || resolution.view.MatchedBy == nil || *resolution.view.MatchedBy != "script" {
+			t.Errorf("%q: status %s, want auto by script", name, resolution.view.Status)
 		}
 	}
-	hs[0].Aliases = []string{exactKey("JIOPLA")}
-	if r := resolveOne("JIOPLA", hs, nil); r.view.Status != nameAuto || *r.view.MatchedBy != "alias" {
-		t.Errorf("confirmed alias: status %s, want auto by alias", r.view.Status)
+	holdings[0].Aliases = []string{exactKey("JIOPLA")}
+	if resolution := resolveOne("JIOPLA", holdings, nil); resolution.view.Status != nameAuto || *resolution.view.MatchedBy != "alias" {
+		t.Errorf("confirmed alias: status %s, want auto by alias", resolution.view.Status)
 	}
 }
 
@@ -40,74 +40,74 @@ func TestResolveNames_ExactIsAuto(t *testing.T) {
 // to the popup — including the symbol-shaped JIOPLA. Punctuation and exchange
 // suffix differences do too.
 func TestResolveNames_InconsistentNamesNeedConfirmation(t *testing.T) {
-	hs := matchHoldings()
-	jio, tcs := hs[0].ID.Hex(), hs[1].ID.Hex()
+	holdings := matchHoldings()
+	jio, tcs := holdings[0].ID.Hex(), holdings[1].ID.Hex()
 	for _, name := range []string{"jio", "Jio Platforms Limited", "JLP", "JIOPLA", "JIOPLA.NS", "Jio Platforms Ltd.", "tcs.ns"} {
-		r := resolveOne(name, hs, nil)
-		if r.view.Status != nameNeedsConfirmation || r.holding != nil {
-			t.Errorf("%q: status %s holding %v, want needs_confirmation and no holding", name, r.view.Status, r.holding)
+		resolution := resolveOne(name, holdings, nil)
+		if resolution.view.Status != nameNeedsConfirmation || resolution.holding != nil {
+			t.Errorf("%q: status %s holding %v, want needs_confirmation and no holding", name, resolution.view.Status, resolution.holding)
 		}
 	}
-	if r := resolveOne("tcs.ns", hs, nil); r.view.Preselect == nil || *r.view.Preselect != tcs {
+	if resolution := resolveOne("tcs.ns", holdings, nil); resolution.view.Preselect == nil || *resolution.view.Preselect != tcs {
 		t.Error(`"tcs.ns": want TCS pre-selected (symbol match), still awaiting confirmation`)
 	}
 	for _, name := range []string{"jio", "Jio Platforms Limited", "JIOPLA", "Jio Platforms Ltd."} {
-		r := resolveOne(name, hs, nil)
-		if len(r.view.Suggestions) == 0 || r.view.Suggestions[0].HoldingId != jio {
-			t.Errorf("%q: suggestions %+v, want Jio Platforms first", name, r.view.Suggestions)
+		resolution := resolveOne(name, holdings, nil)
+		if len(resolution.view.Suggestions) == 0 || resolution.view.Suggestions[0].HoldingId != jio {
+			t.Errorf("%q: suggestions %+v, want Jio Platforms first", name, resolution.view.Suggestions)
 		}
-		if r.view.Preselect == nil || *r.view.Preselect != jio {
+		if resolution.view.Preselect == nil || *resolution.view.Preselect != jio {
 			t.Errorf("%q: want Jio Platforms preselected (clear best)", name)
 		}
 	}
 	// The owner's shorthand: letters of the initials in another order. Jio is
 	// suggested first but, at 0.7, not pre-selected — the owner picks it.
-	r := resolveOne("JLP", hs, nil)
-	if len(r.view.Suggestions) == 0 || r.view.Suggestions[0].HoldingId != jio {
-		t.Errorf(`"JLP": suggestions %+v, want Jio Platforms first`, r.view.Suggestions)
+	resolution := resolveOne("JLP", holdings, nil)
+	if len(resolution.view.Suggestions) == 0 || resolution.view.Suggestions[0].HoldingId != jio {
+		t.Errorf(`"JLP": suggestions %+v, want Jio Platforms first`, resolution.view.Suggestions)
 	}
-	if r.view.Preselect != nil {
+	if resolution.view.Preselect != nil {
 		t.Error(`"JLP": an initials match must not be pre-selected`)
 	}
 }
 
 func TestResolveNames_NoPreselectWithoutClearBest(t *testing.T) {
-	hs := append(matchHoldings(), domain.Holding{ID: primitive.NewObjectID(), Script: "Jio Financial", Symbol: "JIOFIN.NS", Currency: "INR"})
-	if r := resolveOne("jio", hs, nil); r.view.Preselect != nil {
+	holdings := append(matchHoldings(), domain.Holding{ID: primitive.NewObjectID(), Script: "Jio Financial", Symbol: "JIOFIN.NS", Currency: "INR"})
+	if resolution := resolveOne("jio", holdings, nil); resolution.view.Preselect != nil {
 		t.Error("two equal suggestions must not pre-select one")
 	}
 }
 
 func TestResolveNames_Ambiguous(t *testing.T) {
-	hs := []domain.Holding{
+	holdings := []domain.Holding{
 		{ID: primitive.NewObjectID(), Script: "Reliance", Symbol: "RELIANCE.NS"},
 		{ID: primitive.NewObjectID(), Script: "Reliance", Symbol: "RELIANCE.BO"},
 	}
-	r := resolveOne("Reliance", hs, nil)
-	if r.view.Status != nameAmbiguous || r.view.Preselect != nil || len(r.view.Suggestions) != 2 {
-		t.Errorf("got %s preselect=%v suggestions=%d, want ambiguous, none, 2", r.view.Status, r.view.Preselect, len(r.view.Suggestions))
+	resolution := resolveOne("Reliance", holdings, nil)
+	if resolution.view.Status != nameAmbiguous || resolution.view.Preselect != nil || len(resolution.view.Suggestions) != 2 {
+		t.Errorf("got %s preselect=%v suggestions=%d, want ambiguous, none, 2", resolution.view.Status, resolution.view.Preselect, len(resolution.view.Suggestions))
 	}
 }
 
 func TestResolveNames_Answers(t *testing.T) {
-	hs := matchHoldings()
-	jio := hs[0].ID.Hex()
-	r := resolveOne("JLP", hs, map[string]*string{"JLP": &jio})
-	if r.view.Status != nameConfirmed || r.holding == nil || !r.saveAlias {
-		t.Errorf("confirmed answer: %+v saveAlias=%v", r.view, r.saveAlias)
+	holdings := matchHoldings()
+	jio := holdings[0].ID.Hex()
+	resolution := resolveOne("JLP", holdings, map[string]*string{"JLP": &jio})
+	if resolution.view.Status != nameConfirmed || resolution.holding == nil || !resolution.saveAlias {
+		t.Errorf("confirmed answer: %+v saveAlias=%v", resolution.view, resolution.saveAlias)
 	}
-	if got := confirmedAliases([]nameResolution{r}); len(got[hs[0].ID]) != 1 || got[hs[0].ID][0] != "jlp" {
-		t.Errorf("aliases = %v, want jlp on Jio", got)
+	if aliases := confirmedAliases([]nameResolution{resolution}); len(aliases[holdings[0].ID]) != 1 || aliases[holdings[0].ID][0] != "jlp" {
+		t.Errorf("aliases = %v, want jlp on Jio", aliases)
 	}
-	if r := resolveOne("JLP", hs, map[string]*string{"JLP": nil}); r.view.Status != nameUnresolved {
-		t.Errorf("nil answer: status %s, want unresolved", r.view.Status)
+	if unresolved := resolveOne("JLP", holdings, map[string]*string{"JLP": nil}); unresolved.view.Status != nameUnresolved {
+		t.Errorf("nil answer: status %s, want unresolved", unresolved.view.Status)
 	}
 	foreign := primitive.NewObjectID().Hex()
-	if r := resolveOne("JLP", hs, map[string]*string{"JLP": &foreign}); r.view.Status != nameUnresolved {
+	if outside := resolveOne("JLP", holdings, map[string]*string{"JLP": &foreign}); outside.view.Status != nameUnresolved {
 		t.Error("an answer outside the tab's holdings must not resolve")
 	}
-	tcs := hs[1].ID.Hex()
-	if r := resolveOne("TCS", hs, map[string]*string{"TCS": &tcs}); r.saveAlias {
+	tcs := holdings[1].ID.Hex()
+	if exact := resolveOne("TCS", holdings, map[string]*string{"TCS": &tcs}); exact.saveAlias {
 		t.Error("confirming the exact match must not save a redundant alias")
 	}
 }

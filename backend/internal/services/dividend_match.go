@@ -39,47 +39,47 @@ const (
 
 // sheetName is a Share Name as displayed and as the mappings key: trimmed,
 // inner whitespace collapsed.
-func sheetName(s string) string { return strings.Join(strings.Fields(s), " ") }
+func sheetName(raw string) string { return strings.Join(strings.Fields(raw), " ") }
 
 // exactKey is the only normalisation an automatic match allows: letter case
 // and extra spaces. Punctuation, legal suffixes (Ltd/Limited) and exchange
 // suffixes (.NS/.BO) are differences the owner confirms in the popup
 // (PRD-005 §6, owner decision 13). Aliases are stored as exactKey.
-func exactKey(s string) string { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
+func exactKey(name string) string { return strings.ToLower(strings.Join(strings.Fields(name), " ")) }
 
 // nameKey is the looser key for suggestions only: lower-case, exchange suffix
 // dropped, punctuation → space, whitespace collapsed. Never used to auto-match.
-func nameKey(s string) string {
-	k := exchangeSuffix.ReplaceAllString(strings.ToLower(strings.TrimSpace(s)), "")
-	return strings.Join(strings.Fields(nonAlnum.ReplaceAllString(k, " ")), " ")
+func nameKey(name string) string {
+	withoutSuffix := exchangeSuffix.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "")
+	return strings.Join(strings.Fields(nonAlnum.ReplaceAllString(withoutSuffix, " ")), " ")
 }
 
 // corpKey is nameKey without corporate filler words; suggestions only.
-func corpKey(s string) string {
+func corpKey(name string) string {
 	var kept []string
-	for w := range strings.FieldsSeq(nameKey(s)) {
-		if !corpWords[w] {
-			kept = append(kept, w)
+	for word := range strings.FieldsSeq(nameKey(name)) {
+		if !corpWords[word] {
+			kept = append(kept, word)
 		}
 	}
 	return strings.Join(kept, " ")
 }
 
-func compact(s string) string { return strings.ReplaceAll(s, " ", "") }
+func compact(phrase string) string { return strings.ReplaceAll(phrase, " ", "") }
 
 // tokenPrefix reports whether every token of the shorter phrase prefixes the
 // token at the same position in the longer ("jio" ↔ "jio platforms").
-func tokenPrefix(a, b string) bool {
-	ta, tb := strings.Fields(a), strings.Fields(b)
-	if len(ta) == 0 || len(tb) == 0 {
+func tokenPrefix(first, second string) bool {
+	firstTokens, secondTokens := strings.Fields(first), strings.Fields(second)
+	if len(firstTokens) == 0 || len(secondTokens) == 0 {
 		return false
 	}
-	short, long := ta, tb
-	if len(ta) > len(tb) {
-		short, long = tb, ta
+	short, long := firstTokens, secondTokens
+	if len(firstTokens) > len(secondTokens) {
+		short, long = secondTokens, firstTokens
 	}
-	for i, t := range short {
-		if !strings.HasPrefix(long[i], t) {
+	for i, token := range short {
+		if !strings.HasPrefix(long[i], token) {
 			return false
 		}
 	}
@@ -87,69 +87,69 @@ func tokenPrefix(a, b string) bool {
 }
 
 // initials is the first letter of each token ("jio platforms ltd" → "jpl").
-func initials(s string) string {
-	var b strings.Builder
-	for w := range strings.FieldsSeq(s) {
-		b.WriteByte(w[0])
+func initials(phrase string) string {
+	var letters strings.Builder
+	for word := range strings.FieldsSeq(phrase) {
+		letters.WriteByte(word[0])
 	}
-	return b.String()
+	return letters.String()
 }
 
-// sameLetters reports whether a and b use the same letters in any order, so
-// a shorthand like the owner's "JLP" still matches the initials "jpl".
-func sameLetters(a, b string) bool {
-	if len(a) != len(b) {
+// sameLetters reports whether first and second use the same letters in any
+// order, so a shorthand like the owner's "JLP" still matches the initials "jpl".
+func sameLetters(first, second string) bool {
+	if len(first) != len(second) {
 		return false
 	}
-	x, y := []byte(a), []byte(b)
-	slices.Sort(x)
-	slices.Sort(y)
-	return string(x) == string(y)
+	firstLetters, secondLetters := []byte(first), []byte(second)
+	slices.Sort(firstLetters)
+	slices.Sort(secondLetters)
+	return string(firstLetters) == string(secondLetters)
 }
 
 // trigramJaccard is |A∩B| / |A∪B| over padded character trigrams.
-func trigramJaccard(a, b string) float64 {
-	grams := func(s string) map[string]bool {
-		p := "  " + compact(s) + " "
+func trigramJaccard(first, second string) float64 {
+	trigrams := func(phrase string) map[string]bool {
+		padded := "  " + compact(phrase) + " "
 		out := map[string]bool{}
-		for i := 0; i+3 <= len(p); i++ {
-			out[p[i:i+3]] = true
+		for i := 0; i+3 <= len(padded); i++ {
+			out[padded[i:i+3]] = true
 		}
 		return out
 	}
-	ga, gb := grams(a), grams(b)
-	inter := 0
-	for g := range ga {
-		if gb[g] {
-			inter++
+	firstTrigrams, secondTrigrams := trigrams(first), trigrams(second)
+	intersection := 0
+	for trigram := range firstTrigrams {
+		if secondTrigrams[trigram] {
+			intersection++
 		}
 	}
-	union := len(ga) + len(gb) - inter
+	union := len(firstTrigrams) + len(secondTrigrams) - intersection
 	if union == 0 {
 		return 0
 	}
-	return float64(inter) / float64(union)
+	return float64(intersection) / float64(union)
 }
 
-// suggestionScore rates how likely a sheet name means holding h (0–1). A
+// suggestionScore rates how likely a sheet name means the holding (0–1). A
 // score is only ever a suggestion; it is never applied without the user —
 // not even a sheet name equal to the symbol ("JIOPLA" ↔ "JIOPLA.NS"), which
 // scores highest and is pre-selected but still waits for confirmation.
-func suggestionScore(name string, h domain.Holding) float64 {
-	s, script, symbol := corpKey(name), corpKey(h.Script), compact(nameKey(h.Symbol))
-	best := trigramJaccard(s, script)
-	if sym := compact(nameKey(name)); sym != "" && sym == symbol {
+func suggestionScore(name string, holding domain.Holding) float64 {
+	sheetKey, script, symbol := corpKey(name), corpKey(holding.Script), compact(nameKey(holding.Symbol))
+	best := trigramJaccard(sheetKey, script)
+	if sheetSymbol := compact(nameKey(name)); sheetSymbol != "" && sheetSymbol == symbol {
 		best = max(best, 0.98)
 	}
-	if s != "" && s == script {
+	if sheetKey != "" && sheetKey == script {
 		best = max(best, 0.95)
 	}
-	if tokenPrefix(s, script) || (len(compact(s)) >= 4 && strings.HasPrefix(symbol, compact(s))) {
+	if tokenPrefix(sheetKey, script) || (len(compact(sheetKey)) >= 4 && strings.HasPrefix(symbol, compact(sheetKey))) {
 		best = max(best, 0.8)
 	}
 	// Initials in order ("JPL") or as a shuffled shorthand ("JLP", the owner's
 	// example). Kept below preselectScore: a suggestion, not a pre-selection.
-	if ini := initials(nameKey(h.Script)); len(compact(s)) >= 2 && (compact(s) == ini || sameLetters(compact(s), ini)) {
+	if scriptInitials := initials(nameKey(holding.Script)); len(compact(sheetKey)) >= 2 && (compact(sheetKey) == scriptInitials || sameLetters(compact(sheetKey), scriptInitials)) {
 		best = max(best, 0.7)
 	}
 	return best
@@ -165,17 +165,17 @@ type nameCount struct {
 func countNames(rows []api.DividendImportRow) []nameCount {
 	index := map[string]int{}
 	var out []nameCount
-	for _, r := range rows {
-		n := sheetName(r.ShareName)
-		if n == "" {
+	for _, row := range rows {
+		name := sheetName(row.ShareName)
+		if name == "" {
 			continue
 		}
-		if i, ok := index[n]; ok {
-			out[i].rows++
+		if position, seen := index[name]; seen {
+			out[position].rows++
 			continue
 		}
-		index[n] = len(out)
-		out = append(out, nameCount{name: n, rows: 1})
+		index[name] = len(out)
+		out = append(out, nameCount{name: name, rows: 1})
 	}
 	return out
 }
@@ -200,60 +200,60 @@ func resolveNames(names []nameCount, candidates []domain.Holding, mappings map[s
 	exact := map[string][]exactMatch{}
 	holdingsById := map[string]*domain.Holding{}
 	for i := range candidates {
-		h := &candidates[i]
-		holdingsById[h.ID.Hex()] = h
-		add := func(key, by string) {
+		holding := &candidates[i]
+		holdingsById[holding.ID.Hex()] = holding
+		addMatch := func(key, by string) {
 			if key == "" {
 				return
 			}
-			for _, m := range exact[key] {
-				if m.holding.ID == h.ID {
+			for _, match := range exact[key] {
+				if match.holding.ID == holding.ID {
 					return
 				}
 			}
-			exact[key] = append(exact[key], exactMatch{holding: h, by: by})
+			exact[key] = append(exact[key], exactMatch{holding: holding, by: by})
 		}
 		// Automatic matches: the display name (case/space-insensitive) or a name
 		// the owner confirmed before. The symbol is deliberately absent — a
 		// symbol-shaped sheet name is a suggestion (suggestionScore), not a match.
-		add(exactKey(h.Script), "script")
-		for _, alias := range h.Aliases {
-			add(alias, "alias")
+		addMatch(exactKey(holding.Script), "script")
+		for _, alias := range holding.Aliases {
+			addMatch(alias, "alias")
 		}
 	}
 
 	out := make([]nameResolution, 0, len(names))
-	for _, n := range names {
-		res := nameResolution{view: api.DividendNameResolution{SheetName: n.name, Rows: n.rows, Suggestions: []api.DividendSuggestion{}}}
-		matches := exact[exactKey(n.name)]
+	for _, sheet := range names {
+		resolution := nameResolution{view: api.DividendNameResolution{SheetName: sheet.name, Rows: sheet.rows, Suggestions: []api.DividendSuggestion{}}}
+		matches := exact[exactKey(sheet.name)]
 
-		if answer, answered := mappings[n.name]; answered {
-			if h := lookupAnswer(answer, holdingsById); h == nil {
-				res.view.Status = nameUnresolved
+		if answer, answered := mappings[sheet.name]; answered {
+			if holding := lookupAnswer(answer, holdingsById); holding == nil {
+				resolution.view.Status = nameUnresolved
 			} else {
-				id := h.ID.Hex()
-				res.view.Status, res.view.HoldingId, res.holding = nameConfirmed, &id, h
-				res.saveAlias = len(matches) != 1 || matches[0].holding.ID != h.ID
+				holdingId := holding.ID.Hex()
+				resolution.view.Status, resolution.view.HoldingId, resolution.holding = nameConfirmed, &holdingId, holding
+				resolution.saveAlias = len(matches) != 1 || matches[0].holding.ID != holding.ID
 			}
-			out = append(out, res)
+			out = append(out, resolution)
 			continue
 		}
 
 		switch {
 		case len(matches) == 1:
-			id, by := matches[0].holding.ID.Hex(), matches[0].by
-			res.view.Status, res.holding = nameAuto, matches[0].holding
-			res.view.HoldingId, res.view.MatchedBy = &id, &by
+			holdingId, by := matches[0].holding.ID.Hex(), matches[0].by
+			resolution.view.Status, resolution.holding = nameAuto, matches[0].holding
+			resolution.view.HoldingId, resolution.view.MatchedBy = &holdingId, &by
 		case len(matches) > 1:
-			res.view.Status = nameAmbiguous
-			for _, m := range matches {
-				res.view.Suggestions = append(res.view.Suggestions, suggestionOf(m.holding, 1))
+			resolution.view.Status = nameAmbiguous
+			for _, match := range matches {
+				resolution.view.Suggestions = append(resolution.view.Suggestions, suggestionOf(match.holding, 1))
 			}
 		default:
-			res.view.Status = nameNeedsConfirmation
-			res.view.Suggestions, res.view.Preselect = suggest(n.name, candidates)
+			resolution.view.Status = nameNeedsConfirmation
+			resolution.view.Suggestions, resolution.view.Preselect = suggest(sheet.name, candidates)
 		}
-		out = append(out, res)
+		out = append(out, resolution)
 	}
 	return out
 }
@@ -265,8 +265,8 @@ func lookupAnswer(answer *string, holdingsById map[string]*domain.Holding) *doma
 	return holdingsById[*answer]
 }
 
-func suggestionOf(h *domain.Holding, score float64) api.DividendSuggestion {
-	return api.DividendSuggestion{HoldingId: h.ID.Hex(), Script: h.Script, Symbol: h.Symbol, Score: score}
+func suggestionOf(holding *domain.Holding, score float64) api.DividendSuggestion {
+	return api.DividendSuggestion{HoldingId: holding.ID.Hex(), Script: holding.Script, Symbol: holding.Symbol, Score: score}
 }
 
 // suggest ranks candidates for a non-exact name and pre-selects the top one
@@ -278,23 +278,23 @@ func suggest(name string, candidates []domain.Holding) ([]api.DividendSuggestion
 			out = append(out, suggestionOf(&candidates[i], score))
 		}
 	}
-	slices.SortStableFunc(out, func(a, b api.DividendSuggestion) int { return cmp.Compare(b.Score, a.Score) })
+	slices.SortStableFunc(out, func(first, second api.DividendSuggestion) int { return cmp.Compare(second.Score, first.Score) })
 	if len(out) > maxSuggestions {
 		out = out[:maxSuggestions]
 	}
 	if len(out) == 0 || out[0].Score < preselectScore || (len(out) > 1 && out[0].Score-out[1].Score < preselectLead) {
 		return out, nil
 	}
-	id := out[0].HoldingId
-	return out, &id
+	preselectId := out[0].HoldingId
+	return out, &preselectId
 }
 
 // confirmedAliases groups the names to save as aliases by holding.
 func confirmedAliases(names []nameResolution) map[primitive.ObjectID][]string {
 	out := map[primitive.ObjectID][]string{}
-	for _, n := range names {
-		if n.saveAlias && n.holding != nil {
-			out[n.holding.ID] = append(out[n.holding.ID], exactKey(n.view.SheetName))
+	for _, resolution := range names {
+		if resolution.saveAlias && resolution.holding != nil {
+			out[resolution.holding.ID] = append(out[resolution.holding.ID], exactKey(resolution.view.SheetName))
 		}
 	}
 	return out

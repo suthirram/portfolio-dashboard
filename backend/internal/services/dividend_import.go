@@ -17,48 +17,48 @@ const maxImportRows = 5000
 
 // importRow is a valid sheet row resolved to a holding.
 type importRow struct {
-	in      api.DividendImportRow
-	day     time.Time
-	holding *domain.Holding
+	sheetRow api.DividendImportRow
+	day      time.Time
+	holding  *domain.Holding
 }
 
 func (r importRow) key() domain.DividendKey {
-	return domain.DividendKey{HoldingId: r.holding.ID, Day: r.day.Format(time.DateOnly), Cents: domain.AmountCents(r.in.Amount)}
+	return domain.DividendKey{HoldingId: r.holding.ID, Day: r.day.Format(time.DateOnly), Cents: domain.AmountCents(r.sheetRow.Amount)}
 }
 
 // partition splits valid rows (sheet order) into new and duplicate by
 // occurrence: each stored dividend with the same key absorbs one sheet row;
 // sheet repeats beyond the stored count are new (PRD-005 §5 A–D).
-func partition(rows []importRow, existing []domain.Transaction) (fresh, dups []importRow) {
+func partition(rows []importRow, existing []domain.Transaction) (fresh, duplicates []importRow) {
 	remaining := make(map[domain.DividendKey]int, len(existing))
-	for _, t := range existing {
-		remaining[domain.DividendKeyOf(t)]++
+	for _, storedDividend := range existing {
+		remaining[domain.DividendKeyOf(storedDividend)]++
 	}
-	for _, r := range rows {
-		if k := r.key(); remaining[k] > 0 {
-			remaining[k]--
-			dups = append(dups, r)
+	for _, row := range rows {
+		if rowKey := row.key(); remaining[rowKey] > 0 {
+			remaining[rowKey]--
+			duplicates = append(duplicates, row)
 			continue
 		}
-		fresh = append(fresh, r)
+		fresh = append(fresh, row)
 	}
-	return fresh, dups
+	return fresh, duplicates
 }
 
 // window returns the date range and holdings the duplicate lookup must cover.
 func window(rows []importRow) (from, to time.Time, holdingIds []primitive.ObjectID) {
 	seen := map[primitive.ObjectID]bool{}
 	from, to = rows[0].day, rows[0].day
-	for _, r := range rows {
-		if r.day.Before(from) {
-			from = r.day
+	for _, row := range rows {
+		if row.day.Before(from) {
+			from = row.day
 		}
-		if r.day.After(to) {
-			to = r.day
+		if row.day.After(to) {
+			to = row.day
 		}
-		if !seen[r.holding.ID] {
-			seen[r.holding.ID] = true
-			holdingIds = append(holdingIds, r.holding.ID)
+		if !seen[row.holding.ID] {
+			seen[row.holding.ID] = true
+			holdingIds = append(holdingIds, row.holding.ID)
 		}
 	}
 	return from, to.Add(24*time.Hour - time.Nanosecond), holdingIds
@@ -73,8 +73,8 @@ func cumulativeWarnings(rows []api.DividendImportRow) []api.DividendImportWarnin
 	if len(rows) < 2 {
 		return warnings
 	}
-	for _, r := range rows {
-		if r.Cumulative == nil {
+	for _, row := range rows {
+		if row.Cumulative == nil {
 			return warnings
 		}
 	}
@@ -100,27 +100,27 @@ func reasonOf(err error) string {
 }
 
 // buildPreview assembles the response: counts, names, per-line statuses.
-func buildPreview(names []nameResolution, fresh, dups []importRow, invalid []api.DividendImportRowStatus, warnings []api.DividendImportWarning) api.DividendImportPreview {
-	rows := make([]api.DividendImportRowStatus, 0, len(fresh)+len(dups)+len(invalid))
-	add := func(rs []importRow, status string) {
-		for _, r := range rs {
-			id := r.holding.ID.Hex()
-			rows = append(rows, api.DividendImportRowStatus{Line: r.in.Line, Status: status, HoldingId: &id})
+func buildPreview(names []nameResolution, fresh, duplicates []importRow, invalid []api.DividendImportRowStatus, warnings []api.DividendImportWarning) api.DividendImportPreview {
+	statuses := make([]api.DividendImportRowStatus, 0, len(fresh)+len(duplicates)+len(invalid))
+	addRows := func(importRows []importRow, status string) {
+		for _, row := range importRows {
+			holdingId := row.holding.ID.Hex()
+			statuses = append(statuses, api.DividendImportRowStatus{Line: row.sheetRow.Line, Status: status, HoldingId: &holdingId})
 		}
 	}
-	add(fresh, "ready")
-	add(dups, "duplicate")
-	rows = append(rows, invalid...)
-	slices.SortFunc(rows, func(a, b api.DividendImportRowStatus) int { return cmp.Compare(a.Line, b.Line) })
+	addRows(fresh, "ready")
+	addRows(duplicates, "duplicate")
+	statuses = append(statuses, invalid...)
+	slices.SortFunc(statuses, func(first, second api.DividendImportRowStatus) int { return cmp.Compare(first.Line, second.Line) })
 
 	views := make([]api.DividendNameResolution, 0, len(names))
-	for _, n := range names {
-		views = append(views, n.view)
+	for _, resolution := range names {
+		views = append(views, resolution.view)
 	}
 	return api.DividendImportPreview{
-		Counts:   api.DividendImportCounts{Ready: len(fresh), Duplicate: len(dups), Invalid: len(invalid), Total: len(rows)},
+		Counts:   api.DividendImportCounts{Ready: len(fresh), Duplicate: len(duplicates), Invalid: len(invalid), Total: len(statuses)},
 		Names:    views,
-		Rows:     rows,
+		Rows:     statuses,
 		Warnings: warnings,
 	}
 }

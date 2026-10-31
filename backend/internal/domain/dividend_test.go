@@ -21,17 +21,17 @@ func TestAmountCents(t *testing.T) {
 }
 
 func TestDividendKeyOf(t *testing.T) {
-	h := primitive.NewObjectID()
+	holdingId := primitive.NewObjectID()
 	day := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	a := Transaction{HoldingID: h, Date: day, Amount: 300}
-	b := Transaction{HoldingID: h, Date: day.Add(13 * time.Hour), Amount: 300.004}
-	if DividendKeyOf(a) != DividendKeyOf(b) {
+	morning := Transaction{HoldingID: holdingId, Date: day, Amount: 300}
+	afternoon := Transaction{HoldingID: holdingId, Date: day.Add(13 * time.Hour), Amount: 300.004}
+	if DividendKeyOf(morning) != DividendKeyOf(afternoon) {
 		t.Error("same holding, day and amount at 2 dp must share a key")
 	}
-	if DividendKeyOf(a) == DividendKeyOf(Transaction{HoldingID: h, Date: day.AddDate(0, 0, 1), Amount: 300}) {
+	if DividendKeyOf(morning) == DividendKeyOf(Transaction{HoldingID: holdingId, Date: day.AddDate(0, 0, 1), Amount: 300}) {
 		t.Error("a different day is a different dividend")
 	}
-	if DividendKeyOf(a) == DividendKeyOf(Transaction{HoldingID: primitive.NewObjectID(), Date: day, Amount: 300}) {
+	if DividendKeyOf(morning) == DividendKeyOf(Transaction{HoldingID: primitive.NewObjectID(), Date: day, Amount: 300}) {
 		t.Error("a different holding is a different dividend")
 	}
 }
