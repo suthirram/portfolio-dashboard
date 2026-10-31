@@ -127,7 +127,7 @@ func TestAdminDeleteUserDividends_BadCurrency400(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AdminDeleteUserDividends: %v", err)
 		}
-		if _, isBadRequest := response.(api.AdminDeleteUserDividends400JSONResponse); !isBadRequest {
+		if _, ok := response.(api.AdminDeleteUserDividends400JSONResponse); !ok {
 			t.Fatalf("response = %T, want 400", response)
 		}
 	})

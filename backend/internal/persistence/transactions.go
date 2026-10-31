@@ -256,7 +256,7 @@ func (s *TransactionStore) DeleteDividends(ctx context.Context, userId primitive
 	}
 	holdingIds := make([]primitive.ObjectID, 0, len(distinctIds))
 	for _, value := range distinctIds {
-		if holdingId, isObjectId := value.(primitive.ObjectID); isObjectId {
+		if holdingId, ok := value.(primitive.ObjectID); ok {
 			holdingIds = append(holdingIds, holdingId)
 		}
 	}
