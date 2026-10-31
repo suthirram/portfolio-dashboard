@@ -4,7 +4,7 @@ import { api } from '../../lib/api/client'
 import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 import { CheckIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput } from '../../lib/formNumbers'
+import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
 import { currencySymbol } from '../../lib/currency'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
@@ -103,7 +103,9 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
     if (!Number.isFinite(stocksOwned) || stocksOwned < 0) { setErr('Enter a valid shares owned value'); return }
     const avgCostPrice = parseDecimalInput(String(form.avg_cost_price), { singleSeparator: 'decimal' })
     if (!Number.isFinite(avgCostPrice) || avgCostPrice < 0) { setErr('Enter a valid average cost price'); return }
-    const realizedPnL = parseDecimalInput(String(form.realized_pnl), { allowNegative: true })
+    // Untouched, the stored number is kept: re-parsing String(1.234) under
+    // the default rule would save the grouped integer 1234.
+    const realizedPnL = parseSeededDecimal(String(form.realized_pnl), holding?.realized_pnl, { allowNegative: true })
     if (!Number.isFinite(realizedPnL)) { setErr('Enter a valid realised P&L'); return }
 
     setLoading(true)
