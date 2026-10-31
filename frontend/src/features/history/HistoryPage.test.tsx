@@ -26,6 +26,7 @@ import {
   regionDailyVolatility,
   regionCurrentDirection,
   buildLiveRow,
+  withLiveDividends,
   buildLiveGoldOverlay,
   latestGoldOverlay,
   tradingDateIST,
@@ -40,7 +41,7 @@ import type {
   PasteHistoryReport,
   RegionSnapshot,
 } from '../../lib/api/client'
-import type { HoldingWithPrice } from '../../types'
+import type { DividendView, HoldingWithPrice } from '../../types'
 
 // ---- helpers ----
 
@@ -454,6 +455,44 @@ describe('latestGoldOverlay', () => {
 
   it('returns null when no row carries a gold overlay', () => {
     expect(latestGoldOverlay([row({ date: '2026-06-16' })])).toBeNull()
+  })
+})
+
+describe('withLiveDividends', () => {
+  const dividendView = (currency: string, rows: { date: string; symbol: string; amount: number }[]): DividendView => {
+    const byHolding = new Map<string, number>()
+    for (const row of rows) byHolding.set(row.symbol, (byHolding.get(row.symbol) ?? 0) + row.amount)
+    const total = rows.reduce((sum, row) => sum + row.amount, 0)
+    return {
+      rows: rows.map((row, i) => ({ id: `d${i}`, holding_id: row.symbol, script: row.symbol, symbol: row.symbol, date: row.date, amount: row.amount, currency, cumulative: 0, holding_cumulative: 0 })),
+      summary: { total, count: rows.length, holdings: byHolding.size },
+      by_year: [], by_month: [],
+      by_holding: [...byHolding].map(([symbol, holdingTotal]) => ({ holding_id: symbol, script: symbol, symbol, total: holdingTotal, count: 1, share: 0 })),
+    }
+  }
+  const live = () => buildLiveRow('2026-06-20', [
+    { symbol: 'AAPL', script: 'Apple', currency: 'INR', cost_price: 0, current_value: 0 },
+    { symbol: 'AAPL', script: 'Apple', currency: 'EUR', cost_price_eur: 0, current_value_eur: 0 },
+    { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', cost_price: 0, current_value: 0 },
+  ] as HoldingWithPrice[])
+
+  it('fills to-date and today per currency and each stock line, never mixing INR and EUR', () => {
+    const row = withLiveDividends(live(), {
+      INR: dividendView('INR', [{ date: '2026-01-10', symbol: 'AAPL', amount: 300 }, { date: '2026-06-20', symbol: 'TCS.NS', amount: 0.1 }, { date: '2026-06-20', symbol: 'TCS.NS', amount: 0.2 }]),
+      EUR: dividendView('EUR', [{ date: '2026-03-01', symbol: 'AAPL', amount: 40 }]),
+    })
+    expect(row.dividends?.INR).toEqual({ to_date: 300.3, on_day: 0.3 })
+    expect(row.dividends?.EUR).toEqual({ to_date: 40, on_day: 0 })
+    expect(row.holdings?.map(line => [line.currency, line.symbol, line.dividends])).toEqual([
+      ['INR', 'AAPL', 300], ['EUR', 'AAPL', 40], ['INR', 'TCS.NS', 0.3],
+    ])
+    expect(row.tentative).toBe(true)
+  })
+
+  it('leaves a currency with no dividends absent, like the backend overlay', () => {
+    const row = withLiveDividends(live(), { INR: dividendView('INR', []), EUR: dividendView('EUR', []) })
+    expect(row.dividends).toBeUndefined()
+    expect(row.holdings?.every(line => line.dividends === 0)).toBe(true)
   })
 })
 
