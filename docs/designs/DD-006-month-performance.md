@@ -6,22 +6,38 @@
 * **Rollout plan**: [PD-049](../plans/PD-049-month-performance.md)
 * **Visuals**: [PD-049 visual spec](../visuals/PD-049-month-performance.html) ([published](https://claude.ai/artifact/UFs22YQtmgsJYMcQXCoGkD))
 
-## 1. Approach: frontend-only, computed from loaded rows
+## 1. Approach: one backend flag, the rest computed in the page
 
-`HistoryPage` already fetches `monthRange(year, month)`, which starts one day
-**before** the month so the first day's Daily volatlity has a prior row. That
-extra row is the opening baseline PRD-006 §4 asks for. Every input
-(per-currency `invested` / `current`, the `gold` overlay, today's tentative
-live row) is already in `displayRows`. So:
+Today `monthRange(year, month)` starts one calendar day before the month,
+and `SnapshotStore.List` filters strictly to `[from, to]`. When that day has
+no snapshot, no earlier row reaches the page: with rows on 29-09, 01-10 and
+30-10, October would open on 01-10 and lose the 29-09 → 01-10 move (the same
+gap leaves 01-10 without a Daily volatlity today).
 
-* no API, spec, backend or snapshot change;
-* one pure function in `historyShared.ts`, one presentational component,
-  and one line of wiring in `HistoryPage`.
+So the baseline comes from the backend:
+
+* `GET /history` gains an optional `include_previous` (default false).
+  `HistoryService.List` then appends the latest row before `from` using the
+  existing `SnapshotStore.LatestBefore`; `ErrNotFound` (no earlier history)
+  appends nothing. The appended row passes through the same gold and
+  dividend overlays as every other row, so gold's baseline is right too.
+* The page requests the month's own bounds (`monthRange` stops reaching back
+  a day) with `include_previous=true`. The table keeps showing one earlier
+  row first, as today.
+* Every other input (per-currency `invested` / `current`, the `gold`
+  overlay, today's tentative live row) is already in `displayRows`: one pure
+  function in `historyShared.ts`, one presentational component, one line of
+  wiring in `HistoryPage`.
+
+Other callers of the list (the dashboard's previous-close lookup, the
+full-history chart) don't pass the flag and are unchanged.
 
 ## 2. Reuse
 
 | Need | Existing code | Change |
 |---|---|---|
+| Latest row before a date | `SnapshotStore.LatestBefore` (snapshot job, previous-close summary) | none; called from `HistoryService.List` when asked |
+| Snapshot → API row mapping | inline in `HistoryService.List` | extracted to `historyRowFromSnapshot`, shared by the range rows and the earlier row |
 | P/L % with a zero-invested guard | `pnlPct` (historyShared) | none |
 | Flow-adjusted return incl. the sale approximation | private `flowAdjustedDailyVolatility` (historyShared), behind Daily volatlity | exported and renamed `flowAdjustedReturnPct`, since it now serves a month as well as a day; its two callers updated |
 | Currency buckets | `REGIONS` | none; the card iterates `[...REGIONS, 'GOLD']` |
@@ -39,7 +55,9 @@ Pure; returns one `PeriodPerformance` per qualifying column, in
 
 1. Sort rows oldest first (the API order is not relied on).
 2. Per column, keep the rows with `invested > 0` there (`columnPosition`).
-3. Opening = last kept row dated before `monthStart`, else the first kept row.
+3. Opening = last kept row dated before `monthStart` (the server's
+   `include_previous` row, however far back), else the first kept row,
+   which only happens with no earlier history.
    Closing = last kept row. Skip the column if opening is missing or is the
    closing row.
 4. `openingPnlPct` / `closingPnlPct` = `round2(pnlPct(...))`.
@@ -93,25 +111,31 @@ top in either layout (`chartsOnTop`).
 
 ## 5. Lint convergence
 
-The ESLint `id-length` gate (#230) lints every file a PR changes. The feature
-touches `historyShared.ts`, `HistoryPage.tsx` and `HistoryPage.page.test.tsx`,
-which hold 61 legacy short names (33 / 22 / 6). They are renamed in a
+The ESLint `id-length` gate (#230) lints every file a PR changes. The
+frontend PR touches `historyShared.ts`, `HistoryPage.tsx`,
+`HistoryPage.page.test.tsx`, `HistoryPage.test.tsx` and `client.ts`, which
+hold 84 legacy short names (33 / 22 / 6 / 22 / 1). They are renamed in a
 preceding rename-only PR (PD-049 Task 1), so the feature PR's diff stays
 readable and its lint step passes.
 
 ## 6. Testing
 
+* `TestHistoryService_List_IncludePrevious` (mtest): rows on 29-09, 01-10
+  and 30-10 return 29-09 as the earlier row; no earlier history appends
+  nothing; without the flag no lookup is made.
 * `periodPerformance.test.ts`: the owner's October rows give the §3 table
   exactly; order independence; the first-row fallback; a column with < 2
   invested rows dropped; a sale at an unchanged price gives 0; a live
   closing row is flagged.
-* `HistoryPage.page.test.tsx`: the card renders through the real page with
-  the previous month's last row as opening; a single-row month shows no card.
+* `HistoryPage.page.test.tsx`: the page requests the month's bounds with
+  `include_previous`; the card opens on a 29 May row when 31 May has none;
+  a single-row month shows no card.
 
 ## 7. Risks
 
 | Risk | Mitigation |
 |---|---|
-| A gap leaves no row before the month | falls back to the month's first row; the header dates show which rows were used |
+| A gap before the month | the server returns the latest earlier row however far back; the header dates show which rows were used |
+| No history before the month at all | opens on the month's first row (PRD-006 §4) |
 | Large sales skew the approximation | same approximation as Daily volatlity; footnoted as approximate |
 | A manual History edit changes a baseline | intended: the card reads the rows exactly as the table shows them |

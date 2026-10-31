@@ -1,19 +1,24 @@
 # PD-049: Rollout plan — month performance card on History
 
-* **Status**: Draft v1, owner decisions of 2026-10-31 applied
+* **Status**: Draft v2, owner decisions of 2026-10-31 applied (v2: the baseline is the latest earlier row, fetched by the backend)
 * **Owner**: project owner
 * **Goal**: The History page shows, for the selected month, a card with each
   currency's (and gold's) opening P/L, closing P/L, P/L change in pp and an
   approximate flow-adjusted investment performance. The figures match the
   owner's hand-made October 2026 table to two decimals.
-* **Architecture**: frontend-only. `monthRange` already loads the previous
-  month's last row, which is the opening baseline. A pure
+* **Architecture**: `GET /history` gains `include_previous`, which appends
+  the latest row before `from` via the existing `SnapshotStore.LatestBefore`,
+  so the opening baseline does not depend on a snapshot existing on the
+  previous month's last calendar day. The page requests the month's own
+  bounds with that flag. A pure
   `periodPerformance(rows, monthStart)` in `historyShared.ts` reuses `pnlPct`
   and the Daily volatlity flow adjustment (exported as
   `flowAdjustedReturnPct`). A presentational `PeriodPerformanceCard` renders
   it above the table.
-* **Tech stack**: React 18, TypeScript 5.4, Vite, vitest 4 + Testing Library,
-  ESLint 9 (`id-length`). No new dependencies, no API change.
+* **Tech stack**: Go 1.26, echo v4 + oapi-codegen strict server, mongo-driver
+  v1 (mtest); React 18, TypeScript 5.4, Vite, vitest 4 + Testing Library,
+  openapi-typescript, ESLint 9 (`id-length`). No new dependencies; one
+  optional query parameter.
 * **Spec**: [PRD-006](../prds/PRD-006-month-performance.md) ·
   [DD-006](../designs/DD-006-month-performance.md) ·
   [visual spec](../visuals/PD-049-month-performance.html)
@@ -23,13 +28,15 @@
 
 | Rule | Source | How it shows up here |
 |---|---|---|
-| Reuse before writing | CLAUDE.md | `pnlPct`, the Daily volatlity flow adjustment, `REGIONS`, `formatDayMonth`, `th`/`td` reused; nothing re-implemented |
+| Reuse before writing | CLAUDE.md | `SnapshotStore.LatestBefore`, `pnlPct`, the Daily volatlity flow adjustment, `REGIONS`, the History tints and `formatDayMonth` reused; the list row mapping extracted once and shared |
 | Branch → PR, never `main` | CLAUDE.md | one branch per PR, created from `main` in the task that opens it |
-| Frontend and backend never in one PR | CLAUDE.md | no backend change at all |
+| Frontend and backend never in one PR | CLAUDE.md | PR3 backend (spec, codegen, service, tests, curl), PR4 frontend |
 | Every slice passes the three gates | `task-breakdown` skill | §PR sequence |
 | PR body < 200 words: What / How to test / No regression | `task-breakdown` skill | §PR bodies |
 | Behaviour tests only | CLAUDE.md | tests assert the owner's figures and visible card states |
-| Descriptive names, ESLint on changed files | CLAUDE.md, #230 | Task 1 clears the 61 legacy short names in the three touched files first |
+| Descriptive names, ESLint on changed files | CLAUDE.md, #230 | Task 1 clears the 84 legacy short names in the five frontend files PR4 touches; `uid` → `userId` in `HistoryService.List` |
+| Curl in endpoint PRs | CLAUDE.md | Task 2 Step 9 |
+| Tracing and logging | CLAUDE.md | `HistoryService.List` keeps its span; no new service method |
 | Gitmoji, subject ≤ 50 chars, no attribution | CLAUDE.md | every commit and PR below |
 | Edit tool for source | CLAUDE.md | every Modify step is an Edit (current → replacement), never sed/perl |
 
@@ -42,9 +49,15 @@
 | Create | `docs/plans/PD-049-month-performance.md` | this plan |
 | Create | `docs/visuals/PD-049-month-performance.html` | mockup frames |
 | Modify | `docs/visuals/README.md` | index row |
-| Modify | `frontend/src/features/history/historyShared.ts` | Task 1 renames; export `flowAdjustedReturnPct`; `periodPerformance` |
-| Modify | `frontend/src/features/history/HistoryPage.tsx` | Task 1 renames; render the card |
-| Modify | `frontend/src/features/history/HistoryPage.page.test.tsx` | Task 1 renames; card render tests |
+| Modify | `backend/api/specs/history/history.yaml`, `backend/api/server.gen.go` | `include_previous` query parameter (regenerated server) |
+| Modify | `backend/internal/services/history.go`, `history_test.go` | append `LatestBefore` when asked; `historyRowFromSnapshot` |
+| Modify | `backend/internal/controllers/history.go` | pass the flag through |
+| Modify | `docs/api.md` | document the parameter |
+| Modify | `frontend/src/lib/api/client.ts`, `schema.gen.ts` | Task 1 rename; `listHistory(from, to, includePrevious)`; regenerated types |
+| Modify | `frontend/src/features/history/HistoryPage.test.tsx` | Task 1 renames; month bounds tests |
+| Modify | `frontend/src/features/history/historyShared.ts` | Task 1 renames; `monthRange` month bounds; export `flowAdjustedReturnPct`; `periodPerformance` |
+| Modify | `frontend/src/features/history/HistoryPage.tsx` | Task 1 renames; request `include_previous`; render the card |
+| Modify | `frontend/src/features/history/HistoryPage.page.test.tsx` | Task 1 renames; fetch assertions; card render tests |
 | Create | `frontend/src/features/history/PeriodPerformanceCard.tsx` | the card |
 | Create | `frontend/src/features/history/periodPerformance.test.ts` | pure-function tests on the owner's data |
 | Modify | `docs/history-and-snapshots.md` | user-facing description |
@@ -54,9 +67,10 @@
 | # | Branch | Tasks | Value (gate 2) | Test that fails without it (gate 3) | No regression (gate 1) |
 |---|---|---|---|---|---|
 | PR1 | `docs/PD-049-month-performance` | 0 | agreed design on record | — (docs) | docs only |
-| PR2 | `refactor/history-descriptive-names` | 1 | the three History files meet the naming rule, so any later History PR passes the lint gate | `npx eslint` on the three files (61 errors before, 0 after); CI `lint changed files` | renames only; 151 History tests unchanged and green |
-| PR3 | `feat/PD-049-month-performance` | 2–5 | the month performance card | `periodPerformance.test.ts` (6), 2 new page tests | additive card; Daily volatlity uses the same function under a new name, and its tests stay green |
-| — | — | 6 | end-to-end on the local stack | scenarios 1–4 | — |
+| PR2 | `refactor/history-descriptive-names` | 1 | the five History-related frontend files meet the naming rule, so PR4 (and any later History PR) passes the lint gate | `npx eslint` on the five files (84 errors before, 0 after); CI `lint changed files` | renames only; 151 History tests unchanged and green |
+| PR3 | `feat/PD-049-history-include-previous` | 2 | `GET /history?include_previous=true` returns the latest row before the range, however far back | `TestHistoryService_List_IncludePrevious` (3 cases, incl. the 29-09 / 01-10 / 30-10 gap) | opt-in flag defaults to false; existing callers unchanged |
+| PR4 | `feat/PD-049-month-performance` | 3–7 | History loads the latest earlier row, and shows the month performance card | `periodPerformance.test.ts` (6), 2 new page tests, updated fetch tests | the table still shows one earlier row first; Daily volatlity uses the same function under a new name, and its tests stay green |
+| — | — | 8 | end-to-end on the local stack | scenarios 1–5 | — |
 
 Each PR branches from `main` after the previous one merges.
 
@@ -120,20 +134,20 @@ Expected: PR URL printed; body follows §PR bodies.
 
 **Files:**
 
-* Modify: `frontend/src/features/history/historyShared.ts`, `frontend/src/features/history/HistoryPage.tsx`, `frontend/src/features/history/HistoryPage.page.test.tsx`
+* Modify: `frontend/src/features/history/historyShared.ts`, `frontend/src/features/history/HistoryPage.tsx`, `frontend/src/features/history/HistoryPage.page.test.tsx`, `frontend/src/features/history/HistoryPage.test.tsx`, `frontend/src/lib/api/client.ts`
 
 WHY: the `lint changed files` CI step (#230) lints every file a PR touches.
-PR3 has to touch these three files, and they hold 61 legacy one-letter names
-(33 / 22 / 6). Renaming them in their own PR keeps PR3's diff about the
-feature, and leaves every later History PR lint-clean.
+PR4 has to touch these five files, and they hold 84 legacy one-letter names
+(33 / 22 / 6 / 22 / 1). Renaming them in their own PR keeps PR4's diff about
+the feature, and leaves every later History PR lint-clean.
 
 * [ ] **Step 1: Confirm the starting count**
 
 ```bash
-cd frontend && npx eslint src/features/history/historyShared.ts src/features/history/HistoryPage.tsx src/features/history/HistoryPage.page.test.tsx | tail -1
+cd frontend && npx eslint src/features/history/historyShared.ts src/features/history/HistoryPage.tsx src/features/history/HistoryPage.page.test.tsx src/features/history/HistoryPage.test.tsx src/lib/api/client.ts | tail -1
 ```
 
-Expected: `✖ 61 problems (61 errors, 0 warnings)`.
+Expected: `✖ 84 problems (84 errors, 0 warnings)`.
 
 * [ ] **Step 2: Rename in `historyShared.ts`** (Edit tool, one function at a time)
 
@@ -193,10 +207,35 @@ Line numbers are from `main` at `acd1d30`.
 | 69 | `for (let y = 2020; y <= 2026; y++) { expect(opts).toContain(String(y))` | `for (let yearOption = 2020; yearOption <= 2026; yearOption++) { expect(opts).toContain(String(yearOption))` |
 | 116–118 | `getItem: (k: string) => store.get(k) ?? null`, `setItem: (k: string, v: string) => { store.set(k, v) }`, `removeItem: (k: string) => { store.delete(k) }` | `key` for `k`, `value` for `v` |
 
+* [ ] **Step 4a: Rename in `HistoryPage.test.tsx`**
+
+WHY: a module-level `row(...)` helper exists (line 50), so locals that hold
+a row take other names rather than shadow it.
+
+| Line | Current | Replacement |
+|---|---|---|
+| 115, 120 | `const f = blank()` (and its uses) | `const form = blank()` |
+| 149 | `const d = symmetricDomain(…)` | `const domain = symmetricDomain(…)` |
+| 223, 228, 233, 241 | `const [r] = parsePasteText(…)` | `const [parsed] = parsePasteText(…)` |
+| 352 | `for (let m = 0; m < 24 * 60; m += 15)` | `for (let minute = 0; minute < 24 * 60; minute += 15)` |
+| 368, 385, 397, 406, 418 | `const r = buildLiveRow(…)` | `const liveRow = buildLiveRow(…)` |
+| 591 | `.some(c => c.textContent === '10.00')` | `.some(cell => cell.textContent === '10.00')` |
+| 631, 656, 739 | `.find(t => t.querySelector('td')…)` | `.find(tableRow => tableRow.querySelector('td')…)` |
+| 651, 734 | `const norm = (s: string) => s.replace(/\s/g, '')` | `const norm = (text: string) => text.replace(/\s/g, '')` |
+| 723 | `const g = (invested: number, current: number) => …` | `const goldAt = (invested: number, current: number) => …` |
+| 911 | `series.flatMap(d => [d.invested, d.current])` | `series.flatMap(point => [point.invested, point.current])` |
+| 1152 | `const r = row({` | `const historyRow = row({` |
+
+* [ ] **Step 4b: Rename in `client.ts`**
+
+| Line | Where | Current | Replacement |
+|---|---|---|---|
+| 195–198 | `listGoldPrices` | `const q = new URLSearchParams()`, `q.set(…)` ×2, `q.toString()` | `const query = …`, `query.set(…)` ×2, `query.toString()` |
+
 * [ ] **Step 5: Verify**
 
 ```bash
-cd frontend && npx eslint src/features/history/historyShared.ts src/features/history/HistoryPage.tsx src/features/history/HistoryPage.page.test.tsx && npm run typecheck && npx vitest run src/features/history
+cd frontend && npx eslint src/features/history/historyShared.ts src/features/history/HistoryPage.tsx src/features/history/HistoryPage.page.test.tsx src/features/history/HistoryPage.test.tsx src/lib/api/client.ts && npm run typecheck && npx vitest run src/features/history
 ```
 
 Expected: ESLint prints nothing; `tsc --noEmit` clean; `Tests  151 passed (151)`.
@@ -205,7 +244,7 @@ Expected: ESLint prints nothing; `tsc --noEmit` clean; `Tests  151 passed (151)`
 
 ```bash
 git checkout -b refactor/history-descriptive-names main
-git add frontend/src/features/history/historyShared.ts frontend/src/features/history/HistoryPage.tsx frontend/src/features/history/HistoryPage.page.test.tsx
+git add frontend/src/features/history/historyShared.ts frontend/src/features/history/HistoryPage.tsx frontend/src/features/history/HistoryPage.page.test.tsx frontend/src/features/history/HistoryPage.test.tsx frontend/src/lib/api/client.ts
 git commit -m "♻️ Use descriptive names in the History files"
 git push -u origin refactor/history-descriptive-names
 gh pr create --title "♻️ Use descriptive names in the History page files so they pass the naming lint" --body-file pr2.md
@@ -215,18 +254,559 @@ Expected: PR URL; CI `lint changed files` green.
 
 ---
 
-## Task 2: `periodPerformance` (PR3)
+## Task 2: Return the latest earlier row with a month (PR3)
 
 **Files:**
 
-* Modify: `frontend/src/features/history/historyShared.ts`
-* Create: `frontend/src/features/history/periodPerformance.test.ts`
+* Modify: `backend/api/specs/history/history.yaml`, `backend/api/server.gen.go` (regenerated), `backend/internal/services/history.go`, `backend/internal/services/history_test.go`, `backend/internal/controllers/history.go`, `docs/api.md`
+
+WHY: PRD-006 §4 makes the opening baseline the latest row before the month.
+`SnapshotStore.List` filters strictly to `[from, to]`, and today's frontend
+only reaches back one calendar day, so with rows on 29-09, 01-10 and 30-10
+October would open on 01-10 and lose the 29-09 → 01-10 move. The store
+already has the exact lookup, `LatestBefore` (used by the snapshot job and
+the previous-close summary), so the list endpoint gains an opt-in flag that
+appends it. The appended row goes through the same gold and dividend
+overlays as every other row.
+
+* [ ] **Step 1: Branch**
+
+```bash
+git checkout -b feat/PD-049-history-include-previous main
+```
+
+* [ ] **Step 2: Spec (Edit `history.yaml`)**
+
+Current:
+
+```yaml
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+    responses:
+      "200":
+        description: Snapshots ordered newest-first
+```
+
+Replacement:
+
+```yaml
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: include_previous
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: |
+          Also return the latest row dated before `from`, however far back
+          (PRD-006 §4): the opening baseline for a month and the prior row for
+          the month's first Daily volatlity. Omitted when no earlier row exists.
+    responses:
+      "200":
+        description: Snapshots ordered newest-first
+```
+
+* [ ] **Step 3: Regenerate**
+
+```bash
+cd backend && go generate -tags tools ./...
+git diff --stat api/
+```
+
+Expected: only `api/server.gen.go` changes (+12 lines): `ListHistoryParams`
+gains `IncludePrevious *bool` and the wrapper binds `include_previous`.
+
+* [ ] **Step 4: Service (Edit `services/history.go`)**
+
+WHY: the lookup lives in the service, next to the range read, so the
+controller stays a thin mapper. The row mapping moves into
+`historyRowFromSnapshot` so the range rows and the earlier row share one
+mapping instead of two copies. `ErrNotFound` from `LatestBefore` means no
+earlier history, so nothing is appended; the frontend's first-row fallback
+applies only then. `uid` becomes `userId` (CLAUDE.md naming rule for edited
+functions).
+
+Current:
+
+```go
+// List returns the caller's rows in [from, to] inclusive.
+func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from, to time.Time) (_ HistoryList, retErr error) {
+    ctx, span := tracer.Start(ctx, "HistoryService.List")
+    defer endSpan(span, &retErr)
+    if to.Before(from) {
+        return HistoryList{}, fmt.Errorf("%w: to before from", ErrInvalidDate)
+    }
+    snaps, err := s.store.List(ctx, uid, from, to)
+    if err != nil {
+        return HistoryList{}, err
+    }
+    currency := "INR"
+    rows := make([]HistoryRow, 0, len(snaps))
+    for _, snap := range snaps {
+        if snap.Currency != "" {
+            currency = snap.Currency
+        }
+        regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
+        for k, bucket := range snap.Buckets {
+            // Legacy stored rows may still carry a zero USD bucket; USD is no
+            // longer tracked (2026-07-07), so drop it from the response.
+            if k == domain.CurrencyUSD {
+                continue
+            }
+            bucket.Invested = round(bucket.Invested)
+            bucket.Current = round(bucket.Current)
+            regions[k] = bucket
+        }
+        totals := snap.Totals()
+        totals.InvestedTotal = round(totals.InvestedTotal)
+        totals.CurrentTotal = round(totals.CurrentTotal)
+        rows = append(rows, HistoryRow{
+            Date:     snap.Date.UTC().Format("2006-01-02"),
+            Regions:  regions,
+            Totals:   totals,
+            Holdings: holdingsFromLines(snap.Lines),
+        })
+    }
+    return HistoryList{Currency: currency, Rows: rows}, nil
+}
+```
+
+Replacement:
+
+```go
+// List returns the user's rows in [from, to] inclusive, newest first. With
+// includePrevious it also appends the latest row dated before `from`, however
+// far back (PRD-006 §4): a month's opening baseline must not depend on a
+// snapshot existing on the previous month's last calendar day. No earlier row
+// means there is no prior history, and nothing is appended.
+func (s *HistoryService) List(ctx context.Context, userId primitive.ObjectID, from, to time.Time, includePrevious bool) (_ HistoryList, retErr error) {
+    ctx, span := tracer.Start(ctx, "HistoryService.List")
+    defer endSpan(span, &retErr)
+    if to.Before(from) {
+        return HistoryList{}, fmt.Errorf("%w: to before from", ErrInvalidDate)
+    }
+    snaps, err := s.store.List(ctx, userId, from, to)
+    if err != nil {
+        return HistoryList{}, err
+    }
+    if includePrevious {
+        previous, err := s.store.LatestBefore(ctx, userId, from)
+        switch {
+        case err == nil:
+            snaps = append(snaps, previous) // oldest, so last in newest-first order
+        case !errors.Is(err, persistence.ErrNotFound):
+            return HistoryList{}, err
+        }
+    }
+    currency := "INR"
+    rows := make([]HistoryRow, 0, len(snaps))
+    for _, snap := range snaps {
+        if snap.Currency != "" {
+            currency = snap.Currency
+        }
+        rows = append(rows, historyRowFromSnapshot(snap))
+    }
+    return HistoryList{Currency: currency, Rows: rows}, nil
+}
+
+// historyRowFromSnapshot maps one stored snapshot to its API row: amounts
+// rounded to 2 dp, totals derived, the legacy USD bucket dropped.
+func historyRowFromSnapshot(snap domain.PortfolioSnapshot) HistoryRow {
+    regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
+    for currency, bucket := range snap.Buckets {
+        // Legacy stored rows may still carry a zero USD bucket; USD is no
+        // longer tracked (2026-07-07), so drop it from the response.
+        if currency == domain.CurrencyUSD {
+            continue
+        }
+        bucket.Invested = round(bucket.Invested)
+        bucket.Current = round(bucket.Current)
+        regions[currency] = bucket
+    }
+    totals := snap.Totals()
+    totals.InvestedTotal = round(totals.InvestedTotal)
+    totals.CurrentTotal = round(totals.CurrentTotal)
+    return HistoryRow{
+        Date:     snap.Date.UTC().Format("2006-01-02"),
+        Regions:  regions,
+        Totals:   totals,
+        Holdings: holdingsFromLines(snap.Lines),
+    }
+}
+```
+
+* [ ] **Step 5: Controller (Edit `controllers/history.go`)**
+
+WHY: the generated param is an optional pointer; absent means false, which
+keeps every existing caller (the dashboard's previous-close lookup, the
+full-history chart) on today's exact-range behaviour.
+
+Current:
+
+```go
+    list, err := h.history.List(ctx, currentUserId, from, to)
+```
+
+Replacement:
+
+```go
+    includePrevious := req.Params.IncludePrevious != nil && *req.Params.IncludePrevious
+    list, err := h.history.List(ctx, currentUserId, from, to, includePrevious)
+```
+
+* [ ] **Step 6: Tests (Edit `services/history_test.go`)**
+
+WHY: the owner-reported gap is the acceptance case: rows on 29-09, 01-10 and
+30-10 must give October a 29-09 baseline. The other two cases pin that
+genuinely absent history appends nothing, and that the flag is opt-in (only
+the range query is mocked, so an unrequested lookup would fail the call).
+
+Current (import block):
+
+```go
+    "errors"
+    "testing"
+```
+
+Replacement:
+
+```go
+    "errors"
+    "slices"
+    "testing"
+```
+
+Current (the two existing calls):
+
+```go
+            time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+        )
+        if !errors.Is(err, ErrInvalidDate) {
+```
+
+```go
+        got, err := svc.List(context.Background(), uid, date, date)
+```
+
+Replacement:
+
+```go
+            time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+            false,
+        )
+        if !errors.Is(err, ErrInvalidDate) {
+```
+
+```go
+        got, err := svc.List(context.Background(), uid, date, date, false)
+```
+
+Current:
+
+```go
+func TestHistoryService_Add_RejectsFutureDate(t *testing.T) {
+```
+
+Replacement:
+
+```go
+// snapshotDoc is one stored portfolio_snapshots document with an INR bucket.
+func snapshotDoc(userId primitive.ObjectID, date time.Time, invested, current float64) bson.D {
+    return bson.D{
+        {Key: "_id", Value: primitive.NewObjectID()},
+        {Key: "user_id", Value: userId},
+        {Key: "date", Value: date},
+        {Key: "currency", Value: "INR"},
+        {Key: "regions", Value: bson.D{
+            {Key: "INR", Value: bson.D{
+                {Key: "invested", Value: invested},
+                {Key: "current", Value: current},
+                {Key: "source", Value: "cron"},
+            }},
+        }},
+    }
+}
+
+func historyDates(list HistoryList) []string {
+    dates := make([]string, 0, len(list.Rows))
+    for _, row := range list.Rows {
+        dates = append(dates, row.Date)
+    }
+    return dates
+}
+
+// PRD-006 §4: October's baseline is the latest row before 1 October, even
+// when 30 September has no snapshot (the owner-reported gap: rows on 29-09,
+// 01-10 and 30-10).
+func TestHistoryService_List_IncludePrevious(t *testing.T) {
+    userId := primitive.NewObjectID()
+    octFirst := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+    octLast := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+    namespace := func(mt *mtest.T) string { return mt.DB.Name() + ".portfolio_snapshots" }
+    monthRows := func(mt *mtest.T) bson.D {
+        return mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch,
+            snapshotDoc(userId, time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC), 898847.70, 1118139.13),
+            snapshotDoc(userId, octFirst, 881053.52, 1077793.63))
+    }
+
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    mt.Run("appends the latest earlier row, however far back", func(mt *mtest.T) {
+        mt.AddMockResponses(monthRows(mt), mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch,
+            snapshotDoc(userId, time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC), 880021.32, 1086274.39)))
+        got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, true)
+        if err != nil {
+            t.Fatalf("List: %v", err)
+        }
+        want := []string{"2026-10-30", "2026-10-01", "2026-09-29"}
+        if dates := historyDates(got); !slices.Equal(dates, want) {
+            t.Errorf("dates = %v, want %v", dates, want)
+        }
+        if previous := got.Rows[2].Regions["INR"]; previous.Invested != 880021.32 || previous.Current != 1086274.39 {
+            t.Errorf("previous INR bucket = %+v", previous)
+        }
+    })
+    mt.Run("adds nothing when there is no earlier history", func(mt *mtest.T) {
+        mt.AddMockResponses(monthRows(mt), mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch))
+        got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, true)
+        if err != nil {
+            t.Fatalf("List: %v", err)
+        }
+        if dates := historyDates(got); !slices.Equal(dates, []string{"2026-10-30", "2026-10-01"}) {
+            t.Errorf("dates = %v, want only October", dates)
+        }
+    })
+    mt.Run("leaves the range alone when not asked", func(mt *mtest.T) {
+        // Only the range query is mocked: a lookup would find no response and fail.
+        mt.AddMockResponses(monthRows(mt))
+        got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, false)
+        if err != nil {
+            t.Fatalf("List: %v", err)
+        }
+        if dates := historyDates(got); !slices.Equal(dates, []string{"2026-10-30", "2026-10-01"}) {
+            t.Errorf("dates = %v, want only October", dates)
+        }
+    })
+}
+
+func TestHistoryService_Add_RejectsFutureDate(t *testing.T) {
+```
+
+* [ ] **Step 7: API docs (Edit `docs/api.md`)**
+
+Current:
+
+```markdown
+| GET | `/api/history?from=YYYY-MM-DD&to=YYYY-MM-DD` | Snapshot rows in range (each row carries per-currency totals + per-stock `holdings`) |
+```
+
+Replacement:
+
+```markdown
+| GET | `/api/history?from=YYYY-MM-DD&to=YYYY-MM-DD[&include_previous=true]` | Snapshot rows in range (each row carries per-currency totals + per-stock `holdings`); `include_previous` also returns the latest row before `from`, however far back |
+```
+
+* [ ] **Step 8: Verify**
+
+```bash
+cd backend && go test -count=1 -run TestHistoryService ./internal/services/ -v | grep -E '^--- ' && go test -count=1 ./internal/... && golangci-lint run ./...
+```
+
+Expected: `--- PASS: TestHistoryService_List_IncludePrevious` among the
+PASS lines, every package `ok`, `0 issues.`
+
+* [ ] **Step 9: curl** (for the PR body; dev stack, rows seeded on 2026-09-29, 2026-10-01, 2026-10-30)
+
+```bash
+B=http://localhost:8080/api; H='X-Requested-With: portfolio-dashboard'
+curl -s -c j -H "$H" -H 'Content-Type: application/json' -d '{"username":"admin","password":"<dev password>"}' $B/auth/login
+curl -s -b j "$B/history?from=2026-10-01&to=2026-10-31" | jq '[.rows[].date]'                         # 200: ["2026-10-30","2026-10-01"]
+curl -s -b j "$B/history?from=2026-10-01&to=2026-10-31&include_previous=true" | jq '[.rows[].date]'   # 200: ["2026-10-30","2026-10-01","2026-09-29"]
+```
+
+* [ ] **Step 10: Commit, push, open PR3**
+
+```bash
+git add backend/api/specs/history/history.yaml backend/api/server.gen.go backend/internal/services/history.go backend/internal/services/history_test.go backend/internal/controllers/history.go docs/api.md
+git commit -m "✨ Return the latest earlier History row"
+git push -u origin feat/PD-049-history-include-previous
+gh pr create --title "✨ Let the History list return the latest row before the requested range" --body-file pr3.md
+```
+
+Expected: PR URL; CI green (Go tests, Go linter, Project rules with the curl
+block present).
+
+---
+
+## Task 3: Load the latest earlier row on History (PR4)
+
+**Files:**
+
+* Modify: `frontend/src/lib/api/client.ts`, `frontend/src/lib/api/schema.gen.ts` (regenerated), `frontend/src/features/history/historyShared.ts`, `frontend/src/features/history/HistoryPage.tsx`, `frontend/src/features/history/HistoryPage.test.tsx`, `frontend/src/features/history/HistoryPage.page.test.tsx`
+
+WHY: with PR3 merged, the page asks for the month's own bounds plus
+`include_previous`. `monthRange` stops reaching back one calendar day: the
+earlier row now comes from the server however far back it is, so asking for
+the previous day as well would return two pre-month rows when that day has
+a snapshot. The table still shows the earlier row first, as it does today,
+and the month's first Daily volatlity now has a prior row even after a gap.
 
 * [ ] **Step 1: Branch**
 
 ```bash
 git checkout -b feat/PD-049-month-performance main
 ```
+
+* [ ] **Step 2: Regenerate the API types**
+
+```bash
+cd frontend && npm run gen:api && git diff --stat src/lib/api/schema.gen.ts
+```
+
+Expected: `schema.gen.ts` +6 lines (`include_previous?: boolean`).
+
+* [ ] **Step 3: Client (Edit `client.ts`)**
+
+WHY: an optional third argument with a `false` default keeps the two other
+callers (the dashboard's previous-close lookup and the full-history chart)
+on the exact range.
+
+Current:
+
+```ts
+  listHistory:        (from: string, to: string) => request<HistoryList>('GET', `/history?from=${from}&to=${to}`),
+```
+
+Replacement:
+
+```ts
+  // includePrevious also returns the latest row before `from` (PRD-006 §4).
+  listHistory:        (from: string, to: string, includePrevious = false) =>
+    request<HistoryList>('GET', `/history?from=${from}&to=${to}${includePrevious ? '&include_previous=true' : ''}`),
+```
+
+* [ ] **Step 4: Month bounds (Edit `historyShared.ts`)**
+
+Current:
+
+```ts
+// monthRange returns the inclusive [from, to] for the month, with `from`
+// extended back by one day so the first day-of-month row has a prior row
+// to compute Daily volatlity against (PR7 design review).
+export function monthRange(year: number, month0: number): { from: string; to: string } {
+  const from = new Date(Date.UTC(year, month0, 0))   // last day of previous month
+  const to   = new Date(Date.UTC(year, month0 + 1, 0))
+```
+
+Replacement:
+
+```ts
+// monthRange returns the month's own inclusive [from, to]. The prior row the
+// first day's Daily volatlity and the month performance baseline need comes
+// from GET /history?include_previous=true (PRD-006 §4): the latest row before
+// the month however far back, rather than only the previous calendar day.
+export function monthRange(year: number, month0: number): { from: string; to: string } {
+  const from = new Date(Date.UTC(year, month0, 1))
+  const to   = new Date(Date.UTC(year, month0 + 1, 0))
+```
+
+* [ ] **Step 5: Request it (Edit `HistoryPage.tsx`)**
+
+Current:
+
+```tsx
+      const list = await api.listHistory(from, to)
+      setRows(list.rows)
+```
+
+Replacement:
+
+```tsx
+      const list = await api.listHistory(from, to, true)
+      setRows(list.rows)
+```
+
+* [ ] **Step 6: Update the range tests (Edit `HistoryPage.test.tsx`)**
+
+WHY: these pinned the old one-day reach-back, which this task removes on
+purpose; they now pin the month's own bounds.
+
+Current:
+
+```ts
+  // monthRange extends `from` back by one day so the first row of the
+  // selected month has a prior row for Daily volatlity.
+  it('resolves a 31-day month to (last-of-prev → last UTC day)', () => {
+    expect(monthRange(2026, 0)).toEqual({ from: '2025-12-31', to: '2026-01-31' })
+  })
+  it('resolves February in a non-leap year to (Jan 31 → Feb 28)', () => {
+    expect(monthRange(2026, 1)).toEqual({ from: '2026-01-31', to: '2026-02-28' })
+  })
+  it('resolves February in a leap year to (Jan 31 → Feb 29)', () => {
+    expect(monthRange(2024, 1)).toEqual({ from: '2024-01-31', to: '2024-02-29' })
+  })
+```
+
+Replacement:
+
+```ts
+  // monthRange is the month's own bounds; the prior row comes from
+  // include_previous on the request (PRD-006 §4).
+  it('resolves a 31-day month to (1st → last UTC day)', () => {
+    expect(monthRange(2026, 0)).toEqual({ from: '2026-01-01', to: '2026-01-31' })
+  })
+  it('resolves February in a non-leap year to (Feb 1 → Feb 28)', () => {
+    expect(monthRange(2026, 1)).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+  })
+  it('resolves February in a leap year to (Feb 1 → Feb 29)', () => {
+    expect(monthRange(2024, 1)).toEqual({ from: '2024-02-01', to: '2024-02-29' })
+  })
+```
+
+* [ ] **Step 7: Update the fetch assertions (Edit `HistoryPage.page.test.tsx`)**
+
+WHY: every page fetch now carries the month's bounds and `true`.
+
+| Test | Current | Replacement |
+|---|---|---|
+| re-fetches when the month changes | `// monthRange extends \`from\` back one day so Jan starts on Dec 31.` / `expect(lastArgs?.[0]).toMatch(/-12-31$/)` | `// January's own bounds, plus the latest earlier row however far back` / `// (include_previous, PRD-006 §4).` / `expect(lastArgs).toEqual(['2026-01-01', '2026-01-31', true])` |
+| refetches the month when the trading day rolls over | `expect(last).toEqual(['2026-05-31', '2026-06-30'])` | `expect(last).toEqual(['2026-06-01', '2026-06-30', true])` |
+| follows the clock into the new month … | `toHaveBeenCalledWith('2026-05-31', '2026-06-30')`, `toHaveBeenCalledWith('2026-06-30', '2026-07-31')` | `toHaveBeenCalledWith('2026-06-01', '2026-06-30', true)`, `toHaveBeenCalledWith('2026-07-01', '2026-07-31', true)` |
+| does not yank the user out of a month … | `toHaveBeenCalledWith('2026-02-28', '2026-03-31')`, `toEqual(['2026-02-28', '2026-03-31'])` | `toHaveBeenCalledWith('2026-03-01', '2026-03-31', true)`, `toEqual(['2026-03-01', '2026-03-31', true])` |
+
+* [ ] **Step 8: Verify**
+
+```bash
+cd frontend && npm run typecheck && npx vitest run src/features/history
+```
+
+Expected: `Tests  151 passed (151)` (same count; four tests now assert the new request).
+
+* [ ] **Step 9: Commit**
+
+```bash
+git add frontend/src/lib/api/client.ts frontend/src/lib/api/schema.gen.ts frontend/src/features/history/historyShared.ts frontend/src/features/history/HistoryPage.tsx frontend/src/features/history/HistoryPage.test.tsx frontend/src/features/history/HistoryPage.page.test.tsx
+git commit -m "✨ Load the latest earlier History row"
+```
+
+---
+
+## Task 4: `periodPerformance` (PR4)
+
+**Files:**
+
+* Modify: `frontend/src/features/history/historyShared.ts`
+* Create: `frontend/src/features/history/periodPerformance.test.ts`
+
+* [ ] **Step 1: Stay on `feat/PD-049-month-performance`** (created in Task 3)
 
 * [ ] **Step 2: Export the flow-adjusted return (Edit `historyShared.ts`)**
 
@@ -317,10 +897,11 @@ const round2 = (value: number) => Math.round(value * 100) / 100
 
 // periodPerformance compares each column's opening and closing position for
 // the month starting at monthStart (YYYY-MM-01). The opening row is the last
-// row before the month (the page already loads the previous month's last day,
-// see monthRange), falling back to the month's first row when there is none;
-// the closing row is the month's last row (today's live row included). A
-// column with fewer than two such rows is left out.
+// row before the month (the page loads the latest earlier row however far
+// back, via include_previous), falling back to the month's first row only
+// when there is no earlier history; the closing row is the month's last row
+// (today's live row included). A column with fewer than two such rows is
+// left out.
 //
 // P/L change is the difference of the two P/L %s *as displayed* (2 dp), so
 // the card's arithmetic reads true: 31.05 % − 37.79 % shows −6.74 pp, not the
@@ -383,8 +964,8 @@ function historyRow(date: string, regions: Record<string, [number, number]>, gol
   }
 }
 
-// The owner's October 2026 sheet: 30 Sep (the previous month's last row,
-// which monthRange already loads), a mid-month row, and 30 Oct.
+// The owner's October 2026 sheet: 30 Sep (the latest row before October,
+// which include_previous loads), a mid-month row, and 30 Oct.
 const october = [
   historyRow('2026-09-30', { INR: [880021.32, 1086274.39], EUR: [7064.13, 8459.51] }, [716420, 987120]),
   historyRow('2026-10-15', { INR: [885419.70, 1104496.26], EUR: [7308.82, 8726.46] }, [716420, 973080]),
@@ -456,7 +1037,7 @@ git commit -m "✨ Compute month performance per currency"
 
 ---
 
-## Task 3: The card (PR3)
+## Task 5: The card (PR4)
 
 **Files:**
 
@@ -639,7 +1220,7 @@ git commit -m "✨ Add the month performance card"
 
 ---
 
-## Task 4: Show the card on History (PR3)
+## Task 6: Show the card on History (PR4)
 
 **Files:**
 
@@ -690,9 +1271,10 @@ Replacement:
 * [ ] **Step 3: Page tests (Edit `HistoryPage.page.test.tsx`)**
 
 WHY: proves the wiring end to end through the real page. It uses the owner's
-INR figures moved to the frozen test month (June 2026): the previous month's
-last row (31-05) is the baseline, so the page's own `monthRange` has to
-deliver it. A single-row month shows no card.
+INR figures moved to the frozen test month (June 2026), with the baseline on
+29 May and nothing on 31 May: the gap case PRD-006 §4 is about. The card must
+open on that row, and the page must have asked for it (`include_previous`).
+A single-row month shows no card.
 
 Current:
 
@@ -703,19 +1285,22 @@ Current:
 Replacement:
 
 ```tsx
-  it("shows the month performance card from the previous month's last row to the latest", async () => {
+  // The baseline is the latest row before June however far back: 29 May
+  // here, with no snapshot on 31 May (include_previous, PRD-006 §4).
+  it('shows the month performance card from the latest earlier row to the latest', async () => {
     const monthRow = (date: string, invested: number, current: number): HistoryRow => ({
       ...sampleRow, date,
       regions: { ...sampleRow.regions, INR: { invested, current, source: 'cron' } },
     })
     mockApi.listHistory.mockResolvedValue(list([
-      monthRow('2026-05-31', 880021.32, 1086274.39),
+      monthRow('2026-05-29', 880021.32, 1086274.39),
       monthRow('2026-06-15', 898847.70, 1118139.13),
     ]))
     renderPage()
     const card = await screen.findByRole('table', { name: 'Jun 2026 performance' })
     expect(card).toHaveTextContent('🇮🇳 India')
-    expect(card).toHaveTextContent('31-05 → 15-06')
+    expect(card).toHaveTextContent('29-05 → 15-06')
+    expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-01', '2026-06-30', true)
     expect(card).toHaveTextContent('23.44%')
     expect(card).toHaveTextContent('24.40%')
     expect(card).toHaveTextContent('🟢 +0.96 pp')
@@ -740,7 +1325,7 @@ cd frontend && npm run typecheck && npx vitest run && npm run lint:changed
 ```
 
 Expected: `Tests  404 passed (404)` (396 on `main` + 8 new); `lint:changed`
-prints `5 file(s) vs origin/main` and no errors.
+prints `7 file(s) vs origin/main` and no errors.
 
 * [ ] **Step 5: Commit**
 
@@ -751,7 +1336,7 @@ git commit -m "✨ Show month performance on History"
 
 ---
 
-## Task 5: User docs, then open PR3
+## Task 7: User docs, then open PR4
 
 **Files:**
 
@@ -778,19 +1363,19 @@ Replacement:
   price, change value, daily change), positive positions only;
 * shows a **month performance** card above the table
   ([PRD-006](prds/PRD-006-month-performance.md)): per currency and gold, the
-  P/L % on the previous month's last row and on the month's latest row, the
+  P/L % on the latest row before the month and on the month's latest row, the
   change in pp, and an approximate investment performance = (closing value −
   opening value − money added) ÷ opening value, so new money is not counted
   as gains.
 ```
 
-* [ ] **Step 2: Commit, push, open PR3**
+* [ ] **Step 2: Commit, push, open PR4**
 
 ```bash
 git add docs/history-and-snapshots.md
 git commit -m "📝 Document the month performance card"
 git push -u origin feat/PD-049-month-performance
-gh pr create --title "✨ Show each currency's month performance on the History page" --body-file pr3.md
+gh pr create --title "✨ Show each currency's month performance on the History page" --body-file pr4.md
 ```
 
 Expected: PR URL; CI green (Frontend job incl. `lint changed files`,
@@ -798,7 +1383,7 @@ markdownlint, Project rules).
 
 ---
 
-## Task 6: End-to-end verification (local stack)
+## Task 8: End-to-end verification (local stack)
 
 **Files:** none
 
@@ -823,17 +1408,19 @@ curl -s -b j -H "$H" -H 'Content-Type: application/json' -d '{"date":"2026-10-30
    prices. Expected: Gold 37.79% / 31.05% / 🔴 −6.74 pp / −4.89%.
 3. **Single row** — September (only 30-09 in range plus no earlier row).
    Expected: no card.
-4. **Themes + phone** — dark / light / cyberpunk, and a 390 px window.
+4. **Gap before the month** — delete the 30-09 row (`curl -s -b j -H "$H" -X DELETE $B/history/2026-09-30`, a manual row), add one for 29-09 with the same figures. Expected: the October card's headers read `29-09 → 30-10` and the figures are unchanged; the table's first row is 29-09.
+5. **Themes + phone** — dark / light / cyberpunk, and a 390 px window.
    Expected: legible in all three, matching the visual spec; the card
    scrolls inside itself, not the page.
 
-* [ ] **Step 4: Record** — paste the results as a comment on PR3.
+* [ ] **Step 4: Record** — paste the results as a comment on PR4.
 
-Expected: all four pass before PR3 merges.
+Expected: all five pass before PR4 merges.
 
 ## Done
 
 * History shows a month performance card per currency and gold.
+* The baseline is the latest earlier row however far back; the first-row fallback only applies with no earlier history.
 * October 2026 reproduces the owner's table exactly.
 * Daily volatlity and the card share one flow-adjusted formula.
 * The three History files meet the naming rule.

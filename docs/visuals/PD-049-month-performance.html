@@ -572,7 +572,7 @@
 
   <header class="masthead">
     <div class="eyebrow">
-      <span>Visual spec</span><span>PD-049 v5</span><span>PRD-006 · DD-006</span><span>Portfolio Dashboard</span>
+      <span>Visual spec</span><span>PD-049 v6</span><span>PRD-006 · DD-006</span><span>Portfolio Dashboard</span>
       <span>Owner decisions 2026-10-31 applied</span>
     </div>
     <h1>Month performance</h1>
@@ -585,10 +585,10 @@
     </p>
     <dl class="meta-grid">
       <div class="meta-cell"><dt>Route</dt><dd>/history (month picker)</dd></div>
-      <div class="meta-cell"><dt>Opening row</dt><dd>last row before the month</dd></div>
+      <div class="meta-cell"><dt>Opening row</dt><dd>latest row before the month</dd></div>
       <div class="meta-cell"><dt>Closing row</dt><dd>month's latest row (live today)</dd></div>
       <div class="meta-cell"><dt>Performance</dt><dd>(ΔValue − ΔInvested) ÷ opening value</dd></div>
-      <div class="meta-cell"><dt>API change</dt><dd>none · frontend only</dd></div>
+      <div class="meta-cell"><dt>API change</dt><dd>GET /history?include_previous=true</dd></div>
       <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
     </dl>
   </header>
@@ -650,7 +650,7 @@
     </div>
     <ol class="annotations">
       <li><b>1</b><span>New card, between the toolbar and the table, spanning the full content width like the table and chart panels. The metric column takes 26 %; India, Europe and Gold share the rest evenly, each drawn as its own rounded block with a gap between them, values centred. Each column wears its currency group's tint from the month table (saffron INR, blue EUR, amber gold), so the card reads as the summary of those columns. Same panel as the chart panels: <code>--bg-secondary</code>, <code>--border</code>, radius 8, a 14 px secondary title. PRD-006 §5, DD-006 §4.</span></li>
-      <li><b>2</b><span>The opening column is the <strong>30-09</strong> row, which the page already loads (<code>monthRange</code> starts one day early). Closing is the month's latest row, <strong>30-10</strong>. PRD-006 §4.</span></li>
+      <li><b>2</b><span>The opening column is the latest row before October, here <strong>30-09</strong>. The server returns it with the month (<code>include_previous</code>) however far back it is: had 30-09 no snapshot, the card would open on 29-09, not on 01-10. Closing is the month's latest row, <strong>30-10</strong>. PRD-006 §4, DD-006 §1.</span></li>
       <li><b>3</b><span>Each header shows the two dates it compares. P/L change is a chip tinted by direction (the table's up / down tints), and the performance row, the bottom line, is set larger, bold and green or red under a heavier rule. P/L change is the difference of the two shown values, so gold reads 31.05 − 37.79 = −6.74 pp. DD-006 §3.5.</span></li>
       <li><b>4</b><span>Performance nets out new money: India (11,18,139.13 − 10,86,274.39 − 18,826.38) ÷ 10,86,274.39 = +1.20%. Gold added nothing, so it is the plain value change. DD-006 §3.6.</span></li>
     </ol>
@@ -694,7 +694,7 @@
     </div>
     <ol class="annotations">
       <li><b>A</b><span><strong>Current month.</strong> Closing is today's live row, so the card moves with the table during market hours; headers say <code>(live)</code>. A user without gold gets no Gold column. Example figures.</span></li>
-      <li><b>B</b><span><strong>First month of data.</strong> No row before June, so the opening is the month's first row (03-06), and the dates show it. Example: ₹50,000 opening, ₹30,000 added, ₹83,200 at month end.</span></li>
+      <li><b>B</b><span><strong>First month of data.</strong> No row exists before June at all, so the opening is the month's first row (03-06), and the dates show it. This is the only case the fallback covers. Example: ₹50,000 opening, ₹30,000 added, ₹83,200 at month end.</span></li>
       <li><b>C</b><span><strong>Hidden.</strong> A column needs two rows with money invested; with none qualifying, the card is not rendered at all, so there is no empty box.</span></li>
       <li><b>D</b><span>Columns follow History's buckets (INR, EUR) plus gold when tracked. History has no USD bucket today, so there is no USD column. PRD-006 §3.</span></li>
     </ol>
@@ -770,19 +770,19 @@
       <table class="spec">
         <thead><tr><th>Frame</th><th>Commitment</th><th>PD-049 task</th></tr></thead>
         <tbody>
-          <tr><td>01</td><td>Card above the table; owner's October figures exactly; per-column dates</td><td>2, 3, 4</td></tr>
-          <tr><td>02 A</td><td>Live closing row flagged; no Gold column without gold</td><td>2, 3</td></tr>
-          <tr><td>02 B</td><td>First-row fallback when nothing precedes the month</td><td>2</td></tr>
-          <tr><td>02 C</td><td>No card for a month with fewer than two rows</td><td>2, 4</td></tr>
-          <tr><td>03</td><td>Card first in the charts-on-top layout</td><td>4</td></tr>
-          <tr><td>04</td><td>Card scrolls inside itself at phone width</td><td>3, 6</td></tr>
+          <tr><td>01</td><td>Card above the table; owner's October figures exactly; per-column dates; baseline = latest earlier row</td><td>2, 3, 4, 5, 6</td></tr>
+          <tr><td>02 A</td><td>Live closing row flagged; no Gold column without gold</td><td>4, 5</td></tr>
+          <tr><td>02 B</td><td>First-row fallback only when no earlier history exists</td><td>2, 4</td></tr>
+          <tr><td>02 C</td><td>No card for a month with fewer than two rows</td><td>4, 6</td></tr>
+          <tr><td>03</td><td>Card first in the charts-on-top layout</td><td>6</td></tr>
+          <tr><td>04</td><td>Card scrolls inside itself at phone width</td><td>5, 8</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <footer class="doc-foot">
-    <span>PD-049 visual spec v5</span>
+    <span>PD-049 visual spec v6</span>
     <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
     <span>Mockup, not production markup</span>
   </footer>

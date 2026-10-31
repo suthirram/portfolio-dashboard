@@ -1,6 +1,6 @@
 # PRD-006: Month performance card on History
 
-* **Status**: Draft v1 (PRD), owner decisions of 2026-10-31 applied
+* **Status**: Draft v2 (PRD), owner decisions of 2026-10-31 applied (v2: the baseline is the latest earlier row, however far back)
 * **Owner**: project owner
 * **Type**: Product Requirements: the *what* and *why*. The *how* lives in
   [DD-006](../designs/DD-006-month-performance.md); the rollout in
@@ -41,15 +41,18 @@ These figures come from the History rows of 30-09-2026 and 30-10-2026
   follows them, so a future USD bucket picks it up automatically.
 * **No time-weighted or money-weighted return** (TWR / XIRR). The figure is
   an approximation and is labelled one.
-* **No backend change.** The rows the page already loads hold every input.
+* **No new endpoint.** One optional parameter on the existing History list
+  supplies the earlier row (§4); everything else is computed in the page.
 
 ## 4. Definitions
 
 For each column (each currency bucket, plus gold when the user tracks it):
 
-* **Opening row**: the last row *before* the month, normally the previous
-  month's last day. If no such row exists (the first month of data), the
-  month's first row.
+* **Opening row**: the latest row *before* the month, however far back. This
+  is normally the previous month's last day, but a missing snapshot there
+  must not move the baseline into the month: with rows on 29-09, 01-10 and
+  30-10, October opens on 29-09. Only when no earlier row exists at all
+  (the first month of data) does the card open on the month's first row.
 * **Closing row**: the month's last row. For the current month this is
   today's live row while no snapshot exists for today, so the card updates
   with the table.
@@ -92,3 +95,4 @@ Worked example (India, October 2026): (11,18,139.13 − 10,86,274.39 −
 | 3 | USD column | Only when held; History has no USD bucket today, so none |
 | 4 | Placement | Card above the month table |
 | 5 | Dividends | Excluded |
+| 6 | Baseline after a gap | Latest earlier row, fetched by the backend (`include_previous` on `GET /history`); the first-row fallback only with no earlier history |
