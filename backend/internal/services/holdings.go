@@ -37,25 +37,25 @@ func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
 	return logging.FromContextOr(ctx, s.logger)
 }
 
-// List returns the holdings owned by uid, mapped to API DTOs.
-func (s *HoldingsService) List(ctx context.Context, uid primitive.ObjectID) (_ []api.Holding, retErr error) {
+// List returns the holdings owned by userId, mapped to API DTOs.
+func (s *HoldingsService) List(ctx context.Context, userId primitive.ObjectID) (_ []api.Holding, retErr error) {
 	ctx, span := tracer.Start(ctx, "HoldingsService.List")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
-	holdings, err := s.store.ListByUser(ctx, uid)
+	holdings, err := s.store.ListByUser(ctx, userId)
 	if err != nil {
 		logger.Error("list holdings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
-	openings, err := s.txns.OpeningsByUser(ctx, uid)
+	openings, err := s.txns.OpeningsByUser(ctx, userId)
 	if err != nil {
 		logger.Error("list openings query failed", zap.String("error", err.Error()))
 		return nil, err
 	}
 	out := make([]api.Holding, 0, len(holdings))
-	for _, hld := range holdings {
-		h := HoldingToAPI(hld)
-		h.HasOpening, h.OpeningDate = openingStatus(openings, hld.ID)
+	for _, holding := range holdings {
+		h := HoldingToAPI(holding)
+		h.HasOpening, h.OpeningDate = openingStatus(openings, holding.ID)
 		out = append(out, h)
 	}
 	return out, nil

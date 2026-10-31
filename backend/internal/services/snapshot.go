@@ -79,7 +79,7 @@ func CurrencyOf(h domain.Holding) (string, bool) {
 	return "unknown", false
 }
 
-// BuildSnapshot computes the (user, date) snapshot for uid.
+// BuildSnapshot computes the (user, date) snapshot for userId.
 //
 // On a trading day the position is marked to the live current price
 // (PriceService.GetPrice — same source as the dashboard). On a weekend the
@@ -91,8 +91,8 @@ func CurrencyOf(h domain.Holding) (string, bool) {
 // dashboard) and is logged. An empty portfolio still produces a row with all
 // canonical regions at zero, so the chart starts the day the user signed up
 // (PRD-002 §6).
-func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
-	holdings, err := s.holdings.ListByUser(ctx, uid)
+func (s *SnapshotService) BuildSnapshot(ctx context.Context, userId primitive.ObjectID, date time.Time) (domain.PortfolioSnapshot, error) {
+	holdings, err := s.holdings.ListByUser(ctx, userId)
 	if err != nil {
 		return domain.PortfolioSnapshot{}, fmt.Errorf("list holdings: %w", err)
 	}
@@ -104,14 +104,14 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	weekend := isWeekend(date)
 	priorBySymbol := map[string]domain.HoldingSnapshot{}
 	if weekend {
-		prev, perr := s.snapshots.LatestBefore(ctx, uid, date)
+		prev, perr := s.snapshots.LatestBefore(ctx, userId, date)
 		switch {
 		case perr == nil:
 			for _, ln := range prev.Lines {
 				priorBySymbol[ln.Symbol] = ln
 			}
 			logger.Info("snapshot: weekend; re-valuing current positions at prior close",
-				zap.String("user_id", uid.Hex()),
+				zap.String("user_id", userId.Hex()),
 				zap.String("date", date.UTC().Format("2006-01-02")),
 				zap.String("prior_date", prev.Date.UTC().Format("2006-01-02")),
 			)
@@ -124,44 +124,44 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	}
 
 	lines := make([]domain.HoldingSnapshot, 0, len(holdings))
-	for _, hld := range holdings {
-		cur, ok := CurrencyOf(hld)
+	for _, holding := range holdings {
+		cur, ok := CurrencyOf(holding)
 		if !ok {
 			logger.Warn("snapshot: holding has unknown currency; excluded",
-				zap.String("script", hld.Script),
-				zap.String("exchange", hld.Exchange),
-				zap.String("currency", hld.Currency),
+				zap.String("script", holding.Script),
+				zap.String("exchange", holding.Exchange),
+				zap.String("currency", holding.Currency),
 			)
 			continue
 		}
-		invested := hld.StocksOwned * hld.AvgCostPrice
-		price, priceCur, priceDate := s.priceFor(ctx, logger, uid, hld, date, priorBySymbol)
+		invested := holding.StocksOwned * holding.AvgCostPrice
+		price, priceCur, priceDate := s.priceFor(ctx, logger, userId, holding, date, priorBySymbol)
 		current := 0.0
 		if price > 0 {
-			current = hld.StocksOwned * price
+			current = holding.StocksOwned * price
 		}
 		logger.Info("snapshot: holding valued",
-			zap.String("user_id", uid.Hex()),
-			zap.String("script", hld.Script),
-			zap.String("symbol", hld.Symbol),
-			zap.String("exchange", hld.Exchange),
-			zap.String("holding_currency", hld.Currency),
+			zap.String("user_id", userId.Hex()),
+			zap.String("script", holding.Script),
+			zap.String("symbol", holding.Symbol),
+			zap.String("exchange", holding.Exchange),
+			zap.String("holding_currency", holding.Currency),
 			zap.String("bucket", cur),
 			zap.String("price_currency", priceCur),
 			zap.String("price_date", priceDate),
 			zap.Bool("weekend", weekend),
-			zap.Float64("quantity", hld.StocksOwned),
-			zap.Float64("avg_cost_price", hld.AvgCostPrice),
+			zap.Float64("quantity", holding.StocksOwned),
+			zap.Float64("avg_cost_price", holding.AvgCostPrice),
 			zap.Float64("price", price),
 			zap.Float64("invested_value", invested),
 			zap.Float64("current_value", current),
 		)
 		lines = append(lines, domain.HoldingSnapshot{
-			Symbol:     hld.Symbol,
-			Script:     hld.Script,
+			Symbol:     holding.Symbol,
+			Script:     holding.Script,
 			Currency:   cur,
-			Quantity:   hld.StocksOwned,
-			AvgCost:    hld.AvgCostPrice,
+			Quantity:   holding.StocksOwned,
+			AvgCost:    holding.AvgCostPrice,
 			ClosePrice: price,
 			PriceDate:  priceDate,
 			Invested:   round(invested),
@@ -172,7 +172,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	buckets := domain.BucketsFromLines(lines)
 	for cur, rs := range buckets {
 		logger.Info("snapshot: bucket total",
-			zap.String("user_id", uid.Hex()),
+			zap.String("user_id", userId.Hex()),
 			zap.String("bucket", cur),
 			zap.Float64("invested", rs.Invested),
 			zap.Float64("current", rs.Current),
@@ -180,7 +180,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 	}
 
 	return domain.PortfolioSnapshot{
-		UserID: uid,
+		UserID: userId,
 		Date:   domain.UTCDate(date),
 		// Currency on the document is the "display anchor" — kept as
 		// INR for backwards-compatibility with PR4-era docs. The actual
@@ -201,25 +201,25 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, uid primitive.Objec
 func (s *SnapshotService) priceFor(
 	ctx context.Context,
 	logger *zap.Logger,
-	uid primitive.ObjectID,
-	hld domain.Holding,
+	userId primitive.ObjectID,
+	holding domain.Holding,
 	date time.Time,
 	prior map[string]domain.HoldingSnapshot,
 ) (price float64, currency, priceDate string) {
-	if pl, ok := prior[hld.Symbol]; ok {
+	if pl, ok := prior[holding.Symbol]; ok {
 		// Weekend carry-forward: current position re-valued at the prior
 		// stored price. PriceDate keeps the trading day that price belonged to.
-		return pl.ClosePrice, hld.Currency, pl.PriceDate
+		return pl.ClosePrice, holding.Currency, pl.PriceDate
 	}
 
 	dateStr := date.UTC().Format("2006-01-02")
-	p, cur, perr := s.prices.GetPrice(ctx, hld.Symbol)
+	p, cur, perr := s.prices.GetPrice(ctx, holding.Symbol)
 	switch {
 	case perr != nil:
 		logger.Warn("snapshot: price fetch failed; assuming current price 0",
-			zap.String("user_id", uid.Hex()),
-			zap.String("script", hld.Script),
-			zap.String("symbol", hld.Symbol),
+			zap.String("user_id", userId.Hex()),
+			zap.String("script", holding.Script),
+			zap.String("symbol", holding.Symbol),
 			zap.Error(perr),
 		)
 		return 0, cur, dateStr
@@ -227,9 +227,9 @@ func (s *SnapshotService) priceFor(
 		// Zero quote with no error (thin trading / data glitch): treated as
 		// worthless, but logged so a silent current=0 is diagnosable.
 		logger.Warn("snapshot: zero price with no error; assuming current price 0",
-			zap.String("user_id", uid.Hex()),
-			zap.String("script", hld.Script),
-			zap.String("symbol", hld.Symbol),
+			zap.String("user_id", userId.Hex()),
+			zap.String("script", holding.Script),
+			zap.String("symbol", holding.Symbol),
 		)
 		return 0, cur, dateStr
 	default:
