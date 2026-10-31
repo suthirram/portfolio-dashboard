@@ -1,7 +1,8 @@
 import { render, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import DashboardPage from './DashboardPage'
+import DashboardPage, { dividendIncome } from './DashboardPage'
+import type { HoldingWithPrice } from '../../types'
 
 vi.mock('../holdings/useHoldings', () => ({
   useHoldings: () => ({
@@ -63,5 +64,17 @@ describe('DashboardPage nav grouping', () => {
     expect(holdings.getAttribute('aria-pressed')).toBe('true')
     expect(charts.getAttribute('aria-pressed')).toBe('false')
     expect(holdings.closest('.seg-group')).not.toBeNull()
+  })
+})
+
+describe('dividendIncome', () => {
+  it('buckets like the backend: blank is INR, USD is in neither line', () => {
+    const holdings = [
+      { currency: 'INR', total_dividends: 300 },
+      { currency: undefined, total_dividends: 50 },
+      { currency: 'EUR', total_dividends: 40 },
+      { currency: 'USD', total_dividends: 999 },
+    ] as unknown as HoldingWithPrice[]
+    expect(dividendIncome(holdings)).toEqual({ inr: 350, eur: 40 })
   })
 })
