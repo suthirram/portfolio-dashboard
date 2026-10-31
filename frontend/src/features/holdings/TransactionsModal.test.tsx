@@ -48,7 +48,7 @@ describe('TransactionsModal numeric input', () => {
     expect(api.createTransaction).toHaveBeenCalledWith('holding-1', expect.objectContaining({
       quantity: 1.5,
       amount: 30.68,
-    }))
+    }), undefined)
   })
 
   it('rejects malformed amount text instead of coercing it', async () => {
@@ -59,5 +59,14 @@ describe('TransactionsModal numeric input', () => {
 
     expect(await screen.findByText('Enter a valid amount')).toBeInTheDocument()
     expect(api.createTransaction).not.toHaveBeenCalled()
+  })
+
+  it('reads and writes the target ledger in act-as', async () => {
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} userId="u1" />)
+    await waitFor(() => expect(api.listTransactions).toHaveBeenCalledWith('holding-1', 'u1'))
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '2' } })
+    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '100' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add transaction/ }))
+    await waitFor(() => expect(api.createTransaction).toHaveBeenCalledWith('holding-1', expect.objectContaining({ amount: 100 }), 'u1'))
   })
 })

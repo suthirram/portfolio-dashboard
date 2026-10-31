@@ -89,7 +89,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
               background: 'var(--blue-dim)', color: 'var(--blue)',
               border: '1px solid var(--blue)', padding: '3px 8px',
               borderRadius: 'var(--radius-sm)', fontSize: 11,
-            }}>{actAsLabel} · read-only</span>
+            }}>{actAsLabel}</span>
           )}
         </div>
         <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
@@ -219,7 +219,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             sort={sort}
             onSort={(key: SortKey) => setSort(s => toggleSort(s, key))}
             // No editing in act-as: there is no act-as ledger write path.
-            onEdit={actAsUserId ? undefined : openEditor}
+            onEdit={openEditor}
           />
         )}
       </main>
@@ -227,6 +227,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
       {editing && (
         <TransactionsModal
           holding={editing}
+          userId={actAsUserId}
           onClose={() => setEditing(null)}
           onChanged={() => void refresh()}
         />

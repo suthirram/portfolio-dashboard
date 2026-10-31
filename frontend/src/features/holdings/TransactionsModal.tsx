@@ -49,9 +49,11 @@ interface Props {
   // Called after any ledger mutation so the parent refreshes holdings/prices
   // (the position is recomputed server-side).
   onChanged: () => void
+  // Set in admin act-as: reads and writes go to the target's ledger (PD-048).
+  userId?: string
 }
 
-export default function TransactionsModal({ holding, onClose, onChanged }: Props) {
+export default function TransactionsModal({ holding, onClose, onChanged, userId }: Props) {
   const sym = currencySymbol(holding.currency)
   const [txns, setTxns] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,7 +67,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     if (!holding.id) return
     setLoading(true)
     try {
-      const data = await api.listTransactions(holding.id)
+      const data = await api.listTransactions(holding.id, userId)
       setTxns(data)
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -138,9 +140,9 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
     setSaving(true)
     try {
       if (editingId) {
-        await api.updateTransaction(editingId, payload)
+        await api.updateTransaction(editingId, payload, userId)
       } else {
-        await api.createTransaction(holding.id, payload)
+        await api.createTransaction(holding.id, payload, userId)
       }
       resetForm()
       await load()
@@ -155,7 +157,7 @@ export default function TransactionsModal({ holding, onClose, onChanged }: Props
   const remove = async (id: string) => {
     setErr('')
     try {
-      await api.deleteTransaction(id)
+      await api.deleteTransaction(id, userId)
       setConfirm(null)
       await load()
       onChanged()

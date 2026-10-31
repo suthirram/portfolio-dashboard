@@ -625,12 +625,23 @@ describe('HistoryTable', () => {
       row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } }), // no overlay
     ]
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
-    // Layout: date(1) + 2 currency groups × 4 (8) + gold group (4) + action(1).
-    // The gold cells are indices 9–12; on a pre-purchase row all four are —.
+    // Layout: date(1) + 2 currency groups × 5 (10) + gold group (4) + action(1).
+    // The gold cells are indices 11–14; on a pre-purchase row all four are —.
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === '16-06-2026')!
     const cells = Array.from(tr.querySelectorAll('td'))
-    expect(cells.slice(9, 13).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+    expect(cells.slice(11, 15).map(c => c.textContent)).toEqual(['—', '—', '—', '—'])
+  })
+
+  it('renders dividends to date per currency with the day tint', () => {
+    const rows: HistoryRow[] = [
+      row({ date: '2020-03-15', dividends: { INR: { to_date: 1850.5, on_day: 1250.5 } } }),
+      row({ date: '2020-03-14', dividends: { INR: { to_date: 600, on_day: 0 } } }),
+    ]
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={rows} />)
+    expect(screen.getAllByText('Dividends').length).toBeGreaterThan(0)
+    expect(screen.getByText('₹1,850.50')).toHaveAttribute('title', '+₹1,250.50 received this day')
+    expect(screen.getByText('₹600.00')).not.toHaveAttribute('title')
   })
 })
 
@@ -721,8 +732,8 @@ describe('goldCurrentDirection', () => {
 
 describe('HistoryTable gold cell tints', () => {
   const norm = (s: string) => s.replace(/\s/g, '')
-  // Layout: date(0), INR td[1-4], EUR td[5-8], gold td[9]=invested
-  // td[10]=value td[11]=vol td[12]=P/L%.
+  // Layout: date(0), INR td[1-5], EUR td[6-10] (each ends with Dividends),
+  // gold td[11]=invested td[12]=value td[13]=vol td[14]=P/L%.
   const goldCells = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
       .find(t => t.querySelector('td')?.textContent === formatDate(date))!
@@ -737,7 +748,7 @@ describe('HistoryTable gold cell tints', () => {
       row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14400, 100) }),
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-17')[12].style.background)).toBe('rgba(34,197,94,0.18)') // up → green
+    expect(norm(goldCells('2026-06-17')[14].style.background)).toBe('rgba(34,197,94,0.18)') // up → green
   })
 
   it('gold invested cell is purple on a day gold invested rose', () => {
@@ -745,15 +756,15 @@ describe('HistoryTable gold cell tints', () => {
       row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(14400, 20000, 38) }), // 14400 > 7200
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-17')[9].style.background)).toBe('rgba(168,85,247,0.18)') // purple
+    expect(norm(goldCells('2026-06-17')[11].style.background)).toBe('rgba(168,85,247,0.18)') // purple
   })
 
   it('gold cells keep the plain gold tint when nothing changed / no prior', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
     ]} />)
-    expect(norm(goldCells('2026-06-16')[9].style.background)).toBe(norm(GOLD_TINT)) // invested, no prior
-    expect(norm(goldCells('2026-06-16')[12].style.background)).toBe(norm(GOLD_TINT)) // P/L, no prior
+    expect(norm(goldCells('2026-06-16')[11].style.background)).toBe(norm(GOLD_TINT)) // invested, no prior
+    expect(norm(goldCells('2026-06-16')[14].style.background)).toBe(norm(GOLD_TINT)) // P/L, no prior
   })
 })
 

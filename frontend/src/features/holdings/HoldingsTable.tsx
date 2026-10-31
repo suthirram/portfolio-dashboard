@@ -129,6 +129,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
     acc.value += nativeValue(h) || 0
     acc.unreal += nativeUnrealized(h) || 0
     acc.real += h.realized_pnl || 0
+    acc.div += h.total_dividends || 0
     // Fall back to avg_cost_price as baseline for holdings without a snapshot yet.
     const baseline = h.previous_close_price ?? h.avg_cost_price
     const m = priceMovement(h.current_price, baseline)
@@ -139,7 +140,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
       acc.dayGainPartial = true
     }
     return acc
-  }, { cost: 0, value: 0, unreal: 0, real: 0, dayGain: null as number | null, dayGainPartial: false })
+  }, { cost: 0, value: 0, unreal: 0, real: 0, div: 0, dayGain: null as number | null, dayGainPartial: false })
   const TOTAL_MONEY = nativeCurrency === 'EUR' ? EUR : INR
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
@@ -192,6 +193,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH>Day Gain</TH>
             <TH>Unrealised Gain</TH>
             <TH className="col-hide-sm">Realised Gain</TH>
+            <TH className="col-hide-sm">Dividends</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
           </tr>
         </thead>
@@ -199,7 +201,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
         <tbody>
           {sorted.length === 0 && !loading && (
             <tr>
-              <td colSpan={9} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
+              <td colSpan={10} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
                 {counts.all === 0
                   ? 'No holdings yet. Click "Add Holding" to get started.'
                   : view === 'nil'
@@ -298,6 +300,11 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                   {realized !== 0 ? MONEY(h.realized_pnl) : '—'}
                 </TD>
 
+                {/* Dividends received — ledger-derived, native currency (PRD-005 §9) */}
+                <TD className={`mono col-hide-sm ${(h.total_dividends ?? 0) > 0 ? 'pos' : 'neutral'}`}>
+                  {(h.total_dividends ?? 0) > 0 ? MONEY(h.total_dividends) : '—'}
+                </TD>
+
                 {/* Actions */}
                 <TD style={{ textAlign: 'center' }}>
                   {h.id && confirm === h.id ? (
@@ -348,6 +355,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
               </TD>
               <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.unreal)}</TD>
               <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.real)}</TD>
+              <TD className={`mono col-hide-sm ${totals.div > 0 ? 'pos' : 'neutral'}`}>{TOTAL_MONEY(totals.div)}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
             </tr>
           </tfoot>
