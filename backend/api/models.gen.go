@@ -447,6 +447,12 @@ type CurrencyChange struct {
 	PreviousClose *float64 `json:"previous_close,omitempty"`
 }
 
+// DividendHistoryOverlay defines model for DividendHistoryOverlay.
+type DividendHistoryOverlay struct {
+	OnDay  float64 `json:"on_day"`
+	ToDate float64 `json:"to_date"`
+}
+
 // DividendHoldingTotal defines model for DividendHoldingTotal.
 type DividendHoldingTotal struct {
 	Count     int    `json:"count"`
@@ -771,6 +777,9 @@ type HistoryHolding struct {
 	// Current quantity × close_price
 	Current *float64 `json:"current,omitempty"`
 
+	// Dividends Dividends received from this stock on or before the row date (PRD-005 §9)
+	Dividends *float64 `json:"dividends,omitempty"`
+
 	// PriceDate Trading date the close_price belongs to (YYYY-MM-DD)
 	PriceDate *string `json:"price_date,omitempty"`
 	Quantity  float64 `json:"quantity"`
@@ -810,6 +819,9 @@ type HistoryRegionSnapshotSource string
 // HistoryRow defines model for HistoryRow.
 type HistoryRow struct {
 	Date openapi_types.Date `json:"date"`
+
+	// Dividends Dividends per currency as of the row date — computed on read, never snapshotted (PRD-005 §9)
+	Dividends *map[string]DividendHistoryOverlay `json:"dividends,omitempty"`
 
 	// Gold Physical-gold position as of a history row's date (PRD-003 §8) —
 	// present only for gold-enabled users, only on dates on/after their
