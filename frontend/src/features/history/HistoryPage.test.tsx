@@ -112,14 +112,14 @@ const blank = (): Parameters<typeof formToBody>[0] => ({
 
 describe('formToBody', () => {
   it('includes a region with an explicit 0 so a value can be reset', () => {
-    const f = blank()
-    f.EUR = { invested: '0', current: '0' } // reset EUR to zero
-    expect(formToBody(f)).toEqual({ EUR: { invested: 0, current: 0 } })
+    const form = blank()
+    form.EUR = { invested: '0', current: '0' } // reset EUR to zero
+    expect(formToBody(form)).toEqual({ EUR: { invested: 0, current: 0 } })
   })
   it('treats a blank field as 0 when the other is filled', () => {
-    const f = blank()
-    f.INR = { invested: '100', current: '' }
-    expect(formToBody(f)).toEqual({ INR: { invested: 100, current: 0 } })
+    const form = blank()
+    form.INR = { invested: '100', current: '' }
+    expect(formToBody(form)).toEqual({ INR: { invested: 100, current: 0 } })
   })
   it('skips a region whose both fields are blank (untouched)', () => {
     expect(formToBody(blank())).toEqual({})
@@ -146,10 +146,10 @@ describe('changedRegions', () => {
 
 describe('symmetricDomain', () => {
   it('centres the range on zero around the largest swing', () => {
-    const d = symmetricDomain([-3, 1, -5, 2])
-    expect(d).toBeDefined()
-    expect(d![0]).toBe(-d![1])           // symmetric about 0
-    expect(d![1]).toBeGreaterThanOrEqual(5)
+    const domain = symmetricDomain([-3, 1, -5, 2])
+    expect(domain).toBeDefined()
+    expect(domain![0]).toBe(-domain![1])           // symmetric about 0
+    expect(domain![1]).toBeGreaterThanOrEqual(5)
   })
   it('returns undefined when no finite values', () => {
     expect(symmetricDomain([null, undefined, NaN])).toBeUndefined()
@@ -220,28 +220,28 @@ describe('parsePasteText', () => {
   })
 
   it('omits a region whose invested and current are both zero', () => {
-    const [r] = parsePasteText('2026-06-01\t0\t0\t0\t0\t0\t0')
-    expect(r.regions).toEqual({})
+    const [parsed] = parsePasteText('2026-06-01\t0\t0\t0\t0\t0\t0')
+    expect(parsed.regions).toEqual({})
   })
 
   it('accepts dd/mm/yyyy dates and normalises to YYYY-MM-DD', () => {
-    const [r] = parsePasteText('28/02/2026\t100\t110\t0\t0\t0\t0')
-    expect(r.date).toBe('2026-02-28')
+    const [parsed] = parsePasteText('28/02/2026\t100\t110\t0\t0\t0\t0')
+    expect(parsed.date).toBe('2026-02-28')
   })
 
   it('strips ₹, €, $ symbols and thousands separators', () => {
-    const [r] = parsePasteText('2026-06-01\t₹791,098.34\t₹1,057,757.67\t€5,621.76\t€5,880.73\t$0\t$0')
-    expect(r.regions).toEqual({
+    const [parsed] = parsePasteText('2026-06-01\t₹791,098.34\t₹1,057,757.67\t€5,621.76\t€5,880.73\t$0\t$0')
+    expect(parsed.regions).toEqual({
       INR: { invested: 791098.34, current: 1057757.67 },
       EUR: { invested: 5621.76, current: 5880.73 },
     })
   })
 
   it('ignores trailing Daily-vol / P-L columns', () => {
-    const [r] = parsePasteText('28/02/2026\t₹100\t₹110\t€50\t€55\t\t\t1.23\t10.50%')
-    expect(r.date).toBe('2026-02-28')
-    expect(r.regions.INR).toEqual({ invested: 100, current: 110 })
-    expect(r.regions.EUR).toEqual({ invested: 50, current: 55 })
+    const [parsed] = parsePasteText('28/02/2026\t₹100\t₹110\t€50\t€55\t\t\t1.23\t10.50%')
+    expect(parsed.date).toBe('2026-02-28')
+    expect(parsed.regions.INR).toEqual({ invested: 100, current: 110 })
+    expect(parsed.regions.EUR).toEqual({ invested: 50, current: 55 })
   })
 })
 
@@ -349,8 +349,8 @@ describe('msUntilNextLiveBoundary', () => {
   })
 
   it('never overshoots: neither the date nor the window flips before it fires', () => {
-    for (let m = 0; m < 24 * 60; m += 15) {
-      const now = new Date(Date.UTC(2026, 9, 1, 0, m, 0, 0))
+    for (let minute = 0; minute < 24 * 60; minute += 15) {
+      const now = new Date(Date.UTC(2026, 9, 1, 0, minute, 0, 0))
       const justBefore = new Date(now.getTime() + msUntilNextLiveBoundary(now) - 1)
       expect(isLiveWindowOpen(justBefore)).toBe(isLiveWindowOpen(now))
       expect(tradingDateIST(justBefore)).toBe(tradingDateIST(now))
@@ -365,58 +365,58 @@ describe('buildLiveRow', () => {
   } as HoldingWithPrice)
 
   it('buckets holdings by currency into INR/EUR regions', () => {
-    const r = buildLiveRow('2026-06-20', [
+    const liveRow = buildLiveRow('2026-06-20', [
       holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
       holding({ currency: 'EUR', cost_price_eur: 50, current_value_eur: 40, symbol: 'SAP.DE', script: 'SAP' }),
     ])
-    expect(r.date).toBe('2026-06-20')
-    expect(r.tentative).toBe(true)
-    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
-    expect(r.regions.EUR).toEqual({ invested: 50, current: 40, source: 'manual' })
-    expect(r.totals.invested_total).toBe(150)
-    expect(r.totals.current_total).toBe(190)
-    expect(r.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
+    expect(liveRow.date).toBe('2026-06-20')
+    expect(liveRow.tentative).toBe(true)
+    expect(liveRow.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(liveRow.regions.EUR).toEqual({ invested: 50, current: 40, source: 'manual' })
+    expect(liveRow.totals.invested_total).toBe(150)
+    expect(liveRow.totals.current_total).toBe(190)
+    expect(liveRow.totals.pnl_pct).toBeCloseTo(((190 - 150) / 150) * 100)
   })
 
   it('uses the EUR-denominated fields for a EUR holding, not the INR-converted twins', () => {
     // Regression: HoldingWithPrice.cost_price/current_value are always
     // INR-denominated, even for a EUR holding — using them directly made
     // the live row show INR amounts for EUR holdings.
-    const r = buildLiveRow('2026-06-20', [
+    const liveRow = buildLiveRow('2026-06-20', [
       holding({
         currency: 'EUR', symbol: 'SAP.DE', script: 'SAP',
         cost_price: 4500, current_value: 4700,       // INR-converted twins — must be ignored
         cost_price_eur: 50, current_value_eur: 52,   // native EUR amounts — must be used
       }),
     ])
-    expect(r.regions.EUR).toEqual({ invested: 50, current: 52, source: 'manual' })
-    expect(r.regions.INR).toEqual({ invested: 0, current: 0, source: 'manual' })
+    expect(liveRow.regions.EUR).toEqual({ invested: 50, current: 52, source: 'manual' })
+    expect(liveRow.regions.INR).toEqual({ invested: 0, current: 0, source: 'manual' })
   })
 
   it('carries a per-stock holdings breakdown so the Holdings modal still opens', () => {
-    const r = buildLiveRow('2026-06-20', [
+    const liveRow = buildLiveRow('2026-06-20', [
       holding({ currency: 'INR', cost_price: 100, current_value: 150, symbol: 'TCS.NS', script: 'TCS', stocks_owned: 10, current_price: 15 } as HoldingWithPrice),
     ])
-    expect(r.holdings).toEqual([
+    expect(liveRow.holdings).toEqual([
       { symbol: 'TCS.NS', script: 'TCS', currency: 'INR', quantity: 10, close_price: 15, current: 150 },
     ])
   })
 
   it('excludes an unknown-currency holding, as the snapshot job does', () => {
-    const r = buildLiveRow('2026-06-20', [
+    const liveRow = buildLiveRow('2026-06-20', [
       holding({ currency: 'INR', cost_price: 100, current_value: 150 }),
       // Legacy USD: the backend's CurrencyOf returns ok=false and the holding
       // is left out of the buckets entirely. Folding it into INR here would
       // inflate the live row and then "drop" when the cron row landed.
       holding({ currency: 'USD' as 'INR', cost_price: 900, current_value: 950 }),
     ])
-    expect(r.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
-    expect(r.holdings).toHaveLength(1)
+    expect(liveRow.regions.INR).toEqual({ invested: 100, current: 150, source: 'manual' })
+    expect(liveRow.holdings).toHaveLength(1)
   })
 
   it('returns null pnl_pct and zeroed totals with no holdings', () => {
-    const r = buildLiveRow('2026-06-20', [])
-    expect(r.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
+    const liveRow = buildLiveRow('2026-06-20', [])
+    expect(liveRow.totals).toEqual({ invested_total: 0, current_total: 0, pnl_pct: null })
   })
 })
 
@@ -588,7 +588,7 @@ describe('HistoryTable', () => {
     // Math is unchanged by display order: 06-17 still reads +10.00 vs its
     // prior day (200), and 06-16 (no prior in window) renders "—".
     const lastCells = bodyRows[1].querySelectorAll('td')
-    expect(Array.from(lastCells).some(c => c.textContent === '10.00')).toBe(true)
+    expect(Array.from(lastCells).some(cell => cell.textContent === '10.00')).toBe(true)
 
     // Click the Date header → newest-first: 06-17 back on top.
     fireEvent.click(screen.getByRole('button', { name: /Sort by date/ }))
@@ -628,7 +628,7 @@ describe('HistoryTable', () => {
     // Layout: date(1) + 2 currency groups × 5 (10) + gold group (4) + action(1).
     // The gold cells are indices 11–14; on a pre-purchase row all four are —.
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === '16-06-2026')!
+      .find(tableRow => tableRow.querySelector('td')?.textContent === '16-06-2026')!
     const cells = Array.from(tr.querySelectorAll('td'))
     expect(cells.slice(11, 15).map(cell => cell.textContent)).toEqual(['—', '—', '—', '—'])
   })
@@ -648,12 +648,12 @@ describe('HistoryTable', () => {
 // ---- HistoryTable cell tints ----
 
 describe('HistoryTable cell tints', () => {
-  const norm = (s: string) => s.replace(/\s/g, '')
+  const norm = (text: string) => text.replace(/\s/g, '')
   // INR group cells for a given date row: td[1]=invested, td[2]=current,
   // td[3]=daily vol, td[4]=P/L%. td[0] is the date.
   const cellsForDate = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === formatDate(date))!
+      .find(tableRow => tableRow.querySelector('td')?.textContent === formatDate(date))!
     return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
   }
   const pnlCell = (date: string) => cellsForDate(date)[4]
@@ -720,23 +720,23 @@ describe('HistoryTable cell tints', () => {
 // ---- Gold column tints (mirror the currency tints) ----
 
 describe('goldCurrentDirection', () => {
-  const g = (invested: number, current: number) => ({ invested, current, volatility_pct: 0, pnl_pct: 0 })
+  const goldAt = (invested: number, current: number) => ({ invested, current, volatility_pct: 0, pnl_pct: 0 })
   it('is up/down/flat by the day-over-day gold value, null without a prior', () => {
-    expect(goldCurrentDirection(g(100, 220), g(100, 200))).toBe('up')
-    expect(goldCurrentDirection(g(100, 180), g(100, 200))).toBe('down')
-    expect(goldCurrentDirection(g(100, 200), g(100, 200))).toBe('flat')
-    expect(goldCurrentDirection(g(100, 200), undefined)).toBeNull()
-    expect(goldCurrentDirection(undefined, g(100, 200))).toBeNull()
+    expect(goldCurrentDirection(goldAt(100, 220), goldAt(100, 200))).toBe('up')
+    expect(goldCurrentDirection(goldAt(100, 180), goldAt(100, 200))).toBe('down')
+    expect(goldCurrentDirection(goldAt(100, 200), goldAt(100, 200))).toBe('flat')
+    expect(goldCurrentDirection(goldAt(100, 200), undefined)).toBeNull()
+    expect(goldCurrentDirection(undefined, goldAt(100, 200))).toBeNull()
   })
 })
 
 describe('HistoryTable gold cell tints', () => {
-  const norm = (s: string) => s.replace(/\s/g, '')
+  const norm = (text: string) => text.replace(/\s/g, '')
   // Layout: date(0), INR td[1-5], EUR td[6-10] (each ends with Dividends),
   // gold td[11]=invested td[12]=value td[13]=vol td[14]=P/L%.
   const goldCells = (date: string) => {
     const tr = Array.from(document.querySelectorAll('tbody tr'))
-      .find(t => t.querySelector('td')?.textContent === formatDate(date))!
+      .find(tableRow => tableRow.querySelector('td')?.textContent === formatDate(date))!
     return Array.from(tr.querySelectorAll('td')) as HTMLTableCellElement[]
   }
   const GOLD_TINT = 'rgba(217,119,6,0.1)'
@@ -908,7 +908,7 @@ describe('perCurrencyChartData null-gap', () => {
 
   it('keeps the dynamic domain zoomed despite the absent leading date', () => {
     const series = perCurrencyChartData(rows, 'INR')
-    const [min] = niceDomain(series.flatMap(d => [d.invested, d.current]))!
+    const [min] = niceDomain(series.flatMap(point => [point.invested, point.current]))!
     // floor stays high — not dragged to ~0 by the missing 2026-06-01 row
     expect(min).toBeGreaterThan(400000)
   })
@@ -1149,20 +1149,20 @@ describe('HistoryTable currency-cell click → onSelectRegion', () => {
 })
 
 describe('HistoryTable currency cell — accessibility', () => {
-  const r = row({
+  const historyRow = row({
     date: '2026-06-25',
     regions: { EUR: { invested: 20, current: 24, source: 'cron' } },
     holdings: [{ symbol: 'SAP.DE', script: 'SAP', currency: 'EUR', quantity: 2, close_price: 12 }],
   })
 
   it('exposes exactly one focusable button per clickable currency group', () => {
-    render(<HistoryTable rows={[r]} currency="INR" onDelete={() => {}} onSelectRegion={() => {}} />)
+    render(<HistoryTable rows={[historyRow]} currency="INR" onDelete={() => {}} onSelectRegion={() => {}} />)
     expect(screen.getAllByRole('button', { name: 'View EUR holdings' })).toHaveLength(1)
   })
 
   it('opens via keyboard (Enter) on the group button', () => {
     const onSelectRegion = vi.fn()
-    render(<HistoryTable rows={[r]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
+    render(<HistoryTable rows={[historyRow]} currency="INR" onDelete={() => {}} onSelectRegion={onSelectRegion} />)
     fireEvent.keyDown(screen.getByRole('button', { name: 'View EUR holdings' }), { key: 'Enter' })
     expect(onSelectRegion).toHaveBeenCalledTimes(1)
     expect(onSelectRegion.mock.calls[0][2]).toBe('EUR')

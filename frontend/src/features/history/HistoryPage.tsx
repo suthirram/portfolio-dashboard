@@ -87,8 +87,8 @@ export default function HistoryPage() {
     try { return window.localStorage?.getItem(CHARTS_ON_TOP_KEY) === '1' } catch { return false }
   })
   const toggleChartsOnTop = () => {
-    setChartsOnTop(v => {
-      const next = !v
+    setChartsOnTop(onTop => {
+      const next = !onTop
       try { window.localStorage?.setItem(CHARTS_ON_TOP_KEY, next ? '1' : '0') } catch { /* private mode */ }
       return next
     })
@@ -123,8 +123,8 @@ export default function HistoryPage() {
   // the next timeout scheduled anyway).
   const [clockTick, setClockTick] = useState(0)
   useEffect(() => {
-    const t = setTimeout(() => setClockTick(n => n + 1), msUntilNextLiveBoundary(new Date()) + 1000)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setClockTick(tick => tick + 1), msUntilNextLiveBoundary(new Date()) + 1000)
+    return () => clearTimeout(timer)
   }, [clockTick])
   const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
   const liveWindowOpen = useMemo(() => isLiveWindowOpen(new Date()), [clockTick])
@@ -134,7 +134,7 @@ export default function HistoryPage() {
   const [priceTick, setPriceTick] = useState(0)
   useEffect(() => {
     if (!liveWindowOpen) return
-    const id = setInterval(() => setPriceTick(n => n + 1), 5 * 60 * 1000)
+    const id = setInterval(() => setPriceTick(tick => tick + 1), 5 * 60 * 1000)
     return () => clearInterval(id)
   }, [liveWindowOpen])
   const today = yearMonth0(todayStr)
@@ -161,7 +161,7 @@ export default function HistoryPage() {
       void reload()
     }
   }, [todayStr, year, month, reload])
-  const hasTodaySnapshot = rows.some(r => r.date === todayStr)
+  const hasTodaySnapshot = rows.some(row => row.date === todayStr)
   // The only thing the fetch below needs out of `rows` is the previous
   // gold close its volatility chains off. Reducing that to a primitive keeps
   // `rows` out of the deps, so a same-month reload (add / edit / paste) no
@@ -209,7 +209,7 @@ export default function HistoryPage() {
     const current = now.getUTCFullYear()
     const start = Math.min(MIN_YEAR, current)
     const out: number[] = []
-    for (let y = start; y <= current; y++) out.push(y)
+    for (let yearOption = start; yearOption <= current; yearOption++) out.push(yearOption)
     return out
   }, [now])
 
@@ -226,7 +226,7 @@ export default function HistoryPage() {
   // Gold gets its own panel (INR-denominated) from the per-row overlay,
   // shown only when at least one row carries gold data.
   const goldChart = useMemo(() => goldChartData(displayRows), [displayRows])
-  const hasGoldChart = useMemo(() => displayRows.some(r => r.gold), [displayRows])
+  const hasGoldChart = useMemo(() => displayRows.some(row => row.gold), [displayRows])
 
   const handleAddSaved = async (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => {
     try {
@@ -268,7 +268,7 @@ export default function HistoryPage() {
       // PRD-002 §7.3: dialogs open in date order. Backend may return
       // conflicts in non-deterministic order because the per-row map
       // iteration order is undefined; sort here.
-      const sorted = [...report.conflicts].sort((a, b) => a.date.localeCompare(b.date))
+      const sorted = [...report.conflicts].sort((left, right) => left.date.localeCompare(right.date))
       setConflictQueue(sorted)
     }
     if (report.applied.length) await reload()
@@ -284,12 +284,12 @@ export default function HistoryPage() {
       }
     }
     // Advance queue
-    setConflictQueue(q => q.slice(1))
+    setConflictQueue(queue => queue.slice(1))
     await reload()
   }
 
   const handleConflictSkip = () => {
-    setConflictQueue(q => q.slice(1))
+    setConflictQueue(queue => queue.slice(1))
   }
 
   const handleEditSaved = async (date: string, regions: Record<string, { invested: number; current: number }>) => {
@@ -335,13 +335,13 @@ export default function HistoryPage() {
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Year</span>
             <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+              {years.map(yearOption => <option key={yearOption} value={yearOption}>{yearOption}</option>)}
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
             <span style={{ color: 'var(--text-secondary)' }}>Month</span>
             <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selectStyle}>
-              {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              {MONTHS.map((monthName, i) => <option key={i} value={i}>{monthName}</option>)}
             </select>
           </label>
           <span style={{ flex: 1 }} />
@@ -370,14 +370,14 @@ export default function HistoryPage() {
         {displayRows.length > 0 && (() => {
           const table = (
             <HistoryTable rows={displayRows} currency={currency} theme={theme}
-              onDelete={handleDelete} onEdit={r => setEditRow(r)}
+              onDelete={handleDelete} onEdit={row => setEditRow(row)}
               onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })}
               canForceDelete={canForceDelete} />
           )
           const charts = (
             <>
-              {REGIONS.filter(r => regionHasData(chartsByRegion[r])).map(r => (
-                <CurrencyChartPanel key={r} region={r} data={chartsByRegion[r]} theme={theme} />
+              {REGIONS.filter(region => regionHasData(chartsByRegion[region])).map(region => (
+                <CurrencyChartPanel key={region} region={region} data={chartsByRegion[region]} theme={theme} />
               ))}
               {hasGoldChart && <GoldChartPanel data={goldChart} theme={theme} />}
             </>
@@ -433,10 +433,10 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
   // Recharts' default value-axis domain is [0, max], which flattens series
   // that oscillate in a narrow band far above zero. Derive a padded domain
   // from the actual data so the fluctuations fill the chart.
-  const amountDomain = useMemo(() => niceDomain(data.flatMap(d => [d.invested, d.current])), [data])
-  const pnlDomain = useMemo(() => niceDomain(data.map(d => d.pnl_pct)), [data])
+  const amountDomain = useMemo(() => niceDomain(data.flatMap(point => [point.invested, point.current])), [data])
+  const pnlDomain = useMemo(() => niceDomain(data.map(point => point.pnl_pct)), [data])
   // Daily volatility swings both ways around 0, so centre the axis on zero.
-  const volDomain = useMemo(() => symmetricDomain(data.map(d => d.daily_vol)), [data])
+  const volDomain = useMemo(() => symmetricDomain(data.map(point => point.daily_vol)), [data])
   // Remount the charts whenever the plotted range changes (month switch) so
   // the left-to-right line-draw animation re-runs instead of morphing the
   // previous month's line into the new one.
@@ -464,7 +464,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                 tickFormatter={fmtAxisAmount} width={64} />
-              <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)} />
+              <Tooltip {...chartTooltipProps} formatter={(value) => fmtCurrency(Number(value), sym)} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line dataKey="invested" name={`Invested (${sym})`} stroke={palette.invested} strokeWidth={2} strokeDasharray="4 2" dot={false} connectNulls />
               <Line dataKey="current"  name={`Current (${sym})`}  stroke={palette.current}  strokeWidth={2} dot={false} connectNulls />
@@ -480,7 +480,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} unit="%" domain={pnlDomain ?? ['auto', 'auto']} />
-              <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
+              <Tooltip {...chartTooltipProps} formatter={(value) => `${Number(value).toFixed(2)}%`} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line dataKey="pnl_pct" name="P/L %" stroke={pnlColour} strokeWidth={2.5} dot={false} connectNulls />
             </ComposedChart>
@@ -495,7 +495,7 @@ function ChartTriptych({ data, sym, palette, theme, onExpand, expandLabel }: {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} unit="%" domain={volDomain ?? ['auto', 'auto']} />
-              <Tooltip {...chartTooltipProps} formatter={(v) => `${Number(v).toFixed(2)}%`} />
+              <Tooltip {...chartTooltipProps} formatter={(value) => `${Number(value).toFixed(2)}%`} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="2 2" />
               <Line dataKey="daily_vol" name="Daily volatility %" stroke={volColour} strokeWidth={2.5} dot={false} connectNulls />
