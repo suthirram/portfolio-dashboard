@@ -1,0 +1,800 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Month Performance Spec</title>
+
+
+<style>
+  /* ---------------------------------------------------------------------
+     Document chrome tokens. Three-state theming: bare :root is the light
+     palette, redefined for a dark OS (unless the viewer explicitly chose
+     light) and again for an explicit dark choice. Component rules only ever
+     read these tokens, never a literal.
+     --------------------------------------------------------------------- */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-rule-soft: #e8ecf4;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-rule-soft: #1a2032;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-rule-soft: #1a2032;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* --- Document typography ---------------------------------------------
+     Three roles, all system faces (the artifact CSP blocks font CDNs, and a
+     silent fallback would be worse than an honest system stack):
+       prose  — Georgia/serif, deliberately unlike the app's own UI face so
+                spec commentary never reads as part of a mockup
+       label  — Helvetica Neue/Arial, uppercase + tracked, for frame chrome
+       data   — Menlo/ui-monospace, for field names and numbers
+     --------------------------------------------------------------------- */
+  :root {
+    --prose: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --data: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--prose);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* --- Masthead -------------------------------------------------------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .eyebrow a { color: var(--doc-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .eyebrow a:hover, .eyebrow a:focus-visible { border-bottom-color: currentColor; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    color: var(--doc-ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-rule);
+    border: 1px solid var(--doc-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meta-cell { background: var(--doc-panel); padding: 14px 16px; }
+  .meta-cell dt {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    margin: 0 0 5px;
+  }
+  .meta-cell dd { margin: 0; font-size: 14px; font-family: var(--data); color: var(--doc-ink); }
+
+  /* --- Section headings ------------------------------------------------ */
+
+  h2 {
+    margin: 0;
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--doc-ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .prose-stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* --- Theme switcher -------------------------------------------------- */
+
+  .switcher {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    background: var(--doc-bg);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  .switcher-label {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+  }
+
+  .switcher button {
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 2px;
+    border: 1px solid var(--doc-rule);
+    background: var(--doc-panel);
+    color: var(--doc-ink-soft);
+    cursor: pointer;
+  }
+  .switcher button:hover { color: var(--doc-ink); border-color: var(--doc-ink-faint); }
+  .switcher button[aria-pressed="true"] {
+    color: var(--doc-accent);
+    border-color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    font-weight: 700;
+  }
+  .switcher button:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  /* --- Frames ----------------------------------------------------------
+     A frame = one labelled artboard on a canvas, the way the same screen
+     would sit in a design file: chrome strip with frame id + viewport,
+     the rendered mockup, then numbered annotations beneath it.
+     --------------------------------------------------------------------- */
+
+  .frame { display: flex; flex-direction: column; gap: 14px; }
+
+  .frame-chrome {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: var(--label);
+  }
+  .frame-id {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+  .frame-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-ink); }
+  .frame-viewport { font-family: var(--data); font-size: 11px; color: var(--doc-ink-faint); margin-left: auto; }
+
+  .canvas {
+    background: var(--doc-canvas);
+    border: 1px solid var(--doc-rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+
+  .annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 22px;
+  }
+  .annotations li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    line-height: 1.45;
+  }
+  .annotations b {
+    font-family: var(--data);
+    font-size: 11px;
+    color: var(--doc-accent);
+    border: 1px solid var(--doc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .annotations code, p code, li code, td code {
+    font-family: var(--data);
+    font-size: 0.86em;
+    color: var(--doc-ink);
+  }
+
+  .callout {
+    border-left: 3px solid var(--doc-note);
+    background: var(--doc-note-soft);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    max-width: 78ch;
+  }
+  .callout strong { color: var(--doc-ink); }
+
+  /* --- Spec table ------------------------------------------------------ */
+
+  .spec-scroll { overflow-x: auto; border: 1px solid var(--doc-rule); border-radius: 3px; }
+  table.spec { border-collapse: collapse; width: 100%; min-width: 620px; font-family: var(--label); font-size: 13px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--doc-rule-soft); vertical-align: top; }
+  table.spec thead th {
+    background: var(--doc-panel);
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+  table.spec td { color: var(--doc-ink-soft); }
+  table.spec td:first-child { font-family: var(--data); color: var(--doc-ink); white-space: nowrap; }
+  table.spec tbody tr:last-child td { border-bottom: none; }
+
+  /* =====================================================================
+     APP MOCKUP. Palettes copied verbatim from
+     frontend/src/styles/tokens.css so the frames are token-accurate, and
+     scoped to .app[data-app-theme] rather than :root so the in-page theme
+     switcher can't collide with the viewer's own document theme.
+     ===================================================================== */
+
+  .app {
+    --bg-primary: #0a0c16;
+    --bg-secondary: #121524;
+    --bg-card: #171b2e;
+    --bg-card-hover: #1d2238;
+    --bg-input: #0d101f;
+    --border: #232842;
+    --border-light: #2e3453;
+    --text-primary: #eef1f8;
+    --text-secondary: #939dbb;
+    --text-muted: #545d85;
+    --green: #00d69f;
+    --green-dim: rgba(0, 214, 159, 0.12);
+    --red: #ff5c7a;
+    --red-dim: rgba(255, 92, 122, 0.12);
+    --blue: #5b93ff;
+    --blue-dim: rgba(91, 147, 255, 0.12);
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+    --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+    --bg-glass: rgba(14, 17, 31, 0.92);
+
+    font-family: Roboto, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 980px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f3fa;
+    --bg-input: #ffffff;
+    --border: #dfe4ef;
+    --border-light: #cbd3e4;
+    --text-primary: #0f1526;
+    --text-secondary: #4b5670;
+    --text-muted: #7a849e;
+    --green: #0b9e6c;
+    --green-dim: rgba(11, 158, 108, 0.10);
+    --red: #dc2649;
+    --red-dim: rgba(220, 38, 73, 0.10);
+    --blue: #2f6bdb;
+    --blue-dim: rgba(47, 107, 219, 0.10);
+    --yellow: #d97706;
+    --purple: #7c3aed;
+    --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+    --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+    --bg-glass: rgba(255, 255, 255, 0.95);
+  }
+
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f;
+    --bg-secondary: #0d0519;
+    --bg-card: #120826;
+    --bg-card-hover: #1a0c33;
+    --bg-input: #0a0416;
+    --border: #2e1354;
+    --border-light: #45207a;
+    --text-primary: #f2e9ff;
+    --text-secondary: #a78fd6;
+    --text-muted: #64509a;
+    --green: #00ffa3;
+    --green-dim: rgba(0, 255, 163, 0.12);
+    --red: #ff2e6c;
+    --red-dim: rgba(255, 46, 108, 0.14);
+    --blue: #00e5ff;
+    --blue-dim: rgba(0, 229, 255, 0.12);
+    --yellow: #ffe600;
+    --purple: #c26bff;
+    --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+    --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+    --bg-glass: rgba(10, 4, 22, 0.92);
+  }
+
+  /* Nav — mirrors .page-nav + .nav-glass + .dash-nav-btn */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-tile {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient-brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .nav-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-brand);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+    white-space: nowrap;
+  }
+  .btn-current { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .pill {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* The marker ring that points at what this frame introduces. */
+  .marked { position: relative; }
+  .marked::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed var(--blue);
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .pin {
+    position: absolute;
+    top: -10px; right: -12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #04070f;
+    font-family: var(--data);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+
+  .app-main { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  footer.doc-foot {
+    border-top: 1px solid var(--doc-rule);
+    padding-top: 20px;
+    font-family: var(--label);
+    font-size: 12px;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  footer.doc-foot a { color: var(--doc-accent); text-decoration: none; }
+  footer.doc-foot a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  /* --- PD-049 additions (tokens only, no new values) ------------------ */
+  .hist-nav { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 20px; background: var(--bg-glass); border-bottom: 1px solid var(--border); }
+  .icon-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); display: grid; place-items: center; flex-shrink: 0; }
+  .hist-title { font-size: 17px; font-weight: 700; }
+  .theme-dots { margin-left: auto; display: flex; gap: 6px; }
+  .theme-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-light); background: var(--bg-card); }
+  .theme-dots span.on { background: var(--blue); border-color: var(--blue); }
+  .hist-toolbar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .sel { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+  .sel span { color: var(--text-secondary); }
+  .sel div { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-input); min-width: 72px; color: var(--text-primary); }
+  .hist-toolbar .grow { flex: 1; }
+
+  /* The card itself: same panel recipe as the History chart panels. */
+  .perf-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .perf-card h3 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--text-secondary); text-align: center; }
+  /* Full card width: the metric column takes a fixed share, the value
+     columns split the rest evenly however many there are. Below 580 px
+     the table keeps that width and scrolls inside .perf-scroll. Column
+     tints are History's own currency-group tints (REGION_TINTS, GOLD_TINT),
+     so the card reads as a summary of the table's columns below it. */
+  .app { --tint-inr-h: rgba(251,146,60,0.22); --tint-inr-c: rgba(251,146,60,0.10);
+         --tint-eur-h: rgba(96,165,250,0.22); --tint-eur-c: rgba(96,165,250,0.10);
+         --tint-gold: rgba(217,119,6,0.10);
+         --dir-up: rgba(34,197,94,0.18); --dir-down: rgba(239,68,68,0.18); --dir-flat: rgba(59,130,246,0.18); }
+  .app[data-app-theme="light"] { --tint-inr-h: #FFEDD5; --tint-inr-c: #FFF7ED; --tint-eur-h: #DBEAFE; --tint-eur-c: #EFF6FF; }
+  .app[data-app-theme="cyberpunk"] { --tint-inr-h: rgba(255,230,0,0.18); --tint-inr-c: rgba(255,230,0,0.07);
+         --tint-eur-h: rgba(0,229,255,0.18); --tint-eur-c: rgba(0,229,255,0.07); }
+  .perf-scroll { overflow-x: auto; }
+  /* separate + horizontal spacing: each currency column is its own
+     rounded block, a table inside the table. */
+  table.perf { border-collapse: separate; border-spacing: 10px 0; font-size: 13px; width: 100%; min-width: 580px; table-layout: fixed; }
+  table.perf th, table.perf td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  table.perf thead th { text-align: center; font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+  table.perf thead th:first-child { width: 26%; text-align: left; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  table.perf .dates { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px; }
+  table.perf tbody th { text-align: left; font-weight: 500; color: var(--text-secondary); white-space: nowrap; }
+  table.perf td { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-primary); }
+  table.perf thead th:not(:first-child), table.perf td { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  table.perf thead th:not(:first-child) { border-top: 1px solid var(--border); border-radius: 8px 8px 0 0; }
+  table.perf tbody tr:last-child td { border-radius: 0 0 8px 8px; }
+  table.perf thead th.c-inr { background: var(--tint-inr-h); }  table.perf td.c-inr { background: var(--tint-inr-c); }
+  table.perf thead th.c-eur { background: var(--tint-eur-h); }  table.perf td.c-eur { background: var(--tint-eur-c); }
+  table.perf thead th.c-gold, table.perf td.c-gold { background: var(--tint-gold); }
+  /* The rule above the bottom line is the previous row's bottom border. */
+  table.perf tbody tr:nth-last-child(2) th, table.perf tbody tr:nth-last-child(2) td { border-bottom: 2px solid var(--border-light); }
+  table.perf tr.emph th { border-bottom-color: transparent; font-weight: 600; color: var(--text-primary); }
+  table.perf tr.emph td { font-size: 16px; font-weight: 700; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .chip-up { background: var(--dir-up); color: var(--green); }
+  .chip-down { background: var(--dir-down); color: var(--red); }
+  .chip-flat { background: var(--dir-flat); color: var(--text-secondary); }
+  .dir-up { color: var(--green); } .dir-down { color: var(--red); } .dir-flat { color: var(--text-secondary); }
+  .perf-foot { font-size: 11px; color: var(--text-muted); margin: 8px 0 0; max-width: none; }
+
+  /* Abbreviated month table under the card, for placement only. */
+  table.hist { border-collapse: collapse; width: 100%; font-size: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
+  table.hist th, table.hist td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.hist th:first-child, table.hist td:first-child { text-align: left; }
+  table.hist thead th { color: var(--text-muted); font-weight: 500; font-size: 11px; }
+  .chart-stub { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .chart-stub div { height: 70px; border: 1px dashed var(--border-light); border-radius: 6px; display: grid; place-items: center; font-size: 11px; color: var(--text-muted); }
+  .muted-note { font-size: 12px; color: var(--text-muted); }
+
+  .app.phone { min-width: 0; width: 390px; }
+  .phone .app-main { padding: 14px 16px 18px; }
+  .phone .hist-nav { padding: 0 16px; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Visual spec</span><span>PD-049 v6</span><span>PRD-006 · DD-006</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-10-31 applied</span>
+    </div>
+    <h1>Month performance</h1>
+    <p class="standfirst">
+      A card at the top of History compares each currency's position, and
+      gold's, on the previous month's last row with the month's latest row. It
+      shows the P/L % at both ends, the change in percentage points, and an
+      investment performance figure that leaves out money added during the
+      month.
+    </p>
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt>Route</dt><dd>/history (month picker)</dd></div>
+      <div class="meta-cell"><dt>Opening row</dt><dd>latest row before the month</dd></div>
+      <div class="meta-cell"><dt>Closing row</dt><dd>month's latest row (live today)</dd></div>
+      <div class="meta-cell"><dt>Performance</dt><dd>(ΔValue − ΔInvested) ÷ opening value</dd></div>
+      <div class="meta-cell"><dt>API change</dt><dd>GET /history?include_previous=true</dd></div>
+      <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
+    </dl>
+  </header>
+
+  <div class="switcher">
+    <span class="switcher-label">Render frames in</span>
+    <button type="button" data-theme-btn="dark" aria-pressed="true">Dark (default)</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="cyberpunk" aria-pressed="false">Cyberpunk (premium)</button>
+  </div>
+
+  <section class="section">
+    <h2>About these frames</h2>
+    <p class="callout">
+      No Figma account is wired into this project, so this page plays that
+      role (<code>docs/visuals/README.md</code>). <strong>Every colour, radius and type size is read from
+      <code>frontend/src/styles/tokens.css</code></strong>, and the card reuses the History chart panel's
+      recipe. Frame 01 uses the owner's real October 2026 rows; the other frames use example data. Not production markup.
+    </p>
+  </section>
+
+  <!-- 01 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">History, October 2026: the card above the month table</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="hist-nav">
+          <span class="icon-btn">←</span><span class="hist-title">Historical data</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span>
+        </div>
+        <div class="app-main">
+          <div class="hist-toolbar">
+            <div class="sel"><span>Year</span><div>2026</div></div>
+            <div class="sel"><span>Month</span><div>Oct</div></div>
+            <span class="grow"></span>
+            <span class="btn">↑ Charts on top</span><span class="btn-primary">+ Add row</span><span class="btn">Paste month</span>
+          </div>
+
+          <div class="perf-card marked">
+            <span class="pin">1</span>
+            <h3>Oct 2026 performance</h3>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
+            <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="hist" style="min-width:760px">
+              <thead><tr><th>Date ▲</th><th>Amount invested</th><th>Actual value</th><th>Daily volatlity</th><th>P/L%</th><th>Amount invested</th><th>Actual value</th><th>P/L%</th><th>Gold value</th><th>P/L%</th></tr></thead>
+              <tbody>
+                <tr><td>30-09-2026</td><td>₹8,80,021.32</td><td>₹10,86,274.39</td><td>—</td><td>23.44%</td><td>€7,064.13</td><td>€8,459.51</td><td>19.75%</td><td>₹9,87,120.00</td><td>37.79%</td></tr>
+                <tr><td>01-10-2026</td><td>₹8,81,053.52</td><td>₹10,77,793.63</td><td style="color:var(--red)">-0.88</td><td>22.33%</td><td>€7,064.13</td><td>€8,473.46</td><td>19.95%</td><td>₹9,84,960.00</td><td>37.48%</td></tr>
+                <tr><td colspan="10" class="muted-note" style="text-align:center">… 28 more rows …</td></tr>
+                <tr><td>30-10-2026</td><td>₹8,98,847.70</td><td>₹11,18,139.13</td><td style="color:var(--red)">-0.19</td><td>24.40%</td><td>€7,540.05</td><td>€8,722.36</td><td>15.68%</td><td>₹9,38,880.00</td><td>31.05%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>New card, between the toolbar and the table, spanning the full content width like the table and chart panels. The metric column takes 26 %; India, Europe and Gold share the rest evenly, each drawn as its own rounded block with a gap between them, values centred. Each column wears its currency group's tint from the month table (saffron INR, blue EUR, amber gold), so the card reads as the summary of those columns. Same panel as the chart panels: <code>--bg-secondary</code>, <code>--border</code>, radius 8, a 14 px secondary title. PRD-006 §5, DD-006 §4.</span></li>
+      <li><b>2</b><span>The opening column is the latest row before October, here <strong>30-09</strong>. The server returns it with the month (<code>include_previous</code>) however far back it is: had 30-09 no snapshot, the card would open on 29-09, not on 01-10. Closing is the month's latest row, <strong>30-10</strong>. PRD-006 §4, DD-006 §1.</span></li>
+      <li><b>3</b><span>Each header shows the two dates it compares. P/L change is a chip tinted by direction (the table's up / down tints), and the performance row, the bottom line, is set larger, bold and green or red under a heavier rule. P/L change is the difference of the two shown values, so gold reads 31.05 − 37.79 = −6.74 pp. DD-006 §3.5.</span></li>
+      <li><b>4</b><span>Performance nets out new money: India (11,18,139.13 − 10,86,274.39 − 18,826.38) ÷ 10,86,274.39 = +1.20%. Gold added nothing, so it is the plain value change. DD-006 §3.6.</span></li>
+    </ol>
+  </section>
+
+  <!-- 02 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">Card states</span><span class="frame-viewport">card only · 1280 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+
+          <div class="perf-card marked">
+            <span class="pin">A</span>
+            <h3>Oct 2026 performance</h3>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (live)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 31-10 (live)</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 31-10 (live)</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.05%</td><td class="c-eur">16.02%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.61 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −3.73 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+0.91%</span></td><td class="c-eur"><span class="dir-down">−2.22%</span></td></tr></tbody></table></div>
+            <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
+          </div>
+
+          <div class="perf-card marked">
+            <span class="pin">B</span>
+            <h3>Jun 2026 performance</h3>
+            <div class="perf-scroll"><table class="perf" aria-label="Jun 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">03-06 → 30-06</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">0.00%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">4.00%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +4.00 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+6.40%</span></td></tr></tbody></table></div>
+            <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
+          </div>
+
+          <div class="marked" style="display:flex; flex-direction:column; gap:8px">
+            <span class="pin">C</span>
+            <div class="hist-toolbar">
+              <div class="sel"><span>Year</span><div>2026</div></div>
+              <div class="sel"><span>Month</span><div>May</div></div>
+            </div>
+            <table class="hist">
+              <thead><tr><th>Date ▲</th><th>Amount invested</th><th>Actual value</th><th>Daily volatlity</th><th>P/L%</th></tr></thead>
+              <tbody><tr><td>31-05-2026</td><td>₹50,000.00</td><td>₹50,000.00</td><td>—</td><td>0.00%</td></tr></tbody>
+            </table>
+            <span class="muted-note">No card: a single row has nothing to compare.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>A</b><span><strong>Current month.</strong> Closing is today's live row, so the card moves with the table during market hours; headers say <code>(live)</code>. A user without gold gets no Gold column. Example figures.</span></li>
+      <li><b>B</b><span><strong>First month of data.</strong> No row exists before June at all, so the opening is the month's first row (03-06), and the dates show it. This is the only case the fallback covers. Example: ₹50,000 opening, ₹30,000 added, ₹83,200 at month end.</span></li>
+      <li><b>C</b><span><strong>Hidden.</strong> A column needs two rows with money invested; with none qualifying, the card is not rendered at all, so there is no empty box.</span></li>
+      <li><b>D</b><span>Columns follow History's buckets (INR, EUR) plus gold when tracked. History has no USD bucket today, so there is no USD column. PRD-006 §3.</span></li>
+    </ol>
+  </section>
+
+  <!-- 03 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">03</span><span class="frame-name">Charts on top: the card stays first</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="hist-toolbar">
+            <div class="sel"><span>Year</span><div>2026</div></div>
+            <div class="sel"><span>Month</span><div>Oct</div></div>
+            <span class="grow"></span>
+            <span class="btn btn-current">↓ Charts below</span><span class="btn-primary">+ Add row</span><span class="btn">Paste month</span>
+          </div>
+          <div class="perf-card marked">
+            <span class="pin">1</span>
+            <h3>Oct 2026 performance</h3>
+            <span class="muted-note">(as frame 01)</span>
+          </div>
+          <div class="chart-stub"><div>Invested vs Current</div><div>P/L %</div><div>Daily volatility %</div></div>
+          <div class="chart-stub"><div>Invested vs Current</div><div>P/L %</div><div>Daily volatility %</div></div>
+          <span class="muted-note">… month table below the charts …</span>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The card renders before the block that orders charts and table, so it is the first thing under the toolbar in both layouts. DD-006 §4.</span></li>
+    </ol>
+  </section>
+
+  <!-- 04 -->
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">04</span><span class="frame-name">Phone width</span><span class="frame-viewport">390 × auto</span></div>
+    <div class="canvas">
+      <div class="app phone" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">Historical data</span></div>
+        <div class="app-main">
+          <div class="perf-card marked">
+            <span class="pin">1</span>
+            <h3>Oct 2026 performance</h3>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (phone)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
+            <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Below 580 px the table keeps a 580 px minimum and scrolls sideways inside the card (<code>overflow-x: auto</code>); the page itself never does. Swipe to reach Europe and Gold.</span></li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <h2>The four metrics</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Metric</th><th>Formula</th><th>India, October 2026</th></tr></thead>
+        <tbody>
+          <tr><td>Opening P/L</td><td>(current − invested) ÷ invested, last row before the month</td><td>(10,86,274.39 − 8,80,021.32) ÷ 8,80,021.32 = 23.44%</td></tr>
+          <tr><td>Closing P/L</td><td>same, on the month's latest row</td><td>(11,18,139.13 − 8,98,847.70) ÷ 8,98,847.70 = 24.40%</td></tr>
+          <tr><td>P/L change</td><td>closing − opening, as displayed, in pp; 🟢 up, 🔴 down, ⚪ flat</td><td>24.40 − 23.44 = +0.96 pp</td></tr>
+          <tr><td>Performance*</td><td>(closing value − opening value − money added) ÷ opening value; money added = closing invested − opening invested</td><td>(31,864.74 − 18,826.38) ÷ 10,86,274.39 = +1.20%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>What the frames commit the implementation to</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Frame</th><th>Commitment</th><th>PD-049 task</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>Card above the table; owner's October figures exactly; per-column dates; baseline = latest earlier row</td><td>2, 3, 4, 5, 6</td></tr>
+          <tr><td>02 A</td><td>Live closing row flagged; no Gold column without gold</td><td>4, 5</td></tr>
+          <tr><td>02 B</td><td>First-row fallback only when no earlier history exists</td><td>2, 4</td></tr>
+          <tr><td>02 C</td><td>No card for a month with fewer than two rows</td><td>4, 6</td></tr>
+          <tr><td>03</td><td>Card first in the charts-on-top layout</td><td>6</td></tr>
+          <tr><td>04</td><td>Card scrolls inside itself at phone width</td><td>5, 8</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>PD-049 visual spec v6</span>
+    <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
+    <span>Mockup, not production markup</span>
+  </footer>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('[data-theme-btn]')
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeBtn
+      document.querySelectorAll('.app').forEach(app => { app.dataset.appTheme = theme })
+      buttons.forEach(other => other.setAttribute('aria-pressed', String(other === btn)))
+    })
+  })
+</script>
