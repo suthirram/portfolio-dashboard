@@ -192,10 +192,10 @@ export const api = {
   updateGoldTransaction: (id: number, body: GoldTransactionInput) => request<GoldTransaction>('PUT', `/gold/transactions/${id}`, body),
   deleteGoldTransaction: (id: number) => request<void>('DELETE', `/gold/transactions/${id}`),
   listGoldPrices:        (from?: string, to?: string) => {
-    const q = new URLSearchParams()
-    if (from) q.set('from', from)
-    if (to) q.set('to', to)
-    const qs = q.toString()
+    const query = new URLSearchParams()
+    if (from) query.set('from', from)
+    if (to) query.set('to', to)
+    const qs = query.toString()
     return request<GoldPrice[]>('GET', `/gold/prices${qs ? `?${qs}` : ''}`)
   },
   putGoldPrices:         (prices: GoldPrice[]) => request<void>('PUT', '/gold/prices', prices),

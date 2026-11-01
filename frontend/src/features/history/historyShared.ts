@@ -121,7 +121,7 @@ export const MONTHS = [
 export function monthRange(year: number, month0: number): { from: string; to: string } {
   const from = new Date(Date.UTC(year, month0, 0))   // last day of previous month
   const to   = new Date(Date.UTC(year, month0 + 1, 0))
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  const fmt = (date: Date) => date.toISOString().slice(0, 10)
   return { from: fmt(from), to: fmt(to) }
 }
 
@@ -148,31 +148,31 @@ export function emptyForm(): RegionFormState {
 //   "23456.45" -> 23456.45   "23456,45"  -> 23456.45
 //   "23,456.45" -> 23456.45  "23.456,45" -> 23456.45
 //   "1,234" -> 1234          "1,234,567" -> 1234567
-export function parseFormAmount(s: string): number {
-  return parseDecimalInput(s)
+export function parseFormAmount(text: string): number {
+  return parseDecimalInput(text)
 }
 export { groupIndian }
 
 // groupedInitial formats a stored numeric value for an input's initial display.
-export function groupedInitial(v: number | undefined): string {
-  return v == null ? '' : groupIndian(String(v))
+export function groupedInitial(value: number | undefined): string {
+  return value == null ? '' : groupIndian(String(value))
 }
 
 // sanitizeAmount drops anything that can't be part of a numeric amount. The
 // DecimalInput component also blocks those keystrokes before they reach state.
-export function sanitizeAmount(s: string): string {
-  return sanitizeDecimalInput(s)
+export function sanitizeAmount(text: string): string {
+  return sanitizeDecimalInput(text)
 }
 
 // formError validates the amount fields before submit. A field that is
 // non-empty but does not parse to a finite number is rejected (rather than
 // silently skipped) so a typo can never drop a region on save.
 export function formError(form: RegionFormState): string | null {
-  for (const r of REGIONS) {
+  for (const region of REGIONS) {
     for (const key of ['invested', 'current'] as const) {
-      const raw = form[r][key].trim()
+      const raw = form[region][key].trim()
       if (raw !== '' && !Number.isFinite(parseFormAmount(raw))) {
-        return `Enter a valid ${key} amount for ${REGION_LABELS[r]}.`
+        return `Enter a valid ${key} amount for ${REGION_LABELS[region]}.`
       }
     }
   }
@@ -183,12 +183,12 @@ export function formError(form: RegionFormState): string | null {
 // re-applies Indian grouping, so freshly entered values match the prefilled
 // ones (e.g. "2345678" → "23,45,678"). Empty stays empty.
 export function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>>) {
-  return (r: RegionKey, key: keyof RegionFormValue) =>
+  return (region: RegionKey, key: keyof RegionFormValue) =>
     (e: FocusEvent<HTMLInputElement>) => {
       const raw = e.target.value.trim()
       const parsed = parseFormAmount(raw)
       const grouped = raw === '' || !Number.isFinite(parsed) ? raw : groupIndian(String(parsed))
-      setForm(f => ({ ...f, [r]: { ...f[r], [key]: grouped } }))
+      setForm(form => ({ ...form, [region]: { ...form[region], [key]: grouped } }))
     }
 }
 
@@ -198,11 +198,11 @@ export function regroupHandler(setForm: Dispatch<SetStateAction<RegionFormState>
 // dropped. A region with BOTH fields blank is untouched and left unchanged.
 export function formToBody(form: RegionFormState): Record<string, { invested: number; current: number }> {
   const out: Record<string, { invested: number; current: number }> = {}
-  for (const r of REGIONS) {
-    const investedRaw = form[r].invested.trim()
-    const currentRaw = form[r].current.trim()
+  for (const region of REGIONS) {
+    const investedRaw = form[region].invested.trim()
+    const currentRaw = form[region].current.trim()
     if (investedRaw === '' && currentRaw === '') continue // untouched region
-    out[r] = { invested: parseFormAmount(investedRaw), current: parseFormAmount(currentRaw) }
+    out[region] = { invested: parseFormAmount(investedRaw), current: parseFormAmount(currentRaw) }
   }
   return out
 }
@@ -215,9 +215,9 @@ export function changedRegions(
   original: Record<string, RegionSnapshot>,
 ): Record<string, { invested: number; current: number }> {
   const out: Record<string, { invested: number; current: number }> = {}
-  for (const [r, v] of Object.entries(body)) {
-    const o = original[r]
-    if (!o || o.invested !== v.invested || o.current !== v.current) out[r] = v
+  for (const [region, value] of Object.entries(body)) {
+    const originalValue = original[region]
+    if (!originalValue || originalValue.invested !== value.invested || originalValue.current !== value.current) out[region] = value
   }
   return out
 }
@@ -258,16 +258,16 @@ export function fmtCurrency(amount: number, sym: string): string {
 // shape as perCurrencyChartData). Rows without an overlay emit nulls so the
 // line bridges the gap rather than plunging to zero.
 export function goldChartData(rows: HistoryRow[]) {
-  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
-  return oldestFirst.map(r => ({
+  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  return oldestFirst.map(row => ({
     // dd-MM: the app renders every date day-first (see lib/formDates), and a
     // raw `.slice(5)` here printed MM-DD — the one place the mini charts
     // disagreed with every other date in the UI.
-    date: formatDayMonth(r.date),
-    invested: r.gold ? r.gold.invested : null,
-    current: r.gold ? r.gold.current : null,
-    pnl_pct: r.gold ? r.gold.pnl_pct : null,
-    daily_vol: r.gold ? r.gold.volatility_pct : null,
+    date: formatDayMonth(row.date),
+    invested: row.gold ? row.gold.invested : null,
+    current: row.gold ? row.gold.current : null,
+    pnl_pct: row.gold ? row.gold.pnl_pct : null,
+    daily_vol: row.gold ? row.gold.volatility_pct : null,
   }))
 }
 
@@ -282,7 +282,7 @@ export function goldChartData(rows: HistoryRow[]) {
 // (which filters non-finite) ignore it and the Line connectNulls bridge
 // the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
-  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
+  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
   // daily_vol is the per-currency day-over-day % change of the current
   // value vs the previous data point, net of the change in invested so a
   // contribution/withdrawal doesn't read as a market move. null on the
@@ -290,8 +290,8 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
   // prior current is zero (divide-by-zero / no baseline).
   let prevCurrent: number | null = null
   let prevInvested: number | null = null
-  return oldestFirst.map(r => {
-    const rs = r.regions[region]
+  return oldestFirst.map(row => {
+    const rs = row.regions[region]
     const invested = rs ? rs.invested : null
     const current  = rs ? rs.current  : null
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
@@ -302,7 +302,7 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
     prevCurrent = current
     prevInvested = invested
     // dd-MM — day-first, like every other date in the app (lib/formDates).
-    return { date: formatDayMonth(r.date), invested, current, pnl_pct, daily_vol }
+    return { date: formatDayMonth(row.date), invested, current, pnl_pct, daily_vol }
   })
 }
 
@@ -312,7 +312,7 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
 // bounds to a readable step. Returns undefined when there are no finite
 // values (caller falls back to Recharts' 'auto' domain).
 export function niceDomain(values: (number | null | undefined)[]): [number, number] | undefined {
-  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  const finite = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
   if (finite.length === 0) return undefined
   const lo = Math.min(...finite)
   const hi = Math.max(...finite)
@@ -333,21 +333,21 @@ export function niceDomain(values: (number | null | undefined)[]): [number, numb
 // m is the padded, nicely-rounded magnitude of the largest swing either way.
 // Returns undefined when there are no finite values.
 export function symmetricDomain(values: (number | null | undefined)[]): [number, number] | undefined {
-  const finite = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  const finite = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
   if (finite.length === 0) return undefined
   const maxAbs = Math.max(...finite.map(Math.abs))
   if (maxAbs === 0) return [-1, 1]
   const pad = maxAbs * 0.08
   const step = niceStep((maxAbs + pad) / 3)
-  const m = Math.ceil((maxAbs + pad) / step) * step
-  return [-m, m]
+  const bound = Math.ceil((maxAbs + pad) / step) * step
+  return [-bound, bound]
 }
 
 // regionHasData reports whether a region's chart series has any non-zero
 // invested or current value. Used to hide a currency's charts entirely when
 // the profile never held that currency (e.g. USD for the super admin).
 export function regionHasData(data: { invested: number | null; current: number | null }[]): boolean {
-  return data.some(d => (d.invested ?? 0) !== 0 || (d.current ?? 0) !== 0)
+  return data.some(point => (point.invested ?? 0) !== 0 || (point.current ?? 0) !== 0)
 }
 
 // niceStep rounds a raw step up to the nearest 1/2/5 × 10ⁿ — the
@@ -362,17 +362,17 @@ function niceStep(raw: number): number {
 
 // fmtAxisAmount keeps the amount axis labels compact (1.2M, 450k) so the
 // wider dynamic range doesn't overflow the tick gutter.
-export function fmtAxisAmount(v: number): string {
-  const abs = Math.abs(v)
-  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`
-  if (abs >= 1_000) return `${(v / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`
-  return String(v)
+export function fmtAxisAmount(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}k`
+  return String(value)
 }
 
 // ---- Row stats (table cells) ----
 
-export function fmt(n: number) {
-  return n === 0 ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+export function fmt(amount: number) {
+  return amount === 0 ? '—' : amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
 // regionDailyVolatility is the per-currency day-over-day % used by the
@@ -426,8 +426,8 @@ export function pctChange(prev: number | null, current: number): number {
 }
 
 // regionPnLPct is the per-region P/L %.
-export function regionPnLPct(r: HistoryRow, region: RegionKey): number | null {
-  return pnlPct(r.regions[region]?.invested ?? 0, r.regions[region]?.current ?? 0)
+export function regionPnLPct(row: HistoryRow, region: RegionKey): number | null {
+  return pnlPct(row.regions[region]?.invested ?? 0, row.regions[region]?.current ?? 0)
 }
 
 // regionInvestedWentUp reports whether the region's invested amount on
@@ -488,8 +488,8 @@ export function bucketCurrency(currency?: string): RegionKey | null {
 // under. Unlike bucketCurrency it never drops a holding: a line the backend
 // already wrote has to be shown somewhere, so an unknown currency falls back
 // to INR.
-export function holdingRegion(h: Pick<HistoryHolding, 'currency'>): RegionKey {
-  return bucketCurrency(h.currency) ?? 'INR'
+export function holdingRegion(holding: Pick<HistoryHolding, 'currency'>): RegionKey {
+  return bucketCurrency(holding.currency) ?? 'INR'
 }
 
 // yearMonth0 splits a YYYY-MM-DD into the {year, month0} pair the month
@@ -552,28 +552,28 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
     EUR: { invested: 0, current: 0, source: 'manual' },
   }
   const histHoldings: HistoryHolding[] = []
-  for (const h of holdings) {
+  for (const holding of holdings) {
     // Skip what the snapshot job would skip, so the live row and the cron
     // row that replaces it cover the same holdings — otherwise a legacy USD
     // position would inflate the live INR column and then vanish, reading as
     // a real portfolio move.
-    const region = bucketCurrency(h.currency)
+    const region = bucketCurrency(holding.currency)
     if (!region) continue
     const isEUR = region === 'EUR'
     // HoldingWithPrice.cost_price/current_value are always INR-denominated
     // (even for EUR holdings — the backend converts the other way for the
     // _eur twin, see HoldingWithPriceToAPI); the native-currency amount for
     // a EUR holding lives in cost_price_eur/current_value_eur instead.
-    const invested = isEUR ? h.cost_price_eur ?? 0 : h.cost_price ?? 0
-    const current = isEUR ? h.current_value_eur ?? 0 : h.current_value ?? 0
+    const invested = isEUR ? holding.cost_price_eur ?? 0 : holding.cost_price ?? 0
+    const current = isEUR ? holding.current_value_eur ?? 0 : holding.current_value ?? 0
     regions[region].invested += invested
     regions[region].current += current
     histHoldings.push({
-      symbol: h.symbol ?? '',
-      script: h.script ?? h.symbol ?? '',
-      currency: h.currency ?? 'INR',
-      quantity: h.stocks_owned ?? 0,
-      close_price: h.current_price ?? 0,
+      symbol: holding.symbol ?? '',
+      script: holding.script ?? holding.symbol ?? '',
+      currency: holding.currency ?? 'INR',
+      quantity: holding.stocks_owned ?? 0,
+      close_price: holding.current_price ?? 0,
       current,
     })
   }
@@ -597,9 +597,9 @@ export function buildLiveRow(date: string, holdings: HoldingWithPrice[]): Histor
 // volatility_pct off, mirroring the backend's goldOverlay walk (gold_history.go).
 export function latestGoldOverlay(rows: HistoryRow[]): GoldHistoryOverlay | null {
   let best: { date: string; gold: GoldHistoryOverlay } | null = null
-  for (const r of rows) {
-    if (!r.gold) continue
-    if (!best || r.date > best.date) best = { date: r.date, gold: r.gold }
+  for (const row of rows) {
+    if (!row.gold) continue
+    if (!best || row.date > best.date) best = { date: row.date, gold: row.gold }
   }
   return best?.gold ?? null
 }
@@ -652,28 +652,28 @@ export function buildLiveGoldOverlay(
 
 const CURRENCY_SYMBOLS_RE = /[₹€$£\s_,]/g
 
-export function parseAmount(s: string): number {
-  if (!s) return 0
-  const cleaned = s.replace(CURRENCY_SYMBOLS_RE, '').trim()
+export function parseAmount(text: string): number {
+  if (!text) return 0
+  const cleaned = text.replace(CURRENCY_SYMBOLS_RE, '').trim()
   if (!cleaned) return 0
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : NaN
+  const amount = Number(cleaned)
+  return Number.isFinite(amount) ? amount : NaN
 }
 
 export function parsePasteText(text: string): { date: string; regions: Record<string, { invested: number; current: number }> }[] {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+  const lines = text.split(/\r?\n/).map(rawLine => rawLine.trim()).filter(Boolean)
   const out: { date: string; regions: Record<string, { invested: number; current: number }> }[] = []
   for (const line of lines) {
-    const cells = line.split(/\t/).map(c => c.trim())
+    const cells = line.split(/\t/).map(cell => cell.trim())
     const date = normaliseDate(cells[0] ?? '')
     if (!date) continue // skip header / malformed
     const [, ii, ic, ei, ec] = cells
     const regions: Record<string, { invested: number; current: number }> = {}
     const set = (key: string, inv: string | undefined, cur: string | undefined) => {
-      const a = parseAmount(inv ?? '')
-      const b = parseAmount(cur ?? '')
-      if (Number.isFinite(a) && Number.isFinite(b) && (a > 0 || b > 0)) {
-        regions[key] = { invested: a, current: b }
+      const invested = parseAmount(inv ?? '')
+      const current = parseAmount(cur ?? '')
+      if (Number.isFinite(invested) && Number.isFinite(current) && (invested > 0 || current > 0)) {
+        regions[key] = { invested, current }
       }
     }
     set('INR', ii, ic)
