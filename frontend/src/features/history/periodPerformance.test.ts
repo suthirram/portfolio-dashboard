@@ -1,18 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HistoryRow } from '../../lib/api/client'
-import { periodPerformance } from './historyShared'
-
-// historyRow builds a cron row from per-currency [invested, current] pairs
-// and an optional gold [invested, current].
-function historyRow(date: string, regions: Record<string, [number, number]>, gold?: [number, number]): HistoryRow {
-  return {
-    date,
-    regions: Object.fromEntries(Object.entries(regions).map(([currency, [invested, current]]) =>
-      [currency, { invested, current, source: 'cron' }])),
-    totals: { invested_total: 0, current_total: 0, pnl_pct: null },
-    gold: gold && { invested: gold[0], current: gold[1], volatility_pct: 0, pnl_pct: null },
-  }
-}
+import { monthlyInvestment, periodPerformance } from './historyShared'
+import { historyRow } from './historyTestRows'
 
 // The owner's October 2026 sheet: 30 Sep (the latest row before October,
 // which include_previous loads), a mid-month row, and 30 Oct.
@@ -96,5 +84,43 @@ describe('periodPerformance', () => {
     const live = { ...historyRow('2026-10-31', { INR: [100, 120] }), tentative: true }
     const [inr] = periodPerformance([historyRow('2026-09-30', { INR: [100, 110] }), live], '2026-10-01')
     expect(inr.closingTentative).toBe(true)
+  })
+})
+
+describe('monthlyInvestment', () => {
+  it("gives October 2026 the History card's investment delta and closing invested", () => {
+    const months = monthlyInvestment(october, 2026, 'INR')
+    expect(months).toHaveLength(12)
+    expect(months[9]).toEqual({ month0: 9, delta: 18826.38, invested: 898847.70 })
+  })
+
+  it('shows a single-row first month as a line point only, and nothing without a row', () => {
+    const months = monthlyInvestment(october, 2026, 'INR')
+    expect(months[8]).toEqual({ month0: 8, delta: null, invested: 880021.32 }) // 30-09 only
+    expect(months[0]).toEqual({ month0: 0, delta: null, invested: null })
+    expect(months[10]).toEqual({ month0: 10, delta: null, invested: null })
+  })
+
+  it("chains each month's opening to the previous month's closing row", () => {
+    const rows = [
+      historyRow('2025-12-31', { INR: [100, 110] }), // the include_previous row
+      historyRow('2026-01-31', { INR: [150, 160] }),
+      historyRow('2026-03-15', { INR: [120, 150] }), // nothing in February
+    ]
+    const deltas = monthlyInvestment(rows, 2026, 'INR').map(month => month.delta)
+    expect(deltas.slice(0, 3)).toEqual([50, null, -30])
+  })
+
+  // The owner's June 2025: EUR first invested on 30-06 (PRD-006 §5).
+  it('opens a currency from zero in the month it is first bought', () => {
+    const rows = [
+      historyRow('2025-06-01', { INR: [564361.86, 717252.59] }),
+      historyRow('2025-06-30', { INR: [565721.16, 733476.39], EUR: [599.58, 626.95] }),
+    ]
+    expect(monthlyInvestment(rows, 2025, 'EUR')[5]).toEqual({ month0: 5, delta: 599.58, invested: 599.58 })
+  })
+
+  it('reads gold off the overlay', () => {
+    expect(monthlyInvestment(october, 2026, 'GOLD')[9]).toEqual({ month0: 9, delta: 0, invested: 716420 })
   })
 })
