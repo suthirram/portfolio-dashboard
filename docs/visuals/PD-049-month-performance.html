@@ -572,16 +572,16 @@
 
   <header class="masthead">
     <div class="eyebrow">
-      <span>Visual spec</span><span>PD-049 v6</span><span>PRD-006 · DD-006</span><span>Portfolio Dashboard</span>
-      <span>Owner decisions 2026-10-31 applied</span>
+      <span>Visual spec</span><span>PD-049 v7</span><span>PRD-006 · DD-006</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-10-31 and 2026-11-02 applied</span>
     </div>
     <h1>Month performance</h1>
     <p class="standfirst">
       A card at the top of History compares each currency's position, and
       gold's, on the previous month's last row with the month's latest row. It
-      shows the P/L % at both ends, the change in percentage points, and an
-      investment performance figure that leaves out money added during the
-      month.
+      shows the P/L % at both ends, the change in percentage points, the
+      money invested or sold during the month, and an investment performance
+      figure that leaves out that money.
     </p>
     <dl class="meta-grid">
       <div class="meta-cell"><dt>Route</dt><dd>/history (month picker)</dd></div>
@@ -630,7 +630,7 @@
           <div class="perf-card marked">
             <span class="pin">1</span>
             <h3>Oct 2026 performance</h3>
-            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr><th scope="row">Investment delta</th><td class="c-inr"><span class="chip chip-up">+₹18,826.38</span></td><td class="c-eur"><span class="chip chip-up">+€475.92</span></td><td class="c-gold"><span class="chip chip-flat">₹0.00</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
             <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
           </div>
 
@@ -651,8 +651,8 @@
     <ol class="annotations">
       <li><b>1</b><span>New card, between the toolbar and the table, spanning the full content width like the table and chart panels. The metric column takes 26 %; India, Europe and Gold share the rest evenly, each drawn as its own rounded block with a gap between them, values centred. Each column wears its currency group's tint from the month table (saffron INR, blue EUR, amber gold), so the card reads as the summary of those columns. Same panel as the chart panels: <code>--bg-secondary</code>, <code>--border</code>, radius 8, a 14 px secondary title. PRD-006 §5, DD-006 §4.</span></li>
       <li><b>2</b><span>The opening column is the latest row before October, here <strong>30-09</strong>. The server returns it with the month (<code>include_previous</code>) however far back it is: had 30-09 no snapshot, the card would open on 29-09, not on 01-10. Closing is the month's latest row, <strong>30-10</strong>. PRD-006 §4, DD-006 §1.</span></li>
-      <li><b>3</b><span>Each header shows the two dates it compares. P/L change is a chip tinted by direction (the table's up / down tints), and the performance row, the bottom line, is set larger, bold and green or red under a heavier rule. P/L change is the difference of the two shown values, so gold reads 31.05 − 37.79 = −6.74 pp. DD-006 §3.5.</span></li>
-      <li><b>4</b><span>Performance nets out new money: India (11,18,139.13 − 10,86,274.39 − 18,826.38) ÷ 10,86,274.39 = +1.20%. Gold added nothing, so it is the plain value change. DD-006 §3.6.</span></li>
+      <li><b>3</b><span>Each header shows the two dates it compares. P/L change is a chip tinted by direction (the table's up / down tints), and the performance row, the bottom line, is set larger, bold and green or red under a heavier rule. P/L change is the difference of the two shown values, so gold reads 31.05 − 37.79 = −6.74 pp. Investment delta, the money added or sold, uses the same pill without the emoji: green for money in, red for money out, grey for none (gold, ₹0.00). DD-006 §3.5–§3.6, §4.</span></li>
+      <li><b>4</b><span>Performance nets out new money: India (11,18,139.13 − 10,86,274.39 − 18,826.38) ÷ 10,86,274.39 = +1.20%. Gold added nothing, so it is the plain value change. DD-006 §3.7.</span></li>
     </ol>
   </section>
 
@@ -666,14 +666,21 @@
           <div class="perf-card marked">
             <span class="pin">A</span>
             <h3>Oct 2026 performance</h3>
-            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (live)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 31-10 (live)</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 31-10 (live)</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.05%</td><td class="c-eur">16.02%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.61 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −3.73 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+0.91%</span></td><td class="c-eur"><span class="dir-down">−2.22%</span></td></tr></tbody></table></div>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (live)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 31-10 (live)</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 31-10 (live)</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.05%</td><td class="c-eur">16.02%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.61 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −3.73 pp</span></td></tr><tr><th scope="row">Investment delta</th><td class="c-inr"><span class="chip chip-up">+₹18,682.08</span></td><td class="c-eur"><span class="chip chip-up">+€473.82</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+0.91%</span></td><td class="c-eur"><span class="dir-down">−2.22%</span></td></tr></tbody></table></div>
             <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
           </div>
 
           <div class="perf-card marked">
             <span class="pin">B</span>
             <h3>Jun 2026 performance</h3>
-            <div class="perf-scroll"><table class="perf" aria-label="Jun 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">03-06 → 30-06</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">0.00%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">4.00%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +4.00 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+6.40%</span></td></tr></tbody></table></div>
+            <div class="perf-scroll"><table class="perf" aria-label="Jun 2026 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">03-06 → 30-06</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">0.00%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">4.00%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +4.00 pp</span></td></tr><tr><th scope="row">Investment delta</th><td class="c-inr"><span class="chip chip-up">+₹30,000.00</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+6.40%</span></td></tr></tbody></table></div>
+            <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
+          </div>
+
+          <div class="perf-card marked">
+            <span class="pin">E</span>
+            <h3>Jun 2025 performance</h3>
+            <div class="perf-scroll"><table class="perf" aria-label="Jun 2025 performance"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">01-06 → 30-06</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">01-06 → 30-06</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">27.09%</td><td class="c-eur"><span style="color: var(--text-muted)">—</span></td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">29.65%</td><td class="c-eur">4.56%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +2.56 pp</span></td><td class="c-eur"><span style="color: var(--text-muted)">—</span></td></tr><tr><th scope="row">Investment delta</th><td class="c-inr"><span class="chip chip-up">+₹1,359.30</span></td><td class="c-eur"><span class="chip chip-up">+€599.58</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+2.07%</span></td><td class="c-eur"><span style="color: var(--text-muted)">—</span></td></tr></tbody></table></div>
             <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
           </div>
 
@@ -695,8 +702,9 @@
     <ol class="annotations">
       <li><b>A</b><span><strong>Current month.</strong> Closing is today's live row, so the card moves with the table during market hours; headers say <code>(live)</code>. A user without gold gets no Gold column. Example figures.</span></li>
       <li><b>B</b><span><strong>First month of data.</strong> No row exists before June at all, so the opening is the month's first row (03-06), and the dates show it. This is the only case the fallback covers. Example: ₹50,000 opening, ₹30,000 added, ₹83,200 at month end.</span></li>
-      <li><b>C</b><span><strong>Hidden.</strong> A column needs two rows with money invested; with none qualifying, the card is not rendered at all, so there is no empty box.</span></li>
+      <li><b>C</b><span><strong>Hidden.</strong> A month with a single row has nothing to compare, so the card is not rendered at all, and there is no empty box. A column empty on both the opening and closing rows is left out the same way.</span></li>
       <li><b>D</b><span>Columns follow History's buckets (INR, EUR) plus gold when tracked. History has no USD bucket today, so there is no USD column. PRD-006 §3.</span></li>
+      <li><b>E</b><span><strong>A currency first bought this month opens from zero</strong> (owner, 2026-11-02). Every column shares the same opening and closing rows; EUR is empty on 01-06-2025 and first invested on 30-06, so its delta is 599.58 − 0 = +€599.58. Opening P/L, P/L change and performance have no base and read "—". The owner's real June 2025 rows. PRD-006 §5, DD-006 §3.3.</span></li>
     </ol>
   </section>
 
@@ -738,7 +746,7 @@
           <div class="perf-card marked">
             <span class="pin">1</span>
             <h3>Oct 2026 performance</h3>
-            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (phone)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
+            <div class="perf-scroll"><table class="perf" aria-label="Oct 2026 performance (phone)"><thead><tr><th>Metric</th><th class="c-inr">🇮🇳 India<span class="dates">30-09 → 30-10</span></th><th class="c-eur">🇪🇺 Europe<span class="dates">30-09 → 30-10</span></th><th class="c-gold">🥇 Gold<span class="dates">30-09 → 30-10</span></th></tr></thead><tbody><tr><th scope="row">Opening P/L</th><td class="c-inr">23.44%</td><td class="c-eur">19.75%</td><td class="c-gold">37.79%</td></tr><tr><th scope="row">Closing P/L</th><td class="c-inr">24.40%</td><td class="c-eur">15.68%</td><td class="c-gold">31.05%</td></tr><tr><th scope="row">P/L change</th><td class="c-inr"><span class="chip chip-up">🟢 +0.96 pp</span></td><td class="c-eur"><span class="chip chip-down">🔴 −4.07 pp</span></td><td class="c-gold"><span class="chip chip-down">🔴 −6.74 pp</span></td></tr><tr><th scope="row">Investment delta</th><td class="c-inr"><span class="chip chip-up">+₹18,826.38</span></td><td class="c-eur"><span class="chip chip-up">+€475.92</span></td><td class="c-gold"><span class="chip chip-flat">₹0.00</span></td></tr><tr class="emph"><th scope="row">Approx. investment performance*</th><td class="c-inr"><span class="dir-up">+1.20%</span></td><td class="c-eur"><span class="dir-down">−2.52%</span></td><td class="c-gold"><span class="dir-down">−4.89%</span></td></tr></tbody></table></div>
             <p class="perf-foot">* Approximate: money added during the month counts as added at its end, and a sale is valued at the bucket's current-to-cost ratio. Dividends are not included.</p>
           </div>
         </div>
@@ -750,7 +758,7 @@
   </section>
 
   <section class="section">
-    <h2>The four metrics</h2>
+    <h2>The five metrics</h2>
     <div class="spec-scroll">
       <table class="spec">
         <thead><tr><th>Metric</th><th>Formula</th><th>India, October 2026</th></tr></thead>
@@ -758,6 +766,7 @@
           <tr><td>Opening P/L</td><td>(current − invested) ÷ invested, last row before the month</td><td>(10,86,274.39 − 8,80,021.32) ÷ 8,80,021.32 = 23.44%</td></tr>
           <tr><td>Closing P/L</td><td>same, on the month's latest row</td><td>(11,18,139.13 − 8,98,847.70) ÷ 8,98,847.70 = 24.40%</td></tr>
           <tr><td>P/L change</td><td>closing − opening, as displayed, in pp; 🟢 up, 🔴 down, ⚪ flat</td><td>24.40 − 23.44 = +0.96 pp</td></tr>
+          <tr><td>Investment delta</td><td>closing invested − opening invested; an empty column counts as 0; green pill for money in, red for money out</td><td>8,98,847.70 − 8,80,021.32 = +₹18,826.38</td></tr>
           <tr><td>Performance*</td><td>(closing value − opening value − money added) ÷ opening value; money added = closing invested − opening invested</td><td>(31,864.74 − 18,826.38) ÷ 10,86,274.39 = +1.20%</td></tr>
         </tbody>
       </table>
@@ -773,7 +782,9 @@
           <tr><td>01</td><td>Card above the table; owner's October figures exactly; per-column dates; baseline = latest earlier row</td><td>2, 3, 4, 5, 6</td></tr>
           <tr><td>02 A</td><td>Live closing row flagged; no Gold column without gold</td><td>4, 5</td></tr>
           <tr><td>02 B</td><td>First-row fallback only when no earlier history exists</td><td>2, 4</td></tr>
-          <tr><td>02 C</td><td>No card for a month with fewer than two rows</td><td>4, 6</td></tr>
+          <tr><td>02 C</td><td>No card for a single-row month; a column empty at both ends is left out</td><td>4, 6</td></tr>
+          <tr><td>02 E</td><td>A column empty on the opening row opens from zero; figures with no base read "—"</td><td>4, 5 (amendment)</td></tr>
+          <tr><td>01–04</td><td>Investment delta row before performance, as an emoji-free direction pill</td><td>4, 5 (amendment)</td></tr>
           <tr><td>03</td><td>Card first in the charts-on-top layout</td><td>6</td></tr>
           <tr><td>04</td><td>Card scrolls inside itself at phone width</td><td>5, 8</td></tr>
         </tbody>
@@ -782,7 +793,7 @@
   </section>
 
   <footer class="doc-foot">
-    <span>PD-049 visual spec v6</span>
+    <span>PD-049 visual spec v7</span>
     <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
     <span>Mockup, not production markup</span>
   </footer>
