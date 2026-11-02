@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ func TestHistoryService_List_RejectsToBeforeFrom(t *testing.T) {
 		_, err := svc.List(context.Background(), primitive.NewObjectID(),
 			time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
 			time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+			false,
 		)
 		if !errors.Is(err, ErrInvalidDate) {
 			t.Errorf("err = %v, want ErrInvalidDate", err)
@@ -37,11 +39,11 @@ func TestHistoryService_List_RejectsToBeforeFrom(t *testing.T) {
 func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("totals derived", func(mt *mtest.T) {
-		uid := primitive.NewObjectID()
+		userId := primitive.NewObjectID()
 		date := time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, bson.D{
 			{Key: "_id", Value: primitive.NewObjectID()},
-			{Key: "user_id", Value: uid},
+			{Key: "user_id", Value: userId},
 			{Key: "date", Value: date},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
@@ -54,22 +56,100 @@ func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 		}))
 
 		svc := newHistorySvc(mt)
-		got, err := svc.List(context.Background(), uid, date, date)
+		got, err := svc.List(context.Background(), userId, date, date, false)
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
 		if len(got.Rows) != 1 {
 			t.Fatalf("rows = %d, want 1", len(got.Rows))
 		}
-		r := got.Rows[0]
-		if r.Date != "2026-06-16" {
-			t.Errorf("date = %q, want 2026-06-16", r.Date)
+		row := got.Rows[0]
+		if row.Date != "2026-06-16" {
+			t.Errorf("date = %q, want 2026-06-16", row.Date)
 		}
-		if r.Totals.InvestedTotal != 100 || r.Totals.CurrentTotal != 198 {
-			t.Errorf("totals = %+v", r.Totals)
+		if row.Totals.InvestedTotal != 100 || row.Totals.CurrentTotal != 198 {
+			t.Errorf("totals = %+v", row.Totals)
 		}
-		if r.Totals.PnLPct == nil || *r.Totals.PnLPct != 98.0 {
-			t.Errorf("PnLPct = %v, want 98.0", r.Totals.PnLPct)
+		if row.Totals.PnLPct == nil || *row.Totals.PnLPct != 98.0 {
+			t.Errorf("PnLPct = %v, want 98.0", row.Totals.PnLPct)
+		}
+	})
+}
+
+// snapshotDoc is one stored portfolio_snapshots document with an INR bucket.
+func snapshotDoc(userId primitive.ObjectID, date time.Time, invested, current float64) bson.D {
+	return bson.D{
+		{Key: "_id", Value: primitive.NewObjectID()},
+		{Key: "user_id", Value: userId},
+		{Key: "date", Value: date},
+		{Key: "currency", Value: "INR"},
+		{Key: "regions", Value: bson.D{
+			{Key: "INR", Value: bson.D{
+				{Key: "invested", Value: invested},
+				{Key: "current", Value: current},
+				{Key: "source", Value: "cron"},
+			}},
+		}},
+	}
+}
+
+func historyDates(list HistoryList) []string {
+	dates := make([]string, 0, len(list.Rows))
+	for _, row := range list.Rows {
+		dates = append(dates, row.Date)
+	}
+	return dates
+}
+
+// PRD-006 §4: October's baseline is the latest row before 1 October, even
+// when 30 September has no snapshot (the owner-reported gap: rows on 29-09,
+// 01-10 and 30-10).
+func TestHistoryService_List_IncludePrevious(t *testing.T) {
+	userId := primitive.NewObjectID()
+	octFirst := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	octLast := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+	namespace := func(mt *mtest.T) string { return mt.DB.Name() + ".portfolio_snapshots" }
+	monthRows := func(mt *mtest.T) bson.D {
+		return mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch,
+			snapshotDoc(userId, time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC), 898847.70, 1118139.13),
+			snapshotDoc(userId, octFirst, 881053.52, 1077793.63))
+	}
+
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("appends the latest earlier row, however far back", func(mt *mtest.T) {
+		mt.AddMockResponses(monthRows(mt), mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch,
+			snapshotDoc(userId, time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC), 880021.32, 1086274.39)))
+		got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, true)
+		if err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		want := []string{"2026-10-30", "2026-10-01", "2026-09-29"}
+		if dates := historyDates(got); !slices.Equal(dates, want) {
+			t.Errorf("dates = %v, want %v", dates, want)
+		}
+		if previous := got.Rows[2].Regions["INR"]; previous.Invested != 880021.32 || previous.Current != 1086274.39 {
+			t.Errorf("previous INR bucket = %+v", previous)
+		}
+	})
+	mt.Run("adds nothing when there is no earlier history", func(mt *mtest.T) {
+		mt.AddMockResponses(monthRows(mt), mtest.CreateCursorResponse(0, namespace(mt), mtest.FirstBatch))
+		got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, true)
+		if err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		if dates := historyDates(got); !slices.Equal(dates, []string{"2026-10-30", "2026-10-01"}) {
+			t.Errorf("dates = %v, want only October", dates)
+		}
+	})
+	mt.Run("leaves the range alone when not asked", func(mt *mtest.T) {
+		// Only the range query is mocked: a lookup would find no response and fail.
+		mt.AddMockResponses(monthRows(mt))
+		got, err := newHistorySvc(mt).List(context.Background(), userId, octFirst, octLast, false)
+		if err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		if dates := historyDates(got); !slices.Equal(dates, []string{"2026-10-30", "2026-10-01"}) {
+			t.Errorf("dates = %v, want only October", dates)
 		}
 	})
 }

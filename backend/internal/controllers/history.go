@@ -29,7 +29,8 @@ func (h *Controller) ListHistory(ctx context.Context, req api.ListHistoryRequest
 	}
 	from := req.Params.From.Time
 	to := req.Params.To.Time
-	list, err := h.history.List(ctx, currentUserId, from, to)
+	includePrevious := req.Params.IncludePrevious != nil && *req.Params.IncludePrevious
+	list, err := h.history.List(ctx, currentUserId, from, to, includePrevious)
 	if err != nil {
 		if errors.Is(err, services.ErrInvalidDate) {
 			return api.ListHistory400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil

@@ -101,7 +101,7 @@ rows), batch_id, warnings}`; re-sending the same file imports 0.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/history?from=YYYY-MM-DD&to=YYYY-MM-DD` | Snapshot rows in range (each row carries per-currency totals + per-stock `holdings`) |
+| GET | `/api/history?from=YYYY-MM-DD&to=YYYY-MM-DD[&include_previous=true]` | Snapshot rows in range (each row carries per-currency totals + per-stock `holdings`); `include_previous` also returns the latest row before `from`, however far back |
 | POST | `/api/history` | Add a manual row |
 | PUT | `/api/history/{date}/regions` | Override specific currency buckets (flips them to `manual`) |
 | DELETE | `/api/history/{date}` | Delete a row (cron rows protected; super admin can force) |
