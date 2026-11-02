@@ -149,8 +149,10 @@ function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last:
       <th style={hdr}>Amount invested</th>
       <th style={hdr}>Actual value</th>
       <th style={hdr}>Daily volatlity</th>
-      <th style={hdr}>P/L%</th>
-      <th style={{ ...hdr, ...sep }}>Dividends</th>
+      {/* No Dividends column: the rows still carry them (PRD-005 §9), but the
+          owner keeps them out of the everyday table; the Holdings modal shows
+          them per stock. */}
+      <th style={{ ...hdr, ...sep }}>P/L%</th>
     </>
   )
 }
@@ -166,7 +168,6 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   const row = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
   const rs = row.regions[region]
-  const dividends = row.dividends?.[CURRENCY_BY_REGION[region]]
   const invested = rs?.invested ?? 0
   const current  = rs?.current  ?? 0
   const vol      = regionDailyVolatility(rows, i, region)
@@ -210,13 +211,8 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   // does not clash with the price-direction tint.
   const pnlStyle: React.CSSProperties = {
     ...base,
-    background: dir ? PRICE_DIR_TINT[dir] : tint,
-  }
-  // Dividends cell: green on a day a dividend landed (PRD-005 §9).
-  const divStyle: React.CSSProperties = {
-    ...base,
     ...sep,
-    background: dividends && dividends.on_day > 0 ? 'var(--green-dim)' : tint,
+    background: dir ? PRICE_DIR_TINT[dir] : tint,
   }
   const volColor = vol === null ? undefined : vol >= 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   return (
@@ -228,10 +224,6 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
       </td>
       <td {...mouseProps} style={pnlStyle}>
         {pnl === null ? '—' : `${pnl.toFixed(2)}%`}
-      </td>
-      <td {...mouseProps} style={divStyle}
-        title={dividends && dividends.on_day > 0 ? `+${fmtCurrency(dividends.on_day, sym)} received this day` : undefined}>
-        {dividends ? fmtCurrency(dividends.to_date, sym) : '—'}
       </td>
     </>
   )
