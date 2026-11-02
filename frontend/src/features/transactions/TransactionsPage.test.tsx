@@ -7,6 +7,7 @@ const mockApi = vi.hoisted(() => ({
   listAllTransactions: vi.fn(),
   listHoldings: vi.fn(),
   listTransactions: vi.fn(),
+  listHistory: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -51,6 +52,18 @@ const renderPage = (props = {}) =>
   render(<MemoryRouter><TransactionsPage {...props} /></MemoryRouter>)
 
 describe('TransactionsPage', () => {
+  it('shows the investment delta panel on the user’s own page', async () => {
+    renderPage()
+    await screen.findByText('SIP tranche')
+    expect(screen.getByRole('button', { name: /Investment delta/ })).toBeInTheDocument()
+  })
+
+  it('does not show the investment delta panel in admin act-as', async () => {
+    renderPage({ actAsUserId: 'u2', actAsLabel: "bob's transactions" })
+    await screen.findByText('SIP tranche')
+    expect(screen.queryByRole('button', { name: /Investment delta/ })).not.toBeInTheDocument()
+  })
+
   it('lists every ledger event with the PRD-004 §5 columns', async () => {
     renderPage()
 

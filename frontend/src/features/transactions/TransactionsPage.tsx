@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Holding, TransactionType, TransactionWithHolding } from '../../types'
 import { useAllTransactions } from './useAllTransactions'
 import TransactionsAllTable from './TransactionsAllTable'
+import { InvestmentDeltaPanel } from './InvestmentDeltaPanel'
 import TransactionsModal, { TYPE_LABEL } from '../holdings/TransactionsModal'
 import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
@@ -222,6 +223,9 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             onEdit={openEditor}
           />
         )}
+
+        {/* The user's own portfolio only: History has no act-as read (PRD-007 §3). */}
+        {!actAsUserId && <InvestmentDeltaPanel theme={theme} />}
       </main>
 
       {editing && (

@@ -42,6 +42,17 @@ new/migrated openings start with no date set; the dashboard shows a one-time
 acquisition date (the date picker defaults to `2026-06-15`). A correct opening
 date keeps the historical snapshots valuing that holding from the right day.
 
+### Investment delta chart
+
+The **All transactions** page has an **Investment delta** panel docked at
+the bottom (your own portfolio only; not in admin act-as). Pull it up for a
+Jan–Dec chart: each month's bar is the money added (green) or the cost
+basis sold (red), the same figure as the History month card, and the line
+is the invested amount at each month end. ‹ › change the year, and the
+INR / EUR / Gold buttons switch the currency
+([PRD-007](prds/PRD-007-investment-delta-chart.md)). The panel remembers
+whether you left it open.
+
 ## Symbol format (Yahoo Finance)
 
 | Exchange | Format | Example |
