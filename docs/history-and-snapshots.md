@@ -12,7 +12,13 @@ close). The **History** page (`/history`):
   (manual values override the cron value for that currency);
 * lets you click a currency cell on a cron row to open a **Holdings** modal —
   the per-stock breakdown for that currency (script, yesterday price, current
-  price, change value, daily change), positive positions only.
+  price, change value, daily change), positive positions only;
+* shows a **month performance** card above the table
+  ([PRD-006](prds/PRD-006-month-performance.md)): per currency and gold, the
+  P/L % on the latest row before the month and on the month's latest row, the
+  change in pp, and an approximate investment performance = (closing value −
+  opening value − money added) ÷ opening value, so new money is not counted
+  as gains.
 
 Backdated ledger edits **heal** the affected stored snapshots so history stays
 consistent with the corrected ledger.
