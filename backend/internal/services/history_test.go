@@ -39,11 +39,11 @@ func TestHistoryService_List_RejectsToBeforeFrom(t *testing.T) {
 func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("totals derived", func(mt *mtest.T) {
-		uid := primitive.NewObjectID()
+		userId := primitive.NewObjectID()
 		date := time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)
 		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, bson.D{
 			{Key: "_id", Value: primitive.NewObjectID()},
-			{Key: "user_id", Value: uid},
+			{Key: "user_id", Value: userId},
 			{Key: "date", Value: date},
 			{Key: "currency", Value: "INR"},
 			{Key: "regions", Value: bson.D{
@@ -56,22 +56,22 @@ func TestHistoryService_List_DerivesTotalsAndDateFormat(t *testing.T) {
 		}))
 
 		svc := newHistorySvc(mt)
-		got, err := svc.List(context.Background(), uid, date, date, false)
+		got, err := svc.List(context.Background(), userId, date, date, false)
 		if err != nil {
 			t.Fatalf("List: %v", err)
 		}
 		if len(got.Rows) != 1 {
 			t.Fatalf("rows = %d, want 1", len(got.Rows))
 		}
-		r := got.Rows[0]
-		if r.Date != "2026-06-16" {
-			t.Errorf("date = %q, want 2026-06-16", r.Date)
+		row := got.Rows[0]
+		if row.Date != "2026-06-16" {
+			t.Errorf("date = %q, want 2026-06-16", row.Date)
 		}
-		if r.Totals.InvestedTotal != 100 || r.Totals.CurrentTotal != 198 {
-			t.Errorf("totals = %+v", r.Totals)
+		if row.Totals.InvestedTotal != 100 || row.Totals.CurrentTotal != 198 {
+			t.Errorf("totals = %+v", row.Totals)
 		}
-		if r.Totals.PnLPct == nil || *r.Totals.PnLPct != 98.0 {
-			t.Errorf("PnLPct = %v, want 98.0", r.Totals.PnLPct)
+		if row.Totals.PnLPct == nil || *row.Totals.PnLPct != 98.0 {
+			t.Errorf("PnLPct = %v, want 98.0", row.Totals.PnLPct)
 		}
 	})
 }
