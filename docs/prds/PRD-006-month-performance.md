@@ -21,6 +21,7 @@ any market move. The owner works this out by hand at month end:
 | Opening P/L | 23.44% | 19.75% | 37.79% |
 | Closing P/L | 24.40% | 15.68% | 31.05% |
 | P/L change | 🟢 +0.96 pp | 🔴 −4.07 pp | 🔴 −6.74 pp |
+| Investment delta | +₹18,826.38 | +€475.92 | ₹0.00 |
 | Approx. investment performance* | +1.20% | −2.52% | −4.89% |
 
 These figures come from the History rows of 30-09-2026 and 30-10-2026
@@ -59,6 +60,9 @@ For each column (each currency bucket, plus gold when the user tracks it):
 * **Opening / Closing P/L** = (current − invested) ÷ invested on that row.
 * **P/L change** = Closing P/L − Opening P/L as displayed (2 dp), in
   percentage points (pp), with 🟢 up / 🔴 down / ⚪ flat.
+* **Investment delta** = closing invested − opening invested: the money
+  added (+, green pill) or the cost basis sold (−, red pill) during the
+  month. India, October 2026: 8,98,847.70 − 8,80,021.32 = **+₹18,826.38**.
 * **Approx. investment performance** = (closing value − opening value −
   money added) ÷ opening value, where money added = closing invested −
   opening invested. A drop in invested (a sale) is valued at the bucket's
@@ -74,8 +78,13 @@ Worked example (India, October 2026): (11,18,139.13 − 10,86,274.39 −
   moved on top), titled "‹Mon YYYY› performance".
 * Each column header shows its two dates, e.g. `30-09 → 30-10`, with
   `(live)` when the closing row is today's live row.
-* A column with fewer than two rows that have money invested is left out.
-  If no column qualifies, the card is hidden.
+* The opening and closing rows are the same for every column. A column
+  empty on the opening row opens from zero (owner, 2026-11-02): EUR, first
+  invested on 30-06-2025, shows an investment delta of 599.58 − 0 =
+  **+€599.58** for June 2025, with "—" for Opening P/L, P/L change and
+  performance, which have no base. A column sold out by the closing row
+  works the same way in reverse. A column empty on both rows is left out;
+  a month with a single row shows no card.
 * The footnote explains the approximation (new money counted at month end,
   sales at the current-to-cost ratio, dividends excluded).
 

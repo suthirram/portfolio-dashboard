@@ -167,7 +167,9 @@ export const api = {
   getForexRate:   (from = 'INR', to = 'EUR') => request<ForexRate>('GET', `/market/forex?from=${from}&to=${to}`),
 
   // History (PR6 — plain Echo routes, not yet in OpenAPI; types inlined below).
-  listHistory:        (from: string, to: string) => request<HistoryList>('GET', `/history?from=${from}&to=${to}`),
+  // includePrevious also returns the latest row before `from` (PRD-006 §4).
+  listHistory:        (from: string, to: string, includePrevious = false) =>
+    request<HistoryList>('GET', `/history?from=${from}&to=${to}${includePrevious ? '&include_previous=true' : ''}`),
   addHistoryRow:      (body: AddHistoryRowInput) => request<HistoryRow>('POST', '/history', body),
   patchHistoryRegions:(date: string, body: PatchHistoryRegionsInput) => request<HistoryRow>('PUT', `/history/${date}/regions`, body),
   deleteHistoryRow:   (date: string) => request<void>('DELETE', `/history/${date}`),

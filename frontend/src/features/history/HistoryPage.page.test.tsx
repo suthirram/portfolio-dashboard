@@ -41,6 +41,19 @@ const sampleRow: HistoryRow = {
 
 const list = (rows: HistoryRow[]): HistoryList => ({ currency: 'INR', rows })
 
+// monthRow is sampleRow with the given INR position on `date`.
+const monthRow = (date: string, invested: number, current: number): HistoryRow => ({
+  ...sampleRow, date,
+  regions: { ...sampleRow.regions, INR: { invested, current, source: 'cron' } },
+})
+
+// The owner's October INR figures moved to June 2026: the latest earlier row
+// on 29 May (none on 31 May) and a mid-June row.
+const juneRows = [
+  monthRow('2026-05-29', 880021.32, 1086274.39),
+  monthRow('2026-06-15', 898847.70, 1118139.13),
+]
+
 describe('HistoryPage', () => {
   beforeAll(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -92,6 +105,57 @@ describe('HistoryPage', () => {
     expect(await screen.findByText('16-06-2026')).toBeInTheDocument()
     // Header "Amount invested" appears once per currency group (INR, EUR).
     expect(screen.getAllByText('Amount invested').length).toBe(2)
+  })
+
+  // The baseline is the latest row before June however far back: 29 May
+  // here, with no snapshot on 31 May (include_previous, PRD-006 §4).
+  it('shows the month performance card from the latest earlier row to the latest', async () => {
+    mockApi.listHistory.mockResolvedValue(list(juneRows))
+    renderPage()
+    const card = await screen.findByRole('table', { name: 'Jun 2026 performance' })
+    expect(card).toHaveTextContent('🇮🇳 India')
+    expect(card).toHaveTextContent('29-05 → 15-06')
+    expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-01', '2026-06-30', true)
+    expect(card).toHaveTextContent('23.44%')
+    expect(card).toHaveTextContent('24.40%')
+    expect(card).toHaveTextContent('🟢 +0.96 pp')
+    expect(card).toHaveTextContent('+₹18,826.38')
+    const deltaPill = screen.getByText('+₹18,826.38')
+    expect(deltaPill.style.color).toBe('var(--green)')
+    expect(deltaPill.style.borderRadius).toBe('999px')
+    expect(card).toHaveTextContent('+1.20%')
+    expect(card).not.toHaveTextContent('Europe')
+  })
+
+  it('shows no performance card for a month with a single row', async () => {
+    mockApi.listHistory.mockResolvedValue(list([sampleRow]))
+    renderPage()
+    await screen.findByText('16-06-2026')
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
+  })
+
+  // Switching months keeps June's rows until May's arrive; the card must not
+  // show them as May's performance meanwhile (PRD-006 §6).
+  it('hides the performance card while another month is loading', async () => {
+    mockApi.listHistory.mockResolvedValueOnce(list(juneRows))
+    renderPage()
+    await screen.findByRole('table', { name: 'Jun 2026 performance' })
+
+    mockApi.listHistory.mockReturnValueOnce(new Promise(() => {})) // May never lands
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-01', '2026-05-31', true))
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
+  })
+
+  it('shows no performance card after the selected month fails to load', async () => {
+    mockApi.listHistory.mockResolvedValueOnce(list(juneRows))
+    renderPage()
+    await screen.findByRole('table', { name: 'Jun 2026 performance' })
+
+    mockApi.listHistory.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    expect(await screen.findByText('Error: boom')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
   })
 
   it('uses the wide content container so the currency + gold columns fit', async () => {
@@ -158,8 +222,9 @@ describe('HistoryPage', () => {
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
     const calls = mockApi.listHistory.mock.calls
     const lastArgs = calls[calls.length - 1]
-    // monthRange extends `from` back one day so Jan starts on Dec 31.
-    expect(lastArgs?.[0]).toMatch(/-12-31$/)
+    // January's own bounds, plus the latest earlier row however far back
+    // (include_previous, PRD-006 §4).
+    expect(lastArgs).toEqual(['2026-01-01', '2026-01-31', true])
   })
 
   it('deletes a manual row and reloads', async () => {
@@ -267,14 +332,14 @@ describe('HistoryPage', () => {
       // Same month either side, so the range is unchanged — only refetched.
       const calls = mockApi.listHistory.mock.calls
       const last = calls[calls.length - 1]
-      expect(last).toEqual(['2026-05-31', '2026-06-30'])
+      expect(last).toEqual(['2026-06-01', '2026-06-30', true])
     })
 
     it('follows the clock into the new month when the roll-over crosses one', async () => {
       vi.setSystemTime(new Date('2026-07-01T02:00:00Z')) // trading day 2026-06-30 (June)
       renderPage()
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-31', '2026-06-30'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-01', '2026-06-30', true))
 
       vi.setSystemTime(new Date('2026-07-01T02:31:00Z')) // trading day 2026-07-01 (July)
       await advancePastCutover()
@@ -282,7 +347,7 @@ describe('HistoryPage', () => {
       // The picker must advance to July and refetch that range, rather than
       // leaving a July tentative row stranded under June.
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-30', '2026-07-31'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-07-01', '2026-07-31', true))
     })
 
     it('does not yank the user out of a month they navigated to', async () => {
@@ -294,7 +359,7 @@ describe('HistoryPage', () => {
       const monthSelect = document.querySelectorAll('select')[1] as HTMLSelectElement
       fireEvent.change(monthSelect, { target: { value: '2' } })
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-02-28', '2026-03-31'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-03-01', '2026-03-31', true))
 
       vi.setSystemTime(new Date('2026-07-01T02:31:00Z'))
       await advancePastCutover()
@@ -303,7 +368,7 @@ describe('HistoryPage', () => {
       await waitFor(() => {
         const calls = mockApi.listHistory.mock.calls
       const last = calls[calls.length - 1]
-        expect(last).toEqual(['2026-02-28', '2026-03-31'])
+        expect(last).toEqual(['2026-03-01', '2026-03-31', true])
       })
     })
   })

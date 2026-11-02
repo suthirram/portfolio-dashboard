@@ -54,27 +54,36 @@ Pure; returns one `PeriodPerformance` per qualifying column, in
 `PERFORMANCE_COLUMNS` order.
 
 1. Sort rows oldest first (the API order is not relied on).
-2. Per column, keep the rows with `invested > 0` there (`columnPosition`).
-3. Opening = last kept row dated before `monthStart` (the server's
-   `include_previous` row, however far back), else the first kept row,
-   which only happens with no earlier history.
-   Closing = last kept row. Skip the column if opening is missing or is the
-   closing row.
-4. `openingPnlPct` / `closingPnlPct` = `round2(pnlPct(...))`.
+2. Opening = the last row dated before `monthStart` (the server's
+   `include_previous` row, however far back), else the month's first row,
+   which only happens with no earlier history. Closing = the last row.
+   Both are shared by every column. Return nothing if there is no row or
+   opening is the closing row (a single-row month).
+3. Per column, read each row's position with `columnPosition`; an absent
+   bucket or `invested = 0` reads as zero. Skip the column only when it is
+   zero on both rows. A column zero on the opening row opens from zero
+   (EUR, first invested 30-06-2025); one zero on the closing row was sold
+   out (owner, 2026-11-02).
+4. `openingPnlPct` / `closingPnlPct` = `round2(pnlPct(...))`, null on a
+   zero row.
 5. `pnlChangePp` = `round2(closingPnlPct − openingPnlPct)`, the difference
-   **of the displayed values**. On the owner's gold column the unrounded
-   difference is −6.7335 (shows −6.73), but the card reads 37.79 → 31.05,
-   so it must say −6.74. The owner's example is binding.
-6. `performancePct` = `round2(flowAdjustedReturnPct(openCur, closeCur,
-   openInv, closeInv))`, or null when that returns null (a full sale).
+   **of the displayed values**, or null when either side is null. On the
+   owner's gold column the unrounded difference is −6.7335 (shows −6.73),
+   but the card reads 37.79 → 31.05, so it must say −6.74. The owner's
+   example is binding.
+6. `moneyInvested` = `round2(closeInv − openInv)`: positive for money
+   added, negative for cost basis sold.
+7. `performancePct` = `round2(flowAdjustedReturnPct(openCur, closeCur,
+   openInv, closeInv))`, or null when that returns null (a zero opening
+   value, or a full sale).
 
 Verified against the owner's sheet (PRD-006 §1):
 
-| | Opening (30-09) inv / cur | Closing (30-10) inv / cur | Open P/L | Close P/L | Δ pp | Perf |
-|---|---|---|---|---|---|---|
-| INR | 8,80,021.32 / 10,86,274.39 | 8,98,847.70 / 11,18,139.13 | 23.44 | 24.40 | +0.96 | +1.20 |
-| EUR | 7,064.13 / 8,459.51 | 7,540.05 / 8,722.36 | 19.75 | 15.68 | −4.07 | −2.52 |
-| Gold | 7,16,420 / 9,87,120 | 7,16,420 / 9,38,880 | 37.79 | 31.05 | −6.74 | −4.89 |
+| | Opening (30-09) inv / cur | Closing (30-10) inv / cur | Open P/L | Close P/L | Δ pp | Delta | Perf |
+|---|---|---|---|---|---|---|---|
+| INR | 8,80,021.32 / 10,86,274.39 | 8,98,847.70 / 11,18,139.13 | 23.44 | 24.40 | +0.96 | +18,826.38 | +1.20 |
+| EUR | 7,064.13 / 8,459.51 | 7,540.05 / 8,722.36 | 19.75 | 15.68 | −4.07 | +475.92 | −2.52 |
+| Gold | 7,16,420 / 9,87,120 | 7,16,420 / 9,38,880 | 37.79 | 31.05 | −6.74 | 0.00 | −4.89 |
 
 ## 4. `PeriodPerformanceCard`
 
@@ -84,8 +93,14 @@ returns `null` when the result is empty.
 
 * A `<table aria-label="‹Mon YYYY› performance">`: a header row with the
   column labels (`🇮🇳 India`, `🇪🇺 Europe`, `🥇 Gold`) and their
-  `dd-MM → dd-MM` dates, then four metric rows (`<th scope="row">`).
+  `dd-MM → dd-MM` dates, then five metric rows (`<th scope="row">`):
+  Opening P/L, Closing P/L, P/L change, Investment delta, performance.
 * Signs use U+2212 (−) like the owner's sheet; pp cells carry 🟢 / 🔴 / ⚪.
+  A null figure shows "—".
+* P/L change and Investment delta share one `DirectionPill` (tinted with
+  `PRICE_DIR_TINT`, coloured `--green` / `--red`); the delta pill has no
+  emoji and shows the amount with its currency symbol via `fmtCurrency`
+  (gold in ₹, like its table column).
 * Panel styling matches the chart panels (`--bg-secondary`, `--border`,
   radius 8), so all three themes inherit it with no new tokens.
 * History's colour language, reused rather than invented: each column takes
@@ -124,12 +139,14 @@ readable and its lint step passes.
   and 30-10 return 29-09 as the earlier row; no earlier history appends
   nothing; without the flag no lookup is made.
 * `periodPerformance.test.ts`: the owner's October rows give the §3 table
-  exactly; order independence; the first-row fallback; a column with < 2
-  invested rows dropped; a sale at an unchanged price gives 0; a live
-  closing row is flagged.
+  exactly, investment delta included; order independence; the first-row
+  fallback; a column empty at the opening opens from zero (EUR, June
+  2025); a sold-out column; a column empty at both ends dropped; a sale
+  at an unchanged price gives 0 and a −50 delta; a live closing row is
+  flagged.
 * `HistoryPage.page.test.tsx`: the page requests the month's bounds with
-  `include_previous`; the card opens on a 29 May row when 31 May has none;
-  a single-row month shows no card.
+  `include_previous`; the card opens on a 29 May row when 31 May has none,
+  with a green investment delta pill; a single-row month shows no card.
 
 ## 7. Risks
 

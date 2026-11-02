@@ -31,6 +31,7 @@ import {
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
+import { PeriodPerformanceCard } from './PeriodPerformanceCard'
 import {
   AddRowModal, ConflictDialog, EditRowModal, HoldingsModal, PasteModal,
 } from './HistoryModals'
@@ -70,6 +71,10 @@ export default function HistoryPage() {
   const [year, setYear] = useState(initial.year)
   const [month, setMonth] = useState(initial.month0)
   const [rows, setRows] = useState<HistoryRow[]>([])
+  // The month (YYYY-MM-01) `rows` were loaded for. A reload keeps the old
+  // rows until the new ones land (and keeps them if it fails), so anything
+  // labelled with the picker's month must check this first.
+  const [rowsMonthStart, setRowsMonthStart] = useState<string | null>(null)
   const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
@@ -99,8 +104,9 @@ export default function HistoryPage() {
     setError(null)
     try {
       const { from, to } = monthRange(year, month)
-      const list = await api.listHistory(from, to)
+      const list = await api.listHistory(from, to, true)
       setRows(list.rows)
+      setRowsMonthStart(from)
       setCurrency(list.currency || 'INR')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -139,6 +145,7 @@ export default function HistoryPage() {
   }, [liveWindowOpen])
   const today = yearMonth0(todayStr)
   const isCurrentMonth = year === today.year && month === today.month0
+  const selectedMonthStart = monthRange(year, month).from
 
   // At each cut-over, refetch so the day that just closed picks up its real
   // snapshot. If the roll-over also crossed a month *and* the user was still
@@ -365,6 +372,13 @@ export default function HistoryPage() {
               No data for {MONTHS[month]} {year} yet. Your first snapshot will be taken at the next 00:00 UTC run, or you can add rows manually.
             </p>
           </div>
+        )}
+
+        {/* Only when the loaded rows are the selected month's: mid-reload, or
+            after a failed one, `rows` still hold the previous month. */}
+        {rowsMonthStart === selectedMonthStart && (
+          <PeriodPerformanceCard rows={displayRows} monthStart={selectedMonthStart}
+            monthLabel={`${MONTHS[month]} ${year}`} theme={theme} />
         )}
 
         {displayRows.length > 0 && (() => {

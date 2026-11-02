@@ -187,16 +187,16 @@ describe('goldChartData', () => {
 // ---- monthRange (TDD §7.1 range derivation) ----
 
 describe('monthRange', () => {
-  // monthRange extends `from` back by one day so the first row of the
-  // selected month has a prior row for Daily volatlity.
-  it('resolves a 31-day month to (last-of-prev → last UTC day)', () => {
-    expect(monthRange(2026, 0)).toEqual({ from: '2025-12-31', to: '2026-01-31' })
+  // monthRange is the month's own bounds; the prior row comes from
+  // include_previous on the request (PRD-006 §4).
+  it('resolves a 31-day month to (1st → last UTC day)', () => {
+    expect(monthRange(2026, 0)).toEqual({ from: '2026-01-01', to: '2026-01-31' })
   })
-  it('resolves February in a non-leap year to (Jan 31 → Feb 28)', () => {
-    expect(monthRange(2026, 1)).toEqual({ from: '2026-01-31', to: '2026-02-28' })
+  it('resolves February in a non-leap year to (Feb 1 → Feb 28)', () => {
+    expect(monthRange(2026, 1)).toEqual({ from: '2026-02-01', to: '2026-02-28' })
   })
-  it('resolves February in a leap year to (Jan 31 → Feb 29)', () => {
-    expect(monthRange(2024, 1)).toEqual({ from: '2024-01-31', to: '2024-02-29' })
+  it('resolves February in a leap year to (Feb 1 → Feb 29)', () => {
+    expect(monthRange(2024, 1)).toEqual({ from: '2024-02-01', to: '2024-02-29' })
   })
 })
 
