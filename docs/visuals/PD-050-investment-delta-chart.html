@@ -1,0 +1,814 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investment Delta Chart Spec</title>
+
+
+<style>
+  /* ---------------------------------------------------------------------
+     Document chrome tokens. Three-state theming: bare :root is the light
+     palette, redefined for a dark OS (unless the viewer explicitly chose
+     light) and again for an explicit dark choice. Component rules only ever
+     read these tokens, never a literal.
+     --------------------------------------------------------------------- */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-rule-soft: #e8ecf4;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-rule-soft: #1a2032;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-rule-soft: #1a2032;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* --- Document typography ---------------------------------------------
+     Three roles, all system faces (the artifact CSP blocks font CDNs, and a
+     silent fallback would be worse than an honest system stack):
+       prose  — Georgia/serif, deliberately unlike the app's own UI face so
+                spec commentary never reads as part of a mockup
+       label  — Helvetica Neue/Arial, uppercase + tracked, for frame chrome
+       data   — Menlo/ui-monospace, for field names and numbers
+     --------------------------------------------------------------------- */
+  :root {
+    --prose: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --data: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--prose);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* --- Masthead -------------------------------------------------------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .eyebrow a { color: var(--doc-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .eyebrow a:hover, .eyebrow a:focus-visible { border-bottom-color: currentColor; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    color: var(--doc-ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-rule);
+    border: 1px solid var(--doc-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meta-cell { background: var(--doc-panel); padding: 14px 16px; }
+  .meta-cell dt {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    margin: 0 0 5px;
+  }
+  .meta-cell dd { margin: 0; font-size: 14px; font-family: var(--data); color: var(--doc-ink); }
+
+  /* --- Section headings ------------------------------------------------ */
+
+  h2 {
+    margin: 0;
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--doc-ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .prose-stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* --- Theme switcher -------------------------------------------------- */
+
+  .switcher {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    background: var(--doc-bg);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  .switcher-label {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+  }
+
+  .switcher button {
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 2px;
+    border: 1px solid var(--doc-rule);
+    background: var(--doc-panel);
+    color: var(--doc-ink-soft);
+    cursor: pointer;
+  }
+  .switcher button:hover { color: var(--doc-ink); border-color: var(--doc-ink-faint); }
+  .switcher button[aria-pressed="true"] {
+    color: var(--doc-accent);
+    border-color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    font-weight: 700;
+  }
+  .switcher button:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  /* --- Frames ----------------------------------------------------------
+     A frame = one labelled artboard on a canvas, the way the same screen
+     would sit in a design file: chrome strip with frame id + viewport,
+     the rendered mockup, then numbered annotations beneath it.
+     --------------------------------------------------------------------- */
+
+  .frame { display: flex; flex-direction: column; gap: 14px; }
+
+  .frame-chrome {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: var(--label);
+  }
+  .frame-id {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+  .frame-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-ink); }
+  .frame-viewport { font-family: var(--data); font-size: 11px; color: var(--doc-ink-faint); margin-left: auto; }
+
+  .canvas {
+    background: var(--doc-canvas);
+    border: 1px solid var(--doc-rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+
+  .annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 22px;
+  }
+  .annotations li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    line-height: 1.45;
+  }
+  .annotations b {
+    font-family: var(--data);
+    font-size: 11px;
+    color: var(--doc-accent);
+    border: 1px solid var(--doc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .annotations code, p code, li code, td code {
+    font-family: var(--data);
+    font-size: 0.86em;
+    color: var(--doc-ink);
+  }
+
+  .callout {
+    border-left: 3px solid var(--doc-note);
+    background: var(--doc-note-soft);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    max-width: 78ch;
+  }
+  .callout strong { color: var(--doc-ink); }
+
+  /* --- Spec table ------------------------------------------------------ */
+
+  .spec-scroll { overflow-x: auto; border: 1px solid var(--doc-rule); border-radius: 3px; }
+  table.spec { border-collapse: collapse; width: 100%; min-width: 620px; font-family: var(--label); font-size: 13px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--doc-rule-soft); vertical-align: top; }
+  table.spec thead th {
+    background: var(--doc-panel);
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+  table.spec td { color: var(--doc-ink-soft); }
+  table.spec td:first-child { font-family: var(--data); color: var(--doc-ink); white-space: nowrap; }
+  table.spec tbody tr:last-child td { border-bottom: none; }
+
+  /* =====================================================================
+     APP MOCKUP. Palettes copied verbatim from
+     frontend/src/styles/tokens.css so the frames are token-accurate, and
+     scoped to .app[data-app-theme] rather than :root so the in-page theme
+     switcher can't collide with the viewer's own document theme.
+     ===================================================================== */
+
+  .app {
+    --bg-primary: #0a0c16;
+    --bg-secondary: #121524;
+    --bg-card: #171b2e;
+    --bg-card-hover: #1d2238;
+    --bg-input: #0d101f;
+    --border: #232842;
+    --border-light: #2e3453;
+    --text-primary: #eef1f8;
+    --text-secondary: #939dbb;
+    --text-muted: #545d85;
+    --green: #00d69f;
+    --green-dim: rgba(0, 214, 159, 0.12);
+    --red: #ff5c7a;
+    --red-dim: rgba(255, 92, 122, 0.12);
+    --blue: #5b93ff;
+    --blue-dim: rgba(91, 147, 255, 0.12);
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+    --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+    --bg-glass: rgba(14, 17, 31, 0.92);
+
+    font-family: Roboto, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 980px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f3fa;
+    --bg-input: #ffffff;
+    --border: #dfe4ef;
+    --border-light: #cbd3e4;
+    --text-primary: #0f1526;
+    --text-secondary: #4b5670;
+    --text-muted: #7a849e;
+    --green: #0b9e6c;
+    --green-dim: rgba(11, 158, 108, 0.10);
+    --red: #dc2649;
+    --red-dim: rgba(220, 38, 73, 0.10);
+    --blue: #2f6bdb;
+    --blue-dim: rgba(47, 107, 219, 0.10);
+    --yellow: #d97706;
+    --purple: #7c3aed;
+    --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+    --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+    --bg-glass: rgba(255, 255, 255, 0.95);
+  }
+
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f;
+    --bg-secondary: #0d0519;
+    --bg-card: #120826;
+    --bg-card-hover: #1a0c33;
+    --bg-input: #0a0416;
+    --border: #2e1354;
+    --border-light: #45207a;
+    --text-primary: #f2e9ff;
+    --text-secondary: #a78fd6;
+    --text-muted: #64509a;
+    --green: #00ffa3;
+    --green-dim: rgba(0, 255, 163, 0.12);
+    --red: #ff2e6c;
+    --red-dim: rgba(255, 46, 108, 0.14);
+    --blue: #00e5ff;
+    --blue-dim: rgba(0, 229, 255, 0.12);
+    --yellow: #ffe600;
+    --purple: #c26bff;
+    --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+    --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+    --bg-glass: rgba(10, 4, 22, 0.92);
+  }
+
+  /* Nav — mirrors .page-nav + .nav-glass + .dash-nav-btn */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-tile {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient-brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .nav-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-brand);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+    white-space: nowrap;
+  }
+  .btn-current { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .pill {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* The marker ring that points at what this frame introduces. */
+  .marked { position: relative; }
+  .marked::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed var(--blue);
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .pin {
+    position: absolute;
+    top: -10px; right: -12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #04070f;
+    font-family: var(--data);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+
+  .app-main { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  footer.doc-foot {
+    border-top: 1px solid var(--doc-rule);
+    padding-top: 20px;
+    font-family: var(--label);
+    font-size: 12px;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  footer.doc-foot a { color: var(--doc-accent); text-decoration: none; }
+  footer.doc-foot a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  /* --- PD-049 additions (tokens only, no new values) ------------------ */
+  .hist-nav { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 20px; background: var(--bg-glass); border-bottom: 1px solid var(--border); }
+  .icon-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); display: grid; place-items: center; flex-shrink: 0; }
+  .hist-title { font-size: 17px; font-weight: 700; }
+  .theme-dots { margin-left: auto; display: flex; gap: 6px; }
+  .theme-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-light); background: var(--bg-card); }
+  .theme-dots span.on { background: var(--blue); border-color: var(--blue); }
+  .hist-toolbar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .sel { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+  .sel span { color: var(--text-secondary); }
+  .sel div { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-input); min-width: 72px; color: var(--text-primary); }
+  .hist-toolbar .grow { flex: 1; }
+
+  /* ---- PD-050: the Transactions page and its bottom panel ---- */
+  .filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .filters .grow { flex: 1; }
+  .mono { font-family: var(--data, ui-monospace, monospace); }
+  .dock { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px 8px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.25); }
+  .dock-handle { text-align: center; padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
+  .dock-body { padding: 0 16px 16px; }
+  .dock-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+  .year-nav { display: flex; align-items: center; gap: 8px; }
+  .year { font-weight: 600; }
+  .btn.disabled { opacity: 0.4; cursor: not-allowed; }
+  .col-switch { display: flex; gap: 6px; flex-wrap: wrap; }
+  .col-chip { border-radius: 999px; }
+  .col-chip[aria-pressed="true"] { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .chart-box { position: relative; }
+  .delta-svg { width: 100%; height: auto; display: block; }
+  .delta-svg .grid { stroke: var(--border); stroke-dasharray: 3 3; }
+  .delta-svg .zero { stroke: var(--text-muted); stroke-dasharray: 2 2; }
+  .delta-svg .tick { fill: var(--text-muted); font-size: 11px; }
+  .delta-svg .bar-up { fill: var(--green); }
+  .delta-svg .bar-down { fill: var(--red); }
+  .delta-svg .bar-hl { stroke: var(--text-primary); stroke-width: 1.5; }
+  .delta-svg .line-inv { fill: none; stroke: var(--line-inv); stroke-width: 2; }
+  .delta-svg .dot-inv { fill: var(--line-inv); }
+  /* The line takes the column's invested colour (REGION_COLOURS / GOLD_PALETTE). */
+  .app { --line-inv: #fcd34d; } .app[data-app-theme="light"] { --line-inv: #d97706; } .app[data-app-theme="cyberpunk"] { --line-inv: #ffe600; }
+  .app.eur { --line-inv: #60a5fa; } .app.eur[data-app-theme="light"] { --line-inv: #2563eb; } .app.eur[data-app-theme="cyberpunk"] { --line-inv: #00e5ff; }
+  .legend { display: flex; gap: 16px; justify-content: center; font-size: 11px; color: var(--text-muted); margin-top: 4px; flex-wrap: wrap; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .sw-up { background: var(--green); } .sw-down { background: var(--red); } .sw-line { background: var(--line-inv); height: 3px; vertical-align: 3px; }
+  .tip { position: absolute; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; color: var(--text-primary); line-height: 1.5; pointer-events: none; }
+  .tip-h { color: var(--text-secondary); }
+  .state-box { padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .state-err { padding: 12px 0; color: var(--red); font-size: 12px; }
+  .states { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .app.phone { min-width: 0; width: 390px; }
+  .phone .app-main { padding: 14px 16px 18px; }
+  .phone .hist-nav { padding: 0 16px; }
+  table.hist { border-collapse: collapse; width: 100%; font-size: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
+  table.hist th, table.hist td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.hist .num { text-align: right; }
+  table.hist thead th { color: var(--text-muted); font-weight: 500; font-size: 11px; }
+  .muted-note { font-size: 12px; color: var(--text-muted); }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Visual spec</span><span>PD-050 v2</span><span>PRD-007 · DD-007</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-11-02 applied</span>
+    </div>
+    <h1>Investment delta chart</h1>
+    <p class="standfirst">
+      A panel docked to the bottom of the Transactions page, pulled up on
+      demand, charts each month's investment delta for one year: a green or
+      red bar for the money added or sold, and a line for the invested amount
+      at each month end. Each bar is the History month card's figure for that
+      month.
+    </p>
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt>Route</dt><dd>/transactions (own portfolio only)</dd></div>
+      <div class="meta-cell"><dt>Bar</dt><dd>month's closing − opening invested</dd></div>
+      <div class="meta-cell"><dt>Line</dt><dd>invested at month end</dd></div>
+      <div class="meta-cell"><dt>Data</dt><dd>GET /history, 1 Jan → 31 Dec, include_previous</dd></div>
+      <div class="meta-cell"><dt>Today</dt><dd>History's live row, shared hook</dd></div>
+      <div class="meta-cell"><dt>API change</dt><dd>none</dd></div>
+      <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
+    </dl>
+  </header>
+
+  <div class="switcher">
+    <span class="switcher-label">Render frames in</span>
+    <button type="button" data-theme-btn="dark" aria-pressed="true">Dark (default)</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="cyberpunk" aria-pressed="false">Cyberpunk (premium)</button>
+  </div>
+
+  <section class="section">
+    <h2>About these frames</h2>
+    <p class="callout">
+      No Figma account is wired into this project, so this page plays that
+      role (<code>docs/visuals/README.md</code>). <strong>Every colour, radius and type size is read from
+      <code>frontend/src/styles/tokens.css</code></strong>, and the chart follows the History charts' idiom.
+      October 2026 uses the owner's real figures (+₹18,826.38, ₹8,98,847.70) and June 2025 Europe the owner's
+      +€599.58; the other months are example data. Not production markup.
+    </p>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">Transactions, collapsed: the handle bar at the bottom</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
+        <div class="app-main">
+          <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr><tr><td>02-09-2026</td><td>Vanguard FTSE</td><td>Sell</td><td class="num">€3,200.00</td></tr><tr><td>14-08-2026</td><td>HDFC Bank</td><td>Dividend</td><td class="num">₹1,850.50</td></tr></tbody></table>
+          <div class="dock marked"><span class="pin">1</span><div class="dock-handle">▲ Investment delta · 2026</div></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The panel's collapsed form: one full-width bar docked to the bottom edge (<code>position: sticky</code> at the end of the page), so it never covers the filters and keeps its own space after the last row. Collapsed is the default, and in this state the page makes <strong>no</strong> History request. The page remembers open / closed per browser. PRD-007 §5, DD-007 §4.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">Pulled up: 2026, India, the October tooltip</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
+        <div class="app-main">
+          <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
+          <div class="marked"><span class="pin">1</span>
+          <div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
+                <div class="col-switch"><span class="btn btn-sm col-chip" aria-pressed="true">🇮🇳 India</span><span class="btn btn-sm col-chip" aria-pressed="false">🇪🇺 Europe</span><span class="btn btn-sm col-chip" aria-pressed="false">🥇 Gold</span></div>
+              </div>
+              <div class="chart-box"><svg viewBox="0 0 1000 250" class="delta-svg" role="img" aria-label="Investment delta bars and invested line"><line x1="64" x2="936" y1="16.0" y2="16.0" class="grid"/><text x="56" y="20.0" class="tick" text-anchor="end">25k</text><text x="944" y="20.0" class="tick">920k</text><line x1="64" x2="936" y1="67.0" y2="67.0" class="grid"/><text x="56" y="71.0" class="tick" text-anchor="end">16k</text><text x="944" y="71.0" class="tick">890k</text><line x1="64" x2="936" y1="118.0" y2="118.0" class="grid"/><text x="56" y="122.0" class="tick" text-anchor="end">8k</text><text x="944" y="122.0" class="tick">860k</text><line x1="64" x2="936" y1="169.0" y2="169.0" class="grid"/><text x="56" y="173.0" class="tick" text-anchor="end">-1k</text><text x="944" y="173.0" class="tick">830k</text><line x1="64" x2="936" y1="220.0" y2="220.0" class="grid"/><text x="56" y="224.0" class="tick" text-anchor="end">-10k</text><text x="944" y="224.0" class="tick">800k</text><line x1="64" x2="936" y1="161.7" y2="161.7" class="zero"/><text x="100.3" y="240" class="tick" text-anchor="middle">Jan</text><rect x="80.0" y="89.4" width="40.7" height="72.3" rx="3" class="bar-up"/><text x="173.0" y="240" class="tick" text-anchor="middle">Feb</text><rect x="152.7" y="114.2" width="40.7" height="47.5" rx="3" class="bar-up"/><text x="245.7" y="240" class="tick" text-anchor="middle">Mar</text><rect x="225.3" y="161.7" width="40.7" height="30.3" rx="3" class="bar-down"/><text x="318.3" y="240" class="tick" text-anchor="middle">Apr</text><rect x="298.0" y="74.3" width="40.7" height="87.4" rx="3" class="bar-up"/><text x="391.0" y="240" class="tick" text-anchor="middle">May</text><rect x="370.7" y="104.6" width="40.7" height="57.1" rx="3" class="bar-up"/><text x="463.7" y="240" class="tick" text-anchor="middle">Jun</text><rect x="443.3" y="153.8" width="40.7" height="7.9" rx="3" class="bar-up"/><text x="536.3" y="240" class="tick" text-anchor="middle">Jul</text><rect x="516.0" y="42.2" width="40.7" height="119.5" rx="3" class="bar-up"/><text x="609.0" y="240" class="tick" text-anchor="middle">Aug</text><rect x="588.7" y="125.0" width="40.7" height="36.7" rx="3" class="bar-up"/><text x="681.7" y="240" class="tick" text-anchor="middle">Sep</text><rect x="661.3" y="137.4" width="40.7" height="24.3" rx="3" class="bar-up"/><text x="754.3" y="240" class="tick" text-anchor="middle">Oct</text><rect x="734.0" y="52.0" width="40.7" height="109.7" rx="3" class="bar-up bar-hl"/><text x="827.0" y="240" class="tick" text-anchor="middle">Nov</text><rect x="806.7" y="150.1" width="40.7" height="11.7" rx="3" class="bar-up"/><text x="899.7" y="240" class="tick" text-anchor="middle">Dec</text><polyline class="line-inv" points="100.3,186.1 173.0,172.2 245.7,181.1 318.3,155.6 391.0,138.9 463.7,136.6 536.3,101.8 609.0,91.1 681.7,84.0 754.3,52.0 827.0,48.6"/><circle cx="100.3" cy="186.1" r="3.5" class="dot-inv"/><circle cx="173.0" cy="172.2" r="3.5" class="dot-inv"/><circle cx="245.7" cy="181.1" r="3.5" class="dot-inv"/><circle cx="318.3" cy="155.6" r="3.5" class="dot-inv"/><circle cx="391.0" cy="138.9" r="3.5" class="dot-inv"/><circle cx="463.7" cy="136.6" r="3.5" class="dot-inv"/><circle cx="536.3" cy="101.8" r="3.5" class="dot-inv"/><circle cx="609.0" cy="91.1" r="3.5" class="dot-inv"/><circle cx="681.7" cy="84.0" r="3.5" class="dot-inv"/><circle cx="754.3" cy="52.0" r="3.5" class="dot-inv"/><circle cx="827.0" cy="48.6" r="3.5" class="dot-inv"/></svg><div class="tip" style="left:74%; top:6%"><div class="tip-h">Oct</div><div>Investment delta: <b>+₹18,826.38</b></div><div>Invested (₹): <b>₹8,98,847.70</b></div></div></div><div class="legend"><span><i class="sw sw-up"></i>Money added</span><span><i class="sw sw-down"></i>Sold (cost basis)</span><span><i class="sw sw-line"></i>Invested at month end</span></div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Twelve bars, Jan to Dec. Each is that month's <strong>investment delta</strong>, the same figure as the History card for the month: October is 8,98,847.70 − 8,80,021.32 = <strong>+₹18,826.38</strong>. Green for money in, red for cost basis sold (March). December has no row yet, so no bar and no point. November is the current month: inside the live window, before today's snapshot lands, its bar and point include <strong>today's live row</strong> from live prices, the same row the History card reads (History's live-row logic, moved into the shared <code>useLiveHistoryRows</code> hook), so a buy made today shows at once and the month still equals the card. The line, on its own right-hand axis, is invested at each month end (₹8,98,847.70 for October): a month's delta is a small fraction of the total, so the two never share an axis. ‹ › change the year (› disabled on the current year); the switch offers only columns with money invested, Gold only for a gold-tracking user. PRD-007 §4–§5, DD-007 §3–§4.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">03</span><span class="frame-name">Panel states</span><span class="frame-viewport">panel only · 1280 wide</span></div>
+    <div class="canvas">
+      <div class="app eur" data-app-theme="dark">
+        <div class="app-main">
+          <div class="marked"><span class="pin">A</span>
+          <div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2025</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2025</span><span class="btn btn-sm">›</span></div>
+                <div class="col-switch"><span class="btn btn-sm col-chip" aria-pressed="false">🇮🇳 India</span><span class="btn btn-sm col-chip" aria-pressed="true">🇪🇺 Europe</span></div>
+              </div>
+              <div class="chart-box"><svg viewBox="0 0 1000 250" class="delta-svg" role="img" aria-label="Investment delta bars and invested line"><line x1="64" x2="936" y1="16.0" y2="16.0" class="grid"/><text x="56" y="20.0" class="tick" text-anchor="end">800</text><text x="944" y="20.0" class="tick">1400</text><line x1="64" x2="936" y1="67.0" y2="67.0" class="grid"/><text x="56" y="71.0" class="tick" text-anchor="end">550</text><text x="944" y="71.0" class="tick">1050</text><line x1="64" x2="936" y1="118.0" y2="118.0" class="grid"/><text x="56" y="122.0" class="tick" text-anchor="end">300</text><text x="944" y="122.0" class="tick">700</text><line x1="64" x2="936" y1="169.0" y2="169.0" class="grid"/><text x="56" y="173.0" class="tick" text-anchor="end">50</text><text x="944" y="173.0" class="tick">350</text><line x1="64" x2="936" y1="220.0" y2="220.0" class="grid"/><text x="56" y="224.0" class="tick" text-anchor="end">-200</text><text x="944" y="224.0" class="tick">0</text><line x1="64" x2="936" y1="179.2" y2="179.2" class="zero"/><text x="100.3" y="240" class="tick" text-anchor="middle">Jan</text><text x="173.0" y="240" class="tick" text-anchor="middle">Feb</text><text x="245.7" y="240" class="tick" text-anchor="middle">Mar</text><text x="318.3" y="240" class="tick" text-anchor="middle">Apr</text><text x="391.0" y="240" class="tick" text-anchor="middle">May</text><text x="463.7" y="240" class="tick" text-anchor="middle">Jun</text><rect x="443.3" y="56.9" width="40.7" height="122.3" rx="3" class="bar-up bar-hl"/><text x="536.3" y="240" class="tick" text-anchor="middle">Jul</text><rect x="516.0" y="158.8" width="40.7" height="20.4" rx="3" class="bar-up"/><text x="609.0" y="240" class="tick" text-anchor="middle">Aug</text><text x="681.7" y="240" class="tick" text-anchor="middle">Sep</text><rect x="661.3" y="134.3" width="40.7" height="44.9" rx="3" class="bar-up"/><text x="754.3" y="240" class="tick" text-anchor="middle">Oct</text><rect x="734.0" y="148.6" width="40.7" height="30.6" rx="3" class="bar-up"/><text x="827.0" y="240" class="tick" text-anchor="middle">Nov</text><rect x="806.7" y="179.2" width="40.7" height="16.3" rx="3" class="bar-down"/><text x="899.7" y="240" class="tick" text-anchor="middle">Dec</text><rect x="879.3" y="126.2" width="40.7" height="53.0" rx="3" class="bar-up"/><polyline class="line-inv" points="463.7,132.6 536.3,118.1 609.0,118.1 681.7,86.0 754.3,64.1 827.0,75.8 899.7,37.9"/><circle cx="463.7" cy="132.6" r="3.5" class="dot-inv"/><circle cx="536.3" cy="118.1" r="3.5" class="dot-inv"/><circle cx="609.0" cy="118.1" r="3.5" class="dot-inv"/><circle cx="681.7" cy="86.0" r="3.5" class="dot-inv"/><circle cx="754.3" cy="64.1" r="3.5" class="dot-inv"/><circle cx="827.0" cy="75.8" r="3.5" class="dot-inv"/><circle cx="899.7" cy="37.9" r="3.5" class="dot-inv"/></svg></div><div class="legend"><span><i class="sw sw-up"></i>Money added</span><span><i class="sw sw-down"></i>Sold (cost basis)</span><span><i class="sw sw-line"></i>Invested at month end</span></div>
+            </div>
+          </div>
+          </div>
+          <div class="states">
+            <div class="marked"><span class="pin">B</span><div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
+                <div class="col-switch"><span class="btn btn-sm col-chip" aria-pressed="false">🇮🇳 India</span></div>
+              </div>
+              <div class="state-box">⟳ loading…</div>
+            </div>
+          </div></div>
+            <div class="marked"><span class="pin">C</span><div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2021</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2021</span><span class="btn btn-sm">›</span></div>
+                <div class="col-switch"></div>
+              </div>
+              <div class="state-box">No History rows for 2021</div>
+            </div>
+          </div></div>
+            <div class="marked"><span class="pin">D</span><div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
+                <div class="col-switch"></div>
+              </div>
+              <div class="state-err">Request failed (500)</div>
+            </div>
+          </div></div>
+            <div class="marked"><span class="pin">E</span><div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2020</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm disabled">‹</span><span class="mono year">2020</span><span class="btn btn-sm">›</span></div>
+                <div class="col-switch"><span class="btn btn-sm col-chip" aria-pressed="true">🇮🇳 India</span></div>
+              </div>
+              <div class="state-box">‹ disabled at 2020, History&#39;s first year</div>
+            </div>
+          </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>A</b><span><strong>Another year, another currency.</strong> 2025 Europe: EUR is first invested on 30-06-2025, so June opens from zero and its bar is the whole +€599.58 (PRD-006 §5); earlier months have no point. › is enabled because 2025 is not the current year. Example figures after June.</span></li>
+      <li><b>B</b><span><strong>Loading.</strong> The year loads when the panel opens and again on each year change; a late response for a year already left is dropped.</span></li>
+      <li><b>C</b><span><strong>Empty year.</strong> No History row <em>dated in the year</em> with money invested: no currency to offer, and the panel says so. The latest earlier row, which <code>include_previous</code> returns even for an empty year, is only January&#39;s opening, never data for the year. PRD-007 §5, DD-007 §4.</span></li>
+      <li><b>D</b><span><strong>Error.</strong> A failed load shows the message inside the panel; the rest of the page is unaffected.</span></li>
+      <li><b>E</b><span><strong>First year.</strong> ‹ is disabled at 2020, the History picker's first year (<code>MIN_YEAR</code>).</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">04</span><span class="frame-name">Admin act-as: no panel</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span><span class="pill">bob&#39;s transactions</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
+        <div class="app-main">
+          <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
+          <span class="muted-note marked"><span class="pin">1</span>(no Investment delta bar)</span>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>On <code>/admin/users/:id/transactions</code> the panel is not rendered: the chart is the user's own view (owner, 2026-11-02), and History has no act-as read. PRD-007 §3.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">05</span><span class="frame-name">Phone width</span><span class="frame-viewport">390 × auto</span></div>
+    <div class="canvas">
+      <div class="app phone" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
+        <div class="app-main">
+          <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr></tbody></table>
+          <div class="marked"><span class="pin">1</span>
+          <div class="dock">
+            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-body">
+              <div class="dock-toolbar">
+                <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
+                <div class="col-switch"><span class="btn btn-sm col-chip" aria-pressed="true">🇮🇳 India</span><span class="btn btn-sm col-chip" aria-pressed="false">🇪🇺 Europe</span><span class="btn btn-sm col-chip" aria-pressed="false">🥇 Gold</span></div>
+              </div>
+              <div class="chart-box"><svg viewBox="0 0 360 220" class="delta-svg" role="img" aria-label="Investment delta bars and invested line"><line x1="64" x2="296" y1="16.0" y2="16.0" class="grid"/><text x="56" y="20.0" class="tick" text-anchor="end">25k</text><text x="304" y="20.0" class="tick">920k</text><line x1="64" x2="296" y1="59.5" y2="59.5" class="grid"/><text x="56" y="63.5" class="tick" text-anchor="end">16k</text><text x="304" y="63.5" class="tick">890k</text><line x1="64" x2="296" y1="103.0" y2="103.0" class="grid"/><text x="56" y="107.0" class="tick" text-anchor="end">8k</text><text x="304" y="107.0" class="tick">860k</text><line x1="64" x2="296" y1="146.5" y2="146.5" class="grid"/><text x="56" y="150.5" class="tick" text-anchor="end">-1k</text><text x="304" y="150.5" class="tick">830k</text><line x1="64" x2="296" y1="190.0" y2="190.0" class="grid"/><text x="56" y="194.0" class="tick" text-anchor="end">-10k</text><text x="304" y="194.0" class="tick">800k</text><line x1="64" x2="296" y1="140.3" y2="140.3" class="zero"/><text x="73.7" y="210" class="tick" text-anchor="middle">Jan</text><rect x="68.8" y="78.6" width="9.7" height="61.6" rx="3" class="bar-up"/><text x="93.0" y="210" class="tick" text-anchor="middle">Feb</text><rect x="88.2" y="99.8" width="9.7" height="40.5" rx="3" class="bar-up"/><text x="112.3" y="210" class="tick" text-anchor="middle">Mar</text><rect x="107.5" y="140.3" width="9.7" height="25.9" rx="3" class="bar-down"/><text x="131.7" y="210" class="tick" text-anchor="middle">Apr</text><rect x="126.8" y="65.7" width="9.7" height="74.6" rx="3" class="bar-up"/><text x="151.0" y="210" class="tick" text-anchor="middle">May</text><rect x="146.2" y="91.6" width="9.7" height="48.7" rx="3" class="bar-up"/><text x="170.3" y="210" class="tick" text-anchor="middle">Jun</text><rect x="165.5" y="133.5" width="9.7" height="6.8" rx="3" class="bar-up"/><text x="189.7" y="210" class="tick" text-anchor="middle">Jul</text><rect x="184.8" y="38.4" width="9.7" height="101.9" rx="3" class="bar-up"/><text x="209.0" y="210" class="tick" text-anchor="middle">Aug</text><rect x="204.2" y="109.0" width="9.7" height="31.3" rx="3" class="bar-up"/><text x="228.3" y="210" class="tick" text-anchor="middle">Sep</text><rect x="223.5" y="119.6" width="9.7" height="20.7" rx="3" class="bar-up"/><text x="247.7" y="210" class="tick" text-anchor="middle">Oct</text><rect x="242.8" y="46.7" width="9.7" height="93.6" rx="3" class="bar-up bar-hl"/><text x="267.0" y="210" class="tick" text-anchor="middle">Nov</text><rect x="262.2" y="130.3" width="9.7" height="9.9" rx="3" class="bar-up"/><text x="286.3" y="210" class="tick" text-anchor="middle">Dec</text><polyline class="line-inv" points="73.7,161.1 93.0,149.3 112.3,156.8 131.7,135.1 151.0,120.8 170.3,118.9 189.7,89.2 209.0,80.0 228.3,74.0 247.7,46.7 267.0,43.8"/><circle cx="73.7" cy="161.1" r="3.5" class="dot-inv"/><circle cx="93.0" cy="149.3" r="3.5" class="dot-inv"/><circle cx="112.3" cy="156.8" r="3.5" class="dot-inv"/><circle cx="131.7" cy="135.1" r="3.5" class="dot-inv"/><circle cx="151.0" cy="120.8" r="3.5" class="dot-inv"/><circle cx="170.3" cy="118.9" r="3.5" class="dot-inv"/><circle cx="189.7" cy="89.2" r="3.5" class="dot-inv"/><circle cx="209.0" cy="80.0" r="3.5" class="dot-inv"/><circle cx="228.3" cy="74.0" r="3.5" class="dot-inv"/><circle cx="247.7" cy="46.7" r="3.5" class="dot-inv"/><circle cx="267.0" cy="43.8" r="3.5" class="dot-inv"/></svg></div><div class="legend"><span><i class="sw sw-up"></i>Money added</span><span><i class="sw sw-down"></i>Sold (cost basis)</span><span><i class="sw sw-line"></i>Invested at month end</span></div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The chart fills the width (<code>ResponsiveContainer</code>); the toolbar wraps, year arrows above the currency switch. Twelve narrower bars, same colours.</span></li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <h2>The two series</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Series</th><th>Formula</th><th>India, October 2026</th></tr></thead>
+        <tbody>
+          <tr><td>Bar: investment delta</td><td>closing invested − opening invested; opening = latest row before the month (the month's first row only with no earlier history); an empty column counts as 0. The card's <code>periodPerformance</code> on the rows up to the month's end</td><td>8,98,847.70 − 8,80,021.32 = +₹18,826.38</td></tr>
+          <tr><td>Line: invested</td><td>invested on the month's closing row</td><td>₹8,98,847.70</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>What the frames commit the implementation to</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Frame</th><th>Commitment</th><th>PD-050 task</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>Collapsed handle bar docked at the bottom by default; no fetch while collapsed; state remembered</td><td>5, 6</td></tr>
+          <tr><td>02</td><td>Bars = the card's monthly investment delta (green / red), line = month-end invested on its own axis; Oct 2026 exact; the current month includes today's live row</td><td>2, 3, 4, 5</td></tr>
+          <tr><td>03 A–E</td><td>Opens-from-zero, year arrows with bounds, column switch from rows inside the year, loading / empty (baseline-only included) / error states</td><td>2, 5</td></tr>
+          <tr><td>04</td><td>Not rendered in admin act-as</td><td>6</td></tr>
+          <tr><td>05</td><td>Fills a phone width; toolbar wraps</td><td>4, 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>PD-050 visual spec v2</span>
+    <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
+    <span>Mockup, not production markup</span>
+  </footer>
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('[data-theme-btn]')
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeBtn
+      document.querySelectorAll('.app').forEach(app => { app.dataset.appTheme = theme })
+      buttons.forEach(other => other.setAttribute('aria-pressed', String(other === btn)))
+    })
+  })
+</script>
