@@ -48,10 +48,10 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [sort, setSort] = useState(defaultSort())
   const [editing, setEditing] = useState<Holding | null>(null)
 
-  const patch = (next: Partial<Filters>) => setFilters(f => ({ ...f, ...next }))
+  const patch = (next: Partial<Filters>) => setFilters(current => ({ ...current, ...next }))
 
   const toggleIn = <T extends string>(list: T[], value: T): T[] =>
-    list.includes(value) ? list.filter(v => v !== value) : [...list, value]
+    list.includes(value) ? list.filter(item => item !== value) : [...list, value]
 
   // Facets come from the full ledger, so a chip never disappears just
   // because the current filter excluded its last row.
@@ -66,7 +66,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
 
   const filtered = visible.length !== transactions.length
   const holdingsById = useMemo(
-    () => new Map(holdings.map(h => [h.id, h])),
+    () => new Map(holdings.map(holding => [holding.id, holding])),
     [holdings],
   )
 
@@ -120,7 +120,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
               value={filters.holdingIds[0] ?? ''}
               onChange={e => patch({ holdingIds: e.target.value ? [e.target.value] : [] })}>
               <option value="">All holdings</option>
-              {holdings.map(h => <option key={h.id} value={h.id}>{h.script}</option>)}
+              {holdings.map(holding => <option key={holding.id} value={holding.id}>{holding.script}</option>)}
             </select>
           </div>
 
@@ -128,10 +128,10 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             <div>
               <span style={LABEL}>Type</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {types.map(t => (
-                  <Chip key={t} on={filters.types.includes(t)}
-                    onClick={() => patch({ types: toggleIn<TransactionType>(filters.types, t) })}>
-                    {TYPE_LABEL[t] || t}
+                {types.map(txnType => (
+                  <Chip key={txnType} on={filters.types.includes(txnType)}
+                    onClick={() => patch({ types: toggleIn<TransactionType>(filters.types, txnType) })}>
+                    {TYPE_LABEL[txnType] || txnType}
                   </Chip>
                 ))}
               </div>
@@ -142,10 +142,10 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             <div>
               <span style={LABEL}>Currency</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {currencies.map(c => (
-                  <Chip key={c} on={filters.currencies.includes(c)}
-                    onClick={() => patch({ currencies: toggleIn(filters.currencies, c) })}>
-                    {c}
+                {currencies.map(currency => (
+                  <Chip key={currency} on={filters.currencies.includes(currency)}
+                    onClick={() => patch({ currencies: toggleIn(filters.currencies, currency) })}>
+                    {currency}
                   </Chip>
                 ))}
               </div>
@@ -181,14 +181,14 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
         {/* Per-currency subtotals — never combined across currencies. */}
         {subtotals.length > 0 && (
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
-            {subtotals.map(s => (
-              <div key={s.currency} className="card" style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {subtotals.map(subtotal => (
+              <div key={subtotal.currency} className="card" style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                  {s.currency}
+                  {subtotal.currency}
                 </div>
-                <SubRow label="Bought" value={formatMoney(s.bought, s.currency)} />
-                <SubRow label="Sold" value={formatMoney(s.sold, s.currency)} />
-                <SubRow label="Dividends" value={formatMoney(s.dividends, s.currency)} />
+                <SubRow label="Bought" value={formatMoney(subtotal.bought, subtotal.currency)} />
+                <SubRow label="Sold" value={formatMoney(subtotal.sold, subtotal.currency)} />
+                <SubRow label="Dividends" value={formatMoney(subtotal.dividends, subtotal.currency)} />
               </div>
             ))}
           </section>
@@ -217,7 +217,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           <TransactionsAllTable
             rows={visible}
             sort={sort}
-            onSort={(key: SortKey) => setSort(s => toggleSort(s, key))}
+            onSort={(key: SortKey) => setSort(current => toggleSort(current, key))}
             // No editing in act-as: there is no act-as ledger write path.
             onEdit={openEditor}
           />
