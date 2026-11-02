@@ -411,8 +411,9 @@ Elsewhere:
   (`/admin/users/:id/dividends`), same rule as Transactions (DD-004 §3.3).
 * `HoldingsTable`: **Dividends** column (`total_dividends`); `SummaryCards`:
   per-currency **Dividend income** card. Shown beside P&L, never added to it.
-* `HistoryTable`: per-currency **Dividends** column (to date, day-change
-  tint); `HoldingsModal`: per-holding dividends to date.
+* `HoldingsModal`: per-holding dividends to date. (`HistoryTable` had a
+  per-currency **Dividends** column; the owner removed it on 2026-11-02 and
+  the rows still carry the overlay.)
 * `App.tsx`: `/dividends` (`RequireAuth`), `/admin/users/:id/dividends`
   (`RequireAdmin`).
 * `TransactionsModal` gains an optional `userId` so act-as can write (uses
