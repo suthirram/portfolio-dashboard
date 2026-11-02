@@ -298,7 +298,7 @@ export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
     const pnl_pct  = rs && rs.invested > 0 ? ((rs.current - rs.invested) / rs.invested) * 100 : null
     const daily_vol = current != null && prevCurrent != null
         && invested != null && prevInvested != null
-      ? flowAdjustedDailyVolatility(prevCurrent, current, prevInvested, invested)
+      ? flowAdjustedReturnPct(prevCurrent, current, prevInvested, invested)
       : null
     prevCurrent = current
     prevInvested = invested
@@ -387,10 +387,13 @@ export function regionDailyVolatility(rows: HistoryRow[], i: number, region: Reg
   const today = rows[i].regions[region]?.current ?? 0
   const prevInv = prev.regions[region]?.invested ?? 0
   const todayInv = rows[i].regions[region]?.invested ?? 0
-  return flowAdjustedDailyVolatility(prevCur, today, prevInv, todayInv)
+  return flowAdjustedReturnPct(prevCur, today, prevInv, todayInv)
 }
 
-function flowAdjustedDailyVolatility(
+// flowAdjustedReturnPct is the % market move of a bucket between two rows,
+// net of money added or withdrawn in between: Daily volatlity day over day,
+// and the period performance card across a month (PD-049).
+export function flowAdjustedReturnPct(
   prevCurrent: number,
   current: number,
   prevInvested: number,
@@ -429,6 +432,74 @@ export function pctChange(prev: number | null, current: number): number {
 // regionPnLPct is the per-region P/L %.
 export function regionPnLPct(row: HistoryRow, region: RegionKey): number | null {
   return pnlPct(row.regions[region]?.invested ?? 0, row.regions[region]?.current ?? 0)
+}
+
+// ---- Period performance (PD-049) ----
+
+// A performance card column: one currency bucket, or the gold overlay.
+export type PerformanceColumn = RegionKey | 'GOLD'
+
+export const PERFORMANCE_COLUMNS: readonly PerformanceColumn[] = [...REGIONS, 'GOLD']
+
+export interface PeriodPerformance {
+  column: PerformanceColumn
+  openingDate: string
+  closingDate: string
+  closingTentative: boolean
+  openingPnlPct: number
+  closingPnlPct: number
+  pnlChangePp: number
+  performancePct: number | null
+}
+
+// columnPosition reads one column's invested/current off a row; null when
+// the row has nothing invested there (no P/L % to measure).
+function columnPosition(row: HistoryRow, column: PerformanceColumn): { invested: number; current: number } | null {
+  const position = column === 'GOLD' ? row.gold : row.regions[column]
+  return position && position.invested > 0 ? { invested: position.invested, current: position.current } : null
+}
+
+const round2 = (value: number) => Math.round(value * 100) / 100
+
+// periodPerformance compares each column's opening and closing position for
+// the month starting at monthStart (YYYY-MM-01). The opening row is the last
+// row before the month (the page loads the latest earlier row however far
+// back, via include_previous), falling back to the month's first row only
+// when there is no earlier history; the closing row is the month's last row
+// (today's live row included). A column with fewer than two such rows is
+// left out.
+//
+// P/L change is the difference of the two P/L %s *as displayed* (2 dp), so
+// the card's arithmetic reads true: 31.05 % − 37.79 % shows −6.74 pp, not the
+// unrounded −6.73. Performance is the flow-adjusted return, so money added
+// during the month is not mistaken for gains.
+export function periodPerformance(rows: HistoryRow[], monthStart: string): PeriodPerformance[] {
+  const byDate = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const results: PeriodPerformance[] = []
+  for (const column of PERFORMANCE_COLUMNS) {
+    const carrying = byDate.filter(row => columnPosition(row, column))
+    const before = carrying.filter(row => row.date < monthStart)
+    const opening = before.length ? before[before.length - 1] : carrying[0]
+    const closing = carrying[carrying.length - 1]
+    if (!opening || opening === closing) continue
+    const openingPosition = columnPosition(opening, column)!
+    const closingPosition = columnPosition(closing, column)!
+    const openingPnlPct = round2(pnlPct(openingPosition.invested, openingPosition.current)!)
+    const closingPnlPct = round2(pnlPct(closingPosition.invested, closingPosition.current)!)
+    const performance = flowAdjustedReturnPct(
+      openingPosition.current, closingPosition.current, openingPosition.invested, closingPosition.invested)
+    results.push({
+      column,
+      openingDate: opening.date,
+      closingDate: closing.date,
+      closingTentative: closing.tentative === true,
+      openingPnlPct,
+      closingPnlPct,
+      pnlChangePp: round2(closingPnlPct - openingPnlPct),
+      performancePct: performance === null ? null : round2(performance),
+    })
+  }
+  return results
 }
 
 // regionInvestedWentUp reports whether the region's invested amount on
