@@ -1417,6 +1417,23 @@ curl -s -b j -H "$H" -H 'Content-Type: application/json' -d '{"date":"2026-10-30
 
 Expected: all five pass before PR4 merges.
 
+## Amendment (owner, 2026-11-02, during PR4 local testing)
+
+Applied on PR4 in `✨ Add investment delta to month performance`; it
+replaces the Task 4 and Task 5 code where the two differ. DD-006 §3–§4 and
+PRD-006 §4–§5 hold the current rules.
+
+* **Investment delta row** before the performance row: `moneyInvested =
+  closing invested − opening invested`, shown as a direction pill like P/L
+  change but with no emoji (`DirectionPill`, shared by both rows).
+* **Empty column opens from zero.** The opening and closing rows are shared
+  by every column instead of picked per column, so EUR (first invested
+  30-06-2025) shows +€599.58 for June 2025 rather than being left out. P/L
+  and performance figures with no base read "—" (`openingPnlPct`,
+  `closingPnlPct` and `pnlChangePp` become nullable).
+* Tests: `periodPerformance.test.ts` 6 → 8, and the page test checks the
+  delta pill; `npx vitest run` 407 pass.
+
 ## Done
 
 * History shows a month performance card per currency and gold.

@@ -16,9 +16,10 @@ close). The **History** page (`/history`):
 * shows a **month performance** card above the table
   ([PRD-006](prds/PRD-006-month-performance.md)): per currency and gold, the
   P/L % on the latest row before the month and on the month's latest row, the
-  change in pp, and an approximate investment performance = (closing value −
-  opening value − money added) ÷ opening value, so new money is not counted
-  as gains.
+  change in pp, the investment delta (closing invested − opening invested;
+  a currency first bought this month opens from zero), and an approximate
+  investment performance = (closing value − opening value − money added) ÷
+  opening value, so new money is not counted as gains.
 
 Backdated ledger edits **heal** the affected stored snapshots so history stays
 consistent with the corrected ledger.
