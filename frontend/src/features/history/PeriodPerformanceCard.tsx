@@ -6,15 +6,9 @@ import { formatDayMonth } from '../../lib/formDates'
 import type { HistoryRow } from '../../lib/api/client'
 import type { ThemeName } from '../../lib/useTheme'
 import {
-  CURRENCY_SYMBOL, GOLD_TINT, PRICE_DIR_TINT, REGION_TINTS, fmtCurrency, periodPerformance,
-  type PerformanceColumn, type PeriodPerformance,
+  GOLD_TINT, PERFORMANCE_COLUMN_LABELS, PERFORMANCE_COLUMN_SYMBOL, PRICE_DIR_TINT, REGION_TINTS,
+  fmtSignedCurrency, periodPerformance, type PerformanceColumn, type PeriodPerformance,
 } from './historyShared'
-
-const COLUMN_LABELS: Record<PerformanceColumn, string> = {
-  INR: '🇮🇳 India',
-  EUR: '🇪🇺 Europe',
-  GOLD: '🥇 Gold',
-}
 
 // Each column wears the same tint as its group in the month table below, so
 // the card reads as a summary of those columns.
@@ -25,12 +19,6 @@ function columnTint(theme: ThemeName, column: PerformanceColumn): { header: stri
 // U+2212 minus, matching the owner's sheet ("−4.07 pp").
 const sign = (value: number) => value > 0 ? '+' : value < 0 ? '−' : ''
 const signed = (value: number) => `${sign(value)}${Math.abs(value).toFixed(2)}`
-
-// Gold is valued in rupees, like its table column.
-const COLUMN_SYMBOL: Record<PerformanceColumn, string> = { ...CURRENCY_SYMBOL, GOLD: CURRENCY_SYMBOL.INR }
-
-// signedAmount renders a money delta as "+₹18,826.38" / "−€475.92".
-const signedAmount = (value: number, symbol: string) => `${sign(value)}${fmtCurrency(Math.abs(value), symbol)}`
 
 const direction = (value: number) => value > 0 ? 'up' : value < 0 ? 'down' : 'flat'
 const DIRECTION_COLOUR = { up: 'var(--green)', down: 'var(--red)', flat: 'var(--text-secondary)' }
@@ -68,7 +56,7 @@ function Performance({ value }: { value: number | null }) {
 function InvestmentDelta({ perf }: { perf: PeriodPerformance }) {
   return (
     <DirectionPill value={perf.moneyInvested}>
-      {signedAmount(perf.moneyInvested, COLUMN_SYMBOL[perf.column])}
+      {fmtSignedCurrency(perf.moneyInvested, PERFORMANCE_COLUMN_SYMBOL[perf.column])}
     </DirectionPill>
   )
 }
@@ -117,7 +105,7 @@ export function PeriodPerformanceCard({ rows, monthStart, monthLabel, theme }: {
                   ...cellBase, ...blockEdges, borderTop: '1px solid var(--border)', borderRadius: '8px 8px 0 0',
                   textAlign: 'center', background: columnTint(theme, perf.column).header,
                 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{COLUMN_LABELS[perf.column]}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{PERFORMANCE_COLUMN_LABELS[perf.column]}</div>
                   <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2 }}>
                     {formatDayMonth(perf.openingDate)} → {formatDayMonth(perf.closingDate)}{perf.closingTentative ? ' (live)' : ''}
                   </div>
