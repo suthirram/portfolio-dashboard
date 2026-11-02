@@ -128,16 +128,29 @@ type ErrConflict struct {
 
 func (e *ErrConflict) Error() string { return "history: row exists for date" }
 
-// List returns the caller's rows in [from, to] inclusive.
-func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from, to time.Time) (_ HistoryList, retErr error) {
+// List returns the user's rows in [from, to] inclusive, newest first. With
+// includePrevious it also appends the latest row dated before `from`, however
+// far back (PRD-006 §4): a month's opening baseline must not depend on a
+// snapshot existing on the previous month's last calendar day. No earlier row
+// means there is no prior history, and nothing is appended.
+func (s *HistoryService) List(ctx context.Context, userId primitive.ObjectID, from, to time.Time, includePrevious bool) (_ HistoryList, retErr error) {
 	ctx, span := tracer.Start(ctx, "HistoryService.List")
 	defer endSpan(span, &retErr)
 	if to.Before(from) {
 		return HistoryList{}, fmt.Errorf("%w: to before from", ErrInvalidDate)
 	}
-	snaps, err := s.store.List(ctx, uid, from, to)
+	snaps, err := s.store.List(ctx, userId, from, to)
 	if err != nil {
 		return HistoryList{}, err
+	}
+	if includePrevious {
+		previous, err := s.store.LatestBefore(ctx, userId, from)
+		switch {
+		case err == nil:
+			snaps = append(snaps, previous) // oldest, so last in newest-first order
+		case !errors.Is(err, persistence.ErrNotFound):
+			return HistoryList{}, err
+		}
 	}
 	currency := "INR"
 	rows := make([]HistoryRow, 0, len(snaps))
@@ -145,28 +158,34 @@ func (s *HistoryService) List(ctx context.Context, uid primitive.ObjectID, from,
 		if snap.Currency != "" {
 			currency = snap.Currency
 		}
-		regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
-		for k, bucket := range snap.Buckets {
-			// Legacy stored rows may still carry a zero USD bucket; USD is no
-			// longer tracked (2026-07-07), so drop it from the response.
-			if k == domain.CurrencyUSD {
-				continue
-			}
-			bucket.Invested = round(bucket.Invested)
-			bucket.Current = round(bucket.Current)
-			regions[k] = bucket
-		}
-		totals := snap.Totals()
-		totals.InvestedTotal = round(totals.InvestedTotal)
-		totals.CurrentTotal = round(totals.CurrentTotal)
-		rows = append(rows, HistoryRow{
-			Date:     snap.Date.UTC().Format("2006-01-02"),
-			Regions:  regions,
-			Totals:   totals,
-			Holdings: holdingsFromLines(snap.Lines),
-		})
+		rows = append(rows, historyRowFromSnapshot(snap))
 	}
 	return HistoryList{Currency: currency, Rows: rows}, nil
+}
+
+// historyRowFromSnapshot maps one stored snapshot to its API row: amounts
+// rounded to 2 dp, totals derived, the legacy USD bucket dropped.
+func historyRowFromSnapshot(snap domain.PortfolioSnapshot) HistoryRow {
+	regions := make(map[string]domain.RegionSnapshot, len(snap.Buckets))
+	for currency, bucket := range snap.Buckets {
+		// Legacy stored rows may still carry a zero USD bucket; USD is no
+		// longer tracked (2026-07-07), so drop it from the response.
+		if currency == domain.CurrencyUSD {
+			continue
+		}
+		bucket.Invested = round(bucket.Invested)
+		bucket.Current = round(bucket.Current)
+		regions[currency] = bucket
+	}
+	totals := snap.Totals()
+	totals.InvestedTotal = round(totals.InvestedTotal)
+	totals.CurrentTotal = round(totals.CurrentTotal)
+	return HistoryRow{
+		Date:     snap.Date.UTC().Format("2006-01-02"),
+		Regions:  regions,
+		Totals:   totals,
+		Holdings: holdingsFromLines(snap.Lines),
+	}
 }
 
 // holdingsFromLines maps a snapshot's per-stock lines to the API shape,

@@ -151,6 +151,11 @@ type PutGoldPricesJSONBody = []GoldPrice
 type ListHistoryParams struct {
 	From openapi_types.Date `form:"from" json:"from"`
 	To   openapi_types.Date `form:"to" json:"to"`
+
+	// IncludePrevious Also return the latest row dated before `from`, however far back
+	// (PRD-006 §4): the opening baseline for a month and the prior row for
+	// the month's first Daily volatlity. Omitted when no earlier row exists.
+	IncludePrevious *bool `form:"include_previous,omitempty" json:"include_previous,omitempty"`
 }
 
 // GetForexRateParams defines parameters for GetForexRate.
@@ -1358,6 +1363,13 @@ func (w *ServerInterfaceWrapper) ListHistory(ctx echo.Context) error {
 	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", ctx.QueryParams(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// ------------- Optional query parameter "include_previous" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_previous", ctx.QueryParams(), &params.IncludePrevious, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter include_previous: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

@@ -16,6 +16,16 @@ history:
         schema:
           type: string
           format: date
+      - name: include_previous
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+        description: |
+          Also return the latest row dated before `from`, however far back
+          (PRD-006 §4): the opening baseline for a month and the prior row for
+          the month's first Daily volatlity. Omitted when no earlier row exists.
     responses:
       "200":
         description: Snapshots ordered newest-first
