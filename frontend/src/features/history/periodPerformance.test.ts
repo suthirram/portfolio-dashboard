@@ -26,11 +26,11 @@ describe('periodPerformance', () => {
   it("reproduces the owner's October table for every column", () => {
     expect(periodPerformance(october, '2026-10-01')).toEqual([
       { column: 'INR', openingDate: '2026-09-30', closingDate: '2026-10-30', closingTentative: false,
-        openingPnlPct: 23.44, closingPnlPct: 24.40, pnlChangePp: 0.96, performancePct: 1.20 },
+        openingPnlPct: 23.44, closingPnlPct: 24.40, pnlChangePp: 0.96, moneyInvested: 18826.38, performancePct: 1.20 },
       { column: 'EUR', openingDate: '2026-09-30', closingDate: '2026-10-30', closingTentative: false,
-        openingPnlPct: 19.75, closingPnlPct: 15.68, pnlChangePp: -4.07, performancePct: -2.52 },
+        openingPnlPct: 19.75, closingPnlPct: 15.68, pnlChangePp: -4.07, moneyInvested: 475.92, performancePct: -2.52 },
       { column: 'GOLD', openingDate: '2026-09-30', closingDate: '2026-10-30', closingTentative: false,
-        openingPnlPct: 37.79, closingPnlPct: 31.05, pnlChangePp: -6.74, performancePct: -4.89 },
+        openingPnlPct: 37.79, closingPnlPct: 31.05, pnlChangePp: -6.74, moneyInvested: 0, performancePct: -4.89 },
     ])
   })
 
@@ -44,10 +44,33 @@ describe('periodPerformance', () => {
     expect(inr).toMatchObject({ column: 'INR', openingDate: '2026-10-15', closingDate: '2026-10-30' })
   })
 
-  it('leaves a column out when it has fewer than two rows with money invested', () => {
+  // The owner's June 2025: EUR is empty on 01-06 and first invested on 30-06,
+  // so it opens from zero rather than being left out.
+  it('opens a column from zero when it was empty at the start of the month', () => {
+    const rows = [
+      historyRow('2025-06-01', { INR: [564361.86, 717252.59] }),
+      historyRow('2025-06-30', { INR: [565721.16, 733476.39], EUR: [599.58, 626.95] }),
+    ]
+    const eur = periodPerformance(rows, '2025-06-01').find(perf => perf.column === 'EUR')
+    expect(eur).toEqual({
+      column: 'EUR', openingDate: '2025-06-01', closingDate: '2025-06-30', closingTentative: false,
+      openingPnlPct: null, closingPnlPct: 4.56, pnlChangePp: null, moneyInvested: 599.58, performancePct: null,
+    })
+  })
+
+  it('reports a column sold out during the month with a closing of zero', () => {
+    const rows = [
+      historyRow('2026-09-30', { INR: [100, 110], EUR: [50, 60] }),
+      historyRow('2026-10-30', { INR: [100, 120] }),
+    ]
+    const eur = periodPerformance(rows, '2026-10-01').find(perf => perf.column === 'EUR')
+    expect(eur).toMatchObject({ openingPnlPct: 20, closingPnlPct: null, pnlChangePp: null, moneyInvested: -50 })
+  })
+
+  it('leaves out a column empty at both ends, and everything for a single row', () => {
     const rows = [
       historyRow('2026-09-30', { INR: [100, 110], EUR: [0, 0] }),
-      historyRow('2026-10-30', { INR: [100, 120], EUR: [50, 55] }),
+      historyRow('2026-10-30', { INR: [100, 120], EUR: [0, 0] }),
     ]
     expect(periodPerformance(rows, '2026-10-01').map(perf => perf.column)).toEqual(['INR'])
     expect(periodPerformance(rows.slice(0, 1), '2026-10-01')).toEqual([])
@@ -59,6 +82,14 @@ describe('periodPerformance', () => {
       historyRow('2026-10-30', { INR: [50, 100] }),
     ]
     expect(periodPerformance(rows, '2026-10-01')[0].performancePct).toBe(0)
+  })
+
+  it('reports a sale as negative money invested', () => {
+    const rows = [
+      historyRow('2026-09-30', { INR: [100, 200] }),
+      historyRow('2026-10-30', { INR: [50, 100] }),
+    ]
+    expect(periodPerformance(rows, '2026-10-01')[0].moneyInvested).toBe(-50)
   })
 
   it('flags a closing row that is the live, unsnapshotted day', () => {

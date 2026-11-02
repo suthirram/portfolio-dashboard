@@ -6,7 +6,7 @@ import { formatDayMonth } from '../../lib/formDates'
 import type { HistoryRow } from '../../lib/api/client'
 import type { ThemeName } from '../../lib/useTheme'
 import {
-  GOLD_TINT, PRICE_DIR_TINT, REGION_TINTS, periodPerformance,
+  CURRENCY_SYMBOL, GOLD_TINT, PRICE_DIR_TINT, REGION_TINTS, fmtCurrency, periodPerformance,
   type PerformanceColumn, type PeriodPerformance,
 } from './historyShared'
 
@@ -23,33 +23,61 @@ function columnTint(theme: ThemeName, column: PerformanceColumn): { header: stri
 }
 
 // U+2212 minus, matching the owner's sheet ("−4.07 pp").
-const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)}`
+const sign = (value: number) => value > 0 ? '+' : value < 0 ? '−' : ''
+const signed = (value: number) => `${sign(value)}${Math.abs(value).toFixed(2)}`
+
+// Gold is valued in rupees, like its table column.
+const COLUMN_SYMBOL: Record<PerformanceColumn, string> = { ...CURRENCY_SYMBOL, GOLD: CURRENCY_SYMBOL.INR }
+
+// signedAmount renders a money delta as "+₹18,826.38" / "−€475.92".
+const signedAmount = (value: number, symbol: string) => `${sign(value)}${fmtCurrency(Math.abs(value), symbol)}`
 
 const direction = (value: number) => value > 0 ? 'up' : value < 0 ? 'down' : 'flat'
 const DIRECTION_COLOUR = { up: 'var(--green)', down: 'var(--red)', flat: 'var(--text-secondary)' }
 const DIRECTION_MARKER = { up: '🟢', down: '🔴', flat: '⚪' }
 
-function ChangeChip({ changePp }: { changePp: number }) {
-  const dir = direction(changePp)
+// Dash marks a figure with nothing to measure against (an empty column).
+const Dash = () => <span style={{ color: 'var(--text-muted)' }}>—</span>
+
+const pnlCell = (value: number | null) => value === null ? <Dash /> : `${value.toFixed(2)}%`
+
+// DirectionPill is a chip tinted and coloured by the sign of value.
+function DirectionPill({ value, children }: { value: number; children: ReactNode }) {
+  const dir = direction(value)
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 999,
       background: PRICE_DIR_TINT[dir], color: DIRECTION_COLOUR[dir], fontWeight: 600, whiteSpace: 'nowrap',
     }}>
-      {DIRECTION_MARKER[dir]} {signed(changePp)} pp
+      {children}
     </span>
   )
 }
 
+function ChangeChip({ changePp }: { changePp: number | null }) {
+  if (changePp === null) return <Dash />
+  return <DirectionPill value={changePp}>{DIRECTION_MARKER[direction(changePp)]} {signed(changePp)} pp</DirectionPill>
+}
+
 function Performance({ value }: { value: number | null }) {
-  if (value === null) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+  if (value === null) return <Dash />
   return <span style={{ color: DIRECTION_COLOUR[direction(value)] }}>{signed(value)}%</span>
 }
 
+// InvestmentDelta pills money added green and money taken out red.
+function InvestmentDelta({ perf }: { perf: PeriodPerformance }) {
+  return (
+    <DirectionPill value={perf.moneyInvested}>
+      {signedAmount(perf.moneyInvested, COLUMN_SYMBOL[perf.column])}
+    </DirectionPill>
+  )
+}
+
 const METRICS: { label: string; emphasis?: boolean; cell: (perf: PeriodPerformance) => ReactNode }[] = [
-  { label: 'Opening P/L', cell: perf => `${perf.openingPnlPct.toFixed(2)}%` },
-  { label: 'Closing P/L', cell: perf => `${perf.closingPnlPct.toFixed(2)}%` },
+  { label: 'Opening P/L', cell: perf => pnlCell(perf.openingPnlPct) },
+  { label: 'Closing P/L', cell: perf => pnlCell(perf.closingPnlPct) },
   { label: 'P/L change', cell: perf => <ChangeChip changePp={perf.pnlChangePp} /> },
+  { label: 'Investment delta', cell: perf => <InvestmentDelta perf={perf} /> },
   { label: 'Approx. investment performance*', emphasis: true, cell: perf => <Performance value={perf.performancePct} /> },
 ]
 

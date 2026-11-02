@@ -446,28 +446,37 @@ export interface PeriodPerformance {
   openingDate: string
   closingDate: string
   closingTentative: boolean
-  openingPnlPct: number
-  closingPnlPct: number
-  pnlChangePp: number
+  // null when the column was empty on that row: no P/L % to measure.
+  openingPnlPct: number | null
+  closingPnlPct: number | null
+  pnlChangePp: number | null
+  // The change in invested amount over the month: money added (+) or, for a
+  // sale, the cost basis taken out (−). An empty column counts as 0.
+  moneyInvested: number
   performancePct: number | null
 }
 
-// columnPosition reads one column's invested/current off a row; null when
-// the row has nothing invested there (no P/L % to measure).
-function columnPosition(row: HistoryRow, column: PerformanceColumn): { invested: number; current: number } | null {
+// columnPosition reads one column's invested/current off a row; an empty
+// column (absent, or nothing invested) reads as zero.
+function columnPosition(row: HistoryRow, column: PerformanceColumn): { invested: number; current: number } {
   const position = column === 'GOLD' ? row.gold : row.regions[column]
-  return position && position.invested > 0 ? { invested: position.invested, current: position.current } : null
+  return position && position.invested > 0
+    ? { invested: position.invested, current: position.current }
+    : { invested: 0, current: 0 }
 }
 
 const round2 = (value: number) => Math.round(value * 100) / 100
+const round2OrNull = (value: number | null) => value === null ? null : round2(value)
 
 // periodPerformance compares each column's opening and closing position for
 // the month starting at monthStart (YYYY-MM-01). The opening row is the last
 // row before the month (the page loads the latest earlier row however far
 // back, via include_previous), falling back to the month's first row only
 // when there is no earlier history; the closing row is the month's last row
-// (today's live row included). A column with fewer than two such rows is
-// left out.
+// (today's live row included). Both rows are shared by every column, so a
+// column empty at the opening opens from zero (money first invested this
+// month) and one empty at the closing was sold out. A column empty at both
+// ends is left out, and so is everything when the month has a single row.
 //
 // P/L change is the difference of the two P/L %s *as displayed* (2 dp), so
 // the card's arithmetic reads true: 31.05 % − 37.79 % shows −6.74 pp, not the
@@ -475,17 +484,17 @@ const round2 = (value: number) => Math.round(value * 100) / 100
 // during the month is not mistaken for gains.
 export function periodPerformance(rows: HistoryRow[], monthStart: string): PeriodPerformance[] {
   const byDate = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const before = byDate.filter(row => row.date < monthStart)
+  const opening = before.length ? before[before.length - 1] : byDate[0]
+  const closing = byDate[byDate.length - 1]
+  if (!opening || opening === closing) return []
   const results: PeriodPerformance[] = []
   for (const column of PERFORMANCE_COLUMNS) {
-    const carrying = byDate.filter(row => columnPosition(row, column))
-    const before = carrying.filter(row => row.date < monthStart)
-    const opening = before.length ? before[before.length - 1] : carrying[0]
-    const closing = carrying[carrying.length - 1]
-    if (!opening || opening === closing) continue
-    const openingPosition = columnPosition(opening, column)!
-    const closingPosition = columnPosition(closing, column)!
-    const openingPnlPct = round2(pnlPct(openingPosition.invested, openingPosition.current)!)
-    const closingPnlPct = round2(pnlPct(closingPosition.invested, closingPosition.current)!)
+    const openingPosition = columnPosition(opening, column)
+    const closingPosition = columnPosition(closing, column)
+    if (openingPosition.invested === 0 && closingPosition.invested === 0) continue
+    const openingPnlPct = round2OrNull(pnlPct(openingPosition.invested, openingPosition.current))
+    const closingPnlPct = round2OrNull(pnlPct(closingPosition.invested, closingPosition.current))
     const performance = flowAdjustedReturnPct(
       openingPosition.current, closingPosition.current, openingPosition.invested, closingPosition.invested)
     results.push({
@@ -495,8 +504,9 @@ export function periodPerformance(rows: HistoryRow[], monthStart: string): Perio
       closingTentative: closing.tentative === true,
       openingPnlPct,
       closingPnlPct,
-      pnlChangePp: round2(closingPnlPct - openingPnlPct),
-      performancePct: performance === null ? null : round2(performance),
+      pnlChangePp: openingPnlPct === null || closingPnlPct === null ? null : round2(closingPnlPct - openingPnlPct),
+      moneyInvested: round2(closingPosition.invested - openingPosition.invested),
+      performancePct: round2OrNull(performance),
     })
   }
   return results
