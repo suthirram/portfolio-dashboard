@@ -64,10 +64,10 @@ describe('HistoryPage', () => {
 
   it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
     renderPage()
-    const opts = Array.from(document.querySelectorAll('option')).map(o => o.textContent)
+    const opts = Array.from(document.querySelectorAll('option')).map(option => option.textContent)
     // Years are contiguous, oldest first.
-    for (let y = 2020; y <= 2026; y++) {
-      expect(opts).toContain(String(y))
+    for (let yearOption = 2020; yearOption <= 2026; yearOption++) {
+      expect(opts).toContain(String(yearOption))
     }
   })
 
@@ -113,9 +113,9 @@ describe('HistoryPage', () => {
     Object.defineProperty(window, 'localStorage', {
       configurable: true,
       value: {
-        getItem: (k: string) => store.get(k) ?? null,
-        setItem: (k: string, v: string) => { store.set(k, v) },
-        removeItem: (k: string) => { store.delete(k) },
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => { store.set(key, value) },
+        removeItem: (key: string) => { store.delete(key) },
       },
     })
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
