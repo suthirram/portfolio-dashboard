@@ -31,6 +31,7 @@ import {
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
+import { PeriodPerformanceCard } from './PeriodPerformanceCard'
 import {
   AddRowModal, ConflictDialog, EditRowModal, HoldingsModal, PasteModal,
 } from './HistoryModals'
@@ -366,6 +367,10 @@ export default function HistoryPage() {
             </p>
           </div>
         )}
+
+        <PeriodPerformanceCard rows={displayRows}
+          monthStart={`${year}-${String(month + 1).padStart(2, '0')}-01`}
+          monthLabel={`${MONTHS[month]} ${year}`} theme={theme} />
 
         {displayRows.length > 0 && (() => {
           const table = (

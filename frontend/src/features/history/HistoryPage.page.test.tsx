@@ -94,6 +94,36 @@ describe('HistoryPage', () => {
     expect(screen.getAllByText('Amount invested').length).toBe(2)
   })
 
+  // The baseline is the latest row before June however far back: 29 May
+  // here, with no snapshot on 31 May (include_previous, PRD-006 §4).
+  it('shows the month performance card from the latest earlier row to the latest', async () => {
+    const monthRow = (date: string, invested: number, current: number): HistoryRow => ({
+      ...sampleRow, date,
+      regions: { ...sampleRow.regions, INR: { invested, current, source: 'cron' } },
+    })
+    mockApi.listHistory.mockResolvedValue(list([
+      monthRow('2026-05-29', 880021.32, 1086274.39),
+      monthRow('2026-06-15', 898847.70, 1118139.13),
+    ]))
+    renderPage()
+    const card = await screen.findByRole('table', { name: 'Jun 2026 performance' })
+    expect(card).toHaveTextContent('🇮🇳 India')
+    expect(card).toHaveTextContent('29-05 → 15-06')
+    expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-01', '2026-06-30', true)
+    expect(card).toHaveTextContent('23.44%')
+    expect(card).toHaveTextContent('24.40%')
+    expect(card).toHaveTextContent('🟢 +0.96 pp')
+    expect(card).toHaveTextContent('+1.20%')
+    expect(card).not.toHaveTextContent('Europe')
+  })
+
+  it('shows no performance card for a month with a single row', async () => {
+    mockApi.listHistory.mockResolvedValue(list([sampleRow]))
+    renderPage()
+    await screen.findByText('16-06-2026')
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
+  })
+
   it('uses the wide content container so the currency + gold columns fit', async () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
