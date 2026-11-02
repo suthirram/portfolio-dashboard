@@ -24,14 +24,14 @@ import { useAuthOptional } from '../auth/AuthContext'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
-  buildLiveGoldOverlay, buildLiveRow, chartTooltipProps, fmtAxisAmount,
-  fmtCurrency, goldChartData, isLiveWindowOpen, latestGoldOverlay, monthRange,
-  msUntilNextLiveBoundary, niceDomain, perCurrencyChartData,
+  chartTooltipProps, fmtAxisAmount, fmtCurrency, goldChartData, monthRange,
+  niceDomain, perCurrencyChartData,
   regionHasData, selectStyle, symmetricDomain, tradingDateIST, yearMonth0,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
 import { PeriodPerformanceCard } from './PeriodPerformanceCard'
+import { useLiveHistoryRows, useTradingClock } from './useLiveHistoryRows'
 import {
   AddRowModal, ConflictDialog, EditRowModal, HoldingsModal, PasteModal,
 } from './HistoryModals'
@@ -75,7 +75,6 @@ export default function HistoryPage() {
   // rows until the new ones land (and keeps them if it fails), so anything
   // labelled with the picker's month must check this first.
   const [rowsMonthStart, setRowsMonthStart] = useState<string | null>(null)
-  const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -117,32 +116,8 @@ export default function HistoryPage() {
 
   useEffect(() => { void reload() }, [reload])
 
-  // Today's live row: only while viewing the current month, only while no
-  // snapshot has landed for today yet (the cron row, once it exists, is the
-  // real number), and only inside the live window.
-  //
-  // Neither value may be memoized for the component's lifetime: a tab left
-  // mounted across a boundary would otherwise keep a stale trading day or
-  // window state until remount. `clockTick` fires at each boundary (+1s of
-  // slack, since a timer landing a hair early would recompute the same
-  // values; re-arming on the tick rather than on the derived values keeps
-  // the next timeout scheduled anyway).
-  const [clockTick, setClockTick] = useState(0)
-  useEffect(() => {
-    const timer = setTimeout(() => setClockTick(tick => tick + 1), msUntilNextLiveBoundary(new Date()) + 1000)
-    return () => clearTimeout(timer)
-  }, [clockTick])
-  const todayStr = useMemo(() => tradingDateIST(new Date()), [clockTick])
-  const liveWindowOpen = useMemo(() => isLiveWindowOpen(new Date()), [clockTick])
-  // /prices is cached 5 min server-side. Without its own cadence the row
-  // labelled "live" would keep showing the window-open price for the whole
-  // 17-hour window, since nothing else in the fetch effect's deps changes.
-  const [priceTick, setPriceTick] = useState(0)
-  useEffect(() => {
-    if (!liveWindowOpen) return
-    const id = setInterval(() => setPriceTick(tick => tick + 1), 5 * 60 * 1000)
-    return () => clearInterval(id)
-  }, [liveWindowOpen])
+  // The IST trading day and the live window, recomputed at each boundary.
+  const { todayStr, liveWindowOpen } = useTradingClock()
   const today = yearMonth0(todayStr)
   const isCurrentMonth = year === today.year && month === today.month0
   const selectedMonthStart = monthRange(year, month).from
@@ -168,49 +143,10 @@ export default function HistoryPage() {
       void reload()
     }
   }, [todayStr, year, month, reload])
-  const hasTodaySnapshot = rows.some(row => row.date === todayStr)
-  // The only thing the fetch below needs out of `rows` is the previous
-  // gold close its volatility chains off. Reducing that to a primitive keeps
-  // `rows` out of the deps, so a same-month reload (add / edit / paste) no
-  // longer triggers a redundant /prices + /gold/metrics round-trip.
-  const prevGoldCurrent = useMemo(() => latestGoldOverlay(rows)?.current ?? null, [rows])
-  useEffect(() => {
-    if (!isCurrentMonth || hasTodaySnapshot || !liveWindowOpen) {
-      setLiveRow(null)
-      return
-    }
-    let cancelled = false
-    void (async () => {
-      try {
-        const prices = await api.getPrices()
-        const live = buildLiveRow(todayStr, prices.holdings ?? [])
-        // Gold is a separate store (DD-003) with its own endpoint; only
-        // fetch it for gold-enabled users, and degrade silently (gold just
-        // stays absent, same as a pre-purchase historical row) if it 503s.
-        if (auth?.user?.gold_enabled) {
-          try {
-            const metrics = await api.getGoldMetrics()
-            live.gold = buildLiveGoldOverlay(metrics, prevGoldCurrent)
-          } catch { /* gold disabled server-side or a transient error — leave gold absent */ }
-        }
-        if (!cancelled) setLiveRow(live)
-      } catch {
-        // Live row is a nice-to-have; a failed fetch just means no tentative
-        // row shows, not a page-level error.
-        if (!cancelled) setLiveRow(null)
-      }
-    })()
-    return () => { cancelled = true }
-  }, [isCurrentMonth, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, prevGoldCurrent, auth?.user?.gold_enabled])
-
-  // `hasTodaySnapshot` is computed during render but `liveRow` is only
-  // cleared by the effect above, which runs after paint — so guard here too,
-  // or the frame where today's cron row first arrives renders two <tr>s with
-  // the same key and collapses their day-over-day maths.
-  const displayRows = useMemo(
-    () => liveRow && !hasTodaySnapshot ? [...rows, liveRow] : rows,
-    [rows, liveRow, hasTodaySnapshot],
-  )
+  // Today's live row is appended only while the current month is shown.
+  const displayRows = useLiveHistoryRows(rows, {
+    active: isCurrentMonth, todayStr, liveWindowOpen, goldEnabled: Boolean(auth?.user?.gold_enabled),
+  })
 
   const years = useMemo(() => {
     const current = now.getUTCFullYear()
