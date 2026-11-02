@@ -99,7 +99,7 @@ export default function HistoryPage() {
     setError(null)
     try {
       const { from, to } = monthRange(year, month)
-      const list = await api.listHistory(from, to)
+      const list = await api.listHistory(from, to, true)
       setRows(list.rows)
       setCurrency(list.currency || 'INR')
     } catch (e) {

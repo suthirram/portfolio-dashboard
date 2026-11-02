@@ -115,11 +115,12 @@ export const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
-// monthRange returns the inclusive [from, to] for the month, with `from`
-// extended back by one day so the first day-of-month row has a prior row
-// to compute Daily volatlity against (PR7 design review).
+// monthRange returns the month's own inclusive [from, to]. The prior row the
+// first day's Daily volatlity and the month performance baseline need comes
+// from GET /history?include_previous=true (PRD-006 §4): the latest row before
+// the month however far back, rather than only the previous calendar day.
 export function monthRange(year: number, month0: number): { from: string; to: string } {
-  const from = new Date(Date.UTC(year, month0, 0))   // last day of previous month
+  const from = new Date(Date.UTC(year, month0, 1))
   const to   = new Date(Date.UTC(year, month0 + 1, 0))
   const fmt = (date: Date) => date.toISOString().slice(0, 10)
   return { from: fmt(from), to: fmt(to) }

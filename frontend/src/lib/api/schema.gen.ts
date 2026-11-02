@@ -2449,6 +2449,12 @@ export interface operations {
             query: {
                 from: string;
                 to: string;
+                /**
+                 * @description Also return the latest row dated before `from`, however far back
+                 *     (PRD-006 §4): the opening baseline for a month and the prior row for
+                 *     the month's first Daily volatlity. Omitted when no earlier row exists.
+                 */
+                include_previous?: boolean;
             };
             header?: never;
             path?: never;

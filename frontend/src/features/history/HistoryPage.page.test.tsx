@@ -158,8 +158,9 @@ describe('HistoryPage', () => {
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
     const calls = mockApi.listHistory.mock.calls
     const lastArgs = calls[calls.length - 1]
-    // monthRange extends `from` back one day so Jan starts on Dec 31.
-    expect(lastArgs?.[0]).toMatch(/-12-31$/)
+    // January's own bounds, plus the latest earlier row however far back
+    // (include_previous, PRD-006 §4).
+    expect(lastArgs).toEqual(['2026-01-01', '2026-01-31', true])
   })
 
   it('deletes a manual row and reloads', async () => {
@@ -267,14 +268,14 @@ describe('HistoryPage', () => {
       // Same month either side, so the range is unchanged — only refetched.
       const calls = mockApi.listHistory.mock.calls
       const last = calls[calls.length - 1]
-      expect(last).toEqual(['2026-05-31', '2026-06-30'])
+      expect(last).toEqual(['2026-06-01', '2026-06-30', true])
     })
 
     it('follows the clock into the new month when the roll-over crosses one', async () => {
       vi.setSystemTime(new Date('2026-07-01T02:00:00Z')) // trading day 2026-06-30 (June)
       renderPage()
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-31', '2026-06-30'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-01', '2026-06-30', true))
 
       vi.setSystemTime(new Date('2026-07-01T02:31:00Z')) // trading day 2026-07-01 (July)
       await advancePastCutover()
@@ -282,7 +283,7 @@ describe('HistoryPage', () => {
       // The picker must advance to July and refetch that range, rather than
       // leaving a July tentative row stranded under June.
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-30', '2026-07-31'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-07-01', '2026-07-31', true))
     })
 
     it('does not yank the user out of a month they navigated to', async () => {
@@ -294,7 +295,7 @@ describe('HistoryPage', () => {
       const monthSelect = document.querySelectorAll('select')[1] as HTMLSelectElement
       fireEvent.change(monthSelect, { target: { value: '2' } })
       await waitFor(() =>
-        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-02-28', '2026-03-31'))
+        expect(mockApi.listHistory).toHaveBeenCalledWith('2026-03-01', '2026-03-31', true))
 
       vi.setSystemTime(new Date('2026-07-01T02:31:00Z'))
       await advancePastCutover()
@@ -303,7 +304,7 @@ describe('HistoryPage', () => {
       await waitFor(() => {
         const calls = mockApi.listHistory.mock.calls
       const last = calls[calls.length - 1]
-        expect(last).toEqual(['2026-02-28', '2026-03-31'])
+        expect(last).toEqual(['2026-03-01', '2026-03-31', true])
       })
     })
   })
