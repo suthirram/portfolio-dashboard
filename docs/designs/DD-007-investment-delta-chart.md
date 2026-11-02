@@ -1,6 +1,6 @@
 # DD-007: Investment delta chart — technical design
 
-* **Status**: Draft v1 (DD), owner decisions of 2026-11-02 ([PRD-007 §7](../prds/PRD-007-investment-delta-chart.md#7-owner-decisions-2026-11-02))
+* **Status**: Draft v2 (DD; v2 adds the live row and the in-year column check), owner decisions of 2026-11-02 ([PRD-007 §7](../prds/PRD-007-investment-delta-chart.md#7-owner-decisions-2026-11-02))
 * **Owner**: project owner
 * **Implements**: [PRD-007](../prds/PRD-007-investment-delta-chart.md)
 * **Rollout plan**: [PD-050](../plans/PD-050-investment-delta-chart.md)
@@ -21,6 +21,11 @@ calls the card's own function rather than a second formula:
   takes the latest row before the month as the opening and the last row as
   the closing, so the result's `moneyInvested` is the card's figure. The
   line value is the closing row's invested for the column.
+* During the live window, before today's snapshot lands, the History card
+  reads a tentative row built from live prices (`displayRows`). The panel
+  appends the same row: History's live-row code moves from `HistoryPage`
+  into a shared `useLiveHistoryRows` hook (§4), which both call, so the
+  current month matches the card intraday too.
 * A presentational `InvestmentDeltaChart` (Recharts `ComposedChart`: `Bar` +
   `Line`) draws the points; `InvestmentDeltaPanel` owns the open / year /
   column state and the fetch, and is rendered by `TransactionsPage` only
@@ -43,6 +48,7 @@ act-as view is out of scope (PRD-007 §3).
 | Money format | `fmtCurrency`, `fmtAxisAmount`; the card's private `signedAmount` ("+₹18,826.38") | `signedAmount` moved to historyShared as `fmtSignedCurrency` for the tooltip; the card imports it |
 | Chart look | `chartTooltipProps`, `REGION_COLOURS`, `GOLD_PALETTE` | none |
 | Remembered panel state | the `CHARTS_ON_TOP_KEY` localStorage pattern (HistoryPage) | same pattern, own key `pd_txn_delta_open` |
+| Today's live row (the boundary clock, eligibility, 5-min price cadence, gold overlay) | inline in `HistoryPage` (`buildLiveRow`, `buildLiveGoldOverlay`, `isLiveWindowOpen`, `msUntilNextLiveBoundary`) | moved unchanged into `useTradingClock` + `useLiveHistoryRows`; History and the panel call them |
 
 ## 3. `monthlyInvestment(rows, year, column)`
 
@@ -72,6 +78,19 @@ row, so the year's bars add up to the change in invested over the year.
 
 ## 4. Components
 
+`features/history/useLiveHistoryRows.ts` (moved from `HistoryPage`):
+
+* `useTradingClock()` → `{ todayStr, liveWindowOpen }`, recomputed at each
+  live-window boundary and trading-day roll-over.
+* `useLiveHistoryRows(rows, { active, todayStr, liveWindowOpen, goldEnabled })`
+  returns `rows` plus today's live row when all hold: `active` (History:
+  the current month is shown; the panel: open on the current year with its
+  rows loaded), no row dated today, and the window open. It fetches
+  `/prices` (and `/gold/metrics` for gold users) and refreshes every
+  5 minutes while the window is open; a failed fetch just means no live
+  row. The render-time guard checks `active` too, so a stale row never
+  shows after the caller leaves the range.
+
 `features/transactions/InvestmentDeltaPanel.tsx`:
 
 * Wrapper `position: sticky; bottom: 0` at the end of the page's `<main>`,
@@ -87,6 +106,12 @@ row, so the year's bars add up to the change in invested over the year.
 * Fetches when open and on year change, with a `cancelled` flag so a late
   response for an earlier year is dropped.
 * `theme` comes in as a prop, as on History.
+* Column switch: a column is offered only when a row **dated inside the
+  selected year** (the live row included) has money invested in it.
+  `include_previous` returns the latest earlier row even for a year with
+  no rows of its own; that baseline alone shows "No History rows for
+  ‹year›". All rows, the baseline included, still go to
+  `monthlyInvestment`, so January keeps its opening.
 
 `features/transactions/InvestmentDeltaChart.tsx`:
 
@@ -120,7 +145,12 @@ as the last child of `<main>`.
   opening fetches 1 Jan → 31 Dec with `include_previous`; the state is
   remembered; ‹ refetches the previous year; › disabled on the current
   year; the column switch lists only invested columns; error and empty
-  states.
+  states; a response holding only the 31 Dec baseline row is an empty
+  year; inside the live window, a position bought after yesterday's
+  snapshot is in the current month's bar and line (the chart is stubbed to
+  record the points the panel hands it).
+* History's live-window page tests pass unchanged after the move: the
+  proof the hook kept History's behaviour.
 * `TransactionsPage.test.tsx`: the panel shows on the user's page and not in
   act-as.
 * Bars themselves are not asserted: Recharts draws nothing at jsdom's zero
@@ -132,5 +162,6 @@ as the last child of `<main>`.
 |---|---|
 | A year of rows is a large payload (≈365 rows with per-stock lines) | fetched only when the panel is open, once per year change; the full-history chart already loads more |
 | A late response overwrites a newer year | the effect's `cancelled` flag drops it |
+| The panel adds `/prices` calls | only while pulled up on the current year inside the live window, every 5 minutes, as History does; the prices are cached server-side for 5 minutes |
 | Bad source data (e.g. placeholder gold prices) | the chart shows invested, not value, so placeholder prices do not affect it |
 | Panel hides the table's last rows | sticky keeps the panel's own space at the end of `<main>`, so scrolling to the bottom reveals every row; the open panel covers rows only while the user has pulled it up |

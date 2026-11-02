@@ -1,6 +1,7 @@
 # PRD-007: Investment delta chart on Transactions
 
-* **Status**: Draft v1 (PRD), owner decisions of 2026-11-02 applied
+* **Status**: Draft v2 (PRD), owner decisions of 2026-11-02 applied (v2: the
+  live row and empty years, from the plan review)
 * **Owner**: project owner
 * **Type**: Product Requirements: the *what* and *why*. The *how* lives in
   [DD-007](../designs/DD-007-investment-delta-chart.md); the rollout in
@@ -50,6 +51,10 @@ each month of the selected year:
   row is the month's last row. A currency empty on the opening row counts
   as 0.
 * **Invested** (the line) = the invested amount on the month's closing row.
+* **Today's live row.** During the live window, before today's snapshot
+  lands, History adds a tentative row from live prices; the chart uses the
+  same row, so the current month includes today's buys and sells and
+  still equals the History card.
 
 Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 **+₹18,826.38**, invested ₹8,98,847.70.
@@ -67,15 +72,17 @@ Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 * **Year.** ‹ and › around the year. › is disabled on the current year;
   ‹ is disabled at 2020, History's first year.
 * **Currency.** An INR / EUR / Gold switch; only columns with money invested
-  in that year are offered, Gold only for a gold-tracking user. Defaults to
-  the first offered.
+  on a row dated in that year are offered, Gold only for a gold-tracking
+  user. Defaults to the first offered. The latest row before 1 Jan counts
+  as January's opening but not as data for the year.
 * **Missing months.** A month with no History row has no bar and no line
   point (future months, gaps). A month whose only rows have nothing to
   compare (the first month of data with one row) shows the line point but
   no bar.
 * **Loading.** The year is fetched when the panel is first opened and again
   on each year change, not while collapsed. A failed fetch shows the error
-  in the panel; an empty year says "No History rows for 2026".
+  in the panel; an empty year says "No History rows for 2026", including a
+  year whose only row is the earlier baseline.
 * **Act-as.** Not rendered on `/admin/users/:id/transactions`.
 
 ## 6. Success criteria
@@ -86,6 +93,10 @@ Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 3. The panel opens and closes, and stays as left after a reload.
 4. The admin act-as Transactions page shows no panel.
 5. Collapsed, the page makes no History request.
+6. Inside the live window, a buy made today shows in the current month's
+   bar and line, matching the History card.
+7. A year with no History rows of its own shows the empty message, even
+   when an earlier row exists.
 
 ## 7. Owner decisions (2026-11-02)
 
@@ -96,3 +107,5 @@ Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 | 3 | The line | Invested at each month end |
 | 4 | Placement | Bottom panel, collapsed by default, state remembered |
 | 5 | Admin act-as | Not shown; only the user sees their own |
+| 6 | Today's live row | Included, through History's own live-row logic shared with the panel (plan review) |
+| 7 | A year with only the earlier baseline row | Empty (plan review) |

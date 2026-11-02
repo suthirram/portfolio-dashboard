@@ -561,7 +561,7 @@
 
   <header class="masthead">
     <div class="eyebrow">
-      <span>Visual spec</span><span>PD-050 v1</span><span>PRD-007 · DD-007</span><span>Portfolio Dashboard</span>
+      <span>Visual spec</span><span>PD-050 v2</span><span>PRD-007 · DD-007</span><span>Portfolio Dashboard</span>
       <span>Owner decisions 2026-11-02 applied</span>
     </div>
     <h1>Investment delta chart</h1>
@@ -577,6 +577,7 @@
       <div class="meta-cell"><dt>Bar</dt><dd>month's closing − opening invested</dd></div>
       <div class="meta-cell"><dt>Line</dt><dd>invested at month end</dd></div>
       <div class="meta-cell"><dt>Data</dt><dd>GET /history, 1 Jan → 31 Dec, include_previous</dd></div>
+      <div class="meta-cell"><dt>Today</dt><dd>History's live row, shared hook</dd></div>
       <div class="meta-cell"><dt>API change</dt><dd>none</dd></div>
       <div class="meta-cell"><dt>Tokens introduced</dt><dd>0</dd></div>
     </dl>
@@ -643,7 +644,7 @@
       </div>
     </div>
     <ol class="annotations">
-      <li><b>1</b><span>Twelve bars, Jan to Dec. Each is that month's <strong>investment delta</strong>, the same figure as the History card for the month: October is 8,98,847.70 − 8,80,021.32 = <strong>+₹18,826.38</strong>. Green for money in, red for cost basis sold (March). December has no row yet, so no bar and no point. The line, on its own right-hand axis, is invested at each month end (₹8,98,847.70 for October): a month's delta is a small fraction of the total, so the two never share an axis. ‹ › change the year (› disabled on the current year); the switch offers only columns with money invested, Gold only for a gold-tracking user. PRD-007 §4–§5, DD-007 §3.</span></li>
+      <li><b>1</b><span>Twelve bars, Jan to Dec. Each is that month's <strong>investment delta</strong>, the same figure as the History card for the month: October is 8,98,847.70 − 8,80,021.32 = <strong>+₹18,826.38</strong>. Green for money in, red for cost basis sold (March). December has no row yet, so no bar and no point. November is the current month: inside the live window, before today's snapshot lands, its bar and point include <strong>today's live row</strong> from live prices, the same row the History card reads (History's live-row logic, moved into the shared <code>useLiveHistoryRows</code> hook), so a buy made today shows at once and the month still equals the card. The line, on its own right-hand axis, is invested at each month end (₹8,98,847.70 for October): a month's delta is a small fraction of the total, so the two never share an axis. ‹ › change the year (› disabled on the current year); the switch offers only columns with money invested, Gold only for a gold-tracking user. PRD-007 §4–§5, DD-007 §3–§4.</span></li>
     </ol>
   </section>
 
@@ -712,7 +713,7 @@
     <ol class="annotations">
       <li><b>A</b><span><strong>Another year, another currency.</strong> 2025 Europe: EUR is first invested on 30-06-2025, so June opens from zero and its bar is the whole +€599.58 (PRD-006 §5); earlier months have no point. › is enabled because 2025 is not the current year. Example figures after June.</span></li>
       <li><b>B</b><span><strong>Loading.</strong> The year loads when the panel opens and again on each year change; a late response for a year already left is dropped.</span></li>
-      <li><b>C</b><span><strong>Empty year.</strong> No History row with money invested: no currency to offer, and the panel says so.</span></li>
+      <li><b>C</b><span><strong>Empty year.</strong> No History row <em>dated in the year</em> with money invested: no currency to offer, and the panel says so. The latest earlier row, which <code>include_previous</code> returns even for an empty year, is only January&#39;s opening, never data for the year. PRD-007 §5, DD-007 §4.</span></li>
       <li><b>D</b><span><strong>Error.</strong> A failed load shows the message inside the panel; the rest of the page is unaffected.</span></li>
       <li><b>E</b><span><strong>First year.</strong> ‹ is disabled at 2020, the History picker's first year (<code>MIN_YEAR</code>).</span></li>
     </ol>
@@ -784,18 +785,18 @@
       <table class="spec">
         <thead><tr><th>Frame</th><th>Commitment</th><th>PD-050 task</th></tr></thead>
         <tbody>
-          <tr><td>01</td><td>Collapsed handle bar docked at the bottom by default; no fetch while collapsed; state remembered</td><td>4, 5</td></tr>
-          <tr><td>02</td><td>Bars = the card's monthly investment delta (green / red), line = month-end invested on its own axis; Oct 2026 exact</td><td>2, 3</td></tr>
-          <tr><td>03 A–E</td><td>Opens-from-zero, year arrows with bounds, invested-only column switch, loading / empty / error states</td><td>2, 4</td></tr>
-          <tr><td>04</td><td>Not rendered in admin act-as</td><td>5</td></tr>
-          <tr><td>05</td><td>Fills a phone width; toolbar wraps</td><td>3, 4</td></tr>
+          <tr><td>01</td><td>Collapsed handle bar docked at the bottom by default; no fetch while collapsed; state remembered</td><td>5, 6</td></tr>
+          <tr><td>02</td><td>Bars = the card's monthly investment delta (green / red), line = month-end invested on its own axis; Oct 2026 exact; the current month includes today's live row</td><td>2, 3, 4, 5</td></tr>
+          <tr><td>03 A–E</td><td>Opens-from-zero, year arrows with bounds, column switch from rows inside the year, loading / empty (baseline-only included) / error states</td><td>2, 5</td></tr>
+          <tr><td>04</td><td>Not rendered in admin act-as</td><td>6</td></tr>
+          <tr><td>05</td><td>Fills a phone width; toolbar wraps</td><td>4, 5</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <footer class="doc-foot">
-    <span>PD-050 visual spec v1</span>
+    <span>PD-050 visual spec v2</span>
     <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
     <span>Mockup, not production markup</span>
   </footer>
