@@ -41,6 +41,19 @@ const sampleRow: HistoryRow = {
 
 const list = (rows: HistoryRow[]): HistoryList => ({ currency: 'INR', rows })
 
+// monthRow is sampleRow with the given INR position on `date`.
+const monthRow = (date: string, invested: number, current: number): HistoryRow => ({
+  ...sampleRow, date,
+  regions: { ...sampleRow.regions, INR: { invested, current, source: 'cron' } },
+})
+
+// The owner's October INR figures moved to June 2026: the latest earlier row
+// on 29 May (none on 31 May) and a mid-June row.
+const juneRows = [
+  monthRow('2026-05-29', 880021.32, 1086274.39),
+  monthRow('2026-06-15', 898847.70, 1118139.13),
+]
+
 describe('HistoryPage', () => {
   beforeAll(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -97,14 +110,7 @@ describe('HistoryPage', () => {
   // The baseline is the latest row before June however far back: 29 May
   // here, with no snapshot on 31 May (include_previous, PRD-006 §4).
   it('shows the month performance card from the latest earlier row to the latest', async () => {
-    const monthRow = (date: string, invested: number, current: number): HistoryRow => ({
-      ...sampleRow, date,
-      regions: { ...sampleRow.regions, INR: { invested, current, source: 'cron' } },
-    })
-    mockApi.listHistory.mockResolvedValue(list([
-      monthRow('2026-05-29', 880021.32, 1086274.39),
-      monthRow('2026-06-15', 898847.70, 1118139.13),
-    ]))
+    mockApi.listHistory.mockResolvedValue(list(juneRows))
     renderPage()
     const card = await screen.findByRole('table', { name: 'Jun 2026 performance' })
     expect(card).toHaveTextContent('🇮🇳 India')
@@ -125,6 +131,30 @@ describe('HistoryPage', () => {
     mockApi.listHistory.mockResolvedValue(list([sampleRow]))
     renderPage()
     await screen.findByText('16-06-2026')
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
+  })
+
+  // Switching months keeps June's rows until May's arrive; the card must not
+  // show them as May's performance meanwhile (PRD-006 §6).
+  it('hides the performance card while another month is loading', async () => {
+    mockApi.listHistory.mockResolvedValueOnce(list(juneRows))
+    renderPage()
+    await screen.findByRole('table', { name: 'Jun 2026 performance' })
+
+    mockApi.listHistory.mockReturnValueOnce(new Promise(() => {})) // May never lands
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-01', '2026-05-31', true))
+    expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
+  })
+
+  it('shows no performance card after the selected month fails to load', async () => {
+    mockApi.listHistory.mockResolvedValueOnce(list(juneRows))
+    renderPage()
+    await screen.findByRole('table', { name: 'Jun 2026 performance' })
+
+    mockApi.listHistory.mockRejectedValueOnce(new Error('boom'))
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    expect(await screen.findByText('Error: boom')).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
   })
 
