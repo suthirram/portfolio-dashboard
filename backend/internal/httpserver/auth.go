@@ -101,6 +101,8 @@ var routeTiers = map[string]routeTier{
 	"GET /api/admin/users/:id/dividends":                         tierAdmin,
 	"POST /api/admin/users/:id/dividends/import/preview":         tierAdmin,
 	"POST /api/admin/users/:id/dividends/import":                 tierAdmin,
+	"POST /api/admin/users/:id/transactions/import/preview":      tierAdmin,
+	"POST /api/admin/users/:id/transactions/import":              tierAdmin,
 	"DELETE /api/admin/users/:id/dividends":                      tierAdmin,
 	"GET /api/admin/users/:id/holdings/:holdingId/transactions":  tierAdmin,
 	"POST /api/admin/users/:id/holdings/:holdingId/transactions": tierAdmin,

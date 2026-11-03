@@ -197,6 +197,12 @@ type AdminSetUserPremiumJSONRequestBody = PremiumToggleRequest
 // AdminSetUserRegionJSONRequestBody defines body for AdminSetUserRegion for application/json ContentType.
 type AdminSetUserRegionJSONRequestBody = RegionUpdateRequest
 
+// AdminImportUserTradesJSONRequestBody defines body for AdminImportUserTrades for application/json ContentType.
+type AdminImportUserTradesJSONRequestBody = TradeImportInput
+
+// AdminPreviewUserTradeImportJSONRequestBody defines body for AdminPreviewUserTradeImport for application/json ContentType.
+type AdminPreviewUserTradeImportJSONRequestBody = TradeImportInput
+
 // AdminUpdateUserTransactionJSONRequestBody defines body for AdminUpdateUserTransaction for application/json ContentType.
 type AdminUpdateUserTransactionJSONRequestBody = TransactionInput
 
@@ -256,6 +262,12 @@ type UpdateHoldingJSONRequestBody = HoldingInput
 
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = TransactionInput
+
+// ImportTradesJSONRequestBody defines body for ImportTrades for application/json ContentType.
+type ImportTradesJSONRequestBody = TradeImportInput
+
+// PreviewTradeImportJSONRequestBody defines body for PreviewTradeImport for application/json ContentType.
+type PreviewTradeImportJSONRequestBody = TradeImportInput
 
 // UpdateTransactionJSONRequestBody defines body for UpdateTransaction for application/json ContentType.
 type UpdateTransactionJSONRequestBody = TransactionInput
@@ -340,6 +352,12 @@ type ServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx echo.Context, id UserID) error
+	// Commit a trades CSV import for a user (act-as) atomically
+	// (POST /admin/users/{id}/transactions/import)
+	AdminImportUserTrades(ctx echo.Context, id UserID) error
+	// Evaluate a trades CSV import for a user (act-as) without writing anything
+	// (POST /admin/users/{id}/transactions/import/preview)
+	AdminPreviewUserTradeImport(ctx echo.Context, id UserID) error
 	// Delete a user's ledger event (act-as)
 	// (DELETE /admin/users/{id}/transactions/{transactionId})
 	AdminDeleteUserTransaction(ctx echo.Context, id UserID, transactionId string) error
@@ -472,6 +490,12 @@ type ServerInterface interface {
 	// List every transaction across the caller's holdings
 	// (GET /transactions)
 	ListAllTransactions(ctx echo.Context) error
+	// Commit a trades CSV import atomically
+	// (POST /transactions/import)
+	ImportTrades(ctx echo.Context) error
+	// Evaluate a trades CSV import without writing anything
+	// (POST /transactions/import/preview)
+	PreviewTradeImport(ctx echo.Context) error
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx echo.Context, id string) error
@@ -988,6 +1012,42 @@ func (w *ServerInterfaceWrapper) AdminListUserTransactions(ctx echo.Context) err
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminListUserTransactions(ctx, id)
+	return err
+}
+
+// AdminImportUserTrades converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminImportUserTrades(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminImportUserTrades(ctx, id)
+	return err
+}
+
+// AdminPreviewUserTradeImport converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminPreviewUserTradeImport(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminPreviewUserTradeImport(ctx, id)
 	return err
 }
 
@@ -1636,6 +1696,28 @@ func (w *ServerInterfaceWrapper) ListAllTransactions(ctx echo.Context) error {
 	return err
 }
 
+// ImportTrades converts echo context to params.
+func (w *ServerInterfaceWrapper) ImportTrades(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ImportTrades(ctx)
+	return err
+}
+
+// PreviewTradeImport converts echo context to params.
+func (w *ServerInterfaceWrapper) PreviewTradeImport(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PreviewTradeImport(ctx)
+	return err
+}
+
 // DeleteTransaction converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteTransaction(ctx echo.Context) error {
 	var err error
@@ -1745,6 +1827,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/reset-lockout", wrapper.AdminResetLockout, options.OperationMiddlewares["adminResetLockout"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/summary", wrapper.AdminGetUserSummary, options.OperationMiddlewares["adminGetUserSummary"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/transactions", wrapper.AdminListUserTransactions, options.OperationMiddlewares["adminListUserTransactions"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/transactions/import", wrapper.AdminImportUserTrades, options.OperationMiddlewares["adminImportUserTrades"]...)
+	router.POST(options.BaseURL+"/admin/users/:id/transactions/import/preview", wrapper.AdminPreviewUserTradeImport, options.OperationMiddlewares["adminPreviewUserTradeImport"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminDeleteUserTransaction, options.OperationMiddlewares["adminDeleteUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminUpdateUserTransaction, options.OperationMiddlewares["adminUpdateUserTransaction"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
@@ -1789,6 +1873,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/regions", wrapper.GetRegions, options.OperationMiddlewares["getRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
 	router.GET(options.BaseURL+"/transactions", wrapper.ListAllTransactions, options.OperationMiddlewares["listAllTransactions"]...)
+	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTrades, options.OperationMiddlewares["importTrades"]...)
+	router.POST(options.BaseURL+"/transactions/import/preview", wrapper.PreviewTradeImport, options.OperationMiddlewares["previewTradeImport"]...)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction, options.OperationMiddlewares["deleteTransaction"]...)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction, options.OperationMiddlewares["updateTransaction"]...)
 
@@ -2952,6 +3038,122 @@ func (response AdminListUserTransactions200JSONResponse) VisitAdminListUserTrans
 type AdminListUserTransactions404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminListUserTransactions404JSONResponse) VisitAdminListUserTransactionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserTradesRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminImportUserTradesJSONRequestBody
+}
+
+type AdminImportUserTradesResponseObject interface {
+	VisitAdminImportUserTradesResponse(w http.ResponseWriter) error
+}
+
+type AdminImportUserTrades200JSONResponse TradeImportResult
+
+func (response AdminImportUserTrades200JSONResponse) VisitAdminImportUserTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserTrades400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminImportUserTrades400JSONResponse) VisitAdminImportUserTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserTrades404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminImportUserTrades404JSONResponse) VisitAdminImportUserTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminImportUserTrades422JSONResponse TradeImportPreview
+
+func (response AdminImportUserTrades422JSONResponse) VisitAdminImportUserTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserTradeImportRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminPreviewUserTradeImportJSONRequestBody
+}
+
+type AdminPreviewUserTradeImportResponseObject interface {
+	VisitAdminPreviewUserTradeImportResponse(w http.ResponseWriter) error
+}
+
+type AdminPreviewUserTradeImport200JSONResponse TradeImportPreview
+
+func (response AdminPreviewUserTradeImport200JSONResponse) VisitAdminPreviewUserTradeImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserTradeImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminPreviewUserTradeImport400JSONResponse) VisitAdminPreviewUserTradeImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminPreviewUserTradeImport404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminPreviewUserTradeImport404JSONResponse) VisitAdminPreviewUserTradeImportResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -4894,6 +5096,92 @@ func (response ListAllTransactions200JSONResponse) VisitListAllTransactionsRespo
 	return err
 }
 
+type ImportTradesRequestObject struct {
+	Body *ImportTradesJSONRequestBody
+}
+
+type ImportTradesResponseObject interface {
+	VisitImportTradesResponse(w http.ResponseWriter) error
+}
+
+type ImportTrades200JSONResponse TradeImportResult
+
+func (response ImportTrades200JSONResponse) VisitImportTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportTrades400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ImportTrades400JSONResponse) VisitImportTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportTrades422JSONResponse TradeImportPreview
+
+func (response ImportTrades422JSONResponse) VisitImportTradesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewTradeImportRequestObject struct {
+	Body *PreviewTradeImportJSONRequestBody
+}
+
+type PreviewTradeImportResponseObject interface {
+	VisitPreviewTradeImportResponse(w http.ResponseWriter) error
+}
+
+type PreviewTradeImport200JSONResponse TradeImportPreview
+
+func (response PreviewTradeImport200JSONResponse) VisitPreviewTradeImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewTradeImport400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PreviewTradeImport400JSONResponse) VisitPreviewTradeImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteTransactionRequestObject struct {
 	Id string `json:"id"`
 }
@@ -5077,6 +5365,12 @@ type StrictServerInterface interface {
 	// Every transaction across a user's holdings (act-as, read-only)
 	// (GET /admin/users/{id}/transactions)
 	AdminListUserTransactions(ctx context.Context, request AdminListUserTransactionsRequestObject) (AdminListUserTransactionsResponseObject, error)
+	// Commit a trades CSV import for a user (act-as) atomically
+	// (POST /admin/users/{id}/transactions/import)
+	AdminImportUserTrades(ctx context.Context, request AdminImportUserTradesRequestObject) (AdminImportUserTradesResponseObject, error)
+	// Evaluate a trades CSV import for a user (act-as) without writing anything
+	// (POST /admin/users/{id}/transactions/import/preview)
+	AdminPreviewUserTradeImport(ctx context.Context, request AdminPreviewUserTradeImportRequestObject) (AdminPreviewUserTradeImportResponseObject, error)
 	// Delete a user's ledger event (act-as)
 	// (DELETE /admin/users/{id}/transactions/{transactionId})
 	AdminDeleteUserTransaction(ctx context.Context, request AdminDeleteUserTransactionRequestObject) (AdminDeleteUserTransactionResponseObject, error)
@@ -5209,6 +5503,12 @@ type StrictServerInterface interface {
 	// List every transaction across the caller's holdings
 	// (GET /transactions)
 	ListAllTransactions(ctx context.Context, request ListAllTransactionsRequestObject) (ListAllTransactionsResponseObject, error)
+	// Commit a trades CSV import atomically
+	// (POST /transactions/import)
+	ImportTrades(ctx context.Context, request ImportTradesRequestObject) (ImportTradesResponseObject, error)
+	// Evaluate a trades CSV import without writing anything
+	// (POST /transactions/import/preview)
+	PreviewTradeImport(ctx context.Context, request PreviewTradeImportRequestObject) (PreviewTradeImportResponseObject, error)
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx context.Context, request DeleteTransactionRequestObject) (DeleteTransactionResponseObject, error)
@@ -5929,6 +6229,68 @@ func (sh *strictHandler) AdminListUserTransactions(ctx echo.Context, id UserID) 
 		return err
 	} else if validResponse, ok := response.(AdminListUserTransactionsResponseObject); ok {
 		return validResponse.VisitAdminListUserTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminImportUserTrades operation middleware
+func (sh *strictHandler) AdminImportUserTrades(ctx echo.Context, id UserID) error {
+	var request AdminImportUserTradesRequestObject
+
+	request.Id = id
+
+	var body AdminImportUserTradesJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminImportUserTrades(ctx.Request().Context(), request.(AdminImportUserTradesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminImportUserTrades")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminImportUserTradesResponseObject); ok {
+		return validResponse.VisitAdminImportUserTradesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminPreviewUserTradeImport operation middleware
+func (sh *strictHandler) AdminPreviewUserTradeImport(ctx echo.Context, id UserID) error {
+	var request AdminPreviewUserTradeImportRequestObject
+
+	request.Id = id
+
+	var body AdminPreviewUserTradeImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminPreviewUserTradeImport(ctx.Request().Context(), request.(AdminPreviewUserTradeImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminPreviewUserTradeImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminPreviewUserTradeImportResponseObject); ok {
+		return validResponse.VisitAdminPreviewUserTradeImportResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -7097,6 +7459,64 @@ func (sh *strictHandler) ListAllTransactions(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(ListAllTransactionsResponseObject); ok {
 		return validResponse.VisitListAllTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ImportTrades operation middleware
+func (sh *strictHandler) ImportTrades(ctx echo.Context) error {
+	var request ImportTradesRequestObject
+
+	var body ImportTradesJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ImportTrades(ctx.Request().Context(), request.(ImportTradesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ImportTrades")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ImportTradesResponseObject); ok {
+		return validResponse.VisitImportTradesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PreviewTradeImport operation middleware
+func (sh *strictHandler) PreviewTradeImport(ctx echo.Context) error {
+	var request PreviewTradeImportRequestObject
+
+	var body PreviewTradeImportJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewTradeImport(ctx.Request().Context(), request.(PreviewTradeImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewTradeImport")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PreviewTradeImportResponseObject); ok {
+		return validResponse.VisitPreviewTradeImportResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

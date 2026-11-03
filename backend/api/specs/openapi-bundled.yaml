@@ -1,0 +1,2437 @@
+openapi: 3.0.3
+info:
+  title: Portfolio Dashboard API
+  description: |
+    REST API for managing a stock/ETF portfolio.
+    Live prices are fetched from Yahoo Finance (supports NSE `.NS`, BSE `.BO`, and US symbols).
+
+    Spec layout:
+      * `portfolio-api.yaml` — every component (schemas/responses/parameters/securitySchemes) inline.
+      * `openapi.yaml` (this file) — full spec; `$ref`s into the per-domain path files and into `portfolio-api.yaml` for components.
+      * `holdings.yaml`, `market.yaml`, `auth.yaml`, `admin.yaml` — path items grouped by domain.
+  version: 1.0.0
+  contact:
+    email: mailstosuthir@gmail.com
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+security:
+  - cookieAuth: []
+tags:
+  - name: Holdings
+    description: CRUD operations for portfolio positions (scoped to the logged-in user)
+  - name: Market
+    description: Live price and forex endpoints
+  - name: Auth
+    description: Signup, login, session, profile, and password recovery
+  - name: Admin
+    description: Region-scoped user oversight (admin) and admin management (super admin)
+  - name: History
+    description: Daily portfolio snapshots — read range, add/edit/delete manual rows, paste-from-sheet
+  - name: Transactions
+    description: Per-holding trade ledger; holdings' positions are derived from it
+  - name: Gold
+    description: Physical gold tracking — purchases, daily prices, metrics (gold-enabled users only)
+  - name: Branding
+    description: Deployment-wide visual branding settings
+paths:
+  /branding:
+    get:
+      tags:
+        - Branding
+      summary: Get app branding settings
+      description: |
+        Public read used by the frontend before authentication so login and
+        signup can render with the active deployment font.
+      operationId: getBranding
+      security: []
+      responses:
+        '200':
+          description: Active branding settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandingSettings'
+  /holdings:
+    get:
+      tags:
+        - Holdings
+      summary: List all holdings
+      operationId: listHoldings
+      responses:
+        '200':
+          description: Array of holdings sorted by script name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holding'
+    post:
+      tags:
+        - Holdings
+      summary: Add a new holding
+      operationId: createHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldingInput'
+      responses:
+        '201':
+          description: Created holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /holdings/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: MongoDB ObjectID
+    get:
+      tags:
+        - Holdings
+      summary: Get a single holding
+      operationId: getHolding
+      responses:
+        '200':
+          description: Holding found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Holdings
+      summary: Update a holding
+      operationId: updateHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldingInput'
+      responses:
+        '200':
+          description: Updated holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Holdings
+      summary: Delete a holding
+      operationId: deleteHolding
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /prices:
+    get:
+      tags:
+        - Holdings
+      summary: Get all holdings enriched with live market prices
+      description: |
+        Fetches current prices from Yahoo Finance for every holding that has a
+        `symbol` set. Also returns the live INR→EUR exchange rate.
+        Results are cached for 5 minutes to avoid rate-limiting.
+      operationId: getPrices
+      responses:
+        '200':
+          description: Holdings with live prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricesResponse'
+  /summary:
+    get:
+      tags:
+        - Holdings
+      summary: Portfolio-level summary with live P&L
+      operationId: getSummary
+      responses:
+        '200':
+          description: Aggregated portfolio metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+  /holdings/{id}/transactions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Owning holding's ObjectID
+    get:
+      tags:
+        - Transactions
+      summary: List a holding's transactions
+      operationId: listTransactions
+      responses:
+        '200':
+          description: Transactions ordered by trade date
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Transactions
+      summary: Add a transaction to a holding
+      description: |
+        Appends a ledger event and recomputes the holding's derived position
+        (stocks_owned, avg_cost_price, realized_pnl, total_dividends) under its
+        cost_basis. Rejected with 400 when a sell exceeds shares held.
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInput'
+      responses:
+        '201':
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Transaction ObjectID
+    put:
+      tags:
+        - Transactions
+      summary: Update a transaction
+      operationId: updateTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionInput'
+      responses:
+        '200':
+          description: Updated transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Transactions
+      summary: Delete a transaction
+      description: |
+        Removes a ledger event and recomputes the holding. Rejected with 400 when
+        the deletion would leave a later sell oversold (e.g. removing a buy the
+        sell depended on).
+      operationId: deleteTransaction
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /history:
+    get:
+      tags:
+        - History
+      summary: List historical snapshots in a date range
+      operationId: listHistory
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Snapshots ordered newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - History
+      summary: Add a manual snapshot row
+      operationId: addHistoryRow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddHistoryRowInput'
+      responses:
+        '201':
+          description: Created row
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryRow'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: A row already exists for this date — caller must resolve regions via PUT /history/{date}/regions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryConflictResponse'
+  /history/{date}/regions:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+        description: UTC date the patch targets
+    put:
+      tags:
+        - History
+      summary: Override one or more regions on an existing row
+      operationId: patchHistoryRegions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchHistoryRegionsInput'
+      responses:
+        '200':
+          description: Updated row
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryRow'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /history/{date}:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+    delete:
+      tags:
+        - History
+      summary: Delete a manual snapshot row
+      operationId: deleteHistoryRow
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Row contains a cron-written bucket; override individual regions instead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /history/paste:
+    post:
+      tags:
+        - History
+      summary: Bulk-paste a month of manual rows
+      operationId: pasteHistory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasteHistoryInput'
+      responses:
+        '200':
+          description: Three-bucket report — applied / conflicts / rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasteHistoryReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /market/price:
+    get:
+      tags:
+        - Market
+      summary: Get live price for any symbol
+      operationId: getMarketPrice
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Yahoo Finance ticker (e.g. TCS.NS, AAPL, GOLDBEES.NS)
+          example: TCS.NS
+      responses:
+        '200':
+          description: Current price
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  symbol:
+                    type: string
+                  price:
+                    type: number
+                    format: double
+                  currency:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+  /market/forex:
+    get:
+      tags:
+        - Market
+      summary: Get forex exchange rate
+      operationId: getForexRate
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            default: INR
+        - name: to
+          in: query
+          schema:
+            type: string
+            default: EUR
+      responses:
+        '200':
+          description: Exchange rate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                  to:
+                    type: string
+                  rate:
+                    type: number
+                    format: double
+                    description: 1 unit of `from` in `to`
+  /regions:
+    get:
+      tags:
+        - Auth
+      summary: Region catalogue
+      description: Fixed list of oversight regions for the signup dropdown.
+      operationId: getRegions
+      security: []
+      responses:
+        '200':
+          description: Region catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Region'
+  /auth/security-questions:
+    get:
+      tags:
+        - Auth
+      summary: Security-question catalogue
+      operationId: getSecurityQuestionCatalogue
+      security: []
+      responses:
+        '200':
+          description: Question catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecurityQuestion'
+  /auth/signup:
+    post:
+      tags:
+        - Auth
+      summary: Create an account and log in
+      operationId: signup
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: Account created; session cookie issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Log in with username and password
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in; session cookie issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '423':
+          $ref: '#/components/responses/Locked'
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Log out the current session
+      operationId: logout
+      responses:
+        '204':
+          description: Session invalidated; cookie cleared
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Current account
+      operationId: getMe
+      responses:
+        '200':
+          description: The logged-in account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/recover/questions:
+    post:
+      tags:
+        - Auth
+      summary: Fetch the security questions for an account (forgot password, step 1)
+      description: |
+        Username travels in the body (not the URL) so it stays out of access logs.
+      operationId: getRecoveryQuestions
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoverQuestionsRequest'
+      responses:
+        '200':
+          description: The three questions the account chose at signup
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecurityQuestion'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '423':
+          $ref: '#/components/responses/Locked'
+  /auth/recover:
+    post:
+      tags:
+        - Auth
+      summary: Reset a forgotten password by answering all three security questions
+      description: |
+        Three wrong attempts lock recovery (HTTP 423) until someone authorised
+        resets it: an admin for a user, the super admin for an admin.
+      operationId: recoverPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoverRequest'
+      responses:
+        '204':
+          description: Password reset; all sessions invalidated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '423':
+          $ref: '#/components/responses/Locked'
+  /auth/password:
+    put:
+      tags:
+        - Auth
+      summary: Change own password
+      description: Signs out all other sessions.
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed; other sessions invalidated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/profile:
+    put:
+      tags:
+        - Auth
+      summary: Change own name and/or username
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/security-questions/answers:
+    put:
+      tags:
+        - Auth
+      summary: Replace own security questions and answers
+      operationId: updateSecurityQuestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSecurityQuestionsRequest'
+      responses:
+        '204':
+          description: Security questions replaced
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/onboarding:
+    post:
+      tags:
+        - Auth
+      summary: Complete forced first-login onboarding
+      description: |
+        Atomically sets a real password and three real security questions and
+        clears `must_change_password`. Used by the bootstrap super admin.
+      operationId: completeOnboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingRequest'
+      responses:
+        '200':
+          description: Onboarding complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List users the caller oversees
+      description: |
+        Admins see the `user` accounts of their own region; the super admin
+        sees every account. Hidden users are excluded unless `include_hidden`.
+      operationId: adminListUsers
+      parameters:
+        - name: include_hidden
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Users in scope
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/admins:
+    get:
+      tags:
+        - Admin
+      summary: List admins and the super admin (super admin only)
+      operationId: adminListAdmins
+      responses:
+        '200':
+          description: Accounts with role admin or superadmin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserID'
+    get:
+      tags:
+        - Admin
+      summary: Get one user in scope
+      operationId: adminGetUser
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Admin
+      summary: Permanently delete a user and their holdings
+      operationId: adminDeleteUser
+      responses:
+        '204':
+          description: User and holdings deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/reset-lockout:
+    post:
+      tags:
+        - Admin
+      summary: Unlock a user who failed security-question recovery
+      operationId: adminResetLockout
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '204':
+          description: Lockout cleared
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/hide:
+    post:
+      tags:
+        - Admin
+      summary: Hide a user (reversibly block access, keep data)
+      operationId: adminHideUser
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '204':
+          description: User hidden
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/reactivate:
+    post:
+      tags:
+        - Admin
+      summary: Reactivate a hidden user
+      operationId: adminReactivateUser
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '204':
+          description: User reactivated
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/promote:
+    post:
+      tags:
+        - Admin
+      summary: Promote a user to admin of their region (super admin only)
+      operationId: adminPromoteUser
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/demote:
+    post:
+      tags:
+        - Admin
+      summary: Demote an admin back to a normal user (super admin only)
+      operationId: adminDemoteUser
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/region:
+    put:
+      tags:
+        - Admin
+      summary: Move an account to a different region (super admin only)
+      operationId: adminSetUserRegion
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegionUpdateRequest'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/gold:
+    put:
+      tags:
+        - Admin
+      summary: Enable or disable gold tracking for an account (super admin only)
+      description: |
+        Super admin only — region admins cannot toggle gold (PRD-003 §2.4).
+        Toggling off hides gold data but deletes nothing. The super admin may
+        toggle their own account.
+      operationId: adminSetUserGold
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoldToggleRequest'
+      responses:
+        '204':
+          description: Gold access updated
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/premium:
+    put:
+      tags:
+        - Admin
+      summary: Enable or disable premium features for an account (super admin only)
+      description: |
+        Super admin only — region admins cannot toggle premium (PD-046).
+        Premium currently gates the cyberpunk theme; the flag is generic so
+        future premium features reuse it. The super admin may toggle their
+        own account. Toggling off revokes eligibility but deletes nothing.
+      operationId: adminSetUserPremium
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PremiumToggleRequest'
+      responses:
+        '204':
+          description: Premium access updated
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/branding:
+    put:
+      tags:
+        - Admin
+        - Branding
+      summary: Update app font branding (super admin only)
+      description: |
+        Super admin only. The selected font is deployment-wide and must be
+        one of the allowed branding fonts.
+      operationId: adminUpdateBranding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandingUpdateRequest'
+      responses:
+        '200':
+          description: Updated branding settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandingSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /gold/transactions:
+    get:
+      tags:
+        - Gold
+      summary: List the caller's gold purchases, newest first
+      operationId: listGoldTransactions
+      responses:
+        '200':
+          description: Purchases with computed columns (date desc)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoldTransaction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+    post:
+      tags:
+        - Gold
+      summary: Record a gold purchase
+      operationId: createGoldTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoldTransactionInput'
+      responses:
+        '201':
+          description: Stored purchase with computed columns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldTransaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+  /gold/transactions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+        description: Gold transaction id
+    put:
+      tags:
+        - Gold
+      summary: Update a gold purchase
+      operationId: updateGoldTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoldTransactionInput'
+      responses:
+        '200':
+          description: Updated purchase with computed columns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldTransaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+    delete:
+      tags:
+        - Gold
+      summary: Delete a gold purchase
+      operationId: deleteGoldTransaction
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+  /gold/prices:
+    get:
+      tags:
+        - Gold
+      summary: The caller's daily price series, ascending
+      operationId: listGoldPrices
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Inclusive lower bound; open when omitted
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Inclusive upper bound; open when omitted
+      responses:
+        '200':
+          description: Price rows in range, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GoldPrice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+    put:
+      tags:
+        - Gold
+      summary: Bulk upsert daily prices (the missing-day prompt saves all gaps in one call)
+      operationId: putGoldPrices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoldPrice'
+      responses:
+        '204':
+          description: Prices stored (existing days overwritten)
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+  /gold/missing-dates:
+    get:
+      tags:
+        - Gold
+      summary: Calendar days since the first purchase that lack a price row
+      operationId: listGoldMissingDates
+      responses:
+        '200':
+          description: Gap list for the blocking prompt; empty when caught up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldMissingDates'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+  /gold/metrics:
+    get:
+      tags:
+        - Gold
+      summary: The live gold metrics table incl. XIRR
+      operationId: getGoldMetrics
+      responses:
+        '200':
+          description: Metrics computed from the ledger + latest price + GOLDBEES
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoldMetrics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/GoldUnavailable'
+  /admin/users/{id}/holdings:
+    parameters:
+      - $ref: '#/components/parameters/UserID'
+    get:
+      tags:
+        - Admin
+      summary: List a user's holdings (act on their behalf)
+      operationId: adminListUserHoldings
+      responses:
+        '200':
+          description: The user's holdings sorted by script name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Holding'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Admin
+      summary: Add a holding to a user's portfolio
+      operationId: adminCreateUserHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldingInput'
+      responses:
+        '201':
+          description: Created holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/holdings/{holdingId}:
+    parameters:
+      - $ref: '#/components/parameters/UserID'
+      - name: holdingId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: MongoDB ObjectID of the holding
+    put:
+      tags:
+        - Admin
+      summary: Update a holding in a user's portfolio
+      operationId: adminUpdateUserHolding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldingInput'
+      responses:
+        '200':
+          description: Updated holding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Holding'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Admin
+      summary: Delete a holding from a user's portfolio
+      operationId: adminDeleteUserHolding
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/prices:
+    get:
+      tags:
+        - Admin
+      summary: A user's holdings enriched with live prices
+      operationId: adminGetUserPrices
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: Holdings with live prices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}/summary:
+    get:
+      tags:
+        - Admin
+      summary: A user's portfolio summary
+      operationId: adminGetUserSummary
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          description: Aggregated portfolio metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: pd_session
+      description: Opaque server-side session id issued at signup/login
+  schemas:
+    BrandingFont:
+      type: string
+      enum:
+        - roboto
+        - jetbrains_mono
+      description: Deployment-wide app font choice.
+    BrandingFontOption:
+      type: object
+      required:
+        - id
+        - label
+        - css_family
+      properties:
+        id:
+          $ref: '#/components/schemas/BrandingFont'
+        label:
+          type: string
+          description: Human-readable font name.
+        css_family:
+          type: string
+          description: CSS font-family stack for applying the font.
+    BrandingSettings:
+      type: object
+      required:
+        - font
+        - allowed_fonts
+      properties:
+        font:
+          $ref: '#/components/schemas/BrandingFont'
+        allowed_fonts:
+          type: array
+          description: Fonts the super admin may choose from.
+          items:
+            $ref: '#/components/schemas/BrandingFontOption'
+    Holding:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+        script:
+          type: string
+          description: Display name (e.g. "TCS", "GOLD BEES")
+        symbol:
+          type: string
+          description: Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS", "AAPL")
+        exchange:
+          type: string
+          enum:
+            - NSE
+            - BSE
+            - NYSE
+            - NASDAQ
+            - OTHER
+        type:
+          type: string
+          enum:
+            - stock
+            - etf
+        stocks_owned:
+          type: number
+          format: double
+          description: Current quantity held
+        avg_cost_price:
+          type: number
+          format: double
+          description: Average purchase price per share in the holding's currency
+        realized_pnl:
+          type: number
+          format: double
+          description: Profit/loss from shares already sold, in the holding's currency (derived, average cost)
+        total_dividends:
+          type: number
+          format: double
+          description: Cumulative cash dividend income, in the holding's currency (derived)
+        currency:
+          type: string
+          enum:
+            - INR
+            - EUR
+          default: INR
+          description: Currency in which avg_cost_price and realized_pnl are denominated
+        notes:
+          type: string
+        has_opening:
+          type: boolean
+          description: Whether an opening-balance event seeds this holding (drives the opening-date prompt)
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+          description: User-set effective date of the opening balance; null when not yet set
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    HoldingInput:
+      type: object
+      required:
+        - script
+        - exchange
+        - type
+      properties:
+        script:
+          type: string
+        symbol:
+          type: string
+        exchange:
+          type: string
+          enum:
+            - NSE
+            - BSE
+            - NYSE
+            - NASDAQ
+            - OTHER
+        type:
+          type: string
+          enum:
+            - stock
+            - etf
+        stocks_owned:
+          type: number
+          format: double
+          default: 0
+        avg_cost_price:
+          type: number
+          format: double
+          default: 0
+        realized_pnl:
+          type: number
+          format: double
+          default: 0
+          description: Opening realized P&L seed (legacy carry); new sells derive this from the ledger
+        currency:
+          type: string
+          enum:
+            - INR
+            - EUR
+          default: INR
+          description: Currency in which avg_cost_price and realized_pnl are denominated
+        notes:
+          type: string
+        opening_date:
+          type: string
+          format: date
+          nullable: true
+          description: Effective date of the opening balance; sets the holding's opening event date when provided
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    HoldingWithPrice:
+      allOf:
+        - $ref: '#/components/schemas/Holding'
+        - type: object
+          properties:
+            current_price:
+              type: number
+              format: double
+            cost_price:
+              type: number
+              format: double
+              description: stocks_owned × avg_cost_price
+            current_value:
+              type: number
+              format: double
+              description: stocks_owned × current_price
+            unrealized_pnl:
+              type: number
+              format: double
+              description: current_value − cost_price
+            cost_price_eur:
+              type: number
+              format: double
+            current_value_eur:
+              type: number
+              format: double
+            unrealized_pnl_eur:
+              type: number
+              format: double
+            realized_pnl_eur:
+              type: number
+              format: double
+            price_error:
+              type: string
+    PricesResponse:
+      type: object
+      properties:
+        holdings:
+          type: array
+          items:
+            $ref: '#/components/schemas/HoldingWithPrice'
+        eur_rate:
+          type: number
+          format: double
+          description: Live INR→EUR rate used for conversions
+    CurrencyChange:
+      type: object
+      properties:
+        currency:
+          type: string
+          description: INR | EUR | USD
+        current:
+          type: number
+          format: double
+          description: Today's live current value in the native currency.
+        previous_close:
+          type: number
+          format: double
+          description: Snapshot current value in the native currency.
+        change_value:
+          type: number
+          format: double
+        change_pct:
+          type: number
+          format: double
+          nullable: true
+    Summary:
+      type: object
+      properties:
+        total_cost:
+          type: number
+          format: double
+        total_current_value:
+          type: number
+          format: double
+        total_unrealized:
+          type: number
+          format: double
+        total_realized:
+          type: number
+          format: double
+        total_cost_eur:
+          type: number
+          format: double
+        total_current_value_eur:
+          type: number
+          format: double
+        total_unrealized_eur:
+          type: number
+          format: double
+        total_realized_eur:
+          type: number
+          format: double
+        eur_rate:
+          type: number
+          format: double
+        previous_close_value:
+          type: number
+          format: double
+          description: Portfolio current value (INR base) at the most recent snapshot strictly before today — the previous close. Omitted when the user has no prior snapshot.
+        previous_close_value_eur:
+          type: number
+          format: double
+        previous_close_date:
+          type: string
+          description: YYYY-MM-DD of the snapshot used as the previous close.
+        change_value:
+          type: number
+          format: double
+          description: total_current_value − previous_close_value (INR base).
+        change_value_eur:
+          type: number
+          format: double
+        change_pct:
+          type: number
+          format: double
+          nullable: true
+          description: Percent change vs previous close. Null when previous_close_value is zero.
+        per_currency:
+          type: array
+          description: Per-currency change vs previous close, in native amounts (no FX conversion), so currency moves don't muddy the price move.
+          items:
+            $ref: '#/components/schemas/CurrencyChange'
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+        holding_id:
+          type: string
+          description: Owning holding's ObjectID
+        type:
+          type: string
+          enum:
+            - opening
+            - buy
+            - sell
+            - dividend
+            - split
+            - bonus
+            - merger
+        date:
+          type: string
+          format: date-time
+          description: Trade / ex date; orders the ledger
+        quantity:
+          type: number
+          format: double
+          description: Shares (buy/sell/opening); unused for dividend
+        amount:
+          type: number
+          format: double
+          description: Total cash — debited (buy) or credited (sell, dividend); fees folded in
+        ratio:
+          type: number
+          format: double
+          description: Split/bonus ratio, e.g. 2.0 = 2-for-1
+        realized_seed:
+          type: number
+          format: double
+          description: Opening only — carries a legacy realized P&L with no underlying sell
+        currency:
+          type: string
+          enum:
+            - INR
+            - EUR
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TransactionInput:
+      type: object
+      required:
+        - type
+        - date
+      properties:
+        type:
+          type: string
+          enum:
+            - opening
+            - buy
+            - sell
+            - dividend
+            - split
+            - bonus
+            - merger
+        date:
+          type: string
+          format: date-time
+        quantity:
+          type: number
+          format: double
+          default: 0
+        amount:
+          type: number
+          format: double
+          default: 0
+        ratio:
+          type: number
+          format: double
+        realized_seed:
+          type: number
+          format: double
+        notes:
+          type: string
+    HistoryRegionSnapshot:
+      type: object
+      required:
+        - invested
+        - current
+        - source
+      properties:
+        invested:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+        source:
+          type: string
+          enum:
+            - cron
+            - manual
+        original_cron_invested:
+          type: number
+          format: double
+          nullable: true
+          description: Pre-override cron value (audit anchor; PD-042 §3.3).
+        original_cron_current:
+          type: number
+          format: double
+          nullable: true
+        write_currency:
+          type: string
+          description: Currency code (INR|EUR|USD) the manual amount was typed in. Empty on cron-written buckets.
+    HistoryTotals:
+      type: object
+      required:
+        - invested_total
+        - current_total
+      properties:
+        invested_total:
+          type: number
+          format: double
+        current_total:
+          type: number
+          format: double
+        pnl_pct:
+          type: number
+          format: double
+          nullable: true
+          description: Null when invested_total is zero (divide-by-zero).
+    HistoryHolding:
+      type: object
+      required:
+        - symbol
+        - script
+        - currency
+        - quantity
+        - close_price
+      description: One stock's line within a history snapshot (cron rows only).
+      properties:
+        symbol:
+          type: string
+        script:
+          type: string
+        currency:
+          type: string
+          description: Bucket currency code (INR|EUR|USD)
+        quantity:
+          type: number
+          format: double
+        close_price:
+          type: number
+          format: double
+          description: Close price on price_date (the row's current price)
+        price_date:
+          type: string
+          description: Trading date the close_price belongs to (YYYY-MM-DD)
+        current:
+          type: number
+          format: double
+          description: quantity × close_price
+    GoldHistoryOverlay:
+      type: object
+      description: |
+        Physical-gold position as of a history row's date (PRD-003 §8) —
+        present only for gold-enabled users, only on dates on/after their
+        first purchase with a valuation price available. Computed on read
+        from the gold ledger + price series; never snapshotted. GOLDBEES
+        is excluded (already in the stock buckets).
+      required:
+        - invested
+        - current
+        - volatility_pct
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid of purchases dated on/before the row date
+        current:
+          type: number
+          format: double
+          description: grams held on/before the row date × that date's price (nearest earlier fallback)
+        volatility_pct:
+          type: number
+          format: double
+          description: '% change of current vs the previous row in the response window (0 on the first)'
+        pnl_pct:
+          type: number
+          format: double
+          nullable: true
+          description: (current − invested) ÷ invested × 100; null when nothing invested
+    HistoryRow:
+      type: object
+      required:
+        - date
+        - regions
+        - totals
+      properties:
+        date:
+          type: string
+          format: date
+        regions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HistoryRegionSnapshot'
+        totals:
+          $ref: '#/components/schemas/HistoryTotals'
+        holdings:
+          type: array
+          description: Per-stock breakdown for cron-sourced rows; absent on manual-only rows.
+          items:
+            $ref: '#/components/schemas/HistoryHolding'
+        gold:
+          $ref: '#/components/schemas/GoldHistoryOverlay'
+    HistoryList:
+      type: object
+      required:
+        - currency
+        - rows
+      properties:
+        currency:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryRow'
+    HistoryRegionInput:
+      type: object
+      required:
+        - invested
+        - current
+      properties:
+        invested:
+          type: number
+          format: double
+        current:
+          type: number
+          format: double
+    AddHistoryRowInput:
+      type: object
+      required:
+        - date
+        - regions
+      properties:
+        date:
+          type: string
+          format: date
+        regions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HistoryRegionInput'
+    HistoryConflictResponse:
+      type: object
+      required:
+        - error
+        - conflicts
+      properties:
+        error:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            required:
+              - region
+              - existing
+              - incoming
+            properties:
+              region:
+                type: string
+              existing:
+                $ref: '#/components/schemas/HistoryRegionSnapshot'
+              incoming:
+                $ref: '#/components/schemas/HistoryRegionInput'
+    PatchHistoryRegionsInput:
+      type: object
+      required:
+        - regions
+      properties:
+        regions:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HistoryRegionInput'
+    PasteHistoryInput:
+      type: object
+      required:
+        - month
+        - rows
+      properties:
+        month:
+          type: string
+          description: YYYY-MM
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddHistoryRowInput'
+    HistoryDateConflict:
+      type: object
+      required:
+        - date
+        - existing
+        - incoming
+      properties:
+        date:
+          type: string
+          format: date
+        existing:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HistoryRegionSnapshot'
+        incoming:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HistoryRegionInput'
+    RejectedPasteRow:
+      type: object
+      required:
+        - date
+        - reason
+      properties:
+        date:
+          type: string
+        reason:
+          type: string
+    PasteHistoryReport:
+      type: object
+      required:
+        - applied
+        - conflicts
+        - rejected
+      properties:
+        applied:
+          type: array
+          items:
+            type: string
+            format: date
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryDateConflict'
+        rejected:
+          type: array
+          items:
+            $ref: '#/components/schemas/RejectedPasteRow'
+    Region:
+      type: object
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+          description: Stable region key (india, europe, us)
+        label:
+          type: string
+          description: Display name
+    SecurityQuestion:
+      type: object
+      required:
+        - id
+        - prompt
+      properties:
+        id:
+          type: string
+          description: Stable question key from the fixed catalogue
+        prompt:
+          type: string
+    SecurityAnswerInput:
+      type: object
+      required:
+        - question_id
+        - answer
+      properties:
+        question_id:
+          type: string
+          description: Question key from the catalogue
+        answer:
+          type: string
+          description: Answer text; compared case-insensitively, surrounding whitespace ignored
+    SignupRequest:
+      type: object
+      required:
+        - username
+        - name
+        - password
+        - region
+        - security_answers
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          description: 'Allowed characters: A–Z a–z 0–9 _ -'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        password:
+          type: string
+          minLength: 8
+        region:
+          type: string
+          description: One of the /regions catalogue ids
+        security_answers:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SecurityAnswerInput'
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - name
+        - role
+        - region
+        - disabled
+        - locked
+        - gold_enabled
+        - premium
+        - must_change_password
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+        username:
+          type: string
+          description: Username as originally typed (uniqueness is case-insensitive)
+        name:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+            - superadmin
+        region:
+          type: string
+          description: Oversight region (india, europe, us); empty for the super admin
+        disabled:
+          type: boolean
+          description: Hidden (reversibly blocked) by an admin
+        locked:
+          type: boolean
+          description: Security-question recovery locked after three wrong attempts
+        gold_enabled:
+          type: boolean
+          description: Physical-gold tracking enabled (super-admin toggled, PRD-003 §2.4)
+        premium:
+          type: boolean
+          description: Premium features enabled (super-admin toggled, PD-046 — cyberpunk theme)
+        must_change_password:
+          type: boolean
+          description: Forced onboarding pending (bootstrap super admin)
+        security_question_ids:
+          type: array
+          items:
+            type: string
+          description: The catalogue keys of the account's chosen questions (own account only)
+        created_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    RecoverQuestionsRequest:
+      type: object
+      required:
+        - username
+      properties:
+        username:
+          type: string
+    RecoverRequest:
+      type: object
+      required:
+        - username
+        - answers
+        - new_password
+      properties:
+        username:
+          type: string
+        answers:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SecurityAnswerInput'
+        new_password:
+          type: string
+          minLength: 8
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+    UpdateProfileRequest:
+      type: object
+      required:
+        - current_password
+      properties:
+        current_password:
+          type: string
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+    UpdateSecurityQuestionsRequest:
+      type: object
+      required:
+        - current_password
+        - security_answers
+      properties:
+        current_password:
+          type: string
+        security_answers:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SecurityAnswerInput'
+    OnboardingRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+        - security_answers
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+        security_answers:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SecurityAnswerInput'
+    RegionUpdateRequest:
+      type: object
+      required:
+        - region
+      properties:
+        region:
+          type: string
+          description: One of the /regions catalogue ids
+    GoldToggleRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: Turn gold tracking on or off for the account
+    PremiumToggleRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: Turn premium features on or off for the account
+    BrandingUpdateRequest:
+      type: object
+      required:
+        - font
+      properties:
+        font:
+          $ref: '#/components/schemas/BrandingFont'
+    GoldTransaction:
+      type: object
+      description: One gold purchase with the derived columns (PRD-003 §5).
+      required:
+        - id
+        - date
+        - gm_price
+        - grams_bought
+        - actual_paid
+        - gold_cost
+        - gst_on_cost
+        - total_expected
+        - nett_per_gram
+        - nimmi_loss
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        gm_price:
+          type: number
+          format: double
+        grams_bought:
+          type: number
+          format: double
+        quote_price:
+          type: number
+          format: double
+          nullable: true
+        bill_amount:
+          type: number
+          format: double
+          nullable: true
+        actual_paid:
+          type: number
+          format: double
+        billed_weight:
+          type: number
+          format: double
+          nullable: true
+        chennai_rate:
+          type: string
+          nullable: true
+        gold_cost:
+          type: number
+          format: double
+          description: gm_price × grams_bought
+        gst_on_cost:
+          type: number
+          format: double
+          description: 3% of gold_cost
+        total_expected:
+          type: number
+          format: double
+          description: gold_cost + gst_on_cost
+        gst_on_quote:
+          type: number
+          format: double
+          nullable: true
+          description: 3% of quote_price; null when no quote recorded
+        nett_per_gram:
+          type: number
+          format: double
+          description: actual_paid ÷ grams_bought
+        nett_reduction:
+          type: number
+          format: double
+          nullable: true
+          description: bill_amount − actual_paid; null when no bill recorded
+        nimmi_loss:
+          type: number
+          format: double
+          description: actual_paid − gold_cost (spreadsheet J − D)
+    GoldTransactionInput:
+      type: object
+      description: |
+        Entered fields of one physical gold purchase (PRD-003 §5). Every
+        computed column is derived server-side; clients never send them.
+      required:
+        - date
+        - gm_price
+        - grams_bought
+        - actual_paid
+      properties:
+        date:
+          type: string
+          format: date
+          description: Purchase date
+        gm_price:
+          type: number
+          format: double
+          description: Per-gram rate for this purchase (> 0)
+        grams_bought:
+          type: number
+          format: double
+          description: Grams actually bought (> 0)
+        quote_price:
+          type: number
+          format: double
+          nullable: true
+          description: Per-gram rate the jeweler quoted
+        bill_amount:
+          type: number
+          format: double
+          nullable: true
+          description: Amount printed on the bill
+        actual_paid:
+          type: number
+          format: double
+          description: Cash actually paid (>= 0)
+        billed_weight:
+          type: number
+          format: double
+          nullable: true
+          description: Grams on the bill (can differ from actual)
+        chennai_rate:
+          type: string
+          nullable: true
+          description: Free-text remark (a rate, "Ditto", a note); not validated
+    GoldPrice:
+      type: object
+      description: One user-entered daily per-gram gold price (PRD-003 §7).
+      required:
+        - date
+        - price_per_gram
+      properties:
+        date:
+          type: string
+          format: date
+        price_per_gram:
+          type: number
+          format: double
+          description: Per-gram rate for that calendar day (> 0)
+    GoldMissingDates:
+      type: object
+      description: |
+        Calendar days between the first gold purchase and today that have
+        no price row — the Gold page's blocking prompt (PRD-003 §7).
+      required:
+        - missing
+      properties:
+        missing:
+          type: array
+          items:
+            type: string
+            format: date
+    GoldMetrics:
+      type: object
+      description: |
+        The live metrics table (PRD-003 §6) — computed from the ledger,
+        the latest price on/before today, and the GOLDBEES holdings.
+        Nullable fields are unknowable in the current state (no price row
+        yet, empty ledger, or the live GOLDBEES quote unavailable).
+      required:
+        - invested
+        - grams
+      properties:
+        invested:
+          type: number
+          format: double
+          description: Σ actual_paid over all purchases
+        grams:
+          type: number
+          format: double
+          description: Σ grams_bought (actual weight, PRD §9.4)
+        latest_price:
+          type: number
+          format: double
+          nullable: true
+          description: Most recent daily price on/before today — the valuation rate
+        current:
+          type: number
+          format: double
+          nullable: true
+          description: grams × latest_price
+        bees_pl:
+          type: number
+          format: double
+          nullable: true
+          description: GOLDBEES realised + unrealised P&L, no tax adjustment (PRD §9.6/§9.7)
+        nett_ex_bees:
+          type: number
+          format: double
+          nullable: true
+          description: current − invested
+        nett_in_bees:
+          type: number
+          format: double
+          nullable: true
+          description: nett_ex_bees + bees_pl
+        avg_per_gram:
+          type: number
+          format: double
+          nullable: true
+          description: invested ÷ grams
+        xirr:
+          type: number
+          format: double
+          nullable: true
+          description: Annualized rate as a fraction (0.12 = 12%); null when non-convergent
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadGateway:
+      description: Upstream (Yahoo Finance) error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Username already taken
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Not logged in, or credentials/answers rejected
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Logged in but not allowed (role, scope, or hidden account)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Locked:
+      description: Recovery locked after three wrong security-answer attempts
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GoldUnavailable:
+      description: Gold storage (Postgres) is not configured or unreachable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  parameters:
+    UserID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MongoDB ObjectID of the target user

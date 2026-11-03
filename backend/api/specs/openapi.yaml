@@ -59,6 +59,10 @@ paths:
     $ref: "./transactions/transactions.yaml#/transactions"
   /transactions/{id}:
     $ref: "./transactions/transactions.yaml#/transactions_id"
+  /transactions/import/preview:
+    $ref: "./transactions/transactions.yaml#/transactions_import_preview"
+  /transactions/import:
+    $ref: "./transactions/transactions.yaml#/transactions_import"
   /dividends:
     $ref: "./dividends/dividends.yaml#/dividends"
   /dividends/import/preview:
@@ -153,6 +157,10 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_summary"
   /admin/users/{id}/transactions:
     $ref: "./admin/admin.yaml#/users_id_transactions"
+  /admin/users/{id}/transactions/import/preview:
+    $ref: "./admin/admin.yaml#/users_id_transactions_import_preview"
+  /admin/users/{id}/transactions/import:
+    $ref: "./admin/admin.yaml#/users_id_transactions_import"
   /admin/users/{id}/dividends:
     $ref: "./admin/admin.yaml#/users_id_dividends"
   /admin/users/{id}/dividends/import/preview:
