@@ -47,12 +47,18 @@ date keeps the historical snapshots valuing that holding from the right day.
 The **All transactions** page has an **Investment delta** panel just below
 the filters (your own portfolio only; not in admin act-as). Expand it for a
 Jan–Dec chart: each month's bar is the money added (green) or the cost
-basis sold (red), the same figure as the History month card, and the line
-is the invested amount at each month end. ‹ › change the year, and the
-INR / EUR / Gold buttons switch the currency
-([PRD-007](prds/PRD-007-investment-delta-chart.md)). The panel remembers
-whether you left it open, and reloads after you edit or delete a
-transaction in a holding's ledger, so it matches History.
+basis sold (red), and the line is the invested amount (cost basis) at each
+month end. ‹ › change the year, and the INR / EUR / Gold buttons switch the
+currency ([PRD-007](prds/PRD-007-investment-delta-chart.md)). The panel
+remembers whether you left it open, and reloads after you edit or delete a
+transaction in a holding's ledger.
+
+The figures come from your transactions: every holding's ledger replayed as
+of each month end (today for the current month), and Gold from your gold
+purchases ([PRD-009](prds/PRD-009-investment-delta-from-transactions.md)).
+The super admin can switch an account back to the earlier version, which
+reads the same figures off History rows (**Delta from History** in Admin →
+Users).
 
 ### Importing trades from a CSV
 

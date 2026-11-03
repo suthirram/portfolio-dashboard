@@ -46,6 +46,8 @@ export type OnboardingRequest = Schemas['OnboardingRequest']
 export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
 export type PremiumToggleRequest = Schemas['PremiumToggleRequest']
+export type UserFlagToggleRequest = Schemas['UserFlagToggleRequest']
+export type InvestmentDelta = Schemas['InvestmentDelta']
 export type BrandingFont = Schemas['BrandingFont']
 export type BrandingSettings = Schemas['BrandingSettings']
 export type BrandingUpdateRequest = Schemas['BrandingUpdateRequest']
@@ -158,6 +160,8 @@ export const api = {
     request<TradeImportPreview>('POST', `${transactionsPath(userId)}/import/preview`, body),
   importTrades: (body: TradeImportInput, userId?: string) =>
     request<TradeImportResult>('POST', `${transactionsPath(userId)}/import`, body),
+  // The Transactions page's investment delta from the ledger (PD-052).
+  getInvestmentDelta: (year: number) => request<InvestmentDelta>('GET', `/transactions/investment-delta?year=${year}`),
 
   // Dividends (PD-048): one currency tab, CSV import, delete-all. Single
   // dividends are written through the ledger methods above.
@@ -195,6 +199,8 @@ export const api = {
   adminSetUserRegion:   (id: string, body: RegionUpdateRequest) => request<User>('PUT', `/admin/users/${id}/region`, body),
   adminSetUserGold:     (id: string, body: GoldToggleRequest) => request<void>('PUT', `/admin/users/${id}/gold`, body),
   adminSetUserPremium:  (id: string, body: PremiumToggleRequest) => request<void>('PUT', `/admin/users/${id}/premium`, body),
+  adminSetUserDeltaFromHistory: (id: string, body: UserFlagToggleRequest) =>
+    request<void>('PUT', `/admin/users/${id}/delta-from-history`, body),
   adminUpdateBranding:  (body: BrandingUpdateRequest) => request<BrandingSettings>('PUT', '/admin/branding', body),
 
   listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
