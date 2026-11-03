@@ -32,6 +32,7 @@
 | Every slice passes the three gates | `task-breakdown` skill | §PR sequence |
 | Behaviour tests only; mtest for Go | CLAUDE.md | §6 of DD-008 |
 | Tracing span + logger per service method | CLAUDE.md | `Preview`, `Import` |
+| Services never touch `bson` / collections | CLAUDE.md (persistence layer) | `ListTradesByHoldings` and `StampImport` own the queries and the update shape |
 | Descriptive names, ESLint on changed files | CLAUDE.md | `formDates.ts`'s two `p` locals renamed in PR4 |
 | Gitmoji, subject ≤ 50 chars, no attribution | CLAUDE.md | every commit and PR below |
 | Edit tool for source | CLAUDE.md | every Modify step is an Edit (current → replacement) |
@@ -49,7 +50,7 @@
 | Modify | `backend/internal/services/dividend_import.go` | `partitionByKey` |
 | Modify | `backend/internal/services/dividend_match.go` | `matchIndex`, `resolveWith`, `nameCount.label` |
 | Modify | `backend/api/specs/*.yaml`, `backend/api/*.gen.go` | trade import schemas, paths, generated code |
-| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings` |
+| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings`, `StampImport` (owner-scoped replacement stamp) |
 | Create | `backend/internal/services/trade_import.go` (+ test) | `TradeImportService`: evaluate, Preview, Import |
 | Create | `backend/internal/controllers/trade_import.go` | 4 handlers |
 | Modify | `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go` | wiring, admin tiers |
@@ -758,9 +759,9 @@ cd backend && go generate -tags tools ./...
 
 Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 11 implements the four handlers.
 
-* [ ] **Step 7: Load the stored trades in a window (Edit `backend/internal/persistence/transactions.go`)**
+* [ ] **Step 7: Load the stored trades; stamp a replaced one (Edit `backend/internal/persistence/transactions.go`)**
 
-WHY: the replace lookup needs the buys and sells of the matched holdings across the file's date range; it is `ListDividendsByHoldings` with the trade types.
+WHY: the replace lookup needs the buys and sells of the matched holdings across the file's date range (`ListDividendsByHoldings` with the trade types). `StampImport` is the replacement write: owner-scoped, it sets only the import metadata and `updated_at` and returns `ErrNotFound` when nothing matched, so the update shape stays in persistence and the service never builds `bson` (CLAUDE.md).
 
 Current:
 
@@ -790,6 +791,43 @@ func (s *TransactionStore) ListTradesByHoldings(ctx context.Context, userId prim
         "date":       bson.M{"$gte": from, "$lte": to},
 ```
 
+Current:
+
+```go
+        return domain.Transaction{}, translateFindErr(err)
+    }
+    return out, nil
+}
+```
+
+Replacement:
+
+```go
+        return domain.Transaction{}, translateFindErr(err)
+    }
+    return out, nil
+}
+
+// StampImport records that a CSV import replaced userId's transaction id: it
+// sets the import metadata and updated_at, nothing else, so the trade's
+// values, notes and ledger position stay (PRD-008 §5). Returns ErrNotFound
+// when no transaction of userId has that id.
+func (s *TransactionStore) StampImport(ctx context.Context, userId, id primitive.ObjectID, meta domain.ImportMeta, updatedAt time.Time) error {
+    ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+    defer cancel()
+    res, err := s.col.UpdateOne(ctx,
+        scopedFilter(userId, bson.M{"_id": id}),
+        bson.M{"$set": bson.M{"import": meta, "updated_at": updatedAt}})
+    if err != nil {
+        return err
+    }
+    if res.MatchedCount == 0 {
+        return ErrNotFound
+    }
+    return nil
+}
+```
+
 * [ ] **Step 8: The service (Create `backend/internal/services/trade_import.go`)**
 
 WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, trades, replacements, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Split into named steps to keep each function small (gocyclo).
@@ -807,7 +845,6 @@ import (
     "strings"
     "time"
 
-    "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.uber.org/zap"
 
@@ -1295,11 +1332,8 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
         // A replacement keeps the stored trade (id, notes, ledger position)
         // and stamps this import on it: the values are identical by key.
         for i, stored := range plan.replaced {
-            set := bson.D{
-                {Key: "import", Value: domain.ImportMeta{BatchId: batchId, Line: plan.lines[i].Line, SheetName: sheetName(plan.lines[i].StockName)}},
-                {Key: "updated_at", Value: now},
-            }
-            if _, err := s.txns.UpdateScopedAndReturn(ctx, userId, stored.ID, set); err != nil {
+            meta := domain.ImportMeta{BatchId: batchId, Line: plan.lines[i].Line, SheetName: sheetName(plan.lines[i].StockName)}
+            if err := s.txns.StampImport(ctx, userId, stored.ID, meta, now); err != nil {
                 return err
             }
         }
@@ -1338,7 +1372,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
 
 * [ ] **Step 9: Service tests (Create `backend/internal/services/trade_import_test.go`)**
 
-WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, one replacement per occurrence, re-upload inserts nothing, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
+WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, one replacement per occurrence, re-upload inserts nothing and stamps each stored trade scoped to its owner, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
 
 ```go
 package services
@@ -1451,12 +1485,13 @@ func TestTradeImport(t *testing.T) {
     }}
 
     mt.Run("re-uploading the same trades replaces them in place, inserting nothing", func(mt *mtest.T) {
+        first, second := stored("2025-04-04", "buy", 17, 1278.4), stored("2025-04-07", "buy", 1, 73.55)
         mt.AddMockResponses(
             holdingDocs(mt),
             transactions(mt), // no opening
-            transactions(mt, stored("2025-04-04", "buy", 17, 1278.4), stored("2025-04-07", "buy", 1, 73.55)),
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: stored("2025-04-04", "buy", 17, 1278.4)}),
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: stored("2025-04-07", "buy", 1, 73.55)}),
+            transactions(mt, first, second),
+            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp first
+            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp second
         )
         result, err := service(mt).Import(context.Background(), userId, twoBuys)
         if err != nil {
@@ -1467,6 +1502,21 @@ func TestTradeImport(t *testing.T) {
         }
         if inserts := commandCount(mt, "insert", "transactions"); inserts != 0 {
             t.Errorf("%d inserts issued; want none (no duplicates)", inserts)
+        }
+        // Each replacement is stamped on the stored trade, scoped to its owner.
+        var stamped []primitive.ObjectID
+        for _, event := range mt.GetAllStartedEvents() {
+            if event.CommandName != "update" || event.Command.Lookup("update").StringValue() != "transactions" {
+                continue
+            }
+            query := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("q").Document()
+            if owner := query.Lookup("user_id").ObjectID(); owner != userId {
+                t.Errorf("stamp scoped to user %s; want %s", owner.Hex(), userId.Hex())
+            }
+            stamped = append(stamped, query.Lookup("_id").ObjectID())
+        }
+        if len(stamped) != 2 || stamped[0] != first[0].Value || stamped[1] != second[0].Value {
+            t.Errorf("stamped %v; want the two stored trades in order", stamped)
         }
     })
 

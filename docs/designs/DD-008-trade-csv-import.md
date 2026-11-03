@@ -94,9 +94,12 @@ Otherwise, in order:
    `amount` rounded to cents, `currency` from `ledgerCurrency`,
    `import` = `{batch_id, line, sheet_name}`, `created_at` = now + i ms in
    replay order so same-day trades replay as in the file;
-3. replace: for each paired stored trade, `UpdateScopedAndReturn` sets
-   `import` and `updated_at` only; the values are identical by key, so the
-   id, notes and ledger position stay;
+3. replace: for each paired stored trade, `TransactionStore.StampImport(
+   ctx, userId, transactionId, meta, updatedAt)` sets `import` and
+   `updated_at` only (owner-scoped; `ErrNotFound` when nothing matched). The
+   values are identical by key, so the id, notes and ledger position stay.
+   The update shape lives in persistence: the service never builds `bson`
+   (CLAUDE.md, persistence layer);
 4. `MoveAliases` for confirmed (not created) symbols;
 5. `recomputeAndPersist` each holding with new trades (an oversell here
    aborts the transaction → 400);
@@ -134,7 +137,8 @@ requires (`Store.InTransaction`).
 * Go (behaviour, mtest mock): generic partition with another key; symbols
   match across exchange suffixes; an unknown symbol waits with suggestions;
   `validateTrade` cases; `pairStored` one per occurrence; `Import`:
-  re-upload replaces and inserts nothing, rows up to the opening date are
+  re-upload replaces and inserts nothing (each stamp scoped to the user and
+  the stored trade's id), rows up to the opening date are
   covered, an oversell blocks everything, a created symbol inserts its
   holding, the heal runs from the earliest trade and its failure fails the
   import. Admin route tiers include the two act-as paths.
@@ -149,6 +153,6 @@ requires (`Store.InTransaction`).
 | Risk | Mitigation |
 |---|---|
 | The heal rewrites many snapshots in one transaction | per-user scope; RecomputeFrom starts at the earliest new day only |
-| A replace overwrites a hand-entered note | it never does: only `import` and `updated_at` change |
+| A replace overwrites a hand-entered note | it never does: `StampImport` sets only `import` and `updated_at` |
 | Replace keys collide on genuinely repeated trades | occurrence matching: n identical rows replace at most n stored trades |
 | Excel's mangled order ids | not used anywhere |
