@@ -5,7 +5,8 @@ import { formatDate, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendImportPreview, DividendImportResult, DividendImportRow, Holding } from '../../types'
 import { modalBackdrop, modalCard, td, th } from '../history/historyShared'
 import { parseDividendCsv, type DividendCsvError } from './dividendCsv'
-import NameConfirmDialog, { type Answers } from './NameConfirmDialog'
+import { ImportCounts, InvalidLines } from '../imports/ImportTables'
+import NameConfirmDialog, { type Answers } from '../imports/NameConfirmDialog'
 
 type Step = 'pick' | 'names' | 'preview' | 'result'
 const MAX_BYTES = 1024 * 1024
@@ -90,7 +91,9 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
 
   if (step === 'names' && preview) {
     return (
-      <NameConfirmDialog names={open(preview, answers)} holdings={inTab} currencyLabel={label} onBack={() => setStep('pick')}
+      <NameConfirmDialog names={open(preview, answers)} holdings={inTab} heading="Confirm share names" context={label}
+        intro="These names in your sheet don't exactly match a holding. Choose the holding each one means. Your answers are remembered for next time."
+        onBack={() => setStep('pick')}
         onConfirm={confirmed => { const next = { ...answers, ...confirmed }; setAnswers(next); void runPreview(rows, next) }} />
     )
   }
@@ -115,24 +118,9 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
 
         {step === 'preview' && counts && preview && (
           <>
-            <table style={{ borderCollapse: 'collapse', fontSize: 13, maxWidth: 320 }}>
-              <thead><tr><th style={th}>Status</th><th style={{ ...th, textAlign: 'right' }}>Count</th></tr></thead>
-              <tbody>
-                <tr><td style={td}>Ready to import</td><td style={{ ...td, textAlign: 'right' }}>{counts.ready}</td></tr>
-                <tr><td style={td}>Already exists</td><td style={{ ...td, textAlign: 'right' }}>{counts.duplicate}</td></tr>
-                <tr><td style={td}>Invalid</td><td style={{ ...td, textAlign: 'right' }}>{counts.invalid}</td></tr>
-                <tr><td style={{ ...td, fontWeight: 700 }}>Total</td><td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{counts.total}</td></tr>
-              </tbody>
-            </table>
-            {counts.invalid > 0 && (
-              <>
-                <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}><strong>{counts.invalid} rows need fixing</strong> before you can import. Nothing has been saved.</p>
-                <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr><th style={th}>Line</th><th style={th}>Problem</th></tr></thead>
-                  <tbody>{invalidLines.map(invalidLine => <tr key={invalidLine.line}><td style={td}>{invalidLine.line}</td><td style={td}>{invalidLine.reason}</td></tr>)}</tbody>
-                </table>
-              </>
-            )}
+            <ImportCounts total={counts.total}
+              counts={[['Ready to import', counts.ready], ['Already exists', counts.duplicate], ['Invalid', counts.invalid]]} />
+            <InvalidLines lines={invalidLines} />
             {preview.warnings.map(warning => (
               <p key={warning.line} style={{ color: 'var(--yellow)', fontSize: 12, margin: 0 }}>⚠ Line {warning.line}: {warning.message}. Import is still allowed.</p>
             ))}
