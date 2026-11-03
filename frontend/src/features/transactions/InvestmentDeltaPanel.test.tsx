@@ -240,17 +240,32 @@ describe('InvestmentDeltaPanel (from the ledger)', () => {
     await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(3))
   })
 
-  it('refetches the current year when a new trading day starts', async () => {
+  // The server computes the ledger as of the IST calendar day, so the panel
+  // refetches at IST midnight, not at the trading day's 08:00 IST cut-over.
+  it('refetches the current year at IST midnight', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      vi.setSystemTime(new Date('2026-06-30T21:00:00Z')) // trading day 30 Jun, live window closed
+      vi.setSystemTime(new Date('2026-06-30T18:00:00Z')) // 23:30 IST, 30 Jun
       renderPanel()
       fireEvent.click(handleButton())
       await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(1))
-      // Past the next boundary (03:30 UTC on 1 Jul): the trading day is now 1 Jul.
-      await act(async () => { vi.advanceTimersByTime(8 * 3600 * 1000) })
+      // 00:30 IST on 1 Jul: a new calendar day (the trading day is still 30 Jun).
+      await act(async () => { vi.advanceTimersByTime(3600 * 1000) })
       await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2))
       expect(mockApi.getInvestmentDelta).toHaveBeenLastCalledWith(2026)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('offers the new year from IST midnight on 1 January', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      vi.setSystemTime(new Date('2026-12-31T19:00:00Z')) // 00:30 IST, 1 Jan 2027
+      renderPanel()
+      fireEvent.click(handleButton())
+      expect(handleButton()).toHaveTextContent('Investment delta · 2027')
+      await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenLastCalledWith(2027))
     } finally {
       vi.useRealTimers()
     }
