@@ -16,7 +16,7 @@ func matchHoldings() []domain.Holding {
 }
 
 func resolveOne(name string, candidates []domain.Holding, mappings map[string]*string) nameResolution {
-	return resolveNames([]nameCount{{name: name, rows: 1}}, candidates, mappings)[0]
+	return resolveNames([]nameCount{{name: name, label: name, rows: 1}}, candidates, mappings)[0]
 }
 
 // Only the display name (case/space-insensitive) or a confirmed alias maps
