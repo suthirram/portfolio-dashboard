@@ -587,7 +587,7 @@
     </p>
     <dl class="meta-grid">
       <div class="meta-cell"><dt>Route</dt><dd>/transactions (own + admin act-as)</dd></div>
-      <div class="meta-cell"><dt>Dates</dt><dd>always DD/MM/YYYY, time optional</dd></div>
+      <div class="meta-cell"><dt>Dates</dt><dd>always DD/MM/YYYY; a time is ignored</dd></div>
       <div class="meta-cell"><dt>Same trade</dt><dd>replaced, never duplicated</dd></div>
       <div class="meta-cell"><dt>Opening balance</dt><dd>earlier rows covered</dd></div>
       <div class="meta-cell"><dt>Commit</dt><dd>one MongoDB transaction, History included</dd></div>
@@ -666,7 +666,7 @@
         <div class="app-main">
           <div class="filterbar" id="row-filter"></div>
           <div class="rows-scroll">
-            <table class="rows"><thead><tr><th>Line</th><th>Date as written</th><th>Read as</th><th>Time</th><th>Symbol</th><th>Holding</th><th>Type</th><th class="num">Qty</th><th class="num">Value ₹</th><th>Status</th></tr></thead>
+            <table class="rows"><thead><tr><th>Line</th><th>Date as written</th><th>Read as</th><th>Symbol</th><th>Holding</th><th>Type</th><th class="num">Qty</th><th class="num">Value ₹</th><th>Status</th></tr></thead>
               <tbody id="rows-body"></tbody></table>
           </div>
           <p class="muted" id="rows-foot"></p>
@@ -674,7 +674,7 @@
       </div>
     </div>
     <ol class="annotations">
-      <li><b>1</b><span>The <em>Read as</em> column is the import's reading of the date cell. Rows written <code>1/11/2024</code> are the cells Excel turned into dates — every one has a day ≤ 12 and no time — and they read <strong>day-first</strong> (1 Nov 2024), which keeps the file in date order. Rows like <code>17-12-2024 03:30 PM</code> keep their time, which only orders same-day trades. Filter by status to see which rows a choice in frame 02 changes.</span></li>
+      <li><b>1</b><span>The <em>Read as</em> column is the import's reading of the date cell. Rows written <code>1/11/2024</code> are the cells Excel turned into dates — every one has a day ≤ 12 and no time — and they read <strong>day-first</strong> (1 Nov 2024), which keeps the file in date order. Rows like <code>17-12-2024 03:30 PM</code> import as the day alone: the time is read past and has no effect (owner, 2026-11-03). Filter by status to see which rows a choice in frame 02 changes.</span></li>
     </ol>
   </section>
 
@@ -695,7 +695,7 @@
       </div>
     </div>
     <ol class="annotations">
-      <li><b>1</b><span>Always day-first (owner, 2026-11-03): <code>D/M/YYYY</code>, <code>DD-MM-YYYY</code>, <code>DD.MM.YYYY</code> or <code>YYYY-MM-DD</code>, optionally followed by <code>h:mm</code> with AM/PM, or a 24-hour time with optional seconds. An impossible date (31/02/2025), an impossible time (13:30 PM) or trailing text makes the line invalid, with this message. The same reader serves the dividend import and the History paste (<code>parseDateTime</code>, DD-008 §5).</span></li>
+      <li><b>1</b><span>Always day-first (owner, 2026-11-03): <code>D/M/YYYY</code>, <code>DD-MM-YYYY</code>, <code>DD.MM.YYYY</code> or <code>YYYY-MM-DD</code>, optionally followed by <code>h:mm</code> with AM/PM, or a 24-hour time with optional seconds; the time is dropped and only the day is imported. An impossible date (31/02/2025), an impossible time (13:30 PM) or trailing text makes the line invalid, with this message. The same reader serves the dividend import and the History paste (<code>normaliseDate</code>, DD-008 §5).</span></li>
     </ol>
   </section>
 
@@ -706,7 +706,7 @@
         <div class="app-main">
           <div class="rules">
             <div class="rule"><h4><span class="status s-ready">ready</span> New trade</h4>
-              <span>Inserted as a buy or sell: date = the day, amount = Value (rounded to cents), quantity as written. Same-day rows replay in file order, or by time when given.</span>
+              <span>Inserted as a buy or sell: date = the day, amount = Value (rounded to cents), quantity as written. A day's new trades replay after its saved trades, in file order; the time has no effect.</span>
               <code>ITC · BUY 6 · ₹1,590.60 · 29-09-2026 14:21</code></div>
             <div class="rule"><h4><span class="status s-replace">replace</span> Identical trade exists</h4>
               <span>Same holding, day, type, quantity and value as a saved trade: the saved trade is kept (id, notes, position) and stamped with this import. Never a second copy (owner, 2026-11-03). Matching is per occurrence: two identical rows replace at most two saved trades.</span>
@@ -773,7 +773,7 @@
           <tr><td>01</td><td>Import CSV in the toolbar, own and act-as; table + investment delta reload after import</td><td>4</td></tr>
           <tr><td>02</td><td>pick → symbols (map / create / leave) → preview → result; Confirm disabled while invalid; 422 re-preview</td><td>2, 3, 4</td></tr>
           <tr><td>03</td><td>Day-first reading of both date shapes; statuses ready / replace / covered / invalid</td><td>2, 3, 4</td></tr>
-          <tr><td>04</td><td>parseDateTime rules and messages</td><td>3</td></tr>
+          <tr><td>04</td><td>normaliseDate rules and messages</td><td>3</td></tr>
           <tr><td>05</td><td>Replace by holding + day + type + quantity + value, per occurrence; opening cover; oversell; skipped</td><td>2, 4</td></tr>
           <tr><td>06</td><td>One transaction: holdings, trades, replacements, aliases, positions, History heal</td><td>2</td></tr>
           <tr><td>07</td><td>Usable at phone width</td><td>4</td></tr>
@@ -807,7 +807,7 @@
     JPL: { suggest: 'JIOPLA', why: 'initials of “Jio Platforms Ltd”' }, 'NSE$': { suggest: 'NSEIND', why: '“National Stock Exchange of India”' } }
   const OPENING = '2026-06-15'
 
-  // The date rule (illustrative port of parseDateTime).
+  // The date rule (illustrative port of normaliseDate).
   const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]m)?$/i
   function readDate(raw) {
     const [datePart = '', ...rest] = raw.trim().split(/\s+/)
@@ -820,19 +820,16 @@
     const probe = new Date(Date.UTC(year, month - 1, day))
     if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return { error: `${day}/${month}/${year} is not a calendar date` }
     const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    if (rest.length === 0) return { date, minutes: null }
+    if (rest.length === 0) return { date, ignored: null }
     const time = TIME.exec(rest.join(' '))
     if (!time) return { error: `"${rest.join(' ')}" is not a time like 03:30 PM or 15:30` }
-    let hours = +time[1]; const minutes = +time[2]; const meridiem = time[4] && time[4].toLowerCase()
-    if (minutes > 59 || (meridiem ? hours < 1 || hours > 12 : hours > 23)) return { error: `${rest.join(' ')} is not a clock time` }
-    if (meridiem === 'pm' && hours !== 12) hours += 12
-    if (meridiem === 'am' && hours === 12) hours = 0
-    return { date, minutes: hours * 60 + minutes }
+    const hours = +time[1]
+    if (+time[2] > 59 || (time[4] ? hours < 1 || hours > 12 : hours > 23)) return { error: `${rest.join(' ')} is not a clock time` }
+    return { date, ignored: rest.join(' ') }
   }
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const longDate = iso => { const [y, m, d] = iso.split('-'); return `${+d} ${MONTHS[+m - 1]} ${y}` }
   const dmy = iso => iso.split('-').reverse().join('-')
-  const hhmm = minutes => minutes == null ? '—' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
   const money = value => value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   // State of frame 02.
@@ -929,7 +926,7 @@
     bar.innerHTML = options.map(([key, label]) => `<button type="button" class="btn btn-sm" data-filter="${key}" aria-pressed="${state.filter === key}">${label}</button>`).join('')
     const shown = rows.filter(row => state.filter === 'all' || (state.filter === 'slash' ? row.cell.includes('/') : row.status === state.filter))
     document.getElementById('rows-body').innerHTML = shown.map(row => `<tr>
-      <td>${row.line}</td><td class="mono">${row.cell}</td><td>${row.date ? longDate(row.date) : '—'}</td><td class="mono">${hhmm(row.minutes)}</td>
+      <td>${row.line}</td><td class="mono">${row.cell}</td><td>${row.date ? longDate(row.date) : '—'}</td>
       <td class="mono">${row.symbol}</td><td>${row.holding ? row.holding.label : '<span class="muted">unresolved</span>'}</td><td>${row.type}</td>
       <td class="num">${row.qty}</td><td class="num">${money(row.value)}</td><td><span class="status s-${row.status}">${row.status}</span></td></tr>`).join('')
     const slash = rows.filter(row => row.cell.includes('/'))
@@ -977,9 +974,9 @@
         document.createTextNode(' · stored as '),
         code,
         document.createTextNode(
-          read.minutes == null
-            ? ' · no time (keeps file order within the day)'
-            : ` · ${hhmm(read.minutes)} (orders same-day trades)`
+          read.ignored == null
+            ? ' · the day alone'
+            : ` · ${read.ignored} ignored (only the day is imported)`
         )
       )
     }

@@ -22,7 +22,7 @@ trades on top.
 | Name → holding | `resolveNames` (script + aliases) | `matchIndex` + `resolveWith` | index = symbol without suffix + aliases; suggestions on the stock name (`nameCount.label`) |
 | Aliases | `confirmedAliases`, `HoldingStore.MoveAliases` | unchanged | same |
 | Atomic commit | `txRunner.InTransaction` | unchanged | same, History heal inside |
-| Day-first dates | `normaliseDate` | `parseDateTime` (+ optional time); `normaliseDate` wraps it | date + minutes |
+| Day-first dates | `normaliseDate` | `normaliseDate` reads past an optional clock time and drops it | the day alone |
 | CSV reader | `parseCsv` (comma) | `parseCsv(text, delimiter = sniffDelimiter(text))` | tab or comma |
 | Name popup | `dividends/NameConfirmDialog` | `imports/NameConfirmDialog` (+ optional create) | create a new holding |
 | Preview tables | inline in `DividendImportModal` | `imports/ImportTables` (`ImportCounts`, `InvalidLines`) | four counts |
@@ -41,7 +41,7 @@ POST /admin/users/{id}/transactions/import     (+ 404 unknown / out-of-region us
 
 Schemas (`portfolio-api.yaml`):
 
-* `TradeImportRow { line, date, minutes?, symbol, stock_name, exchange: NSE|BSE, type: buy|sell, quantity, amount, isin? }`
+* `TradeImportRow { line, date, symbol, stock_name, exchange: NSE|BSE, type: buy|sell, quantity, amount, isin? }`
 * `TradeImportInput { rows (≤ 5000), mappings?: {symbol: holdingId | null}, create?: [symbol] }`
 * `TradeImportCounts { ready, replace, covered, invalid, total }`
 * `TradeImportPreview { counts, names: DividendNameResolution[], rows: DividendImportRowStatus[], warnings }`;
@@ -68,24 +68,18 @@ The name, row-status and warning schemas are reused as they are; their
    quantity > 0, 0 < value < 1e12, date ≤ IST today), then the holding.
    Opening cover from `OpeningsByUser`: an opening with quantity > 0 and
    `opening_date` set covers rows dated on or before it (`covered`); with no
-   date set, its rows are invalid. Valid rows sort stably by day, then
-   minutes (no time = −1), then file order: that is replay order. Each row
-   gets its execution time (`executionTime`): the sheet time in IST (start
-   of the day when there is none) plus its position in the day in
-   milliseconds, so equal times and date-only rows keep the file's order
-   (see "Same-day order" below).
+   date set, its rows are invalid. Valid rows sort stably by day, so file
+   order is kept within a day: that is replay order.
 5. **Replace** (`splitReplacements`). `ListTradesByHoldings` loads stored
    buys and sells of the stored holdings in the rows' date window.
    `partitionByKey(valid, existing, tradeRow.key, tradeKeyOf)` splits new
    from repeated; `pairStored` pairs each repeat with the stored trade it
    replaces, in order. Key: holding, UTC day, type, quantity in millionths
    of a share, value in cents.
-6. **Oversell** (`oversoldHoldings`). Per holding with new or replacing
-   rows, the ledger as the import leaves it is replayed with
-   `RecomputePosition`: the stored events (`ListByHolding`; none for a
-   created holding), each replaced trade moved to its row's execution time,
-   plus the new events. `ErrOversell` marks the holding's sell rows (new
-   or replacing) invalid.
+6. **Oversell** (`oversoldHoldings`). Per holding with new rows, the stored
+   ledger (`ListByHolding`; none for a created holding) plus the new events
+   is replayed with `RecomputePosition`; `ErrOversell` marks the holding's
+   new sell rows invalid.
 7. **Preview.** `rowStatuses.counts()` tallies ready / replace / covered /
    invalid in line order.
 
@@ -98,53 +92,46 @@ Otherwise, in order:
 1. insert each created holding (`HoldingStore.Insert`);
 2. `InsertMany` the new trades: `type` buy/sell, `date` = UTC day,
    `amount` rounded to cents, `currency` from `ledgerCurrency`,
-   `import` = `{batch_id, line, sheet_name}`, `executed_at` = the row's
-   execution time, `created_at` = now (the insertion time);
+   `date` = the bare day, `import` = `{batch_id, line, sheet_name}`,
+   `created_at` = the import time, a millisecond apart in replay order so
+   the day's new trades replay as in the file (see "Same-day order");
 3. replace: for each paired stored trade, `TransactionStore.StampImport(
-   ctx, userId, transactionId, meta, executedAt, updatedAt)` sets `import`,
-   `executed_at` and `updated_at` only (owner-scoped; `ErrNotFound` when
-   nothing matched). The values are identical by key, so the id, values and
-   notes stay; the trade takes its row's place in the day. The update shape
-   lives in persistence: the service never builds `bson` (CLAUDE.md,
-   persistence layer);
+   ctx, userId, transactionId, meta, updatedAt)` sets `import` and
+   `updated_at` only (owner-scoped; `ErrNotFound` when nothing matched). The
+   values are identical by key, so the id, notes and ledger position stay.
+   The update shape lives in persistence: the service never builds `bson`
+   (CLAUDE.md, persistence layer);
 4. `MoveAliases` for confirmed (not created) symbols;
-5. `recomputeAndPersist` each holding with new or replaced trades (an
-   oversell here aborts the transaction → 400);
-6. heal History **inside the transaction**: `RecomputeFrom(earliest day
-   with a new or replaced trade)` when that day is before today. A heal
-   error aborts everything (owner: ACID). The single-trade ledger writes
-   keep their best-effort heal after the write; only the import makes it
-   transactional.
+5. `recomputeAndPersist` each holding with new trades (an oversell here
+   aborts the transaction → 400);
+6. heal History **inside the transaction**: `RecomputeFrom(earliest new
+   day)` when that day is before today. A heal error aborts everything
+   (owner: ACID). The single-trade ledger writes keep their best-effort
+   heal after the write; only the import makes it transactional.
 
 ### Same-day order
 
-`RecomputePosition` replays by `Date`, then same-day events by
-`Transaction.SequencedAt()`: `executed_at` when set, else `created_at`.
-`created_at` stays the insertion time (owner, 2026-11-03); the trade's
-place in its day is `executed_at`, a new optional field (`omitempty`, not
-in the API). One key per event keeps the sort order total.
+Dates only (owner, 2026-11-03): the time in the file is read past and
+dropped, so it has no effect. Trades are dated at the bare day and the
+ledger replays as it already does: date, then `created_at`.
 
-* Hand-entered and existing events have no `executed_at`, so their order
-  is unchanged and no migration is needed.
-* Every imported row carries one, and a re-upload re-stamps the trades it
-  replaces. A file that repeats a saved buy and sell and adds a buy
-  between them replays buy, new buy, sell: buy 10 for ₹1,000, buy 10 for
-  ₹3,000, sell 10 for ₹2,000 leaves average ₹200 and ₹0 realised.
-* A same-day event outside the file keeps its `created_at` as its key. A
-  hand-entered trade is usually entered after the day, so it sorts after
-  that day's imported trades.
-* `TransactionsService.Update` sets `executed_at` to null when an edit
-  moves the trade to another day (the time belongs to its day); `restore`
-  puts it back on a rollback.
+* A saved trade keeps its place: matched or not, it is never moved.
+* The day's new trades follow the saved ones, in the file's order.
+* Known limit: when a file adds a trade to a day where the holding already
+  has saved trades, and the real order interleaves a buy and a sell, the
+  replay can differ from the broker's (e.g. saved buy ₹1,000 and sell
+  ₹2,000, new buy ₹3,000 executed before the sell: average ₹300 and ₹1,000
+  realised, not ₹200 and ₹0). It needs one stock bought and sold the same
+  day across two uploads; ordering by time is left for a later iteration.
 
 MongoDB transactions need the replica set the dividend import already
 requires (`Store.InTransaction`).
 
 ## 5. Frontend
 
-* `lib/formDates.ts`: `parseDateTime(raw) → {date, minutes} | null`;
-  `normaliseDate` returns its date. Day-first always; time optional
-  (`h:mm[:ss] [AM|PM]` or 24-hour).
+* `lib/formDates.ts`: `normaliseDate(raw)` reads day-first always and
+  accepts an optional clock time (`h:mm[:ss] [AM|PM]` or 24-hour), which it
+  drops; an impossible time or trailing text is still invalid.
 * `lib/csv.ts`: `sniffDelimiter` (most of `,` `\t` `;` in the first
   non-blank line); `parseCsv` defaults to it.
 * `features/imports/NameConfirmDialog.tsx` (moved from dividends):
@@ -167,16 +154,12 @@ requires (`Store.InTransaction`).
   match across exchange suffixes; an unknown symbol waits with suggestions;
   `validateTrade` cases; `pairStored` one per occurrence; `Import`:
   re-upload replaces and inserts nothing (each stamp scoped to the user and
-  the stored trade's id), a new trade lands between saved trades of its
-  day (the `executed_at` written orders them; the recompute writes average
-  ₹200, ₹0 realised), rows up to the opening date are
+  the stored trade's id), rows up to the opening date are
   covered, an oversell blocks everything, a created symbol inserts its
   holding, the heal runs from the earliest trade and its failure fails the
-  import. `RecomputePosition` replays same-day events by execution time,
-  else insertion time; a ledger edit to another day clears `executed_at`.
-  Admin route tiers include the two act-as paths.
-* Vitest: `parseDateTime` (both sample shapes, 12 AM / PM, 24-hour,
-  rejects); `sniffDelimiter`; `parseTradeCsv` on sample lines; the modal
+  import, and new trades of a day follow its saved trades in file order,
+  dated at the bare day. Admin route tiers include the two act-as paths.
+* Vitest: `normaliseDate` (both sample shapes, 12 AM, 24-hour, rejects); `sniffDelimiter`; `parseTradeCsv` on sample lines; the modal
   (create a symbol, preview with replacements, import; invalid lines block;
   422); the page button on own and act-as. The dividend import's tests pass
   unchanged on the shared pieces.
@@ -186,8 +169,6 @@ requires (`Store.InTransaction`).
 | Risk | Mitigation |
 |---|---|
 | The heal rewrites many snapshots in one transaction | per-user scope; RecomputeFrom starts at the earliest new day only |
-| A replace overwrites a hand-entered note | it never does: `StampImport` sets only `import`, `executed_at` and `updated_at` |
-| A new trade replays after saved trades of its day | `executed_at` orders the day for new and replaced trades alike; `created_at` is not reused |
-| The ledger sort changes for existing data | it cannot: without `executed_at` the key is `created_at`, as today |
+| A replace overwrites a hand-entered note | it never does: `StampImport` sets only `import` and `updated_at` |
 | Replace keys collide on genuinely repeated trades | occurrence matching: n identical rows replace at most n stored trades |
 | Excel's mangled order ids | not used anywhere |

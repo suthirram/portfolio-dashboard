@@ -4,7 +4,7 @@
 * **Owner**: project owner
 * **Goal**: An **Import CSV** button on All transactions reads a broker
   order history (the owner's Groww export) into buy and sell ledger events:
-  day-first dates with optional times, symbols matched without the exchange
+  day-first dates (a time in the cell is ignored), symbols matched without the exchange
   suffix, unknown symbols mapped or created, rows on or before an opening
   date covered, identical trades replaced (never duplicated), and the whole
   commit — History included — in one transaction.
@@ -25,8 +25,8 @@
 
 | Rule | Source | How it shows up here |
 |---|---|---|
-| `created_at` stays the insertion time | owner (2026-11-03) | the trade's place in its day is `executed_at`; `RecomputePosition` reads `SequencedAt` |
-| Reuse before writing | CLAUDE.md | `partitionByKey`, `resolveWith` + `matchIndex`, `confirmedAliases`, `MoveAliases`, `InTransaction`, `RecomputePosition`, `recomputeAndPersist`, `RecomputeFrom`, `normaliseDate` → `parseDateTime`, `parseCsv`, `NameConfirmDialog`, the preview tables |
+| Dates only; the file's time has no effect | owner (2026-11-03) | trades are dated at the day; same-day order = saved trades, then the file's new trades in file order |
+| Reuse before writing | CLAUDE.md | `partitionByKey`, `resolveWith` + `matchIndex`, `confirmedAliases`, `MoveAliases`, `InTransaction`, `RecomputePosition`, `recomputeAndPersist`, `RecomputeFrom`, `normaliseDate`, `parseCsv`, `NameConfirmDialog`, the preview tables |
 | Feature branch, one PR per task | owner (PD-048 / PD-050) | `feat/PD-051-trade-csv-import` from `main`; each task branches from it after the previous task merged, and its PR targets it; the feature merges to `main` last |
 | Frontend and backend never in one PR | CLAUDE.md | PR2–PR3 backend, PR4–PR5 frontend; the final feature → `main` PR carries `FE/BE-EXCEPTION:` |
 | Endpoint PRs carry curl | CLAUDE.md | PR3 |
@@ -51,13 +51,11 @@
 | Modify | `backend/internal/services/dividend_import.go` | `partitionByKey` |
 | Modify | `backend/internal/services/dividend_match.go` | `matchIndex`, `resolveWith`, `nameCount.label` |
 | Modify | `backend/api/specs/*.yaml`, `backend/api/*.gen.go` | trade import schemas, paths, generated code |
-| Modify | `backend/internal/domain/transaction.go`, `backend/internal/services/ledger.go` (+ test) | `executed_at` + `SequencedAt`: same-day events replay by execution time, else insertion time |
-| Modify | `backend/internal/services/transactions.go` (+ test) | a trade moved to another day drops its `executed_at` |
-| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings`, `StampImport` (owner-scoped replacement stamp, with the execution time) |
+| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings`, `StampImport` (owner-scoped replacement stamp) |
 | Create | `backend/internal/services/trade_import.go` (+ test) | `TradeImportService`: evaluate, Preview, Import |
 | Create | `backend/internal/controllers/trade_import.go` | 4 handlers |
 | Modify | `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go` | wiring, admin tiers |
-| Modify | `frontend/src/lib/formDates.ts`, `frontend/src/lib/csv.ts` (+ tests) | `parseDateTime`, `sniffDelimiter` |
+| Modify | `frontend/src/lib/formDates.ts`, `frontend/src/lib/csv.ts` (+ tests) | `normaliseDate` reads past a time, `sniffDelimiter` |
 | Move + modify | `frontend/src/features/imports/NameConfirmDialog.tsx` | shared, optional create |
 | Create | `frontend/src/features/imports/ImportTables.tsx` | `ImportCounts`, `InvalidLines` |
 | Modify | `frontend/src/features/dividends/DividendImportModal.tsx` | uses the shared pieces |
@@ -73,8 +71,8 @@
 | PR1 | `docs/PD-051-trade-csv-import` → `main` | 0 | agreed design on record | — (docs) | docs only |
 | — | `feat/PD-051-trade-csv-import` from `main` | — | integration branch | — | — |
 | PR2 | `refactor/PD-051-shared-import-helpers` → feature | 1 | the matching and occurrence rules usable by any import | `TestPartitionByKey_AnyKey` | refactor; every dividend test unchanged and green |
-| PR3 | `feat/PD-051-trade-import-api` → feature | 2 | trades can be previewed and imported atomically over the API (curl) | `TestTradeImport` (6 cases), `TestRecomputePosition_SameDayByExecutionTime` + 5 more | new routes; existing events carry no `executed_at`, so their replay order is unchanged |
-| PR4 | `refactor/PD-051-shared-import-ui` → feature | 3 | day-first dates with times and tab files work in every import; shared dialog | `parseDateTime`, `sniffDelimiter` tests | the dividend import's tests pass unchanged |
+| PR3 | `feat/PD-051-trade-import-api` → feature | 2 | trades can be previewed and imported atomically over the API (curl) | `TestTradeImport` (6 cases) + 4 pure tests | new routes only; dividends and the ledger's replay order untouched |
+| PR4 | `refactor/PD-051-shared-import-ui` → feature | 3 | day-first dates (a trailing time ignored) and tab files work in every import; shared dialog | `normaliseDate`, `sniffDelimiter` tests | the dividend import's tests pass unchanged |
 | PR5 | `feat/PD-051-trade-import-ui` → feature | 4 | the user imports a broker file from Transactions | `tradeCsv`, `TradeImport`, page tests | the button only opens a dialog; nothing saves before confirm |
 | PR6 | `feat/PD-051-trade-csv-import` → `main` | — | ships the feature | all of the above | `FE/BE-EXCEPTION: PD-051 feature branch` |
 | — | — | 5 | end to end on the local stack | scenarios 1–7 | — |
@@ -459,7 +457,7 @@ Expected: PR URL; CI green (Go tests, Go linter).
 **Files:**
 
 * Create: `backend/internal/services/trade_import.go`, `backend/internal/services/trade_import_test.go`, `backend/internal/controllers/trade_import.go`
-* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/domain/transaction.go`, `backend/internal/services/ledger.go`, `backend/internal/services/ledger_test.go`, `backend/internal/services/transactions.go`, `backend/internal/services/transactions_test.go`, `backend/internal/persistence/transactions.go`, `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go`
+* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/persistence/transactions.go`, `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go`
 
 * [ ] **Step 1: Branch from the feature branch (after PR2 merged)**
 
@@ -491,7 +489,6 @@ Replacement:
       properties:
         line: { type: integer, description: 1-based file line (header = 1) }
         date: { type: string, format: date }
-        minutes: { type: integer, nullable: true, description: Minutes after midnight when the sheet gives a time; orders same-day trades }
         symbol: { type: string, description: Exchange ticker without suffix (KALYANKJIL) }
         stock_name: { type: string }
         exchange: { type: string, enum: [NSE, BSE] }
@@ -760,313 +757,11 @@ WHY: models.gen.go and server.gen.go are generated; never edit them by hand.
 cd backend && go generate -tags tools ./...
 ```
 
-Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 16 implements the four handlers.
+Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 11 implements the four handlers.
 
-* [ ] **Step 7: Give a ledger event its execution time (Edit `backend/internal/domain/transaction.go`)**
+* [ ] **Step 7: Load the stored trades; stamp a replaced one (Edit `backend/internal/persistence/transactions.go`)**
 
-WHY: the ledger replays a day's events by `created_at`, and a replaced trade keeps its old one, so a new trade imported between two saved trades of the same day would replay after both (e.g. buy ₹1,000, sell ₹2,000, then a buy ₹3,000 executed before the sell: average ₹300 and ₹1,000 realised instead of ₹200 and ₹0). `executed_at` holds the broker's time, so `created_at` stays the insertion time; `SequencedAt` is one key per event (execution time, else insertion time), which keeps the order total. Hand-entered events have none, so nothing existing changes.
-
-Current:
-
-```go
-    OpeningDate *time.Time `bson:"opening_date,omitempty" json:"opening_date,omitempty"`
-
-    Currency string `bson:"currency" json:"currency"` // denormalised from the holding
-    // Import records where a CSV-imported dividend came from (PRD-005);
-```
-
-Replacement:
-
-```go
-    OpeningDate *time.Time `bson:"opening_date,omitempty" json:"opening_date,omitempty"`
-
-    // ExecutedAt orders events within their Date: the broker's execution time
-    // of an imported trade (PRD-008). nil for events entered by hand, which
-    // order by CreatedAt. CreatedAt stays the insertion time.
-    ExecutedAt *time.Time `bson:"executed_at,omitempty" json:"-"`
-
-    Currency string `bson:"currency" json:"currency"` // denormalised from the holding
-    // Import records where a CSV-imported dividend came from (PRD-005);
-```
-
-Current:
-
-```go
-    CreatedAt time.Time   `bson:"created_at" json:"created_at"`
-    UpdatedAt time.Time   `bson:"updated_at" json:"updated_at"`
-}
-```
-
-Replacement:
-
-```go
-    CreatedAt time.Time   `bson:"created_at" json:"created_at"`
-    UpdatedAt time.Time   `bson:"updated_at" json:"updated_at"`
-}
-
-// SequencedAt orders same-day events: the execution time when known, else
-// the insertion time. One key per event keeps the ledger order total.
-func (t Transaction) SequencedAt() time.Time {
-    if t.ExecutedAt != nil {
-        return *t.ExecutedAt
-    }
-    return t.CreatedAt
-}
-```
-
-* [ ] **Step 8: Replay same-day events by that key (Edit `backend/internal/services/ledger.go`)**
-
-WHY: the only change to `RecomputePosition`; the History heal replays through it, so History follows.
-
-Current:
-
-```go
-func RecomputePosition(txns []domain.Transaction) (Position, error) {
-    // Order: the opening balance is always the baseline (sorts first regardless
-    // of its calendar date), then by trade date, then insertion order for
-    // same-day events.
-    ordered := make([]domain.Transaction, len(txns))
-    copy(ordered, txns)
-```
-
-Replacement:
-
-```go
-func RecomputePosition(txns []domain.Transaction) (Position, error) {
-    // Order: the opening balance is always the baseline (sorts first regardless
-    // of its calendar date), then by trade date, then same-day events by
-    // execution time, else insertion time (Transaction.SequencedAt).
-    ordered := make([]domain.Transaction, len(txns))
-    copy(ordered, txns)
-```
-
-Current:
-
-```go
-        }
-        if ordered[i].Date.Equal(ordered[j].Date) {
-            return ordered[i].CreatedAt.Before(ordered[j].CreatedAt)
-        }
-        return ordered[i].Date.Before(ordered[j].Date)
-```
-
-Replacement:
-
-```go
-        }
-        if ordered[i].Date.Equal(ordered[j].Date) {
-            return ordered[i].SequencedAt().Before(ordered[j].SequencedAt())
-        }
-        return ordered[i].Date.Before(ordered[j].Date)
-```
-
-* [ ] **Step 9: Test the replay order (Edit `backend/internal/services/ledger_test.go`)**
-
-WHY: the example above, both ways: with execution times the imported buy replays between the saved buy and sell; without them the insertion order stands as today.
-
-Current:
-
-```go
-    assertPos(t, got, 0, 0, 1500, 0)
-}
-```
-
-Replacement:
-
-```go
-    assertPos(t, got, 0, 0, 1500, 0)
-}
-
-// Same-day events replay by execution time when known (an imported trade),
-// else by insertion time: a buy imported later but executed between a saved
-// buy and sell is replayed between them (PRD-008).
-func TestRecomputePosition_SameDayByExecutionTime(t *testing.T) {
-    at := func(hour int) *time.Time {
-        executedAt := day(0).Add(time.Duration(hour) * time.Hour)
-        return &executedAt
-    }
-    savedBuy := tx(domain.TxnBuy, 0, 10, 1000)
-    savedBuy.ExecutedAt = at(10)
-    savedSell := tx(domain.TxnSell, 0, 10, 2000)
-    savedSell.CreatedAt, savedSell.ExecutedAt = day(0).Add(time.Minute), at(12)
-    importedBuy := tx(domain.TxnBuy, 0, 10, 3000)
-    importedBuy.CreatedAt, importedBuy.ExecutedAt = day(5), at(11)
-
-    got, err := RecomputePosition([]domain.Transaction{savedBuy, savedSell, importedBuy})
-    if err != nil {
-        t.Fatalf("err: %v", err)
-    }
-    assertPos(t, got, 10, 200, 0, 0)
-
-    // Without execution times the insertion order stands.
-    savedBuy.ExecutedAt, savedSell.ExecutedAt, importedBuy.ExecutedAt = nil, nil, nil
-    if got, err = RecomputePosition([]domain.Transaction{savedBuy, savedSell, importedBuy}); err != nil {
-        t.Fatalf("err: %v", err)
-    }
-    assertPos(t, got, 10, 300, 1000, 0)
-}
-```
-
-* [ ] **Step 10: Moving a trade to another day drops its execution time (Edit `backend/internal/services/transactions.go`)**
-
-WHY: the time belongs to its day; on another day the trade orders by its insertion time. The rollback restores it with the day. `restore`'s `uid` becomes `userId` (CLAUDE.md naming).
-
-Current:
-
-```go
-        set = append(set, bson.E{Key: "opening_date", Value: patch.Date})
-    }
-    updated, err := s.txns.UpdateScopedAndReturn(ctx, userId, id, set)
-    if err != nil {
-```
-
-Replacement:
-
-```go
-        set = append(set, bson.E{Key: "opening_date", Value: patch.Date})
-    }
-    // An imported trade's execution time belongs to its day: moved to another
-    // day, the trade orders by its insertion time there.
-    if !domain.UTCDate(patch.Date).Equal(domain.UTCDate(prev.Date)) {
-        set = append(set, bson.E{Key: "executed_at", Value: nil})
-    }
-    updated, err := s.txns.UpdateScopedAndReturn(ctx, userId, id, set)
-    if err != nil {
-```
-
-Current:
-
-```go
-// restore rewrites prev's stored fields and re-derives its holding. Used to
-// undo an Update that left the ledger oversold.
-func (s *TransactionsService) restore(ctx context.Context, uid primitive.ObjectID, prev domain.Transaction) {
-    logger := s.log(ctx)
-    set := bson.D{
-```
-
-Replacement:
-
-```go
-// restore rewrites prev's stored fields and re-derives its holding. Used to
-// undo an Update that left the ledger oversold.
-func (s *TransactionsService) restore(ctx context.Context, userId primitive.ObjectID, prev domain.Transaction) {
-    logger := s.log(ctx)
-    set := bson.D{
-```
-
-Current:
-
-```go
-        // can't leave asOfLedger gating history on a date that was reverted.
-        {Key: "opening_date", Value: prev.OpeningDate},
-    }
-    if _, err := s.txns.UpdateScopedAndReturn(ctx, uid, prev.ID, set); err != nil {
-        logger.Error("restore transaction failed", zap.String("error", err.Error()))
-        return
-    }
-    if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, uid, prev.HoldingID); err != nil {
-        logger.Error("restore rollback: recompute failed, holding position stale",
-            zap.String("transaction_id", prev.ID.Hex()), zap.Error(err))
-```
-
-Replacement:
-
-```go
-        // can't leave asOfLedger gating history on a date that was reverted.
-        {Key: "opening_date", Value: prev.OpeningDate},
-        // Update clears executed_at on a day change; restore it with the day.
-        {Key: "executed_at", Value: prev.ExecutedAt},
-    }
-    if _, err := s.txns.UpdateScopedAndReturn(ctx, userId, prev.ID, set); err != nil {
-        logger.Error("restore transaction failed", zap.String("error", err.Error()))
-        return
-    }
-    if _, err := recomputeAndPersist(ctx, s.holdings, s.txns, userId, prev.HoldingID); err != nil {
-        logger.Error("restore rollback: recompute failed, holding position stale",
-            zap.String("transaction_id", prev.ID.Hex()), zap.Error(err))
-```
-
-* [ ] **Step 11: Test the ledger edit (Edit `backend/internal/services/transactions_test.go`)**
-
-WHY: a day change writes `executed_at: null`; a same-day edit leaves it.
-
-Current:
-
-```go
-        if present {
-            t.Error("opening_date written on a non-date edit; want it left untouched")
-        }
-    })
-```
-
-Replacement:
-
-```go
-        if present {
-            t.Error("opening_date written on a non-date edit; want it left untouched")
-        }
-    })
-}
-
-// An imported trade's executed_at places it within its day: moving the trade
-// to another day clears it (it then orders by insertion time); any other edit
-// keeps it.
-func TestTransactionsService_Update_ExecutedAtStaysWithItsDay(t *testing.T) {
-    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-    april4 := time.Date(2025, time.April, 4, 0, 0, 0, 0, time.UTC)
-    executedAt := time.Date(2025, time.April, 4, 4, 30, 0, 0, time.UTC)
-
-    // executedAtInUpdate edits a buy dated 4 Apr to newDate and returns the
-    // transactions $set's executed_at entry, if any.
-    executedAtInUpdate := func(mt *mtest.T, newDate time.Time) (present bool, value bson.RawValue) {
-        userId, holdingId, transactionId := primitive.NewObjectID(), primitive.NewObjectID(), primitive.NewObjectID()
-        transactionsNamespace := mt.DB.Name() + ".transactions"
-        buy := func(date time.Time) bson.D {
-            return bson.D{{Key: "_id", Value: transactionId}, {Key: "user_id", Value: userId}, {Key: "holding_id", Value: holdingId},
-                {Key: "type", Value: "buy"}, {Key: "date", Value: date}, {Key: "executed_at", Value: executedAt},
-                {Key: "quantity", Value: 17.0}, {Key: "amount", Value: 1278.4}}
-        }
-        mt.AddMockResponses(
-            mtest.CreateCursorResponse(0, transactionsNamespace, mtest.FirstBatch, buy(april4)),
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: buy(newDate)}),
-            mtest.CreateCursorResponse(0, transactionsNamespace, mtest.FirstBatch, buy(newDate)),
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: holdingId}, {Key: "user_id", Value: userId}}}),
-        )
-        store := persistence.New(mt.DB)
-        quantity, amount := 17.0, 1278.4
-        _, found, err := NewTransactionsService(store.Transactions, store.Holdings, nil, nil).Update(context.Background(), userId, transactionId.Hex(),
-            api.TransactionInput{Type: "buy", Date: newDate, Quantity: &quantity, Amount: &amount})
-        if err != nil || !found {
-            t.Fatalf("Update: found=%v err=%v", found, err)
-        }
-        for _, event := range mt.GetAllStartedEvents() {
-            if event.CommandName != "findAndModify" || event.Command.Lookup("findAndModify").StringValue() != "transactions" {
-                continue
-            }
-            value, err := event.Command.LookupErr("update", "$set", "executed_at")
-            return err == nil, value
-        }
-        t.Fatal("no findAndModify on transactions captured")
-        return false, bson.RawValue{}
-    }
-
-    mt.Run("moved to another day: executed_at cleared", func(mt *mtest.T) {
-        present, value := executedAtInUpdate(mt, april4.AddDate(0, 0, 3))
-        if !present || value.Type != bson.TypeNull {
-            t.Errorf("executed_at present=%v value=%v; want set to null", present, value)
-        }
-    })
-
-    mt.Run("same day: executed_at untouched", func(mt *mtest.T) {
-        if present, _ := executedAtInUpdate(mt, april4); present {
-            t.Error("executed_at written on a same-day edit; want it kept")
-        }
-    })
-```
-
-* [ ] **Step 12: Load the stored trades; stamp a replaced one (Edit `backend/internal/persistence/transactions.go`)**
-
-WHY: the replace lookup needs the buys and sells of the matched holdings across the file's date range (`ListDividendsByHoldings` with the trade types). `StampImport` is the replacement write: owner-scoped, it sets only the import metadata, the row's execution time (so a re-upload can move a saved trade to its place in the file's day) and `updated_at`, and returns `ErrNotFound` when nothing matched, so the update shape stays in persistence and the service never builds `bson` (CLAUDE.md).
+WHY: the replace lookup needs the buys and sells of the matched holdings across the file's date range (`ListDividendsByHoldings` with the trade types). `StampImport` is the replacement write: owner-scoped, it sets only the import metadata and `updated_at` and returns `ErrNotFound` when nothing matched, so the update shape stays in persistence and the service never builds `bson` (CLAUDE.md).
 
 Current:
 
@@ -1114,16 +809,15 @@ Replacement:
 }
 
 // StampImport records that a CSV import replaced userId's transaction id: it
-// sets the import metadata, the row's execution time (its place in the day)
-// and updated_at, nothing else, so the trade's values and notes stay
-// (PRD-008 §5). Returns ErrNotFound
+// sets the import metadata and updated_at, nothing else, so the trade's
+// values, notes and ledger position stay (PRD-008 §5). Returns ErrNotFound
 // when no transaction of userId has that id.
-func (s *TransactionStore) StampImport(ctx context.Context, userId, id primitive.ObjectID, meta domain.ImportMeta, executedAt, updatedAt time.Time) error {
+func (s *TransactionStore) StampImport(ctx context.Context, userId, id primitive.ObjectID, meta domain.ImportMeta, updatedAt time.Time) error {
     ctx, cancel := context.WithTimeout(ctx, writeTimeout)
     defer cancel()
     res, err := s.col.UpdateOne(ctx,
         scopedFilter(userId, bson.M{"_id": id}),
-        bson.M{"$set": bson.M{"import": meta, "executed_at": executedAt, "updated_at": updatedAt}})
+        bson.M{"$set": bson.M{"import": meta, "updated_at": updatedAt}})
     if err != nil {
         return err
     }
@@ -1134,9 +828,9 @@ func (s *TransactionStore) StampImport(ctx context.Context, userId, id primitive
 }
 ```
 
-* [ ] **Step 13: The service (Create `backend/internal/services/trade_import.go`)**
+* [ ] **Step 8: The service (Create `backend/internal/services/trade_import.go`)**
 
-WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, trades, replacements, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Each valid row gets its execution time (`executionTime`: the sheet time in IST, plus its position in the day in milliseconds so equal times and date-only rows keep the file's order); new trades store it and replaced ones are stamped with it, and the oversell replay and the recompute see that order. Split into named steps to keep each function small (gocyclo).
+WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, trades, replacements, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Same-day order is by day only (owner, 2026-11-03: the file's time has no effect): a trade is dated at the bare day, a saved trade keeps its place, and the day's new trades follow it in the file's order (`created_at` = the import time, a millisecond apart in that order); the ledger already replays by date, then `created_at`. Split into named steps to keep each function small (gocyclo).
 
 ```go
 package services
@@ -1200,10 +894,9 @@ func (s *TradeImportService) log(ctx context.Context) *zap.Logger {
 
 // tradeRow is a valid sheet row resolved to a holding.
 type tradeRow struct {
-    sheetRow   api.TradeImportRow
-    day        time.Time
-    holding    *domain.Holding
-    executedAt time.Time // its place in the day, stored as executed_at
+    sheetRow api.TradeImportRow
+    day      time.Time
+    holding  *domain.Holding
 }
 
 // tradeKey is "the same trade": one holding, day, type, quantity and value.
@@ -1226,26 +919,6 @@ func (r tradeRow) key() tradeKey {
 func tradeKeyOf(stored domain.Transaction) tradeKey {
     return tradeKey{HoldingId: stored.HoldingID, Day: domain.UTCDate(stored.Date).Format(time.DateOnly), Type: stored.Type,
         Micros: quantityMicros(stored.Quantity), Cents: domain.AmountCents(stored.Amount)}
-}
-
-// minutesOf orders same-day rows: a row without a time sorts first.
-func (r tradeRow) minutesOf() int {
-    if r.sheetRow.Minutes == nil {
-        return -1
-    }
-    return *r.sheetRow.Minutes
-}
-
-// executionTime is a row's place in its day: the sheet time (IST) when given,
-// plus its position in milliseconds so equal times and date-only rows keep
-// the file's order. Stored as executed_at, it orders the ledger across
-// uploads, while created_at stays the insertion time.
-func executionTime(day time.Time, minutes *int, position int) time.Time {
-    start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, istZone)
-    if minutes != nil {
-        start = start.Add(time.Duration(*minutes) * time.Minute)
-    }
-    return start.Add(time.Duration(position) * time.Millisecond).UTC()
 }
 
 // sheetSymbol is a sheet symbol as displayed and as the mappings key.
@@ -1322,12 +995,12 @@ func validateTrade(row api.TradeImportRow, today time.Time) string {
 
 // tradePlan is an evaluated import: what preview shows, what confirm writes.
 type tradePlan struct {
-    preview   api.TradeImportPreview
-    fresh     []tradeRow           // in replay order
-    replaced  []domain.Transaction // stored trades a sheet row replaces
-    replacing []tradeRow           // the replacing rows, paired with replaced
-    created   []*domain.Holding
-    aliases   map[primitive.ObjectID][]string
+    preview  api.TradeImportPreview
+    fresh    []tradeRow           // in replay order
+    replaced []domain.Transaction // stored trades a sheet row replaces
+    lines    []api.TradeImportRow // the replacing rows, paired with replaced
+    created  []*domain.Holding
+    aliases  map[primitive.ObjectID][]string
 }
 
 // pairStored pairs each duplicate row with the stored trade it replaces, in
@@ -1346,16 +1019,15 @@ func pairStored(duplicates []tradeRow, existing []domain.Transaction) []domain.T
     return paired
 }
 
-// toTransaction builds the ledger event for a new imported trade; its
-// executed_at places it among the day's other events.
+// toTransaction builds the ledger event for a new imported trade. created
+// orders same-day events (the ledger replays date, then created_at).
 func (r tradeRow) toTransaction(userId primitive.ObjectID, batchId string, created time.Time) domain.Transaction {
-    executedAt := r.executedAt
     return domain.Transaction{
         ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
         Type: domain.TxnType(r.sheetRow.Type), Date: r.day, Quantity: r.sheetRow.Quantity,
         Amount: domain.RoundCents(r.sheetRow.Amount), Currency: ledgerCurrency(*r.holding),
-        Import:     &domain.ImportMeta{BatchId: batchId, Line: r.sheetRow.Line, SheetName: sheetName(r.sheetRow.StockName)},
-        ExecutedAt: &executedAt, CreatedAt: created, UpdatedAt: created,
+        Import:    &domain.ImportMeta{BatchId: batchId, Line: r.sheetRow.Line, SheetName: sheetName(r.sheetRow.StockName)},
+        CreatedAt: created, UpdatedAt: created,
     }
 }
 
@@ -1468,17 +1140,8 @@ func classifyRows(rows []api.TradeImportRow, names []nameResolution, openings ma
         }
         valid = append(valid, tradeRow{sheetRow: sheetRow, day: day, holding: holding})
     }
-    slices.SortStableFunc(valid, func(first, second tradeRow) int {
-        return cmp.Or(first.day.Compare(second.day), cmp.Compare(first.minutesOf(), second.minutesOf()))
-    })
-    position := 0
-    for i := range valid {
-        if i > 0 && !valid[i].day.Equal(valid[i-1].day) {
-            position = 0
-        }
-        valid[i].executedAt = executionTime(valid[i].day, valid[i].sheetRow.Minutes, position)
-        position++
-    }
+    // By day only; a stable sort keeps the file's order within a day.
+    slices.SortStableFunc(valid, func(first, second tradeRow) int { return first.day.Compare(second.day) })
     return valid
 }
 
@@ -1487,8 +1150,8 @@ func isCreated(created []*domain.Holding, holdingId primitive.ObjectID) bool {
 }
 
 // splitReplacements separates the rows that repeat a stored trade (they
-// replace it; plan.replacing) from the new ones (returned).
-func (s *TradeImportService) splitReplacements(ctx context.Context, userId primitive.ObjectID, valid []tradeRow, created []*domain.Holding, plan *tradePlan) ([]tradeRow, error) {
+// replace it) from the new ones.
+func (s *TradeImportService) splitReplacements(ctx context.Context, userId primitive.ObjectID, valid []tradeRow, created []*domain.Holding, plan *tradePlan, statuses *rowStatuses) ([]tradeRow, error) {
     if len(valid) == 0 {
         return nil, nil
     }
@@ -1507,39 +1170,30 @@ func (s *TradeImportService) splitReplacements(ctx context.Context, userId primi
         }
     }
     fresh, duplicates := partitionByKey(valid, existing, tradeRow.key, tradeKeyOf)
-    plan.replaced, plan.replacing = pairStored(duplicates, existing), duplicates
+    plan.replaced = pairStored(duplicates, existing)
+    for _, row := range duplicates {
+        plan.lines = append(plan.lines, row.sheetRow)
+        statuses.add(row.sheetRow.Line, tradeReplace, row.holding, "")
+    }
     return fresh, nil
 }
 
-// oversoldHoldings replays each touched holding's ledger as the import leaves
-// it: new trades added, replaced trades moved to their row's execution time.
-// A holding whose sells would exceed what it holds is returned.
-func (s *TradeImportService) oversoldHoldings(ctx context.Context, userId primitive.ObjectID, fresh []tradeRow, plan tradePlan, now time.Time) (map[primitive.ObjectID]bool, error) {
+// oversoldHoldings replays each holding's ledger with its new trades: a
+// holding whose sells would exceed what it holds is returned.
+func (s *TradeImportService) oversoldHoldings(ctx context.Context, userId primitive.ObjectID, fresh []tradeRow, created []*domain.Holding, now time.Time) (map[primitive.ObjectID]bool, error) {
     byHolding := map[primitive.ObjectID][]domain.Transaction{}
-    for _, row := range fresh {
-        byHolding[row.holding.ID] = append(byHolding[row.holding.ID], row.toTransaction(userId, "", now))
-    }
-    movedTo := map[primitive.ObjectID]time.Time{}
-    for i, row := range plan.replacing {
-        movedTo[plan.replaced[i].ID] = row.executedAt
-        if _, touched := byHolding[row.holding.ID]; !touched {
-            byHolding[row.holding.ID] = nil
-        }
+    for i, row := range fresh {
+        byHolding[row.holding.ID] = append(byHolding[row.holding.ID], row.toTransaction(userId, "", now.Add(time.Duration(i)*time.Millisecond)))
     }
     oversold := map[primitive.ObjectID]bool{}
     for holdingId, events := range byHolding {
         var ledger []domain.Transaction
-        if !isCreated(plan.created, holdingId) {
+        if !isCreated(created, holdingId) {
             stored, err := s.txns.ListByHolding(ctx, userId, holdingId)
             if err != nil {
                 return nil, err
             }
-            for _, event := range stored {
-                if executedAt, moved := movedTo[event.ID]; moved {
-                    event.ExecutedAt = &executedAt
-                }
-                ledger = append(ledger, event)
-            }
+            ledger = stored
         }
         ledger = append(ledger, events...)
         if _, err := RecomputePosition(ledger); errors.Is(err, ErrOversell) {
@@ -1567,31 +1221,21 @@ func (s *TradeImportService) evaluate(ctx context.Context, userId primitive.Obje
     plan := tradePlan{created: created, aliases: confirmedAliases(names)}
     statuses := rowStatuses{}
     valid := classifyRows(input.Rows, names, openings, s.today(), &statuses)
-    fresh, err := s.splitReplacements(ctx, userId, valid, created, &plan)
+    fresh, err := s.splitReplacements(ctx, userId, valid, created, &plan, &statuses)
     if err != nil {
         return tradePlan{}, err
     }
-    oversold, err := s.oversoldHoldings(ctx, userId, fresh, plan, now)
+    oversold, err := s.oversoldHoldings(ctx, userId, fresh, created, now)
     if err != nil {
         return tradePlan{}, err
-    }
-    oversoldSell := func(row tradeRow) bool {
-        if !oversold[row.holding.ID] || row.sheetRow.Type != api.TradeImportRowTypeSell {
-            return false
-        }
-        statuses.add(row.sheetRow.Line, tradeInvalid, row.holding, fmt.Sprintf("sells more %s than held — check earlier buys or the opening balance", row.holding.Script))
-        return true
-    }
-    for _, row := range plan.replacing {
-        if !oversoldSell(row) {
-            statuses.add(row.sheetRow.Line, tradeReplace, row.holding, "")
-        }
     }
     for _, row := range fresh {
-        if !oversoldSell(row) {
-            statuses.add(row.sheetRow.Line, tradeReady, row.holding, "")
-            plan.fresh = append(plan.fresh, row)
+        if oversold[row.holding.ID] && row.sheetRow.Type == api.TradeImportRowTypeSell {
+            statuses.add(row.sheetRow.Line, tradeInvalid, row.holding, fmt.Sprintf("sells more %s than held — check earlier buys or the opening balance", row.holding.Script))
+            continue
         }
+        statuses.add(row.sheetRow.Line, tradeReady, row.holding, "")
+        plan.fresh = append(plan.fresh, row)
     }
 
     views := make([]api.DividendNameResolution, 0, len(names))
@@ -1662,9 +1306,8 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
         trades := make([]domain.Transaction, 0, len(plan.fresh))
         var affected []primitive.ObjectID
         var earliest time.Time
-        // A replaced trade can move within its day, so its holding and day
-        // are recomputed and healed like a new trade's.
-        for _, row := range slices.Concat(plan.fresh, plan.replacing) {
+        for i, row := range plan.fresh {
+            trades = append(trades, row.toTransaction(userId, batchId, now.Add(time.Duration(i)*time.Millisecond)))
             if !slices.Contains(affected, row.holding.ID) {
                 affected = append(affected, row.holding.ID)
             }
@@ -1672,21 +1315,16 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
                 earliest = row.day
             }
         }
-        for _, row := range plan.fresh {
-            trades = append(trades, row.toTransaction(userId, batchId, now))
-        }
         if len(trades) > 0 {
             if err := s.txns.InsertMany(ctx, trades); err != nil {
                 return err
             }
         }
-        // A replacement keeps the stored trade (id, values, notes) and stamps
-        // this import and the row's execution time on it, so the file's order
-        // within the day holds for old and new trades alike.
+        // A replacement keeps the stored trade (id, notes, ledger position)
+        // and stamps this import on it: the values are identical by key.
         for i, stored := range plan.replaced {
-            row := plan.replacing[i]
-            meta := domain.ImportMeta{BatchId: batchId, Line: row.sheetRow.Line, SheetName: sheetName(row.sheetRow.StockName)}
-            if err := s.txns.StampImport(ctx, userId, stored.ID, meta, row.executedAt, now); err != nil {
+            meta := domain.ImportMeta{BatchId: batchId, Line: plan.lines[i].Line, SheetName: sheetName(plan.lines[i].StockName)}
+            if err := s.txns.StampImport(ctx, userId, stored.ID, meta, now); err != nil {
                 return err
             }
         }
@@ -1723,9 +1361,9 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
 }
 ```
 
-* [ ] **Step 14: Service tests (Create `backend/internal/services/trade_import_test.go`)**
+* [ ] **Step 9: Service tests (Create `backend/internal/services/trade_import_test.go`)**
 
-WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, one replacement per occurrence, re-upload inserts nothing and stamps each stored trade scoped to its owner, a new trade lands between saved trades of its day (average ₹200, nothing realised), opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
+WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, one replacement per occurrence, re-upload inserts nothing and stamps each stored trade scoped to its owner, new trades of a day follow its saved trades in file order dated at the bare day, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
 
 ```go
 package services
@@ -1733,6 +1371,7 @@ package services
 import (
     "context"
     "errors"
+    "fmt"
     "testing"
     "time"
 
@@ -1843,11 +1482,8 @@ func TestTradeImport(t *testing.T) {
             holdingDocs(mt),
             transactions(mt), // no opening
             transactions(mt, first, second),
-            transactions(mt, first, second), // oversell replay
             mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp first
             mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp second
-            transactions(mt, first, second),                                // recompute
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: gold}}}),
         )
         result, err := service(mt).Import(context.Background(), userId, twoBuys)
         if err != nil {
@@ -1861,8 +1497,11 @@ func TestTradeImport(t *testing.T) {
         }
         // Each replacement is stamped on the stored trade, scoped to its owner.
         var stamped []primitive.ObjectID
-        for _, update := range transactionUpdates(mt) {
-            query := update.Lookup("q").Document()
+        for _, event := range mt.GetAllStartedEvents() {
+            if event.CommandName != "update" || event.Command.Lookup("update").StringValue() != "transactions" {
+                continue
+            }
+            query := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("q").Document()
             if owner := query.Lookup("user_id").ObjectID(); owner != userId {
                 t.Errorf("stamp scoped to user %s; want %s", owner.Hex(), userId.Hex())
             }
@@ -1870,56 +1509,6 @@ func TestTradeImport(t *testing.T) {
         }
         if len(stamped) != 2 || stamped[0] != first[0].Value || stamped[1] != second[0].Value {
             t.Errorf("stamped %v; want the two stored trades in order", stamped)
-        }
-    })
-
-    mt.Run("a new trade lands between saved trades of its day, in file order", func(mt *mtest.T) {
-        // Saved: buy 10 for ₹1,000 then sell 10 for ₹2,000 on 4 Apr. The file
-        // repeats both and adds a buy of 10 for ₹3,000 at 11:00, before the sell.
-        savedBuy, savedSell := stored("2025-04-04", "buy", 10, 1000), stored("2025-04-04", "sell", 10, 2000)
-        minutes := func(row api.TradeImportRow, value int) api.TradeImportRow {
-            row.Minutes = &value
-            return row
-        }
-        input := api.TradeImportInput{Rows: []api.TradeImportRow{
-            minutes(tradeSheetRow(2, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeSell, 10, 2000), 12*60),
-            minutes(tradeSheetRow(3, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeBuy, 10, 3000), 11*60),
-            minutes(tradeSheetRow(4, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeBuy, 10, 1000), 10*60),
-        }}
-        april4 := time.Date(2025, 4, 4, 0, 0, 0, 0, time.UTC)
-        // The ledger as the import leaves it: each trade at its file time.
-        executed := func(doc bson.D, hour, position int) bson.D {
-            return append(doc, bson.E{Key: "executed_at", Value: executionTime(april4, new(hour*60), position)})
-        }
-        newBuy := executed(stored("2025-04-04", "buy", 10, 3000), 11, 1)
-        mt.AddMockResponses(
-            holdingDocs(mt),
-            transactions(mt), // no opening
-            transactions(mt, savedBuy, savedSell),
-            transactions(mt, savedBuy, savedSell), // oversell replay
-            mtest.CreateSuccessResponse(),         // insert the new buy
-            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}),
-            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}),
-            transactions(mt, executed(savedBuy, 10, 0), executed(savedSell, 12, 2), newBuy), // recompute
-            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: gold}}}),
-        )
-        result, err := service(mt).Import(context.Background(), userId, input)
-        if err != nil {
-            t.Fatalf("Import: %v", err)
-        }
-        if result.Imported != 1 || result.Replaced != 2 {
-            t.Fatalf("imported %d replaced %d; want 1 / 2", result.Imported, result.Replaced)
-        }
-        // executed_at written: saved buy 10:00 < new buy 11:00 < saved sell 12:00.
-        inserted, stamped := executionTimesWritten(mt)
-        buyAt, sellAt := stamped[savedBuy[0].Value.(primitive.ObjectID)], stamped[savedSell[0].Value.(primitive.ObjectID)]
-        if len(inserted) != 1 || !buyAt.Before(inserted[0]) || !inserted[0].Before(sellAt) {
-            t.Errorf("saved buy %v, new %v, saved sell %v; want saved buy < new buy < saved sell", buyAt, inserted, sellAt)
-        }
-        // The recompute replays that order: average ₹200, nothing realised.
-        position := holdingPositionWritten(mt)
-        if average, realized := position.Lookup("avg_cost_price").Double(), position.Lookup("realized_pnl").Double(); average != 200 || realized != 0 {
-            t.Errorf("avg cost %v realized %v; want 200 / 0", average, realized)
         }
     })
 
@@ -1974,6 +1563,33 @@ func TestTradeImport(t *testing.T) {
         }
     })
 
+    // Same-day order is by day only (owner, 2026-11-03: the file's time has no
+    // effect): a saved trade keeps its place, new trades of that day follow
+    // it in the file's order, each dated at the bare day.
+    mt.Run("new trades of a day follow its saved trades, in file order, dated at the day", func(mt *mtest.T) {
+        saved := stored("2025-04-07", "buy", 1, 73.55)
+        mt.AddMockResponses(
+            holdingDocs(mt), transactions(mt), transactions(mt, saved),
+            transactions(mt, saved),       // oversell replay
+            mtest.CreateSuccessResponse(), // insertMany
+            transactions(mt, saved),       // recompute
+            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: gold}}}),
+        )
+        input := api.TradeImportInput{Rows: []api.TradeImportRow{
+            tradeSheetRow(2, "2025-04-07", "GOLDBEES", api.TradeImportRowTypeSell, 1, 75),
+            tradeSheetRow(3, "2025-04-07", "GOLDBEES", api.TradeImportRowTypeBuy, 2, 150),
+        }}
+        tradeImport := service(mt)
+        importedAt := time.Date(2026, 11, 3, 9, 0, 0, 0, time.UTC)
+        tradeImport.now = func() time.Time { return importedAt }
+        if _, err := tradeImport.Import(context.Background(), userId, input); err != nil {
+            t.Fatalf("Import: %v", err)
+        }
+        if problem := dayOrderProblem(insertedTrades(mt), []string{"sell", "buy"}, time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC), importedAt); problem != "" {
+            t.Error(problem)
+        }
+    })
+
     mt.Run("a confirmed new symbol creates its holding with the trades", func(mt *mtest.T) {
         mt.AddMockResponses(
             mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch), // no holdings
@@ -2000,46 +1616,42 @@ func TestTradeImport(t *testing.T) {
     })
 }
 
-// transactionUpdates returns each update statement issued on transactions
-// (the import's stamps on replaced trades), in order.
-func transactionUpdates(mt *mtest.T) []bson.Raw {
-    var updates []bson.Raw
-    for _, event := range mt.GetAllStartedEvents() {
-        if event.CommandName == "update" && event.Command.Lookup("update").StringValue() == "transactions" {
-            updates = append(updates, event.Command.Lookup("updates").Array().Index(0).Value().Document())
-        }
-    }
-    return updates
-}
-
-// executionTimesWritten collects the executed_at of each inserted trade, and
-// of each stamped (replaced) trade by id.
-func executionTimesWritten(mt *mtest.T) ([]time.Time, map[primitive.ObjectID]time.Time) {
-    var inserted []time.Time
+// insertedTrades returns the documents of every insert on transactions.
+func insertedTrades(mt *mtest.T) []bson.Raw {
+    var inserted []bson.Raw
     for _, event := range mt.GetAllStartedEvents() {
         if event.CommandName == "insert" && event.Command.Lookup("insert").StringValue() == "transactions" {
             documents, _ := event.Command.Lookup("documents").Array().Values()
             for _, document := range documents {
-                inserted = append(inserted, document.Document().Lookup("executed_at").Time())
+                inserted = append(inserted, document.Document())
             }
         }
     }
-    stamped := map[primitive.ObjectID]time.Time{}
-    for _, update := range transactionUpdates(mt) {
-        stamped[update.Lookup("q", "_id").ObjectID()] = update.Lookup("u", "$set", "executed_at").Time()
-    }
-    return inserted, stamped
+    return inserted
 }
 
-// holdingPositionWritten returns the $set of the last holding recompute.
-func holdingPositionWritten(mt *mtest.T) bson.Raw {
-    var position bson.Raw
-    for _, event := range mt.GetAllStartedEvents() {
-        if event.CommandName == "findAndModify" && event.Command.Lookup("findAndModify").StringValue() == "holdings" {
-            position = event.Command.Lookup("update", "$set").Document()
-        }
+// dayOrderProblem describes how inserted trades break the day-only order —
+// the given types in file order, each dated at the bare day and created at
+// or after importedAt with created_at rising in file order — or "" when they
+// keep it.
+func dayOrderProblem(inserted []bson.Raw, types []string, day, importedAt time.Time) string {
+    if len(inserted) != len(types) {
+        return fmt.Sprintf("%d trades inserted; want %d", len(inserted), len(types))
     }
-    return position
+    previous := importedAt.Add(-time.Nanosecond)
+    for i, trade := range inserted {
+        created := trade.Lookup("created_at").Time()
+        switch {
+        case trade.Lookup("type").StringValue() != types[i]:
+            return fmt.Sprintf("trade %d is a %s; want %v in file order", i, trade.Lookup("type").StringValue(), types)
+        case !trade.Lookup("date").Time().UTC().Equal(day):
+            return fmt.Sprintf("trade %d dated %v; want the bare day %v", i, trade.Lookup("date").Time().UTC(), day)
+        case !created.After(previous):
+            return fmt.Sprintf("trade %d created %v; want after %v (the import, then file order)", i, created, previous)
+        }
+        previous = created
+    }
+    return ""
 }
 
 // recordingRecomputer records the heal start and returns err.
@@ -2054,7 +1666,7 @@ func (r *recordingRecomputer) RecomputeFrom(_ context.Context, _ primitive.Objec
 }
 ```
 
-* [ ] **Step 15: Wire the service (Edit `backend/internal/controllers/controllers.go`)**
+* [ ] **Step 10: Wire the service (Edit `backend/internal/controllers/controllers.go`)**
 
 WHY: the import heals History, so it shares the transactions service's snapshot recomputer; one instance, built once.
 
@@ -2114,7 +1726,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
         cookieSecure: cookieSecure,
 ```
 
-* [ ] **Step 16: Handlers (Create `backend/internal/controllers/trade_import.go`)**
+* [ ] **Step 11: Handlers (Create `backend/internal/controllers/trade_import.go`)**
 
 WHY: thin wrappers like the dividend handlers; a commit-time oversell is a client error (400), using the ledger's existing `badTransaction`.
 
@@ -2213,7 +1825,7 @@ func (h *Controller) AdminImportUserTrades(ctx context.Context, request api.Admi
 }
 ```
 
-* [ ] **Step 17: Admin route tiers (Edit `backend/internal/httpserver/auth.go`)**
+* [ ] **Step 12: Admin route tiers (Edit `backend/internal/httpserver/auth.go`)**
 
 WHY: every admin route must declare its tier (`TestAuthGate_TierTableMatchesGeneratedRoutes`).
 
@@ -2237,20 +1849,20 @@ Replacement:
     "GET /api/admin/users/:id/holdings/:holdingId/transactions":  tierAdmin,
 ```
 
-* [ ] **Step 18: Verify**
+* [ ] **Step 13: Verify**
 
 ```bash
 cd backend && gofmt -l internal && go vet ./... && go test ./... && golangci-lint run ./...
 ```
 
-Expected: no gofmt output; every package `ok` (services +7 tests, one with 6 cases, one with 2); `0 issues.`
+Expected: no gofmt output; every package `ok` (services +5 tests, one with 6 cases); `0 issues.`
 
-* [ ] **Step 19: Commit, push, open PR3 into the feature branch**
+* [ ] **Step 14: Commit, push, open PR3 into the feature branch**
 
 WHY: the PR body carries the curl block below (endpoint PRs).
 
 ```bash
-git add backend/api/specs/ backend/api/models.gen.go backend/api/server.gen.go backend/internal/domain/transaction.go backend/internal/services/ledger.go backend/internal/services/ledger_test.go backend/internal/services/transactions.go backend/internal/services/transactions_test.go backend/internal/persistence/transactions.go backend/internal/services/trade_import.go backend/internal/services/trade_import_test.go backend/internal/controllers/trade_import.go backend/internal/controllers/controllers.go backend/internal/httpserver/auth.go
+git add backend/api/specs/ backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/trade_import.go backend/internal/services/trade_import_test.go backend/internal/controllers/trade_import.go backend/internal/controllers/controllers.go backend/internal/httpserver/auth.go
 git commit -m "✨ Add the trades CSV import API"
 git push -u origin feat/PD-051-trade-import-api
 gh pr create --base feat/PD-051-trade-csv-import --title "✨ Preview and import trades from a broker CSV atomically" --body-file pr3.md
@@ -2264,7 +1876,7 @@ How to test (PR3 body), with the dev stack running:
 curl -s -c jar -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"<dev password>"}' localhost:8080/api/auth/login
 curl -s -b jar -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: application/json' \
-  -d '{"rows":[{"line":2,"date":"2025-10-13","minutes":930,"symbol":"LGEINDIA","stock_name":"LG ELECTRONICS INDIA LTD","exchange":"NSE","type":"buy","quantity":13,"amount":14820}],"create":["LGEINDIA"]}' \
+  -d '{"rows":[{"line":2,"date":"2025-10-13","symbol":"LGEINDIA","stock_name":"LG ELECTRONICS INDIA LTD","exchange":"NSE","type":"buy","quantity":13,"amount":14820}],"create":["LGEINDIA"]}' \
   localhost:8080/api/transactions/import/preview
 # 200: counts.ready 1, names[0].status "create"
 curl -s -b jar -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: application/json' \
@@ -2288,9 +1900,9 @@ curl -s -b jar -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: appl
 git fetch origin && git checkout -b refactor/PD-051-shared-import-ui origin/feat/PD-051-trade-csv-import
 ```
 
-* [ ] **Step 2: Day-first dates with an optional time (Edit `frontend/src/lib/formDates.ts`)**
+* [ ] **Step 2: Day-first dates, a trailing time ignored (Edit `frontend/src/lib/formDates.ts`)**
 
-WHY: the owner's file mixes `1/11/2024` and `17-12-2024 03:30 PM` in one column; both are day-first (owner, 2026-11-03). `parseDateTime` adds the optional 12/24-hour time as minutes (it orders same-day trades); `normaliseDate` keeps its contract by returning the date alone, so dividends and the History paste gain the time tolerance for free. The two `p` locals are renamed because `lint:changed` checks this file now.
+WHY: the owner's file mixes `1/11/2024` and `17-12-2024 03:30 PM` in one column; both are day-first (owner, 2026-11-03), and only the day is imported: the time has no effect. `normaliseDate` reads past a real 12/24-hour clock time and drops it (trailing text or an impossible time still makes the date invalid), so dividends and the History paste gain the same tolerance. The two `p` locals are renamed because `lint:changed` checks this file now.
 
 Current:
 
@@ -2348,11 +1960,6 @@ export function normaliseDate(raw: string): string {
   const dayFirst = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(trimmed)
   if (iso) [year, month, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
   else if (dayFirst) [day, month, year] = [Number(dayFirst[1]), Number(dayFirst[2]), Number(dayFirst[3])]
-  else return ''
-  const probe = new Date(Date.UTC(year, month - 1, day))
-  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return ''
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-}
 ```
 
 Replacement:
@@ -2363,62 +1970,51 @@ Replacement:
 // A clock time after the date: "03:30 PM", "9:05 am", "15:30", "15:30:12".
 const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]m)?$/i
 
-// parseDateTime reads the day-first formats users paste or upload from
+// isClockTime is true for a real 12- or 24-hour clock time.
+function isClockTime(text: string): boolean {
+  const time = TIME.exec(text)
+  if (!time) return false
+  const hours = Number(time[1])
+  return Number(time[2]) <= 59 && (time[4] ? hours >= 1 && hours <= 12 : hours <= 23)
+}
+
+// normaliseDate accepts the day-first formats users paste or upload from
 // spreadsheets — YYYY-MM-DD, dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy (1-digit day
-// or month allowed) — optionally followed by a time (12- or 24-hour). It
-// returns the date as "YYYY-MM-DD" and the time as minutes after midnight
-// (null when absent), or null when the input is not a real calendar date
-// (31/02/2021, 13/13/2020) or the time is not a real clock time (PRD-008 §4).
-export function parseDateTime(raw: string): { date: string; minutes: number | null } | null {
+// or month allowed), optionally followed by a clock time, which is read past
+// and dropped: only the day is kept (PRD-008 §4). Returns "YYYY-MM-DD", or ""
+// when the input is not a real calendar date (31/02/2021 and 13/13/2020 are
+// rejected) or what follows the date is not a clock time.
+export function normaliseDate(raw: string): string {
   const [datePart = '', ...rest] = raw.trim().split(/\s+/)
   let year: number, month: number, day: number
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart)
   const dayFirst = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(datePart)
   if (iso) [year, month, day] = [Number(iso[1]), Number(iso[2]), Number(iso[3])]
   else if (dayFirst) [day, month, year] = [Number(dayFirst[1]), Number(dayFirst[2]), Number(dayFirst[3])]
-  else return null
-  const probe = new Date(Date.UTC(year, month - 1, day))
-  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null
-  const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  if (rest.length === 0) return { date, minutes: null }
-  const time = TIME.exec(rest.join(' '))
-  if (!time) return null
-  let hours = Number(time[1])
-  const minutes = Number(time[2])
-  const meridiem = time[4]?.toLowerCase()
-  if (minutes > 59 || (meridiem ? hours < 1 || hours > 12 : hours > 23)) return null
-  if (meridiem === 'pm' && hours !== 12) hours += 12
-  if (meridiem === 'am' && hours === 12) hours = 0
-  return { date, minutes: hours * 60 + minutes }
-}
+```
 
-// normaliseDate is parseDateTime's date alone, or "" when it is not a date.
-export function normaliseDate(raw: string): string {
-  return parseDateTime(raw)?.date ?? ''
+Current:
+
+```ts
+  const probe = new Date(Date.UTC(year, month - 1, day))
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return ''
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+```
+
+Replacement:
+
+```ts
+  const probe = new Date(Date.UTC(year, month - 1, day))
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return ''
+  if (rest.length > 0 && !isClockTime(rest.join(' '))) return ''
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 ```
 
 * [ ] **Step 3: Date tests (Edit `frontend/src/lib/formDates.test.ts`)**
 
-WHY: the sample's two shapes, the 12 AM / 12 PM edges, 24-hour times, and the rejections.
-
-Current:
-
-```ts
-import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayMonth, normaliseDate, todayIST } from './formDates'
-
-describe('formatDate', () => {
-```
-
-Replacement:
-
-```ts
-import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayMonth, normaliseDate, parseDateTime, todayIST } from './formDates'
-
-describe('formatDate', () => {
-```
+WHY: the sample's two shapes, the 12 AM edge, 24-hour times with seconds, and the rejections.
 
 Current:
 
@@ -2433,30 +2029,19 @@ Replacement:
 ```ts
     expect(normaliseDate('abc')).toBe('')
   })
-  it('ignores a time after the date', () => {
+  // The owner's broker file mixes both shapes in one column (PRD-008 §4);
+  // the time is read past and dropped, the day kept.
+  it('keeps only the day when a time follows the date', () => {
+    expect(normaliseDate('1/11/2024')).toBe('2024-11-01')
     expect(normaliseDate('17-12-2024 03:30 PM')).toBe('2024-12-17')
-  })
-})
-
-describe('parseDateTime', () => {
-  // The owner's broker file mixes both shapes in one column (PRD-008 §4).
-  it('reads a day-first date without a time', () => {
-    expect(parseDateTime('1/11/2024')).toEqual({ date: '2024-11-01', minutes: null })
-  })
-  it('reads a 12-hour time', () => {
-    expect(parseDateTime('17-12-2024 03:30 PM')).toEqual({ date: '2024-12-17', minutes: 15 * 60 + 30 })
-    expect(parseDateTime('19-12-2024 10:11 am')).toEqual({ date: '2024-12-19', minutes: 10 * 60 + 11 })
-    expect(parseDateTime('01-01-2026 12:05 AM')).toEqual({ date: '2026-01-01', minutes: 5 })
-    expect(parseDateTime('01-01-2026 12:05 PM')).toEqual({ date: '2026-01-01', minutes: 12 * 60 + 5 })
-  })
-  it('reads a 24-hour time with optional seconds', () => {
-    expect(parseDateTime('25-06-2025 15:30')).toEqual({ date: '2025-06-25', minutes: 15 * 60 + 30 })
-    expect(parseDateTime('25-06-2025 09:00:45')).toEqual({ date: '2025-06-25', minutes: 9 * 60 })
+    expect(normaliseDate('01-01-2026 12:05 AM')).toBe('2026-01-01')
+    expect(normaliseDate('25-06-2025 15:30')).toBe('2025-06-25')
+    expect(normaliseDate('25-06-2025 09:00:45')).toBe('2025-06-25')
   })
   it('rejects an impossible time or a trailing word', () => {
-    expect(parseDateTime('17-12-2024 13:30 PM')).toBeNull()
-    expect(parseDateTime('17-12-2024 24:00')).toBeNull()
-    expect(parseDateTime('17-12-2024 03:30 PM IST')).toBeNull()
+    expect(normaliseDate('17-12-2024 13:30 PM')).toBe('')
+    expect(normaliseDate('17-12-2024 24:00')).toBe('')
+    expect(normaliseDate('17-12-2024 03:30 PM IST')).toBe('')
   })
 })
 ```
@@ -2928,14 +2513,15 @@ Replacement:
 
 * [ ] **Step 5: Read the broker file (Create `frontend/src/features/transactions/tradeCsv.ts`)**
 
-WHY: header names in any order and case; required vs optional columns; day-first dates with optional time; not-executed orders skipped (shown, not errors); every bad line keeps its reason.
+WHY: header names in any order and case; required vs optional columns; day-first dates, a trailing time ignored; not-executed orders skipped (shown, not errors); every bad line keeps its reason.
 
 ```ts
 // Reads a broker order-history export (Groww's columns, PRD-008 §4) into
-// trade rows for the import preview. Dates are always day-first, with or
-// without a time; rows whose order did not execute are skipped, not errors.
+// trade rows for the import preview. Dates are always day-first; a time
+// after the date is ignored (only the day is imported). Rows whose order did
+// not execute are skipped, not errors.
 import { parseCsv } from '../../lib/csv'
-import { parseDateTime } from '../../lib/formDates'
+import { normaliseDate } from '../../lib/formDates'
 import { parseMoneyCell } from '../../lib/formNumbers'
 import type { InvalidLine } from '../imports/ImportTables'
 import type { TradeImportRow } from '../../types'
@@ -2979,27 +2565,27 @@ export function parseTradeCsv(text: string, today: string): TradeCsv {
       continue
     }
     const rawDate = cell(cells, 'executed')
-    const executed = parseDateTime(rawDate)
+    const date = normaliseDate(rawDate)
     const symbol = cell(cells, 'symbol').toUpperCase()
     const type = cell(cells, 'type').toLowerCase()
     const exchange = cell(cells, 'exchange').toUpperCase()
     const quantity = parseMoneyCell(cell(cells, 'quantity'))
     const amount = parseMoneyCell(cell(cells, 'value'))
     const reasons: string[] = []
-    if (!executed) reasons.push(`Date "${rawDate}" is not a DD/MM/YYYY date (a time like 03:30 PM is optional)`)
-    else if (executed.date > today) reasons.push('Date is in the future')
+    if (!date) reasons.push(`Date "${rawDate}" is not a DD/MM/YYYY date (a time like 03:30 PM is optional)`)
+    else if (date > today) reasons.push('Date is in the future')
     if (!symbol) reasons.push('Symbol is empty')
     if (type !== 'buy' && type !== 'sell') reasons.push(`Type "${cell(cells, 'type')}" is not BUY or SELL`)
     if (exchange !== 'NSE' && exchange !== 'BSE') reasons.push(`Exchange "${cell(cells, 'exchange')}" is not NSE or BSE`)
     if (!(quantity > 0)) reasons.push(`Quantity "${cell(cells, 'quantity')}" is not a positive number`)
     if (!(amount > 0)) reasons.push(`Value "${cell(cells, 'value')}" is not a positive amount`)
-    if (reasons.length || !executed) {
+    if (reasons.length) {
       errors.push({ line, reason: reasons.join('; ') })
       continue
     }
     const isin = cell(cells, 'isin')
     rows.push({
-      line, date: executed.date, minutes: executed.minutes, symbol, stock_name: cell(cells, 'stock_name') || symbol,
+      line, date, symbol, stock_name: cell(cells, 'stock_name') || symbol,
       exchange: exchange as TradeImportRow['exchange'], type: type as TradeImportRow['type'], quantity, amount,
       ...(isin ? { isin } : {}),
     })
@@ -3030,8 +2616,8 @@ describe('parseTradeCsv', () => {
     ), '2026-11-03')
     expect(parsed.errors).toEqual([])
     expect(parsed.rows).toEqual([
-      { line: 2, date: '2024-11-01', minutes: null, symbol: 'KALYANKJIL', stock_name: 'KALYAN JEWELLERS IND LTD', exchange: 'NSE', type: 'buy', quantity: 3, amount: 2010, isin: 'INE303R01014' },
-      { line: 3, date: '2024-12-19', minutes: 10 * 60 + 11, symbol: 'VMM', stock_name: 'VISHAL MEGA MART LIMITED', exchange: 'NSE', type: 'sell', quantity: 190, amount: 20896.2, isin: 'INE01EA01019' },
+      { line: 2, date: '2024-11-01', symbol: 'KALYANKJIL', stock_name: 'KALYAN JEWELLERS IND LTD', exchange: 'NSE', type: 'buy', quantity: 3, amount: 2010, isin: 'INE303R01014' },
+      { line: 3, date: '2024-12-19', symbol: 'VMM', stock_name: 'VISHAL MEGA MART LIMITED', exchange: 'NSE', type: 'sell', quantity: 190, amount: 20896.2, isin: 'INE01EA01019' },
     ])
   })
 
@@ -3239,7 +2825,7 @@ export default function TradeImportModal({ holdings, userId, onClose, onImported
 
 * [ ] **Step 8: Dialog tests (Create `frontend/src/features/transactions/TradeImport.test.tsx`)**
 
-WHY: the owner's flow end to end against a mocked API: dates sent day-first, create a symbol, preview with replacements, import; invalid lines block; a 422 re-previews.
+WHY: the owner's flow end to end against a mocked API: dates sent day-first as the day alone, create a symbol, preview with replacements, import; invalid lines block; a 422 re-previews.
 
 ```tsx
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -3287,11 +2873,11 @@ describe('TradeImportModal', () => {
     expect(screen.getByText(/dates read as/)).toHaveTextContent('DD/MM/YYYY')
     pick(csv)
 
-    // Both date shapes reach the server already read day-first.
+    // Both date shapes reach the server as the day alone, read day-first.
     await waitFor(() => expect(mockApi.previewTradeImport).toHaveBeenCalledTimes(1))
     const sent = mockApi.previewTradeImport.mock.calls[0][0]
-    expect(sent.rows.map((row: { date: string; minutes: number | null }) => [row.date, row.minutes]))
-      .toEqual([['2025-02-10', null], ['2025-10-13', 15 * 60 + 30], ['2025-10-14', 10 * 60]])
+    expect(sent.rows.map((row: Record<string, unknown>) => [row.date, 'minutes' in row]))
+      .toEqual([['2025-02-10', false], ['2025-10-13', false], ['2025-10-14', false]])
 
     expect(await screen.findByRole('dialog', { name: 'Confirm symbols' })).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Create a new holding LGEINDIA'))
@@ -3573,7 +3159,7 @@ Expected: all seven pass before PR6 merges.
 
 * Import CSV on All transactions (own and act-as) reads a broker order
   history into buys and sells.
-* Dates are day-first, with or without a time; tab or comma files.
+* Dates are day-first; a time in the cell is ignored; tab or comma files.
 * Symbols match without the exchange suffix; unknown ones are mapped,
   created or left out, and remembered.
 * Rows on or before an opening date are covered; identical trades are
