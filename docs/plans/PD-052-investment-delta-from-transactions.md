@@ -7,7 +7,7 @@
   super admin can switch an account back to the History-based version.
 * **Architecture**: one read-only endpoint replays every holding's ledger
   as of each month end with the History heal's own replay
-  (`asOfLedger` + `RecomputePosition`), Gold from the History gold overlay;
+  (`asOfLedger` + `RecomputePosition`), Gold from the gold purchases alone;
   a per-user flag on a shared super-admin switch path; the panel keeps its
   chart and changes only its source.
 * **Tech stack**: Go (echo strict server, oapi-codegen, mtest), React 18 +
@@ -21,7 +21,7 @@
 
 | Rule | Source | How it shows up here |
 |---|---|---|
-| Reuse before writing | CLAUDE.md | `asOfLedger`, `RecomputePosition`, `CurrencyOf`, `HistoryOverlay`, `round`, `istToday` → `istDayOf`, the chart and `MonthlyInvestment`; gold + premium handlers → `setUserFlag` |
+| Reuse before writing | CLAUDE.md | `asOfLedger`, `RecomputePosition`, `CurrencyOf`, the gold store's `ListTransactions`, `round`, `istToday` → `istDayOf`, the chart and `MonthlyInvestment`; gold + premium handlers → `setUserFlag` |
 | Feature branch, one PR per task | owner (PD-048 / PD-050 / PD-051) | `feat/PD-052-delta-from-transactions` from `main`; task PRs target it and may build on each other; the feature merges to `main` last |
 | Nothing may break prod | owner (2026-11-03) | `main` only receives the feature PR, after every task PR merged and Task 3 passed |
 | Frontend and backend never in one PR | CLAUDE.md | PR2 backend, PR3 frontend; the feature → `main` PR carries `FE/BE-EXCEPTION:` |
@@ -45,6 +45,7 @@
 | Modify | `backend/api/specs/*.yaml`, `backend/api/*.gen.go` | endpoint, switch route, schemas, generated code |
 | Modify | `backend/internal/domain/user.go`, `backend/internal/services/mapper.go` | `DeltaFromHistory` on the user and `/auth/me` |
 | Modify | `backend/internal/services/clock.go`, `backend/internal/services/transactions.go` | `istDayOf`, `currentTime` |
+| Modify | `backend/internal/services/gold_history.go` | `InvestedOn`: gold invested from the purchases alone (no price) |
 | Create | `backend/internal/services/investment_delta.go` (+ test) | `monthEnds`, `investedOn`, `deltaColumns`, `InvestmentDelta` |
 | Create | `backend/internal/controllers/investment_delta.go` | `GetInvestmentDelta` |
 | Modify | `backend/internal/controllers/admin.go` (+ test), `backend/internal/httpserver/auth.go` | `setUserFlag`, the switch handler, its tier |
@@ -128,7 +129,7 @@ Expected: the branch exists on GitHub; Tasks 1–2 target it.
 **Files:**
 
 * Create: `backend/internal/services/investment_delta.go`, `backend/internal/services/investment_delta_test.go`, `backend/internal/controllers/investment_delta.go`
-* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/domain/user.go`, `backend/internal/services/mapper.go`, `backend/internal/services/clock.go`, `backend/internal/services/transactions.go`, `backend/internal/controllers/admin.go`, `backend/internal/controllers/admin_test.go`, `backend/internal/httpserver/auth.go`
+* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/domain/user.go`, `backend/internal/services/mapper.go`, `backend/internal/services/clock.go`, `backend/internal/services/transactions.go`, `backend/internal/services/gold_history.go`, `backend/internal/controllers/admin.go`, `backend/internal/controllers/admin_test.go`, `backend/internal/httpserver/auth.go`
 
 * [ ] **Step 1: Branch from the feature branch**
 
@@ -395,7 +396,7 @@ WHY: models.gen.go and server.gen.go are generated; never edit them by hand.
 cd backend && go generate -tags tools ./...
 ```
 
-Expected: `api/models.gen.go` gains `InvestmentDelta*` and `User.DeltaFromHistory`; the build fails until Step 14.
+Expected: `api/models.gen.go` gains `InvestmentDelta*` and `User.DeltaFromHistory`; the build fails until Step 15.
 
 * [ ] **Step 7: The user flag (Edit `backend/internal/domain/user.go`)**
 
@@ -541,9 +542,57 @@ func (s *TransactionsService) currentTime() time.Time {
 }
 ```
 
-* [ ] **Step 11: The computation (Create `backend/internal/services/investment_delta.go`)**
+* [ ] **Step 11: Gold invested from the purchases alone (Edit `backend/internal/services/gold_history.go`)**
 
-WHY: each month end replays every holding's ledger as of that day with the History heal's own replay (`asOfLedger` + `RecomputePosition`), so a healed History row and the ledger agree; Gold reuses the History gold overlay. Pure helpers (`monthEnds`, `investedOn`, `deltaColumns`) carry the logic; the method only loads and wires (DD-009 §3).
+WHY: `HistoryOverlay` has no value for a date until a gold price exists, which would move a purchase into the month of the first price and hide Gold for a user with no prices. `InvestedOn` sums the cash paid for the purchases dated on or before each day, from one read of the purchases (DD-009 §3 step 5).
+
+Current:
+
+```go
+    }
+    return goldOverlay(txns, prices, parsed), nil
+}
+```
+
+Replacement:
+
+```go
+    }
+    return goldOverlay(txns, prices, parsed), nil
+}
+
+// InvestedOn is the physical-gold invested amount at the end of each day:
+// the cash paid for the purchases dated on or before it (PD-052). Unlike
+// HistoryOverlay it needs no price, so a purchase counts from its own day
+// even before the first price is entered. One store read.
+func (s *GoldService) InvestedOn(ctx context.Context, uid string, days []time.Time) (_ []float64, retErr error) {
+    ctx, span := tracer.Start(ctx, "GoldService.InvestedOn")
+    defer endSpan(span, &retErr)
+    txns, err := s.store.ListTransactions(ctx, uid)
+    if err != nil {
+        return nil, err
+    }
+    return goldInvestedOn(txns, days), nil
+}
+
+// goldInvestedOn sums ActualPaid of the purchases dated on or before each
+// day; purchases and days may come in any order.
+func goldInvestedOn(txns []domain.GoldTransaction, days []time.Time) []float64 {
+    invested := make([]float64, len(days))
+    for i, day := range days {
+        for _, txn := range txns {
+            if !dateOnly(txn.Date).After(dateOnly(day)) {
+                invested[i] += txn.ActualPaid
+            }
+        }
+    }
+    return invested
+}
+```
+
+* [ ] **Step 12: The computation (Create `backend/internal/services/investment_delta.go`)**
+
+WHY: each month end replays every holding's ledger as of that day with the History heal's own replay (`asOfLedger` + `RecomputePosition`), so a healed History row and the ledger agree; Gold reuses the gold purchases (`InvestedOn`). Pure helpers (`monthEnds`, `investedOn`, `deltaColumns`) carry the logic; the method only loads and wires (DD-009 §3).
 
 ```go
 package services
@@ -574,11 +623,11 @@ const minInvestmentDeltaYear = 2020
 // goldColumn is the chart column of the physical-gold ledger.
 const goldColumn = "GOLD"
 
-// GoldInvested is the gold ledger's invested amount per date
-// (GoldService.HistoryOverlay). The caller passes nil when the user has no
-// gold, or Postgres is not configured.
+// GoldInvested is the gold purchases' invested amount at the end of each
+// day (GoldService.InvestedOn: purchases only, no price needed). The caller
+// passes nil when the user has no gold, or Postgres is not configured.
 type GoldInvested interface {
-    HistoryOverlay(ctx context.Context, uid string, dates []string) (map[string]domain.GoldHistoryPoint, error)
+    InvestedOn(ctx context.Context, uid string, days []time.Time) ([]float64, error)
 }
 
 // monthEnds lists the days the chart reads for year: 31 Dec of the previous
@@ -677,18 +726,10 @@ func (s *TransactionsService) InvestmentDelta(ctx context.Context, userId primit
         }
     }
     if gold != nil {
-        dates := make([]string, len(days))
-        for i, day := range days {
-            dates[i] = day.Format(time.DateOnly)
-        }
-        overlay, err := gold.HistoryOverlay(ctx, userId.Hex(), dates)
+        values, err := gold.InvestedOn(ctx, userId.Hex(), days)
         if err != nil {
-            logger.Warn("investment delta: gold overlay failed", zap.Error(err))
+            logger.Warn("investment delta: gold purchases failed", zap.Error(err))
         } else {
-            values := make([]float64, len(days))
-            for i, date := range dates {
-                values[i] = overlay[date].Invested
-            }
             figures[goldColumn] = values
         }
     }
@@ -696,9 +737,9 @@ func (s *TransactionsService) InvestmentDelta(ctx context.Context, userId primit
 }
 ```
 
-* [ ] **Step 12: Service tests (Create `backend/internal/services/investment_delta_test.go`)**
+* [ ] **Step 13: Service tests (Create `backend/internal/services/investment_delta_test.go`)**
 
-WHY: behaviour only: the days read, average cost through a sell, the day inclusive, an opening from its declared date, delta from the previous month end, empty columns and months, the method end to end with a pinned clock (gold present, gold failing), and the year bounds.
+WHY: behaviour only: the days read, average cost through a sell, the day inclusive, an opening from its declared date, delta from the previous month end, empty columns and months, the method end to end with a pinned clock (gold present, gold failing), the year bounds, and gold counted from each purchase's day with no price, or before a first price entered months later.
 
 ```go
 package services
@@ -793,21 +834,46 @@ func TestDeltaColumns(t *testing.T) {
     }
 }
 
-// fakeGold stands in for the gold ledger's per-date invested amount.
+// Gold invested counts each purchase from its own day, with no price: a
+// January purchase is January's even when no price exists, or the first
+// price is only entered in March (History's overlay has no row value until
+// then, which would push the purchase into March).
+func TestGoldInvestedOn_NeedsNoPrice(t *testing.T) {
+    purchases := []domain.GoldTransaction{
+        {Date: mustDate("2026-01-05"), ActualPaid: 70000},
+        {Date: mustDate("2026-05-20"), ActualPaid: 36000},
+    }
+    days := []time.Time{mustDate("2025-12-31"), mustDate("2026-01-31"), mustDate("2026-02-28"), mustDate("2026-03-31"), mustDate("2026-05-20")}
+    got := goldInvestedOn(purchases, days)
+    want := []float64{0, 70000, 70000, 70000, 106000}
+    for i := range want {
+        if got[i] != want[i] {
+            t.Fatalf("invested on %v = %v; want %v (no price needed; the day inclusive)", days, got, want)
+        }
+    }
+
+    firstPriceInMarch := []domain.GoldPrice{{Date: mustDate("2026-03-10"), PricePerGram: 7000}}
+    overlay := goldOverlay(purchases, firstPriceInMarch, days)
+    if _, ok := overlay["2026-01-31"]; ok {
+        t.Errorf("goldOverlay valued 31 Jan before any price; this test's premise changed")
+    }
+}
+
+// fakeGold stands in for GoldService.InvestedOn.
 type fakeGold struct {
     invested map[string]float64
     err      error
 }
 
-func (gold fakeGold) HistoryOverlay(_ context.Context, _ string, dates []string) (map[string]domain.GoldHistoryPoint, error) {
+func (gold fakeGold) InvestedOn(_ context.Context, _ string, days []time.Time) ([]float64, error) {
     if gold.err != nil {
         return nil, gold.err
     }
-    points := map[string]domain.GoldHistoryPoint{}
-    for _, date := range dates {
-        points[date] = domain.GoldHistoryPoint{Invested: gold.invested[date]}
+    values := make([]float64, len(days))
+    for i, day := range days {
+        values[i] = gold.invested[day.Format(time.DateOnly)]
     }
-    return points, nil
+    return values, nil
 }
 
 func TestTransactionsService_InvestmentDelta(t *testing.T) {
@@ -869,7 +935,7 @@ func TestTransactionsService_InvestmentDelta(t *testing.T) {
 }
 ```
 
-* [ ] **Step 13: The handler (Create `backend/internal/controllers/investment_delta.go`)**
+* [ ] **Step 14: The handler (Create `backend/internal/controllers/investment_delta.go`)**
 
 WHY: GOLD only for gold-enabled callers while the gold store is attached, exactly as History's overlay.
 
@@ -908,7 +974,7 @@ func (h *Controller) GetInvestmentDelta(ctx context.Context, request api.GetInve
 }
 ```
 
-* [ ] **Step 14: The switch, on a shared flag path (Edit `backend/internal/controllers/admin.go`)**
+* [ ] **Step 15: The switch, on a shared flag path (Edit `backend/internal/controllers/admin.go`)**
 
 WHY: gold and premium were the same handler twice; a third copy would break the reuse rule, so the body becomes `setUserFlag` and all three map its result to 403 / 404 / 204 (DD-009 §4).
 
@@ -1048,7 +1114,7 @@ func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, e
 }
 ```
 
-* [ ] **Step 15: Switch tests (Edit `backend/internal/controllers/admin_test.go`)**
+* [ ] **Step 16: Switch tests (Edit `backend/internal/controllers/admin_test.go`)**
 
 WHY: the super admin's 204 writes `delta_from_history`; a region admin gets 403; an unknown user 404. The gold and premium tests pass unchanged: the no-regression proof for the shared path.
 
@@ -1132,7 +1198,7 @@ func TestAdminSetUserRegion(t *testing.T) {
     mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 ```
 
-* [ ] **Step 16: Route tier (Edit `backend/internal/httpserver/auth.go`)**
+* [ ] **Step 17: Route tier (Edit `backend/internal/httpserver/auth.go`)**
 
 WHY: every admin route declares its tier (`TestAuthGate_TierTableMatchesGeneratedRoutes`).
 
@@ -1169,7 +1235,7 @@ Replacement:
     // Admin or super-admin — every other /api/admin/... route.
 ```
 
-* [ ] **Step 17: Verify**
+* [ ] **Step 18: Verify**
 
 ```bash
 cd backend && gofmt -l internal && go vet ./... && go test ./... && golangci-lint run ./...
@@ -1177,12 +1243,12 @@ cd backend && gofmt -l internal && go vet ./... && go test ./... && golangci-lin
 
 Expected: no gofmt output; every package `ok`; `0 issues.`
 
-* [ ] **Step 18: Commit, push, open PR2 into the feature branch**
+* [ ] **Step 19: Commit, push, open PR2 into the feature branch**
 
 WHY: the PR body carries the curl block below (endpoint PRs).
 
 ```bash
-git add backend/api/specs/portfolio-api.yaml backend/api/specs/transactions/transactions.yaml backend/api/specs/admin/admin.yaml backend/api/specs/openapi.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/domain/user.go backend/internal/services/mapper.go backend/internal/services/clock.go backend/internal/services/transactions.go backend/internal/services/investment_delta.go backend/internal/services/investment_delta_test.go backend/internal/controllers/investment_delta.go backend/internal/controllers/admin.go backend/internal/controllers/admin_test.go backend/internal/httpserver/auth.go
+git add backend/api/specs/portfolio-api.yaml backend/api/specs/transactions/transactions.yaml backend/api/specs/admin/admin.yaml backend/api/specs/openapi.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/domain/user.go backend/internal/services/mapper.go backend/internal/services/clock.go backend/internal/services/transactions.go backend/internal/services/gold_history.go backend/internal/services/investment_delta.go backend/internal/services/investment_delta_test.go backend/internal/controllers/investment_delta.go backend/internal/controllers/admin.go backend/internal/controllers/admin_test.go backend/internal/httpserver/auth.go
 git commit -m "✨ Compute the investment delta from the ledger"
 git push -u origin feat/PD-052-delta-api
 gh pr create --base feat/PD-052-delta-from-transactions --title "✨ Serve the investment delta from the ledger, with a per-user switch" --body-file pr2.md
@@ -2206,7 +2272,9 @@ Expected: PR URL; CI green.
 2. **Backdated**: add a buy dated last month: that month's bar grows at once.
 3. **Sells**: a sell removes its shares at the average cost (the bar is
    negative by that cost basis, not by the proceeds).
-4. **Gold**: for a gold-enabled user, Gold matches the History Gold column
+4. **Gold**: for a gold-enabled user, Gold counts each purchase in its own
+   month, also before the first gold price (enter a price later than a
+   purchase to check); elsewhere it matches the History Gold column
    at each month end; with Postgres stopped, Gold disappears and INR stays.
 5. **Switch**: as the super admin, **Delta from History** on the user: their
    panel is the PD-050 one again (History rows); **Delta from ledger** back.

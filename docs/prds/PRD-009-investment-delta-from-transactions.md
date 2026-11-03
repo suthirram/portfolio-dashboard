@@ -79,7 +79,9 @@ computed from it directly.
    show the same invested amount.
 4. Switching an account to History restores the PRD-007 panel for it, and
    switching back returns to the ledger version.
-5. Gold matches the History Gold column at each month end.
+5. Gold at each month end equals the cash paid for the purchases up to
+   that day, also before the first gold price is entered; where History's
+   Gold column has a value for the day, the two match.
 
 ## 7. Owner decisions (2026-11-03)
 

@@ -17,7 +17,7 @@ the shared super-admin switch path selects the PD-050 version.
 |---|---|---|
 | A holding's position on a day | `asOfLedger` + `RecomputePosition` (History heal) | `investedOn` sums shares × average cost per currency |
 | Currency of a holding | `CurrencyOf` | — |
-| Gold invested per date | `GoldService.HistoryOverlay` | `GoldInvested` interface (nil = no gold) |
+| Gold invested per date | the gold store's `ListTransactions` | `GoldService.InvestedOn` + pure `goldInvestedOn` (purchases only, no price); `GoldInvested` interface (nil = no gold) |
 | IST "today" | `istToday` | `istDayOf(instant)`, so tests pin the day |
 | Money rounding | `round` (history.go) | — |
 | Super-admin per-user switch | gold / premium handlers | `setUserFlag`, shared by all three |
@@ -52,8 +52,12 @@ the shared super-admin switch path selects the PD-050 version.
    `StocksOwned × AvgCostPrice` added to the holding's `CurrencyOf` bucket.
    An oversold as-of ledger counts at its clamped position, as the heal
    values it.
-5. Gold, when `gold` is non-nil: `HistoryOverlay(userId, days)` →
-   `Invested` per day. An error is logged and the Gold column left out.
+5. Gold, when `gold` is non-nil: `InvestedOn(userId, days)`, the cash
+   paid for the purchases dated on or before each day, from the purchases
+   alone. `HistoryOverlay` is not used: it has no value for a date until a
+   gold price exists, which would move a purchase into the month of the
+   first price and hide Gold for a user with no prices. An error is logged
+   and the Gold column left out.
 6. `deltaColumns`: per column in chart order (INR, EUR, GOLD), month `m`
    reads `invested = values[m+1]`, `delta = values[m+1] − values[m]`, both
    rounded to cents; a column whose month ends are all zero is left out.
@@ -97,7 +101,9 @@ flag name. The three handlers map its `(allowed, found, err)` to their
   month end, a column with nothing invested left out, months after today
   empty); `InvestmentDelta` end to end with a pinned clock (INR from the
   ledger and GOLD from a gold source; a gold failure leaves GOLD out; years
-  out of range are `ErrValidation`); the admin switch (204 writes
+  out of range are `ErrValidation`); `goldInvestedOn` (a purchase counts
+  from its own day with no price at all, and before a first price entered
+  months later); the admin switch (204 writes
   `delta_from_history`, 403 for a region admin, 404 for an unknown user).
   The gold and premium handler tests pass unchanged.
 * Vitest: the panel from the ledger (charts the API months, never reads
@@ -111,5 +117,6 @@ flag name. The three handlers map its `(allowed, found, err)` to their
 | Risk | Mitigation |
 |---|---|
 | Ledger and History disagree for a month | expected where History has gaps or unhealed rows; both use the same replay, so healed months match (PRD-009 §6) |
+| Gold differs from History's Gold column | only before the first gold price, where History has no value; the ledger version counts the purchases (PRD-009 §5) |
 | A large ledger slows the panel | one user's ledger, ≤ 13 in-memory replays per holding, two reads; revisit with a per-request cache if a ledger grows past thousands of events |
 | The switch is set and forgotten | the admin list shows its state on every account |
