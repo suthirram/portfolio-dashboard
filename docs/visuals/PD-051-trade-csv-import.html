@@ -960,9 +960,29 @@
   function readCell() {
     const read = readDate(dateIn.value)
     dateOut.className = 'verdict ' + (read.error ? 'bad' : 'ok')
-    dateOut.innerHTML = read.error
-      ? `<b>Invalid line</b> — Date "${dateIn.value}" is not a DD/MM/YYYY date (a time like 03:30 PM is optional): ${read.error}.`
-      : `<b>${longDate(read.date)}</b> · stored as <code>${read.date}</code>${read.minutes == null ? ' · no time (keeps file order within the day)' : ` · ${hhmm(read.minutes)} (orders same-day trades)`}`
+    if (read.error) {
+      const strong = document.createElement('b')
+      strong.textContent = 'Invalid line'
+      dateOut.replaceChildren(
+        strong,
+        document.createTextNode(` — Date "${dateIn.value}" is not a DD/MM/YYYY date (a time like 03:30 PM is optional): ${read.error}.`)
+      )
+    } else {
+      const strong = document.createElement('b')
+      strong.textContent = longDate(read.date)
+      const code = document.createElement('code')
+      code.textContent = read.date
+      dateOut.replaceChildren(
+        strong,
+        document.createTextNode(' · stored as '),
+        code,
+        document.createTextNode(
+          read.minutes == null
+            ? ' · no time (keeps file order within the day)'
+            : ` · ${hhmm(read.minutes)} (orders same-day trades)`
+        )
+      )
+    }
   }
   dateIn.addEventListener('input', readCell)
   readCell()
