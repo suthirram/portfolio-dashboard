@@ -35,6 +35,10 @@ interface LiveRowOptions {
   todayStr: string
   liveWindowOpen: boolean
   goldEnabled: boolean
+  // Bumped by a caller that writes the ledger (the Transactions page), so a
+  // buy or sell dated today refetches /prices at once instead of waiting
+  // for the next 5-minute tick. History has no ledger editor and omits it.
+  refreshKey?: number
 }
 
 // `rows` plus today's live row: only while `active`, only while no snapshot
@@ -42,7 +46,7 @@ interface LiveRowOptions {
 // number), and only inside the live window.
 export function useLiveHistoryRows(
   rows: HistoryRow[],
-  { active, todayStr, liveWindowOpen, goldEnabled }: LiveRowOptions,
+  { active, todayStr, liveWindowOpen, goldEnabled, refreshKey }: LiveRowOptions,
 ): HistoryRow[] {
   const [liveRow, setLiveRow] = useState<HistoryRow | null>(null)
   // /prices is cached 5 min server-side. Without its own cadence the row
@@ -87,7 +91,7 @@ export function useLiveHistoryRows(
       }
     })()
     return () => { cancelled = true }
-  }, [active, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, prevGoldCurrent, goldEnabled])
+  }, [active, hasTodaySnapshot, liveWindowOpen, priceTick, todayStr, prevGoldCurrent, goldEnabled, refreshKey])
 
   // `hasTodaySnapshot` and `active` are computed during render but `liveRow`
   // is only cleared by the effect above, which runs after paint — so guard

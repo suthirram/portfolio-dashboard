@@ -48,6 +48,9 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [filters, setFilters] = useState<Filters>(emptyFilters())
   const [sort, setSort] = useState(defaultSort())
   const [editing, setEditing] = useState<Holding | null>(null)
+  // Bumped after each successful ledger write so the investment delta panel
+  // reloads the History rows the backend has just healed.
+  const [ledgerVersion, setLedgerVersion] = useState(0)
 
   const patch = (next: Partial<Filters>) => setFilters(current => ({ ...current, ...next }))
 
@@ -225,7 +228,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
         )}
 
         {/* The user's own portfolio only: History has no act-as read (PRD-007 §3). */}
-        {!actAsUserId && <InvestmentDeltaPanel theme={theme} />}
+        {!actAsUserId && <InvestmentDeltaPanel theme={theme} refreshKey={ledgerVersion} />}
       </main>
 
       {editing && (
@@ -233,7 +236,10 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           holding={editing}
           userId={actAsUserId}
           onClose={() => setEditing(null)}
-          onChanged={() => void refresh()}
+          onChanged={() => {
+            void refresh()
+            setLedgerVersion(version => version + 1)
+          }}
         />
       )}
     </div>

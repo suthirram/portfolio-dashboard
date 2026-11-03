@@ -8,6 +8,8 @@ const mockApi = vi.hoisted(() => ({
   listHoldings: vi.fn(),
   listTransactions: vi.fn(),
   listHistory: vi.fn(),
+  getPrices: vi.fn(),
+  deleteTransaction: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -62,6 +64,42 @@ describe('TransactionsPage', () => {
     renderPage({ actAsUserId: 'u2', actAsLabel: "bob's transactions" })
     await screen.findByText('SIP tranche')
     expect(screen.queryByRole('button', { name: /Investment delta/ })).not.toBeInTheDocument()
+  })
+
+  describe('after a ledger edit in the editor', () => {
+    beforeEach(() => {
+      mockApi.listHistory.mockResolvedValue({ currency: 'INR', rows: [] })
+      mockApi.getPrices.mockResolvedValue({ holdings: [], eur_rate: 0.011 })
+      mockApi.listTransactions.mockResolvedValue([txns[0]])
+      mockApi.deleteTransaction.mockResolvedValue({})
+    })
+
+    // Deletes the SIP tranche through the real per-holding editor.
+    const deleteThroughEditor = async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: /Edit in .* ledger/ })[0])
+      fireEvent.click(await screen.findByTitle('Delete'))
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+      await waitFor(() => expect(mockApi.deleteTransaction).toHaveBeenCalledWith('t1', undefined))
+    }
+
+    it('reloads the History rows of an open investment delta panel', async () => {
+      renderPage()
+      await screen.findByText('SIP tranche')
+      fireEvent.click(screen.getByRole('button', { name: /Investment delta/ }))
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(1))
+
+      await deleteThroughEditor()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
+    })
+
+    it('fetches no History while the panel is collapsed', async () => {
+      renderPage()
+      await screen.findByText('SIP tranche')
+
+      await deleteThroughEditor()
+      await waitFor(() => expect(mockApi.listAllTransactions).toHaveBeenCalledTimes(2))
+      expect(mockApi.listHistory).not.toHaveBeenCalled()
+    })
   })
 
   it('lists every ledger event with the PRD-004 §5 columns', async () => {

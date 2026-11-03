@@ -16,7 +16,14 @@ const OPEN_KEY = 'pd_txn_delta_open'
 // One empty array for "not loaded", so the hook's memos stay stable.
 const NO_ROWS: HistoryRow[] = []
 
-export function InvestmentDeltaPanel({ theme }: { theme: ThemeName }) {
+interface Props {
+  theme: ThemeName
+  // Bumped by the page after each successful ledger edit: the backend has
+  // healed the affected snapshots by then, so an open panel reloads the year.
+  refreshKey?: number
+}
+
+export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   const auth = useAuthOptional()
   const { todayStr, liveWindowOpen } = useTradingClock()
   const currentYear = yearMonth0(todayStr).year
@@ -24,8 +31,12 @@ export function InvestmentDeltaPanel({ theme }: { theme: ThemeName }) {
     try { return window.localStorage?.getItem(OPEN_KEY) === '1' } catch { return false }
   })
   const [year, setYear] = useState(currentYear)
+  // The loaded rows and the year they belong to. A ledger refresh keeps the
+  // current figures on screen while it reloads; another year shows the
+  // spinner until its own rows arrive.
+  const [loaded, setLoaded] = useState<{ year: number; rows: HistoryRow[] } | null>(null)
   // null = not loaded yet for this year.
-  const [rows, setRows] = useState<HistoryRow[] | null>(null)
+  const rows = loaded && loaded.year === year ? loaded.rows : null
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<PerformanceColumn | null>(null)
 
@@ -40,24 +51,23 @@ export function InvestmentDeltaPanel({ theme }: { theme: ThemeName }) {
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setRows(null)
     setError(null)
     void (async () => {
       try {
         // 1 Jan → 31 Dec, plus the latest row before 1 Jan as January's baseline.
         const list = await api.listHistory(monthRange(year, 0).from, monthRange(year, 11).to, true)
-        if (!cancelled) setRows(list.rows)
+        if (!cancelled) setLoaded({ year, rows: list.rows })
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
       }
     })()
     return () => { cancelled = true }
-  }, [open, year])
+  }, [open, year, refreshKey])
 
   // Today's live row, as on History, while the current year is pulled up.
   const displayRows = useLiveHistoryRows(rows ?? NO_ROWS, {
     active: open && rows !== null && year === currentYear,
-    todayStr, liveWindowOpen, goldEnabled: Boolean(auth?.user?.gold_enabled),
+    todayStr, liveWindowOpen, goldEnabled: Boolean(auth?.user?.gold_enabled), refreshKey,
   })
 
   // Only columns with money invested on a row inside the year are offered;
