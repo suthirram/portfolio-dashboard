@@ -1,6 +1,9 @@
 # PD-052: Rollout plan — investment delta from the transactions ledger
 
 * **Status**: Draft v1, owner decisions of 2026-11-03 applied
+* **Review fixes** (after #262/#263): #265 (`userId`, not `uid`, in
+  `InvestedOn`), #266 (keep a column sold out during the year), #267
+  (the ledger panel refreshes at IST midnight)
 * **Owner**: project owner
 * **Goal**: The All transactions page's investment delta panel computes
   each month's cost basis and delta from the ledger by default, and the
@@ -565,10 +568,10 @@ Replacement:
 // the cash paid for the purchases dated on or before it (PD-052). Unlike
 // HistoryOverlay it needs no price, so a purchase counts from its own day
 // even before the first price is entered. One store read.
-func (s *GoldService) InvestedOn(ctx context.Context, uid string, days []time.Time) (_ []float64, retErr error) {
+func (s *GoldService) InvestedOn(ctx context.Context, userId string, days []time.Time) (_ []float64, retErr error) {
     ctx, span := tracer.Start(ctx, "GoldService.InvestedOn")
     defer endSpan(span, &retErr)
-    txns, err := s.store.ListTransactions(ctx, uid)
+    txns, err := s.store.ListTransactions(ctx, userId)
     if err != nil {
         return nil, err
     }
@@ -627,7 +630,7 @@ const goldColumn = "GOLD"
 // day (GoldService.InvestedOn: purchases only, no price needed). The caller
 // passes nil when the user has no gold, or Postgres is not configured.
 type GoldInvested interface {
-    InvestedOn(ctx context.Context, uid string, days []time.Time) ([]float64, error)
+    InvestedOn(ctx context.Context, userId string, days []time.Time) ([]float64, error)
 }
 
 // monthEnds lists the days the chart reads for year: 31 Dec of the previous

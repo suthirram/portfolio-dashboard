@@ -2,6 +2,10 @@
 
 * **Status**: Draft v2 (PRD), owner decisions of 2026-11-02 applied (v2: the
   live row and empty years, from the plan review)
+* **Superseded in part by** [PRD-009](PRD-009-investment-delta-from-transactions.md)
+  (2026-11-03): the panel now computes its figures from the ledger by
+  default; the History-based calculation below remains for accounts the
+  super admin switches to it (`delta_from_history`).
 * **Owner**: project owner
 * **Type**: Product Requirements: the *what* and *why*. The *how* lives in
   [DD-007](../designs/DD-007-investment-delta-chart.md); the rollout in
