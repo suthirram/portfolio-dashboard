@@ -68,6 +68,20 @@ func TestInvestedOn(t *testing.T) {
 // Each month's figure is the month-end cost basis and its change from the
 // previous month end; a column with nothing invested in the year is left
 // out, and months after today stay empty.
+// A position carried into the year and sold out in January has no money
+// invested at any month end, but January's negative delta is real: the
+// column stays, so the chart shows the withdrawal.
+func TestDeltaColumns_KeepsASoldOutColumn(t *testing.T) {
+	columns := deltaColumns(map[string][]float64{"INR": {5000, 0, 0}, "EUR": {0, 0, 0}})
+	if len(columns) != 1 || columns[0].Column != api.InvestmentDeltaColumnColumnINR {
+		t.Fatalf("columns = %+v; want INR only (EUR never had activity)", columns)
+	}
+	january := columns[0].Months[0]
+	if *january.Invested != 0 || *january.Delta != -5000 {
+		t.Errorf("January = %v (%v); want 0 invested, −5000", *january.Invested, *january.Delta)
+	}
+}
+
 func TestDeltaColumns(t *testing.T) {
 	columns := deltaColumns(map[string][]float64{
 		"INR":  {100, 150, 150, 120},
