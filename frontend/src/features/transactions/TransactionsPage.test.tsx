@@ -45,6 +45,18 @@ const txns: TransactionWithHolding[] = [
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // A fresh store per test, as the panel's own tests do: jsdom's real
+  // localStorage (Node 22, CI) would otherwise carry the panel's open state
+  // from one test into the next.
+  const store = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value) },
+      removeItem: (key: string) => { store.delete(key) },
+    },
+  })
   mockApi.listAllTransactions.mockResolvedValue(txns)
   mockApi.listHoldings.mockResolvedValue(holdings)
   mockApi.listTransactions.mockResolvedValue([])
@@ -105,6 +117,7 @@ describe('TransactionsPage', () => {
     it('fetches no History while the panel is collapsed', async () => {
       renderPage()
       await screen.findByText('SIP tranche')
+      expect(screen.getByRole('button', { name: /Investment delta/ })).toHaveAttribute('aria-expanded', 'false')
 
       await deleteThroughEditor()
       await waitFor(() => expect(mockApi.listAllTransactions).toHaveBeenCalledTimes(2))
