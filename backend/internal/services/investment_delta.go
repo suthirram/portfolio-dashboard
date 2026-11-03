@@ -26,11 +26,11 @@ const minInvestmentDeltaYear = 2020
 // goldColumn is the chart column of the physical-gold ledger.
 const goldColumn = "GOLD"
 
-// GoldInvested is the gold ledger's invested amount per date
-// (GoldService.HistoryOverlay). The caller passes nil when the user has no
-// gold, or Postgres is not configured.
+// GoldInvested is the gold purchases' invested amount at the end of each
+// day (GoldService.InvestedOn: purchases only, no price needed). The caller
+// passes nil when the user has no gold, or Postgres is not configured.
 type GoldInvested interface {
-	HistoryOverlay(ctx context.Context, uid string, dates []string) (map[string]domain.GoldHistoryPoint, error)
+	InvestedOn(ctx context.Context, uid string, days []time.Time) ([]float64, error)
 }
 
 // monthEnds lists the days the chart reads for year: 31 Dec of the previous
@@ -129,18 +129,10 @@ func (s *TransactionsService) InvestmentDelta(ctx context.Context, userId primit
 		}
 	}
 	if gold != nil {
-		dates := make([]string, len(days))
-		for i, day := range days {
-			dates[i] = day.Format(time.DateOnly)
-		}
-		overlay, err := gold.HistoryOverlay(ctx, userId.Hex(), dates)
+		values, err := gold.InvestedOn(ctx, userId.Hex(), days)
 		if err != nil {
-			logger.Warn("investment delta: gold overlay failed", zap.Error(err))
+			logger.Warn("investment delta: gold purchases failed", zap.Error(err))
 		} else {
-			values := make([]float64, len(days))
-			for i, date := range dates {
-				values[i] = overlay[date].Invested
-			}
 			figures[goldColumn] = values
 		}
 	}
