@@ -1061,10 +1061,10 @@ type InvestmentDeltaColumnColumn string
 // InvestmentDeltaMonth defines model for InvestmentDeltaMonth.
 type InvestmentDeltaMonth struct {
 	// Delta invested minus the previous month end's; null after today
-	Delta *float64 `json:"delta,omitempty"`
+	Delta *float64 `json:"delta"`
 
 	// Invested Cost basis at the month end (today for the current month); null after today
-	Invested *float64 `json:"invested,omitempty"`
+	Invested *float64 `json:"invested"`
 
 	// Month0 0 = January
 	Month0 int `json:"month0"`

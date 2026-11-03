@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -82,6 +83,10 @@ func TestDeltaColumns(t *testing.T) {
 	}
 	if india[3].Invested != nil || india[3].Delta != nil || india[11].Month0 != 11 {
 		t.Errorf("April onwards = %+v; want empty months 3–11", india[3:])
+	}
+	// On the wire an empty month says so: null, not a missing key.
+	if wire, _ := json.Marshal(india[11]); string(wire) != `{"delta":null,"invested":null,"month0":11}` {
+		t.Errorf("December JSON = %s; want explicit nulls", wire)
 	}
 }
 

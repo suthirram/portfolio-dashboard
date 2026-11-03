@@ -1235,7 +1235,7 @@ components:
         created_holdings: { type: integer }
     InvestmentDeltaMonth:
       type: object
-      required: [month0]
+      required: [month0, invested, delta]
       properties:
         month0: { type: integer, description: 0 = January }
         invested: { type: number, format: double, nullable: true, description: "Cost basis at the month end (today for the current month); null after today" }
