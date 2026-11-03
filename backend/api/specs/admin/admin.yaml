@@ -258,6 +258,31 @@ users_id_premium:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_delta_from_history:
+  put:
+    tags: [Admin]
+    summary: Switch an account's investment delta back to History (super admin only)
+    description: |
+      PD-052. On: the Transactions page's investment delta reads History
+      rows (the PD-050 version). Off (default): it is computed from the
+      ledger. Super admin only; the super admin may switch their own account.
+    operationId: adminSetUserDeltaFromHistory
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/UserFlagToggleRequest"
+    responses:
+      "204":
+        description: Switch updated
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_holdings:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"

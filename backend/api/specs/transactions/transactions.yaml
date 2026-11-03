@@ -177,3 +177,31 @@ transactions_import:
           application/json:
             schema:
               $ref: "../portfolio-api.yaml#/components/schemas/TradeImportPreview"
+
+transactions_investment_delta:
+  get:
+    tags: [Transactions]
+    summary: Monthly investment delta for one year, from the ledger
+    description: |
+      PD-052. Per currency (INR, EUR) the cost basis of every holding at
+      each month end of `year` (today for the current month), replayed from
+      the ledger as of that day, and its change from the previous month end;
+      GOLD from the physical-gold ledger for gold-enabled users. Months after
+      today are null. Read-only.
+    operationId: getInvestmentDelta
+    parameters:
+      - name: year
+        in: query
+        required: true
+        schema:
+          type: integer
+          minimum: 2020
+    responses:
+      "200":
+        description: The year's monthly cost basis and delta per column
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/InvestmentDelta"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

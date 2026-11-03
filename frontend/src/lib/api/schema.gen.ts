@@ -220,6 +220,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/investment-delta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly investment delta for one year, from the ledger
+         * @description PD-052. Per currency (INR, EUR) the cost basis of every holding at
+         *     each month end of `year` (today for the current month), replayed from
+         *     the ledger as of that day, and its change from the previous month end;
+         *     GOLD from the physical-gold ledger for gold-enabled users. Months after
+         *     today are null. Read-only.
+         */
+        get: operations["getInvestmentDelta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dividends": {
         parameters: {
             query?: never;
@@ -813,6 +837,28 @@ export interface paths {
          *     own account. Toggling off revokes eligibility but deletes nothing.
          */
         put: operations["adminSetUserPremium"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/delta-from-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch an account's investment delta back to History (super admin only)
+         * @description PD-052. On: the Transactions page's investment delta reads History
+         *     rows (the PD-050 version). Off (default): it is computed from the
+         *     ledger. Super admin only; the super admin may switch their own account.
+         */
+        put: operations["adminSetUserDeltaFromHistory"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1545,6 +1591,31 @@ export interface components {
             covered: number;
             created_holdings: number;
         };
+        InvestmentDeltaMonth: {
+            /** @description 0 = January */
+            month0: number;
+            /**
+             * Format: double
+             * @description Cost basis at the month end (today for the current month); null after today
+             */
+            invested: number | null;
+            /**
+             * Format: double
+             * @description invested minus the previous month end's; null after today
+             */
+            delta: number | null;
+        };
+        InvestmentDeltaColumn: {
+            /** @enum {string} */
+            column: "INR" | "EUR" | "GOLD";
+            /** @description 12 entries, January first */
+            months: components["schemas"]["InvestmentDeltaMonth"][];
+        };
+        InvestmentDelta: {
+            year: number;
+            /** @description Columns with money invested at some month end of the year */
+            columns: components["schemas"]["InvestmentDeltaColumn"][];
+        };
         /** @description One dividend ledger event in a currency tab (PRD-005 §8). */
         DividendRow: {
             id: string;
@@ -1856,6 +1927,8 @@ export interface components {
             gold_enabled: boolean;
             /** @description Premium features enabled (super-admin toggled, PD-046 — cyberpunk theme) */
             premium: boolean;
+            /** @description The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052) */
+            delta_from_history: boolean;
             /** @description Forced onboarding pending (bootstrap super admin) */
             must_change_password: boolean;
             /** @description The catalogue keys of the account's chosen questions (own account only) */
@@ -1905,6 +1978,10 @@ export interface components {
         };
         PremiumToggleRequest: {
             /** @description Turn premium features on or off for the account */
+            enabled: boolean;
+        };
+        UserFlagToggleRequest: {
+            /** @description Turn the per-user switch on or off for the account */
             enabled: boolean;
         };
         BrandingUpdateRequest: {
@@ -2536,6 +2613,29 @@ export interface operations {
                     "application/json": components["schemas"]["TradeImportPreview"];
                 };
             };
+        };
+    };
+    getInvestmentDelta: {
+        parameters: {
+            query: {
+                year: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The year's monthly cost basis and delta per column */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentDelta"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     listDividends: {
@@ -3430,6 +3530,33 @@ export interface operations {
         };
         responses: {
             /** @description Premium access updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminSetUserDeltaFromHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserFlagToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Switch updated */
             204: {
                 headers: {
                     [name: string]: unknown;

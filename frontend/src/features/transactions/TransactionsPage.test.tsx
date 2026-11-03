@@ -8,6 +8,7 @@ const mockApi = vi.hoisted(() => ({
   listHoldings: vi.fn(),
   listTransactions: vi.fn(),
   listHistory: vi.fn(),
+  getInvestmentDelta: vi.fn(),
   getPrices: vi.fn(),
   deleteTransaction: vi.fn(),
 }))
@@ -104,6 +105,7 @@ describe('TransactionsPage', () => {
   describe('after a ledger edit in the editor', () => {
     beforeEach(() => {
       mockApi.listHistory.mockResolvedValue({ currency: 'INR', rows: [] })
+      mockApi.getInvestmentDelta.mockResolvedValue({ year: 2026, columns: [] })
       mockApi.getPrices.mockResolvedValue({ holdings: [], eur_rate: 0.011 })
       mockApi.listTransactions.mockResolvedValue([txns[0]])
       mockApi.deleteTransaction.mockResolvedValue({})
@@ -117,23 +119,24 @@ describe('TransactionsPage', () => {
       await waitFor(() => expect(mockApi.deleteTransaction).toHaveBeenCalledWith('t1', undefined))
     }
 
-    it('reloads the History rows of an open investment delta panel', async () => {
+    it('reloads the ledger figures of an open investment delta panel', async () => {
       renderPage()
       await screen.findByText('SIP tranche')
       fireEvent.click(screen.getByRole('button', { name: /Investment delta/ }))
-      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(1))
+      await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(1))
 
       await deleteThroughEditor()
-      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2))
     })
 
-    it('fetches no History while the panel is collapsed', async () => {
+    it('fetches no figures while the panel is collapsed', async () => {
       renderPage()
       await screen.findByText('SIP tranche')
       expect(screen.getByRole('button', { name: /Investment delta/ })).toHaveAttribute('aria-expanded', 'false')
 
       await deleteThroughEditor()
       await waitFor(() => expect(mockApi.listAllTransactions).toHaveBeenCalledTimes(2))
+      expect(mockApi.getInvestmentDelta).not.toHaveBeenCalled()
       expect(mockApi.listHistory).not.toHaveBeenCalled()
     })
   })

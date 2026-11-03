@@ -170,8 +170,16 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// GetInvestmentDeltaParams defines parameters for GetInvestmentDelta.
+type GetInvestmentDeltaParams struct {
+	Year int `form:"year" json:"year"`
+}
+
 // AdminUpdateBrandingJSONRequestBody defines body for AdminUpdateBranding for application/json ContentType.
 type AdminUpdateBrandingJSONRequestBody = BrandingUpdateRequest
+
+// AdminSetUserDeltaFromHistoryJSONRequestBody defines body for AdminSetUserDeltaFromHistory for application/json ContentType.
+type AdminSetUserDeltaFromHistoryJSONRequestBody = UserFlagToggleRequest
 
 // AdminImportUserDividendsJSONRequestBody defines body for AdminImportUserDividends for application/json ContentType.
 type AdminImportUserDividendsJSONRequestBody = DividendImportInput
@@ -289,6 +297,9 @@ type ServerInterface interface {
 	// Get one user in scope
 	// (GET /admin/users/{id})
 	AdminGetUser(ctx echo.Context, id UserID) error
+	// Switch an account's investment delta back to History (super admin only)
+	// (PUT /admin/users/{id}/delta-from-history)
+	AdminSetUserDeltaFromHistory(ctx echo.Context, id UserID) error
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx echo.Context, id UserID) error
@@ -496,6 +507,9 @@ type ServerInterface interface {
 	// Evaluate a trades CSV import without writing anything
 	// (POST /transactions/import/preview)
 	PreviewTradeImport(ctx echo.Context) error
+	// Monthly investment delta for one year, from the ledger
+	// (GET /transactions/investment-delta)
+	GetInvestmentDelta(ctx echo.Context, params GetInvestmentDeltaParams) error
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx echo.Context, id string) error
@@ -584,6 +598,24 @@ func (w *ServerInterfaceWrapper) AdminGetUser(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminGetUser(ctx, id)
+	return err
+}
+
+// AdminSetUserDeltaFromHistory converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminSetUserDeltaFromHistory(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminSetUserDeltaFromHistory(ctx, id)
 	return err
 }
 
@@ -1718,6 +1750,26 @@ func (w *ServerInterfaceWrapper) PreviewTradeImport(ctx echo.Context) error {
 	return err
 }
 
+// GetInvestmentDelta converts echo context to params.
+func (w *ServerInterfaceWrapper) GetInvestmentDelta(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetInvestmentDeltaParams
+	// ------------- Required query parameter "year" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "year", ctx.QueryParams(), &params.Year, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter year: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetInvestmentDelta(ctx, params)
+	return err
+}
+
 // DeleteTransaction converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteTransaction(ctx echo.Context) error {
 	var err error
@@ -1806,6 +1858,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/admin/users", wrapper.AdminListUsers, options.OperationMiddlewares["adminListUsers"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id", wrapper.AdminDeleteUser, options.OperationMiddlewares["adminDeleteUser"]...)
 	router.GET(options.BaseURL+"/admin/users/:id", wrapper.AdminGetUser, options.OperationMiddlewares["adminGetUser"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/delta-from-history", wrapper.AdminSetUserDeltaFromHistory, options.OperationMiddlewares["adminSetUserDeltaFromHistory"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/demote", wrapper.AdminDemoteUser, options.OperationMiddlewares["adminDemoteUser"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminDeleteUserDividends, options.OperationMiddlewares["adminDeleteUserDividends"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/dividends", wrapper.AdminListUserDividends, options.OperationMiddlewares["adminListUserDividends"]...)
@@ -1875,6 +1928,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/transactions", wrapper.ListAllTransactions, options.OperationMiddlewares["listAllTransactions"]...)
 	router.POST(options.BaseURL+"/transactions/import", wrapper.ImportTrades, options.OperationMiddlewares["importTrades"]...)
 	router.POST(options.BaseURL+"/transactions/import/preview", wrapper.PreviewTradeImport, options.OperationMiddlewares["previewTradeImport"]...)
+	router.GET(options.BaseURL+"/transactions/investment-delta", wrapper.GetInvestmentDelta, options.OperationMiddlewares["getInvestmentDelta"]...)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction, options.OperationMiddlewares["deleteTransaction"]...)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction, options.OperationMiddlewares["updateTransaction"]...)
 
@@ -2084,6 +2138,51 @@ func (response AdminGetUser200JSONResponse) VisitAdminGetUserResponse(w http.Res
 type AdminGetUser404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminGetUser404JSONResponse) VisitAdminGetUserResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserDeltaFromHistoryRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminSetUserDeltaFromHistoryJSONRequestBody
+}
+
+type AdminSetUserDeltaFromHistoryResponseObject interface {
+	VisitAdminSetUserDeltaFromHistoryResponse(w http.ResponseWriter) error
+}
+
+type AdminSetUserDeltaFromHistory204Response struct {
+}
+
+func (response AdminSetUserDeltaFromHistory204Response) VisitAdminSetUserDeltaFromHistoryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminSetUserDeltaFromHistory403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AdminSetUserDeltaFromHistory403JSONResponse) VisitAdminSetUserDeltaFromHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserDeltaFromHistory404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminSetUserDeltaFromHistory404JSONResponse) VisitAdminSetUserDeltaFromHistoryResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -5182,6 +5281,42 @@ func (response PreviewTradeImport400JSONResponse) VisitPreviewTradeImportRespons
 	return err
 }
 
+type GetInvestmentDeltaRequestObject struct {
+	Params GetInvestmentDeltaParams
+}
+
+type GetInvestmentDeltaResponseObject interface {
+	VisitGetInvestmentDeltaResponse(w http.ResponseWriter) error
+}
+
+type GetInvestmentDelta200JSONResponse InvestmentDelta
+
+func (response GetInvestmentDelta200JSONResponse) VisitGetInvestmentDeltaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetInvestmentDelta400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetInvestmentDelta400JSONResponse) VisitGetInvestmentDeltaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type DeleteTransactionRequestObject struct {
 	Id string `json:"id"`
 }
@@ -5302,6 +5437,9 @@ type StrictServerInterface interface {
 	// Get one user in scope
 	// (GET /admin/users/{id})
 	AdminGetUser(ctx context.Context, request AdminGetUserRequestObject) (AdminGetUserResponseObject, error)
+	// Switch an account's investment delta back to History (super admin only)
+	// (PUT /admin/users/{id}/delta-from-history)
+	AdminSetUserDeltaFromHistory(ctx context.Context, request AdminSetUserDeltaFromHistoryRequestObject) (AdminSetUserDeltaFromHistoryResponseObject, error)
 	// Demote an admin back to a normal user (super admin only)
 	// (POST /admin/users/{id}/demote)
 	AdminDemoteUser(ctx context.Context, request AdminDemoteUserRequestObject) (AdminDemoteUserResponseObject, error)
@@ -5509,6 +5647,9 @@ type StrictServerInterface interface {
 	// Evaluate a trades CSV import without writing anything
 	// (POST /transactions/import/preview)
 	PreviewTradeImport(ctx context.Context, request PreviewTradeImportRequestObject) (PreviewTradeImportResponseObject, error)
+	// Monthly investment delta for one year, from the ledger
+	// (GET /transactions/investment-delta)
+	GetInvestmentDelta(ctx context.Context, request GetInvestmentDeltaRequestObject) (GetInvestmentDeltaResponseObject, error)
 	// Delete a transaction
 	// (DELETE /transactions/{id})
 	DeleteTransaction(ctx context.Context, request DeleteTransactionRequestObject) (DeleteTransactionResponseObject, error)
@@ -5650,6 +5791,37 @@ func (sh *strictHandler) AdminGetUser(ctx echo.Context, id UserID) error {
 		return err
 	} else if validResponse, ok := response.(AdminGetUserResponseObject); ok {
 		return validResponse.VisitAdminGetUserResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminSetUserDeltaFromHistory operation middleware
+func (sh *strictHandler) AdminSetUserDeltaFromHistory(ctx echo.Context, id UserID) error {
+	var request AdminSetUserDeltaFromHistoryRequestObject
+
+	request.Id = id
+
+	var body AdminSetUserDeltaFromHistoryJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminSetUserDeltaFromHistory(ctx.Request().Context(), request.(AdminSetUserDeltaFromHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminSetUserDeltaFromHistory")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminSetUserDeltaFromHistoryResponseObject); ok {
+		return validResponse.VisitAdminSetUserDeltaFromHistoryResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -7517,6 +7689,31 @@ func (sh *strictHandler) PreviewTradeImport(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(PreviewTradeImportResponseObject); ok {
 		return validResponse.VisitPreviewTradeImportResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetInvestmentDelta operation middleware
+func (sh *strictHandler) GetInvestmentDelta(ctx echo.Context, params GetInvestmentDeltaParams) error {
+	var request GetInvestmentDeltaRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetInvestmentDelta(ctx.Request().Context(), request.(GetInvestmentDeltaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetInvestmentDelta")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetInvestmentDeltaResponseObject); ok {
+		return validResponse.VisitGetInvestmentDeltaResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

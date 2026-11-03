@@ -516,6 +516,68 @@ func TestAdminSetUserPremium(t *testing.T) {
 	})
 }
 
+// PD-052: the per-user switch back to the History-based investment delta,
+// on the shared super-admin flag path.
+func TestAdminSetUserDeltaFromHistory(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("super admin switches an account to History", func(mt *mtest.T) {
+		target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+			mtest.CreateSuccessResponse(),
+		)
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserDeltaFromHistory(userCtx(superAdmin()), api.AdminSetUserDeltaFromHistoryRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserDeltaFromHistory: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserDeltaFromHistory204Response); !ok {
+			t.Fatalf("response = %T, want 204", resp)
+		}
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "update" {
+				set := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
+				if enabled, ok := set.Lookup("delta_from_history").BooleanOK(); !ok || !enabled {
+					t.Errorf("update $set = %v; want delta_from_history true", set)
+				}
+			}
+		}
+	})
+
+	mt.Run("regional admins cannot switch it", func(mt *mtest.T) {
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserDeltaFromHistory(userCtx(regionalAdmin("india")), api.AdminSetUserDeltaFromHistoryRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserDeltaFromHistory: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserDeltaFromHistory403JSONResponse); !ok {
+			t.Fatalf("response = %T, want 403", resp)
+		}
+	})
+
+	mt.Run("unknown target is a 404", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch))
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserDeltaFromHistory(userCtx(superAdmin()), api.AdminSetUserDeltaFromHistoryRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: false},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserDeltaFromHistory: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserDeltaFromHistory404JSONResponse); !ok {
+			t.Fatalf("response = %T, want 404", resp)
+		}
+	})
+}
+
 func TestAdminSetUserRegion(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 

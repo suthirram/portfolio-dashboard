@@ -46,6 +46,34 @@ func (s *GoldService) HistoryOverlay(ctx context.Context, uid string, dates []st
 	return goldOverlay(txns, prices, parsed), nil
 }
 
+// InvestedOn is the physical-gold invested amount at the end of each day:
+// the cash paid for the purchases dated on or before it (PD-052). Unlike
+// HistoryOverlay it needs no price, so a purchase counts from its own day
+// even before the first price is entered. One store read.
+func (s *GoldService) InvestedOn(ctx context.Context, userId string, days []time.Time) (_ []float64, retErr error) {
+	ctx, span := tracer.Start(ctx, "GoldService.InvestedOn")
+	defer endSpan(span, &retErr)
+	txns, err := s.store.ListTransactions(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	return goldInvestedOn(txns, days), nil
+}
+
+// goldInvestedOn sums ActualPaid of the purchases dated on or before each
+// day; purchases and days may come in any order.
+func goldInvestedOn(txns []domain.GoldTransaction, days []time.Time) []float64 {
+	invested := make([]float64, len(days))
+	for i, day := range days {
+		for _, txn := range txns {
+			if !dateOnly(txn.Date).After(dateOnly(day)) {
+				invested[i] += txn.ActualPaid
+			}
+		}
+	}
+	return invested
+}
+
 // goldOverlay is the pure as-of walk behind HistoryOverlay. txns and
 // prices arrive in ascending date order (the store guarantees it); dates
 // must be ascending. Volatility chains across the rows that actually get

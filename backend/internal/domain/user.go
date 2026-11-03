@@ -27,6 +27,9 @@ type User struct {
 	Locked          bool               `bson:"locked" json:"locked"`                       // security_question_failures >= 3
 	GoldEnabled     bool               `bson:"gold_enabled,omitempty" json:"gold_enabled"` // gold-tracking access (PRD-003 §2.4); super-admin toggled, omitted = false
 	Premium         bool               `bson:"premium,omitempty" json:"premium"`           // premium features (PD-046, cyberpunk theme); super-admin toggled, omitted = false
+	// DeltaFromHistory switches the Transactions page's investment delta back
+	// to History rows (PD-052); omitted = false = computed from the ledger.
+	DeltaFromHistory bool `bson:"delta_from_history,omitempty" json:"delta_from_history"`
 
 	LoginFailures            int  `bson:"login_failures" json:"-"`
 	SecurityQuestionFailures int  `bson:"security_question_failures" json:"-"`

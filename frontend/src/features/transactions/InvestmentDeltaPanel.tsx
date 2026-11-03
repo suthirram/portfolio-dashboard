@@ -1,15 +1,18 @@
 // The Transactions page's investment delta panel (PD-050), just below the
 // filters: expanded from a handle bar, it charts each month's investment
-// delta for one year and one column.
+// delta for one year and one column. The figures come from the ledger
+// (PD-052); a user switched to History by the super admin
+// (`delta_from_history`) gets the PD-050 version read off History rows.
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { api, type HistoryRow } from '../../lib/api/client'
+import { api, type HistoryRow, type InvestmentDelta } from '../../lib/api/client'
 import type { ThemeName } from '../../lib/useTheme'
 import { useAuthOptional } from '../auth/AuthContext'
 import {
   MIN_YEAR, PERFORMANCE_COLUMNS, PERFORMANCE_COLUMN_LABELS, columnPosition, monthRange, monthlyInvestment,
-  yearMonth0, type PerformanceColumn,
+  yearMonth0, type MonthlyInvestment, type PerformanceColumn,
 } from '../history/historyShared'
+import { useIstDay } from '../../lib/useIstDay'
 import { useLiveHistoryRows, useTradingClock } from '../history/useLiveHistoryRows'
 import { InvestmentDeltaChart } from './InvestmentDeltaChart'
 
@@ -26,18 +29,25 @@ interface Props {
 
 export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   const auth = useAuthOptional()
+  const fromHistory = Boolean(auth?.user?.delta_from_history)
   const { todayStr, liveWindowOpen } = useTradingClock()
-  const currentYear = yearMonth0(todayStr).year
+  // The ledger months are as of the IST calendar day (the server's
+  // istToday); History keeps the trading day it snapshots on.
+  const istDay = useIstDay()
+  const currentYear = yearMonth0(fromHistory ? todayStr : istDay).year
   const [open, setOpen] = useState(() => {
     try { return window.localStorage?.getItem(OPEN_KEY) === '1' } catch { return false }
   })
   const [year, setYear] = useState(currentYear)
-  // The loaded rows and the year they belong to. A ledger refresh keeps the
-  // current figures on screen while it reloads; another year shows the
-  // spinner until its own rows arrive.
+  // The loaded figures and the year they belong to: History rows, or the
+  // ledger's months. A ledger refresh keeps the current figures on screen
+  // while it reloads; another year shows the spinner until its own arrive.
   const [loaded, setLoaded] = useState<{ year: number; rows: HistoryRow[] } | null>(null)
+  const [ledger, setLedger] = useState<{ year: number; delta: InvestmentDelta } | null>(null)
   // null = not loaded yet for this year.
   const rows = loaded && loaded.year === year ? loaded.rows : null
+  const ledgerDelta = ledger && ledger.year === year ? ledger.delta : null
+  const ready = fromHistory ? rows !== null : ledgerDelta !== null
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<PerformanceColumn | null>(null)
 
@@ -49,41 +59,57 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
     })
   }
 
+  // The ledger months are as of the day they were fetched: while the current
+  // year is shown, a new IST day refetches them, so a month that has just
+  // begun gets its figures at midnight without collapsing the panel.
+  const ledgerDay = !fromHistory && year === currentYear ? istDay : null
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
     setError(null)
     void (async () => {
       try {
-        // 1 Jan → 31 Dec, plus the latest row before 1 Jan as January's baseline.
-        const list = await api.listHistory(monthRange(year, 0).from, monthRange(year, 11).to, true)
-        if (!cancelled) setLoaded({ year, rows: list.rows })
+        if (fromHistory) {
+          // 1 Jan → 31 Dec, plus the latest row before 1 Jan as January's baseline.
+          const list = await api.listHistory(monthRange(year, 0).from, monthRange(year, 11).to, true)
+          if (!cancelled) setLoaded({ year, rows: list.rows })
+        } else {
+          const delta = await api.getInvestmentDelta(year)
+          if (!cancelled) setLedger({ year, delta })
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e))
       }
     })()
     return () => { cancelled = true }
-  }, [open, year, refreshKey])
+  }, [open, year, refreshKey, fromHistory, ledgerDay])
 
-  // Today's live row, as on History, while the current year is pulled up.
+  // Today's live row, as on History, while the current year is pulled up
+  // (the History version only: the ledger is already as of today).
   const displayRows = useLiveHistoryRows(rows ?? NO_ROWS, {
-    active: open && rows !== null && year === currentYear,
+    active: fromHistory && open && rows !== null && year === currentYear,
     todayStr, liveWindowOpen, goldEnabled: Boolean(auth?.user?.gold_enabled), refreshKey,
   })
 
-  // Only columns with money invested on a row inside the year are offered;
-  // the baseline row before 1 Jan stays in for January's opening.
+  // Only columns with money invested inside the year are offered: on
+  // History, on a row of the year (the baseline row before 1 Jan stays in
+  // for January's opening); from the ledger, the server already filters.
   const yearStart = monthRange(year, 0).from
-  const columns = useMemo(
-    () => PERFORMANCE_COLUMNS.filter(column =>
-      displayRows.some(row => row.date >= yearStart && columnPosition(row, column).invested > 0)),
-    [displayRows, yearStart],
+  const columns = useMemo<PerformanceColumn[]>(
+    () => fromHistory
+      ? PERFORMANCE_COLUMNS.filter(column =>
+        displayRows.some(row => row.date >= yearStart && columnPosition(row, column).invested > 0))
+      : (ledgerDelta?.columns ?? []).map(entry => entry.column),
+    [fromHistory, displayRows, yearStart, ledgerDelta],
   )
   const column = picked && columns.includes(picked) ? picked : columns[0] ?? null
-  const months = useMemo(
-    () => (column ? monthlyInvestment(displayRows, year, column) : []),
-    [displayRows, year, column],
-  )
+  const months = useMemo<MonthlyInvestment[]>(() => {
+    if (!column) return []
+    if (fromHistory) return monthlyInvestment(displayRows, year, column)
+    const entry = ledgerDelta?.columns.find(candidate => candidate.column === column)
+    return (entry?.months ?? []).map(month => ({ month0: month.month0, delta: month.delta ?? null, invested: month.invested ?? null }))
+  }, [fromHistory, displayRows, year, column, ledgerDelta])
 
   return (
     <section style={dock}>
@@ -111,10 +137,10 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
           </div>
           {error ? (
             <div style={{ color: 'var(--red)', fontSize: 12 }}>{error}</div>
-          ) : rows === null ? (
+          ) : !ready ? (
             <div style={centred}><span className="spinner" /></div>
           ) : !column ? (
-            <div style={centred}>No History rows for {year}</div>
+            <div style={centred}>{fromHistory ? `No History rows for ${year}` : `Nothing invested in ${year}`}</div>
           ) : (
             <div role="img" aria-label={`Investment delta ${year}, ${PERFORMANCE_COLUMN_LABELS[column]}`}
               style={{ height: 260 }}>
