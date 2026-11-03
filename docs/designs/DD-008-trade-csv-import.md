@@ -79,8 +79,9 @@ The name, row-status and warning schemas are reused as they are; their
    share, value in cents.
 6. **Oversell** (`oversoldHoldings`). Per holding with new rows, the stored
    ledger (`ListByHolding`; none for a created holding) plus the new events
-   is replayed with `RecomputePosition`; `ErrOversell` marks the holding's
-   new sell rows invalid.
+   is replayed with `RecomputePosition` (oversell judged at the end of the
+   day, see "Same-day order"); `ErrOversell` marks the holding's new sell
+   rows invalid.
 7. **Preview.** `rowStatuses.counts()` tallies ready / replace / covered /
    invalid in line order.
 
@@ -122,6 +123,13 @@ ledger replays as it already does: date, then `created_at`.
   ₹2,000, new buy ₹3,000 executed before the sell: average ₹300 and ₹1,000
   realised, not ₹200 and ₹0). It needs one stock bought and sold the same
   day across two uploads; ordering by time is left for a later iteration.
+* Oversell is judged at the end of the day (owner, 2026-11-03), in
+  `RecomputePosition` for every ledger write. A saved trade can carry a
+  time (the API takes a date-time), so a bare-day imported sell can replay
+  before a saved noon buy that covers it. A sell that exceeds the shares
+  held waits for the rest of its day; only a day that still ends short is
+  an oversell. A ledger that never oversells never waits, so its replay is
+  unchanged.
 
 MongoDB transactions need the replica set the dividend import already
 requires (`Store.InTransaction`).

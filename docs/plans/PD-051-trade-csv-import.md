@@ -52,6 +52,7 @@
 | Modify | `backend/internal/services/dividend_match.go` | `matchIndex`, `resolveWith`, `nameCount.label` |
 | Modify | `backend/api/specs/*.yaml`, `backend/api/*.gen.go` | trade import schemas, paths, generated code |
 | Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings` |
+| Modify | `backend/internal/services/ledger.go` (+ test) | oversell judged at the end of the day |
 | Create | `backend/internal/services/trade_import.go` (+ test) | `TradeImportService`: evaluate, Preview, Import |
 | Create | `backend/internal/controllers/trade_import.go` | 4 handlers |
 | Modify | `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go` | wiring, admin tiers |
@@ -71,7 +72,7 @@
 | PR1 | `docs/PD-051-trade-csv-import` → `main` | 0 | agreed design on record | — (docs) | docs only |
 | — | `feat/PD-051-trade-csv-import` from `main` | — | integration branch | — | — |
 | PR2 | `refactor/PD-051-shared-import-helpers` → feature | 1 | the matching and occurrence rules usable by any import | `TestPartitionByKey_AnyKey` | refactor; every dividend test unchanged and green |
-| PR3 | `feat/PD-051-trade-import-api` → feature | 2 | trades can be previewed and imported atomically over the API (curl) | `TestTradeImport` (6 cases) + 4 pure tests | new routes only; dividends and the ledger's replay order untouched |
+| PR3 | `feat/PD-051-trade-import-api` → feature | 2 | trades can be previewed and imported atomically over the API (curl) | `TestTradeImport` (7 cases), `TestRecomputePosition_OversellJudgedAtEndOfDay` + 4 pure tests | new routes; the ledger's replay is unchanged for every ledger that does not oversell |
 | PR4 | `refactor/PD-051-shared-import-ui` → feature | 3 | day-first dates (a trailing time ignored) and tab files work in every import; shared dialog | `normaliseDate`, `sniffDelimiter` tests | the dividend import's tests pass unchanged |
 | PR5 | `feat/PD-051-trade-import-ui` → feature | 4 | the user imports a broker file from Transactions | `tradeCsv`, `TradeImport`, page tests | the button only opens a dialog; nothing saves before confirm |
 | PR6 | `feat/PD-051-trade-csv-import` → `main` | — | ships the feature | all of the above | `FE/BE-EXCEPTION: PD-051 feature branch` |
@@ -457,7 +458,7 @@ Expected: PR URL; CI green (Go tests, Go linter).
 **Files:**
 
 * Create: `backend/internal/services/trade_import.go`, `backend/internal/services/trade_import_test.go`, `backend/internal/controllers/trade_import.go`
-* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/persistence/transactions.go`, `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go`
+* Modify: `backend/api/specs/portfolio-api.yaml`, `backend/api/specs/transactions/transactions.yaml`, `backend/api/specs/admin/admin.yaml`, `backend/api/specs/openapi.yaml`, `backend/api/models.gen.go`, `backend/api/server.gen.go`, `backend/internal/persistence/transactions.go`, `backend/internal/services/ledger.go`, `backend/internal/services/ledger_test.go`, `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go`
 
 * [ ] **Step 1: Branch from the feature branch (after PR2 merged)**
 
@@ -756,7 +757,7 @@ WHY: models.gen.go and server.gen.go are generated; never edit them by hand.
 cd backend && go generate -tags tools ./...
 ```
 
-Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 11 implements the four handlers.
+Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 13 implements the four handlers.
 
 * [ ] **Step 7: Load the stored trades (Edit `backend/internal/persistence/transactions.go`)**
 
@@ -790,7 +791,167 @@ func (s *TransactionStore) ListTradesByHoldings(ctx context.Context, userId prim
         "date":       bson.M{"$gte": from, "$lte": to},
 ```
 
-* [ ] **Step 8: The service (Create `backend/internal/services/trade_import.go`)**
+* [ ] **Step 8: Judge oversell at the end of the day (Edit `backend/internal/services/ledger.go`)**
+
+WHY: the ledger keeps days, but a saved trade may carry a time (the API takes a date-time): a bare-day imported sell replays before a saved noon buy that covers it and was refused as an oversell. A sell that exceeds the shares held now waits for the rest of its day; only a day that still ends short is an oversell (owner, 2026-11-03). A ledger that never oversells never waits, so its replay is unchanged.
+
+Current:
+
+```go
+    var oversell error
+
+    for _, t := range ordered {
+        switch t.Type {
+        case domain.TxnOpening:
+```
+
+Replacement:
+
+```go
+    var oversell error
+
+    sell := func(t domain.Transaction) {
+        var avg float64
+        if totalQty > 0 {
+            avg = totalBasis / totalQty
+        }
+        qty := t.Quantity
+        if qty > totalQty {
+            qty = totalQty
+            oversell = ErrOversell
+        }
+        // proceeds (Amount) are the full sell credit; cost removed at avg.
+        pos.RealizedPnL += t.Amount - avg*qty
+        totalQty -= qty
+        totalBasis -= avg * qty
+    }
+    // Oversell is judged at the end of the day (owner, 2026-11-03): the
+    // ledger keeps days, not times, so a sell that exceeds the shares held
+    // waits for the rest of its day, where a same-day buy may cover it. Only
+    // a day that still ends short is an oversell. A ledger that never
+    // oversells never waits, so its replay is unchanged.
+    var waiting []domain.Transaction
+    settle := func(endOfDay bool) {
+        for len(waiting) > 0 && (endOfDay || waiting[0].Quantity <= totalQty) {
+            sell(waiting[0])
+            waiting = waiting[1:]
+        }
+    }
+
+    for i, t := range ordered {
+        if i > 0 && !domain.UTCDate(t.Date).Equal(domain.UTCDate(ordered[i-1].Date)) {
+            settle(true)
+        }
+        if t.Type == domain.TxnSell && t.Quantity > totalQty {
+            waiting = append(waiting, t)
+            continue
+        }
+        switch t.Type {
+        case domain.TxnOpening:
+```
+
+Current:
+
+```go
+            }
+        case domain.TxnSell:
+            var avg float64
+            if totalQty > 0 {
+                avg = totalBasis / totalQty
+            }
+            qty := t.Quantity
+            if qty > totalQty {
+                qty = totalQty
+                oversell = ErrOversell
+            }
+            // proceeds (Amount) are the full sell credit; cost removed at avg.
+            pos.RealizedPnL += t.Amount - avg*qty
+            totalQty -= qty
+            totalBasis -= avg * qty
+        case domain.TxnSplit, domain.TxnBonus:
+            // quantity ×Ratio, basis invariant ⇒ running average tracks
+```
+
+Replacement:
+
+```go
+            }
+        case domain.TxnSell:
+            sell(t)
+        case domain.TxnSplit, domain.TxnBonus:
+            // quantity ×Ratio, basis invariant ⇒ running average tracks
+```
+
+Current:
+
+```go
+            // no-op on the position; recorded for audit only
+        }
+    }
+
+    pos.TotalDividends = domain.CentsToMoney(dividendCents)
+```
+
+Replacement:
+
+```go
+            // no-op on the position; recorded for audit only
+        }
+        settle(false)
+    }
+    settle(true)
+
+    pos.TotalDividends = domain.CentsToMoney(dividendCents)
+```
+
+* [ ] **Step 9: Test the end-of-day rule (Edit `backend/internal/services/ledger_test.go`)**
+
+WHY: a sell before a covering same-day buy is accepted; a day ending short, and a sell covered only the next day, are still oversells.
+
+Current:
+
+```go
+    assertPos(t, got, 0, 0, 1500, 0)
+}
+```
+
+Replacement:
+
+```go
+    assertPos(t, got, 0, 0, 1500, 0)
+}
+
+// Oversell is judged at the end of the day: a sell replayed before a same-day
+// buy that covers it waits for the buy (an imported sell dated at the bare
+// day vs a saved buy with a time, PD-051), while a day that still ends short
+// is an oversell.
+func TestRecomputePosition_OversellJudgedAtEndOfDay(t *testing.T) {
+    savedBuy := tx(domain.TxnBuy, 1, 10, 1000)
+    savedBuy.Date = day(1).Add(12 * time.Hour)
+    importedSell := tx(domain.TxnSell, 1, 10, 1500)
+    importedSell.CreatedAt = day(9)
+
+    got, err := RecomputePosition([]domain.Transaction{savedBuy, importedSell})
+    if err != nil {
+        t.Fatalf("a sell covered by a same-day buy: err %v; want none", err)
+    }
+    assertPos(t, got, 0, 0, 500, 0)
+
+    short := importedSell
+    short.Quantity = 11
+    if _, err := RecomputePosition([]domain.Transaction{savedBuy, short}); !errors.Is(err, ErrOversell) {
+        t.Errorf("a day ending short: err %v; want ErrOversell", err)
+    }
+
+    // The next day's buy never covers an earlier day's sell.
+    nextDayBuy := tx(domain.TxnBuy, 2, 10, 1000)
+    if _, err := RecomputePosition([]domain.Transaction{importedSell, nextDayBuy}); !errors.Is(err, ErrOversell) {
+        t.Errorf("a sell covered only the next day: err %v; want ErrOversell", err)
+    }
+}
+```
+
+* [ ] **Step 10: The service (Create `backend/internal/services/trade_import.go`)**
 
 WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, new trades, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Same-day order is by day only (owner, 2026-11-03: the file's time has no effect): a trade is dated at the bare day, a saved trade keeps its place, and the day's new trades follow it in the file's order (`created_at` = the import time, a millisecond apart in that order); the ledger already replays by date, then `created_at`. Split into named steps to keep each function small (gocyclo).
 
@@ -1300,9 +1461,9 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
 }
 ```
 
-* [ ] **Step 9: Service tests (Create `backend/internal/services/trade_import_test.go`)**
+* [ ] **Step 11: Service tests (Create `backend/internal/services/trade_import_test.go`)**
 
-WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, the occurrence rule (add only what is missing, never remove), re-upload writes nothing to transactions (saved trades untouched), new trades of a day follow its saved trades in file order dated at the bare day, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
+WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, the occurrence rule (add only what is missing, never remove), re-upload writes nothing to transactions (saved trades untouched), new trades of a day follow its saved trades in file order dated at the bare day, opening cover, oversell blocks all, a sell covered by a saved same-day buy with a time imports, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
 
 ```go
 package services
@@ -1484,6 +1645,24 @@ func TestTradeImport(t *testing.T) {
         }
     })
 
+    // A saved buy carrying a time (noon) replays after a bare-day imported
+    // sell; oversell is judged at the end of the day, so the buy covers it.
+    mt.Run("a sell covered by a saved same-day buy with a time imports", func(mt *mtest.T) {
+        noonBuy := stored("2025-04-04", "buy", 5, 400)
+        noonBuy[4].Value = time.Date(2025, 4, 4, 12, 0, 0, 0, time.UTC)
+        mt.AddMockResponses(
+            holdingDocs(mt), transactions(mt), transactions(mt, noonBuy),
+            transactions(mt, noonBuy),     // oversell replay
+            mtest.CreateSuccessResponse(), // insertMany
+            transactions(mt, noonBuy),     // recompute
+            mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: gold}}}),
+        )
+        input := api.TradeImportInput{Rows: []api.TradeImportRow{tradeSheetRow(2, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeSell, 5, 450)}}
+        if result, err := service(mt).Import(context.Background(), userId, input); err != nil || result.Imported != 1 {
+            t.Fatalf("Import: %+v, %v; want the sell imported", result, err)
+        }
+    })
+
     mt.Run("a sell beyond the shares held blocks the whole import", func(mt *mtest.T) {
         mt.AddMockResponses(holdingDocs(mt), transactions(mt), transactions(mt), transactions(mt))
         input := api.TradeImportInput{Rows: []api.TradeImportRow{tradeSheetRow(2, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeSell, 5, 400)}}
@@ -1602,7 +1781,7 @@ func (r *recordingRecomputer) RecomputeFrom(_ context.Context, _ primitive.Objec
 }
 ```
 
-* [ ] **Step 10: Wire the service (Edit `backend/internal/controllers/controllers.go`)**
+* [ ] **Step 12: Wire the service (Edit `backend/internal/controllers/controllers.go`)**
 
 WHY: the import heals History, so it shares the transactions service's snapshot recomputer; one instance, built once.
 
@@ -1662,7 +1841,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
         cookieSecure: cookieSecure,
 ```
 
-* [ ] **Step 11: Handlers (Create `backend/internal/controllers/trade_import.go`)**
+* [ ] **Step 13: Handlers (Create `backend/internal/controllers/trade_import.go`)**
 
 WHY: thin wrappers like the dividend handlers; a commit-time oversell is a client error (400), using the ledger's existing `badTransaction`.
 
@@ -1761,7 +1940,7 @@ func (h *Controller) AdminImportUserTrades(ctx context.Context, request api.Admi
 }
 ```
 
-* [ ] **Step 12: Admin route tiers (Edit `backend/internal/httpserver/auth.go`)**
+* [ ] **Step 14: Admin route tiers (Edit `backend/internal/httpserver/auth.go`)**
 
 WHY: every admin route must declare its tier (`TestAuthGate_TierTableMatchesGeneratedRoutes`).
 
@@ -1785,20 +1964,20 @@ Replacement:
     "GET /api/admin/users/:id/holdings/:holdingId/transactions":  tierAdmin,
 ```
 
-* [ ] **Step 13: Verify**
+* [ ] **Step 15: Verify**
 
 ```bash
 cd backend && gofmt -l internal && go vet ./... && go test ./... && golangci-lint run ./...
 ```
 
-Expected: no gofmt output; every package `ok` (services +5 tests, one with 6 cases); `0 issues.`
+Expected: no gofmt output; every package `ok` (services +6 tests, one with 7 cases); `0 issues.`
 
-* [ ] **Step 14: Commit, push, open PR3 into the feature branch**
+* [ ] **Step 16: Commit, push, open PR3 into the feature branch**
 
 WHY: the PR body carries the curl block below (endpoint PRs).
 
 ```bash
-git add backend/api/specs/ backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/trade_import.go backend/internal/services/trade_import_test.go backend/internal/controllers/trade_import.go backend/internal/controllers/controllers.go backend/internal/httpserver/auth.go
+git add backend/api/specs/ backend/api/models.gen.go backend/api/server.gen.go backend/internal/persistence/transactions.go backend/internal/services/ledger.go backend/internal/services/ledger_test.go backend/internal/services/trade_import.go backend/internal/services/trade_import_test.go backend/internal/controllers/trade_import.go backend/internal/controllers/controllers.go backend/internal/httpserver/auth.go
 git commit -m "✨ Add the trades CSV import API"
 git push -u origin feat/PD-051-trade-import-api
 gh pr create --base feat/PD-051-trade-csv-import --title "✨ Preview and import trades from a broker CSV atomically" --body-file pr3.md
