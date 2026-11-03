@@ -23,8 +23,8 @@ positions.
 1. Upload a broker order-history CSV on the All transactions page and turn
    each executed order into a buy or sell in the right holding's ledger.
 2. Read the file's mixed date column correctly (§4).
-3. Never duplicate: a trade already in the ledger is replaced, not added
-   again, so uploading the same file twice changes nothing (owner, §8).
+3. Never duplicate: a trade already in the ledger is not added again, so
+   uploading the same file twice changes nothing (owner, §8).
 4. All or nothing: trades, new holdings, positions and History are saved
    together or not at all (owner: ACID, §8).
 5. Reuse the dividend import's flow and matching rather than building a
@@ -92,11 +92,12 @@ DD/MM/YYYY (1/11/2024 = 1 Nov 2024)".
   * leave it unresolved (its rows become invalid).
 
   A confirmed mapping is remembered for the next import.
-* **Same trade = replace (owner, 2026-11-03).** A row whose holding, day,
-  type, quantity and value equal a saved buy or sell replaces that trade in
-  place: its id, notes and ledger position stay, and the import is recorded
-  on it. Matching is per occurrence: two identical trades on one day need
-  two identical rows. Re-uploading a file therefore imports nothing new.
+* **Same trade = already saved (owner, 2026-11-03).** A row whose
+  holding, day, type, quantity and value equal a saved buy or sell is left
+  as it is: nothing is written to the saved trade (no import is recorded on
+  it). Matching is per occurrence: per key, n identical rows against m
+  saved trades add max(0, n−m), and a saved trade missing from the file is
+  never removed. Re-uploading a file therefore imports nothing new.
 * **Opening balances (owner, 2026-11-03).** A holding with an opening
   balance already holds every trade up to its opening date. Rows dated on
   or before that date are **covered**: shown in the preview, not imported.
@@ -112,7 +113,7 @@ DD/MM/YYYY (1/11/2024 = 1 Nov 2024)".
 * **All or nothing.** Confirm re-checks everything against the database as
   it is now. If anything became invalid, nothing is written and the fresh
   preview is shown ("The data changed since the preview — review it
-  again."). Otherwise the new holdings, new trades, replacements, remembered
+  again."). Otherwise the new holdings, new trades, remembered
   symbols, recomputed positions and the healed History rows are saved in
   one transaction.
 * **Result.** "N imported · R replaced · C covered by an opening balance ·
@@ -123,8 +124,9 @@ DD/MM/YYYY (1/11/2024 = 1 Nov 2024)".
 
 1. The owner's sample imports: 63 orders, 15 symbols; `1/11/2024` lands on
    1 Nov 2024 and `17-12-2024 03:30 PM` on 17 Dec 2024.
-2. Uploading the same file again reports 0 imported and every row as a
-   replacement; the ledger and positions are unchanged.
+2. Uploading the same file again reports 0 imported and every row as
+   already saved; nothing is written, and the ledger and positions are
+   unchanged.
 3. A row dated on or before a holding's opening date is covered, not
    imported.
 4. An unknown symbol (e.g. `LGEINDIA`) can be created as a new holding, and
@@ -150,6 +152,6 @@ DD/MM/YYYY (1/11/2024 = 1 Nov 2024)".
 | 2 | Rows on or before an opening date | Covered: shown, not imported |
 | 3 | Unknown symbols | Confirm: map, create a new INR holding, or leave |
 | 4 | Where | Transactions page, own portfolio and admin act-as |
-| 5 | A matching existing trade | Replace it; uploading never duplicates |
+| 5 | A matching existing trade | Not duplicated; left untouched, nothing written (revised 2026-11-03: no import recorded on it) |
 | 6 | Atomicity | ACID: everything, History included, in one transaction |
 | 7 | Reuse | The dividend import's flow and matching become shared pieces |

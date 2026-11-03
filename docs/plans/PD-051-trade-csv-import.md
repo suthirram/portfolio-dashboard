@@ -793,7 +793,7 @@ func (s *TransactionStore) ListTradesByHoldings(ctx context.Context, userId prim
 
 * [ ] **Step 8: The service (Create `backend/internal/services/trade_import.go`)**
 
-WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, trades, replacements, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Same-day order is by day only (owner, 2026-11-03: the file's time has no effect): a trade is dated at the bare day, a saved trade keeps its place, and the day's new trades follow it in the file's order (`created_at` = the import time, a millisecond apart in that order); the ledger already replays by date, then `created_at`. Split into named steps to keep each function small (gocyclo).
+WHY: evaluation reads only (symbols, opening cover, replace pairing, oversell replay); Import re-runs it inside one transaction and writes holdings, new trades, aliases, positions and the History heal together (owner: ACID; a heal error aborts). Same-day order is by day only (owner, 2026-11-03: the file's time has no effect): a trade is dated at the bare day, a saved trade keeps its place, and the day's new trades follow it in the file's order (`created_at` = the import time, a millisecond apart in that order); the ledger already replays by date, then `created_at`. Split into named steps to keep each function small (gocyclo).
 
 ```go
 package services
