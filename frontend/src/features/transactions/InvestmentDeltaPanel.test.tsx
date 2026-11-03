@@ -58,7 +58,7 @@ describe('InvestmentDeltaPanel', () => {
   it('starts collapsed and fetches nothing', () => {
     renderPanel()
     expect(handleButton()).toHaveAttribute('aria-expanded', 'false')
-    expect(handleButton()).toHaveTextContent('▲ Investment delta · 2026')
+    expect(handleButton()).toHaveTextContent('▼ Investment delta · 2026')
     expect(mockApi.listHistory).not.toHaveBeenCalled()
   })
 
@@ -126,6 +126,44 @@ describe('InvestmentDeltaPanel', () => {
     // June: opening 100 (29 May), closing 150 (today's live row).
     await waitFor(() => expect(chart.months[5]).toEqual({ month0: 5, delta: 50, invested: 150 }))
     expect(mockApi.getPrices).toHaveBeenCalled()
+  })
+
+  it('reloads the year after a ledger edit, keeping the chart on screen meanwhile', async () => {
+    const { rerender } = renderPanel()
+    fireEvent.click(handleButton())
+    // January: opening 100 (31 Dec), closing 150.
+    await waitFor(() => expect(chart.months[0]).toEqual({ month0: 0, delta: 50, invested: 150 }))
+
+    let resolveReload: (value: HistoryList) => void = () => {}
+    mockApi.listHistory.mockReturnValue(new Promise<HistoryList>(resolve => { resolveReload = resolve }))
+    rerender(<InvestmentDeltaPanel theme="dark" refreshKey={1} />)
+    expect(mockApi.listHistory).toHaveBeenCalledTimes(2)
+    expect(mockApi.listHistory).toHaveBeenLastCalledWith('2026-01-01', '2026-12-31', true)
+    expect(screen.getByRole('img', { name: 'Investment delta 2026, 🇮🇳 India' })).toBeInTheDocument()
+
+    // A backdated buy healed January's closing row.
+    resolveReload(list([
+      historyRow('2025-12-31', { INR: [100, 110] }),
+      historyRow('2026-01-31', { INR: [180, 190] }),
+    ]))
+    await waitFor(() => expect(chart.months[0]).toEqual({ month0: 0, delta: 80, invested: 180 }))
+  })
+
+  it('fetches nothing on a ledger edit while collapsed', () => {
+    const { rerender } = renderPanel()
+    rerender(<InvestmentDeltaPanel theme="dark" refreshKey={1} />)
+    expect(mockApi.listHistory).not.toHaveBeenCalled()
+  })
+
+  it("refetches today's live row after a ledger edit", async () => {
+    vi.setSystemTime(new Date('2026-06-17T10:00:00Z')) // Wednesday, inside the live window
+    mockApi.getPrices.mockResolvedValue({ holdings: [], eur_rate: 0.011 })
+    const { rerender } = renderPanel()
+    fireEvent.click(handleButton())
+    await waitFor(() => expect(mockApi.getPrices).toHaveBeenCalledTimes(1))
+
+    rerender(<InvestmentDeltaPanel theme="dark" refreshKey={1} />)
+    await waitFor(() => expect(mockApi.getPrices).toHaveBeenCalledTimes(2))
   })
 
   it('shows the error when the year fails to load', async () => {

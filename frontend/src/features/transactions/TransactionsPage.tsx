@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { Holding, TransactionType, TransactionWithHolding } from '../../types'
 import { useAllTransactions } from './useAllTransactions'
 import TransactionsAllTable from './TransactionsAllTable'
+import { InvestmentDeltaPanel } from './InvestmentDeltaPanel'
 import TransactionsModal, { TYPE_LABEL } from '../holdings/TransactionsModal'
 import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
@@ -47,6 +48,9 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [filters, setFilters] = useState<Filters>(emptyFilters())
   const [sort, setSort] = useState(defaultSort())
   const [editing, setEditing] = useState<Holding | null>(null)
+  // Bumped after each successful ledger write so the investment delta panel
+  // reloads the History rows the backend has just healed.
+  const [ledgerVersion, setLedgerVersion] = useState(0)
 
   const patch = (next: Partial<Filters>) => setFilters(current => ({ ...current, ...next }))
 
@@ -178,6 +182,9 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           </div>
         </section>
 
+        {/* The user's own portfolio only: History has no act-as read (PRD-007 §3). */}
+        {!actAsUserId && <InvestmentDeltaPanel theme={theme} refreshKey={ledgerVersion} />}
+
         {/* Per-currency subtotals — never combined across currencies. */}
         {subtotals.length > 0 && (
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
@@ -229,7 +236,10 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           holding={editing}
           userId={actAsUserId}
           onClose={() => setEditing(null)}
-          onChanged={() => void refresh()}
+          onChanged={() => {
+            void refresh()
+            setLedgerVersion(version => version + 1)
+          }}
         />
       )}
     </div>

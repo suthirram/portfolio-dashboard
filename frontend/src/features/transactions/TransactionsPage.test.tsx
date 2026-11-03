@@ -7,6 +7,9 @@ const mockApi = vi.hoisted(() => ({
   listAllTransactions: vi.fn(),
   listHoldings: vi.fn(),
   listTransactions: vi.fn(),
+  listHistory: vi.fn(),
+  getPrices: vi.fn(),
+  deleteTransaction: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -42,6 +45,18 @@ const txns: TransactionWithHolding[] = [
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // A fresh store per test, as the panel's own tests do: jsdom's real
+  // localStorage (Node 22, CI) would otherwise carry the panel's open state
+  // from one test into the next.
+  const store = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => { store.set(key, value) },
+      removeItem: (key: string) => { store.delete(key) },
+    },
+  })
   mockApi.listAllTransactions.mockResolvedValue(txns)
   mockApi.listHoldings.mockResolvedValue(holdings)
   mockApi.listTransactions.mockResolvedValue([])
@@ -51,6 +66,65 @@ const renderPage = (props = {}) =>
   render(<MemoryRouter><TransactionsPage {...props} /></MemoryRouter>)
 
 describe('TransactionsPage', () => {
+  it('shows the investment delta panel on the user’s own page', async () => {
+    renderPage()
+    await screen.findByText('SIP tranche')
+    expect(screen.getByRole('button', { name: /Investment delta/ })).toBeInTheDocument()
+  })
+
+  it('places the investment delta panel just below the filters, above the table', async () => {
+    renderPage()
+    await screen.findByText('SIP tranche')
+    const panel = screen.getByRole('button', { name: /Investment delta/ })
+    const follows = (earlier: Element, later: Element) =>
+      Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(screen.getByLabelText('Search'), panel)).toBe(true)
+    expect(follows(panel, screen.getByText('SIP tranche'))).toBe(true)
+  })
+
+  it('does not show the investment delta panel in admin act-as', async () => {
+    renderPage({ actAsUserId: 'u2', actAsLabel: "bob's transactions" })
+    await screen.findByText('SIP tranche')
+    expect(screen.queryByRole('button', { name: /Investment delta/ })).not.toBeInTheDocument()
+  })
+
+  describe('after a ledger edit in the editor', () => {
+    beforeEach(() => {
+      mockApi.listHistory.mockResolvedValue({ currency: 'INR', rows: [] })
+      mockApi.getPrices.mockResolvedValue({ holdings: [], eur_rate: 0.011 })
+      mockApi.listTransactions.mockResolvedValue([txns[0]])
+      mockApi.deleteTransaction.mockResolvedValue({})
+    })
+
+    // Deletes the SIP tranche through the real per-holding editor.
+    const deleteThroughEditor = async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: /Edit in .* ledger/ })[0])
+      fireEvent.click(await screen.findByTitle('Delete'))
+      fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+      await waitFor(() => expect(mockApi.deleteTransaction).toHaveBeenCalledWith('t1', undefined))
+    }
+
+    it('reloads the History rows of an open investment delta panel', async () => {
+      renderPage()
+      await screen.findByText('SIP tranche')
+      fireEvent.click(screen.getByRole('button', { name: /Investment delta/ }))
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(1))
+
+      await deleteThroughEditor()
+      await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
+    })
+
+    it('fetches no History while the panel is collapsed', async () => {
+      renderPage()
+      await screen.findByText('SIP tranche')
+      expect(screen.getByRole('button', { name: /Investment delta/ })).toHaveAttribute('aria-expanded', 'false')
+
+      await deleteThroughEditor()
+      await waitFor(() => expect(mockApi.listAllTransactions).toHaveBeenCalledTimes(2))
+      expect(mockApi.listHistory).not.toHaveBeenCalled()
+    })
+  })
+
   it('lists every ledger event with the PRD-004 §5 columns', async () => {
     renderPage()
 
