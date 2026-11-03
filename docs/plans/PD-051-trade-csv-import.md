@@ -33,7 +33,7 @@
 | Every slice passes the three gates | `task-breakdown` skill | §PR sequence |
 | Behaviour tests only; mtest for Go | CLAUDE.md | §6 of DD-008 |
 | Tracing span + logger per service method | CLAUDE.md | `Preview`, `Import` |
-| Services never touch `bson` / collections | CLAUDE.md (persistence layer) | `ListTradesByHoldings` and `StampImport` own the queries and the update shape |
+| Services never touch `bson` / collections | CLAUDE.md (persistence layer) | `ListTradesByHoldings` owns the query |
 | Descriptive names, ESLint on changed files | CLAUDE.md | `formDates.ts`'s two `p` locals renamed in PR4 |
 | Gitmoji, subject ≤ 50 chars, no attribution | CLAUDE.md | every commit and PR below |
 | Edit tool for source | CLAUDE.md | every Modify step is an Edit (current → replacement) |
@@ -51,7 +51,7 @@
 | Modify | `backend/internal/services/dividend_import.go` | `partitionByKey` |
 | Modify | `backend/internal/services/dividend_match.go` | `matchIndex`, `resolveWith`, `nameCount.label` |
 | Modify | `backend/api/specs/*.yaml`, `backend/api/*.gen.go` | trade import schemas, paths, generated code |
-| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings`, `StampImport` (owner-scoped replacement stamp) |
+| Modify | `backend/internal/persistence/transactions.go` | `ListTradesByHoldings` |
 | Create | `backend/internal/services/trade_import.go` (+ test) | `TradeImportService`: evaluate, Preview, Import |
 | Create | `backend/internal/controllers/trade_import.go` | 4 handlers |
 | Modify | `backend/internal/controllers/controllers.go`, `backend/internal/httpserver/auth.go` | wiring, admin tiers |
@@ -759,9 +759,9 @@ cd backend && go generate -tags tools ./...
 
 Expected: `api/models.gen.go` gains `TradeImport*`; the build then fails until Step 11 implements the four handlers.
 
-* [ ] **Step 7: Load the stored trades; stamp a replaced one (Edit `backend/internal/persistence/transactions.go`)**
+* [ ] **Step 7: Load the stored trades (Edit `backend/internal/persistence/transactions.go`)**
 
-WHY: the replace lookup needs the buys and sells of the matched holdings across the file's date range (`ListDividendsByHoldings` with the trade types). `StampImport` is the replacement write: owner-scoped, it sets only the import metadata and `updated_at` and returns `ErrNotFound` when nothing matched, so the update shape stays in persistence and the service never builds `bson` (CLAUDE.md).
+WHY: the match lookup needs the buys and sells of the matched holdings across the file's date range (`ListDividendsByHoldings` with the trade types), so the query stays in persistence and the service never builds `bson` (CLAUDE.md). A matched saved trade is never written, so no update method.
 
 Current:
 
@@ -789,43 +789,6 @@ func (s *TransactionStore) ListTradesByHoldings(ctx context.Context, userId prim
         "type":       bson.M{"$in": []string{string(domain.TxnBuy), string(domain.TxnSell)}},
         "holding_id": bson.M{"$in": holdingIds},
         "date":       bson.M{"$gte": from, "$lte": to},
-```
-
-Current:
-
-```go
-        return domain.Transaction{}, translateFindErr(err)
-    }
-    return out, nil
-}
-```
-
-Replacement:
-
-```go
-        return domain.Transaction{}, translateFindErr(err)
-    }
-    return out, nil
-}
-
-// StampImport records that a CSV import replaced userId's transaction id: it
-// sets the import metadata and updated_at, nothing else, so the trade's
-// values, notes and ledger position stay (PRD-008 §5). Returns ErrNotFound
-// when no transaction of userId has that id.
-func (s *TransactionStore) StampImport(ctx context.Context, userId, id primitive.ObjectID, meta domain.ImportMeta, updatedAt time.Time) error {
-    ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-    defer cancel()
-    res, err := s.col.UpdateOne(ctx,
-        scopedFilter(userId, bson.M{"_id": id}),
-        bson.M{"$set": bson.M{"import": meta, "updated_at": updatedAt}})
-    if err != nil {
-        return err
-    }
-    if res.MatchedCount == 0 {
-        return ErrNotFound
-    }
-    return nil
-}
 ```
 
 * [ ] **Step 8: The service (Create `backend/internal/services/trade_import.go`)**
@@ -996,27 +959,10 @@ func validateTrade(row api.TradeImportRow, today time.Time) string {
 // tradePlan is an evaluated import: what preview shows, what confirm writes.
 type tradePlan struct {
     preview  api.TradeImportPreview
-    fresh    []tradeRow           // in replay order
-    replaced []domain.Transaction // stored trades a sheet row replaces
-    lines    []api.TradeImportRow // the replacing rows, paired with replaced
+    fresh    []tradeRow // in replay order
+    replaced int        // rows already saved; their trades stay untouched
     created  []*domain.Holding
     aliases  map[primitive.ObjectID][]string
-}
-
-// pairStored pairs each duplicate row with the stored trade it replaces, in
-// order, so two identical trades are replaced by two identical rows.
-func pairStored(duplicates []tradeRow, existing []domain.Transaction) []domain.Transaction {
-    queue := map[tradeKey][]domain.Transaction{}
-    for _, stored := range existing {
-        queue[tradeKeyOf(stored)] = append(queue[tradeKeyOf(stored)], stored)
-    }
-    paired := make([]domain.Transaction, 0, len(duplicates))
-    for _, row := range duplicates {
-        key := row.key()
-        paired = append(paired, queue[key][0])
-        queue[key] = queue[key][1:]
-    }
-    return paired
 }
 
 // toTransaction builds the ledger event for a new imported trade. created
@@ -1169,10 +1115,11 @@ func (s *TradeImportService) splitReplacements(ctx context.Context, userId primi
             return nil, err
         }
     }
+    // Per key, n sheet rows against m saved trades add max(0, n−m); a saved
+    // trade the sheet lacks is never removed (owner, 2026-11-03).
     fresh, duplicates := partitionByKey(valid, existing, tradeRow.key, tradeKeyOf)
-    plan.replaced = pairStored(duplicates, existing)
+    plan.replaced = len(duplicates)
     for _, row := range duplicates {
-        plan.lines = append(plan.lines, row.sheetRow)
         statuses.add(row.sheetRow.Line, tradeReplace, row.holding, "")
     }
     return fresh, nil
@@ -1320,14 +1267,8 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
                 return err
             }
         }
-        // A replacement keeps the stored trade (id, notes, ledger position)
-        // and stamps this import on it: the values are identical by key.
-        for i, stored := range plan.replaced {
-            meta := domain.ImportMeta{BatchId: batchId, Line: plan.lines[i].Line, SheetName: sheetName(plan.lines[i].StockName)}
-            if err := s.txns.StampImport(ctx, userId, stored.ID, meta, now); err != nil {
-                return err
-            }
-        }
+        // A row matching a saved trade writes nothing: the saved trade stays
+        // exactly as it is.
         for holdingId, keys := range plan.aliases {
             if err := s.holdings.MoveAliases(ctx, userId, holdingId, keys); err != nil {
                 return err
@@ -1345,7 +1286,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
                 return err
             }
         }
-        result = api.TradeImportResult{Imported: len(trades), Replaced: len(plan.replaced), Covered: plan.preview.Counts.Covered,
+        result = api.TradeImportResult{Imported: len(trades), Replaced: plan.replaced, Covered: plan.preview.Counts.Covered,
             CreatedHoldings: len(plan.created), BatchId: batchId}
         return nil
     })
@@ -1363,7 +1304,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
 
 * [ ] **Step 9: Service tests (Create `backend/internal/services/trade_import_test.go`)**
 
-WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, one replacement per occurrence, re-upload inserts nothing and stamps each stored trade scoped to its owner, new trades of a day follow its saved trades in file order dated at the bare day, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
+WHY: behaviour only, with the mtest mock as the dividend import does: suffix-insensitive symbols, an unknown symbol waits, row validation, the occurrence rule (add only what is missing, never remove), re-upload writes nothing to transactions (saved trades untouched), new trades of a day follow its saved trades in file order dated at the bare day, opening cover, oversell blocks all, a created symbol inserts its holding, and the heal runs inside the commit from the earliest trade and fails the import when it fails.
 
 ```go
 package services
@@ -1372,6 +1313,7 @@ import (
     "context"
     "errors"
     "fmt"
+    "slices"
     "testing"
     "time"
 
@@ -1435,18 +1377,27 @@ func TestValidateTrade(t *testing.T) {
     }
 }
 
-// Two identical stored trades are replaced by two identical sheet rows, one
-// each, in order.
-func TestPairStored_OnePerOccurrence(t *testing.T) {
+// The owner's rule (2026-11-03), per holding, day, type, quantity and value:
+// n identical sheet rows against m saved trades add max(0, n−m), and a saved
+// trade the sheet lacks is never removed.
+func TestTradeOccurrences_AddOnlyWhatIsMissing(t *testing.T) {
     holding := &domain.Holding{ID: primitive.NewObjectID()}
     day := time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC)
-    first := domain.Transaction{ID: primitive.NewObjectID(), HoldingID: holding.ID, Type: domain.TxnBuy, Date: day, Quantity: 1, Amount: 400}
-    second := first
-    second.ID = primitive.NewObjectID()
-    row := tradeRow{sheetRow: tradeSheetRow(2, "2025-04-07", "ITC", api.TradeImportRowTypeBuy, 1, 400), day: day, holding: holding}
-    got := pairStored([]tradeRow{row, row}, []domain.Transaction{first, second})
-    if len(got) != 2 || got[0].ID != first.ID || got[1].ID != second.ID {
-        t.Fatalf("paired %v; want first then second", got)
+    saved := domain.Transaction{HoldingID: holding.ID, Type: domain.TxnBuy, Date: day, Quantity: 5, Amount: 617.25}
+    row := tradeRow{sheetRow: tradeSheetRow(2, "2025-04-07", "ITC", api.TradeImportRowTypeBuy, 5, 617.25), day: day, holding: holding}
+    for name, testCase := range map[string]struct {
+        sheet, saved, wantAdded int
+    }{
+        "twice in the sheet, none saved": {2, 0, 2},
+        "twice in the sheet, once saved": {2, 1, 1},
+        "twice in both":                  {2, 2, 0},
+        "once in the sheet, twice saved": {1, 2, 0},
+        "saved, not in the sheet":        {0, 1, 0},
+    } {
+        fresh, duplicates := partitionByKey(slices.Repeat([]tradeRow{row}, testCase.sheet), slices.Repeat([]domain.Transaction{saved}, testCase.saved), tradeRow.key, tradeKeyOf)
+        if len(fresh) != testCase.wantAdded || len(duplicates) != testCase.sheet-testCase.wantAdded {
+            t.Errorf("%s: %d added, %d already saved; want %d added", name, len(fresh), len(duplicates), testCase.wantAdded)
+        }
     }
 }
 
@@ -1476,14 +1427,12 @@ func TestTradeImport(t *testing.T) {
         tradeSheetRow(3, "2025-04-07", "GOLDBEES", api.TradeImportRowTypeBuy, 1, 73.55),
     }}
 
-    mt.Run("re-uploading the same trades replaces them in place, inserting nothing", func(mt *mtest.T) {
+    mt.Run("re-uploading the same trades writes nothing: saved trades stay untouched", func(mt *mtest.T) {
         first, second := stored("2025-04-04", "buy", 17, 1278.4), stored("2025-04-07", "buy", 1, 73.55)
         mt.AddMockResponses(
             holdingDocs(mt),
             transactions(mt), // no opening
             transactions(mt, first, second),
-            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp first
-            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(1)}), // stamp second
         )
         result, err := service(mt).Import(context.Background(), userId, twoBuys)
         if err != nil {
@@ -1492,23 +1441,10 @@ func TestTradeImport(t *testing.T) {
         if result.Imported != 0 || result.Replaced != 2 {
             t.Errorf("imported %d replaced %d; want 0 / 2", result.Imported, result.Replaced)
         }
-        if inserts := commandCount(mt, "insert", "transactions"); inserts != 0 {
-            t.Errorf("%d inserts issued; want none (no duplicates)", inserts)
-        }
-        // Each replacement is stamped on the stored trade, scoped to its owner.
-        var stamped []primitive.ObjectID
-        for _, event := range mt.GetAllStartedEvents() {
-            if event.CommandName != "update" || event.Command.Lookup("update").StringValue() != "transactions" {
-                continue
+        for _, write := range []string{"insert", "update", "findAndModify", "delete"} {
+            if count := commandCount(mt, write, "transactions"); count != 0 {
+                t.Errorf("%d %s commands on transactions; want none", count, write)
             }
-            query := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("q").Document()
-            if owner := query.Lookup("user_id").ObjectID(); owner != userId {
-                t.Errorf("stamp scoped to user %s; want %s", owner.Hex(), userId.Hex())
-            }
-            stamped = append(stamped, query.Lookup("_id").ObjectID())
-        }
-        if len(stamped) != 2 || stamped[0] != first[0].Value || stamped[1] != second[0].Value {
-            t.Errorf("stamped %v; want the two stored trades in order", stamped)
         }
     })
 

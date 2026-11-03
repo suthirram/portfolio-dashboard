@@ -73,9 +73,10 @@ The name, row-status and warning schemas are reused as they are; their
 5. **Replace** (`splitReplacements`). `ListTradesByHoldings` loads stored
    buys and sells of the stored holdings in the rows' date window.
    `partitionByKey(valid, existing, tradeRow.key, tradeKeyOf)` splits new
-   from repeated; `pairStored` pairs each repeat with the stored trade it
-   replaces, in order. Key: holding, UTC day, type, quantity in millionths
-   of a share, value in cents.
+   from repeated: per key, n sheet rows against m saved trades add
+   max(0, n−m), and a saved trade the sheet lacks is never removed (owner,
+   2026-11-03). Key: holding, UTC day, type, quantity in millionths of a
+   share, value in cents.
 6. **Oversell** (`oversoldHoldings`). Per holding with new rows, the stored
    ledger (`ListByHolding`; none for a created holding) plus the new events
    is replayed with `RecomputePosition`; `ErrOversell` marks the holding's
@@ -95,12 +96,10 @@ Otherwise, in order:
    `date` = the bare day, `import` = `{batch_id, line, sheet_name}`,
    `created_at` = the import time, a millisecond apart in replay order so
    the day's new trades replay as in the file (see "Same-day order");
-3. replace: for each paired stored trade, `TransactionStore.StampImport(
-   ctx, userId, transactionId, meta, updatedAt)` sets `import` and
-   `updated_at` only (owner-scoped; `ErrNotFound` when nothing matched). The
-   values are identical by key, so the id, notes and ledger position stay.
-   The update shape lives in persistence: the service never builds `bson`
-   (CLAUDE.md, persistence layer);
+3. a row matching a saved trade writes nothing: the saved trade stays
+   exactly as it is (no import stamp, so a trade's `import` always names
+   the import that created it, and a hand-entered trade never looks
+   imported);
 4. `MoveAliases` for confirmed (not created) symbols;
 5. `recomputeAndPersist` each holding with new trades (an oversell here
    aborts the transaction → 400);
@@ -152,9 +151,9 @@ requires (`Store.InTransaction`).
 
 * Go (behaviour, mtest mock): generic partition with another key; symbols
   match across exchange suffixes; an unknown symbol waits with suggestions;
-  `validateTrade` cases; `pairStored` one per occurrence; `Import`:
-  re-upload replaces and inserts nothing (each stamp scoped to the user and
-  the stored trade's id), rows up to the opening date are
+  `validateTrade` cases; the occurrence rule on trade keys (add only what
+  is missing, never remove); `Import`: re-upload writes nothing to
+  transactions, rows up to the opening date are
   covered, an oversell blocks everything, a created symbol inserts its
   holding, the heal runs from the earliest trade and its failure fails the
   import, and new trades of a day follow its saved trades in file order,
@@ -169,6 +168,6 @@ requires (`Store.InTransaction`).
 | Risk | Mitigation |
 |---|---|
 | The heal rewrites many snapshots in one transaction | per-user scope; RecomputeFrom starts at the earliest new day only |
-| A replace overwrites a hand-entered note | it never does: `StampImport` sets only `import` and `updated_at` |
+| A re-upload changes a saved trade | it never does: a matching row writes nothing |
 | Replace keys collide on genuinely repeated trades | occurrence matching: n identical rows replace at most n stored trades |
 | Excel's mangled order ids | not used anywhere |
