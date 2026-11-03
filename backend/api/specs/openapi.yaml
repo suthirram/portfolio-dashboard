@@ -63,6 +63,8 @@ paths:
     $ref: "./transactions/transactions.yaml#/transactions_import_preview"
   /transactions/import:
     $ref: "./transactions/transactions.yaml#/transactions_import"
+  /transactions/investment-delta:
+    $ref: "./transactions/transactions.yaml#/transactions_investment_delta"
   /dividends:
     $ref: "./dividends/dividends.yaml#/dividends"
   /dividends/import/preview:
@@ -131,6 +133,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_gold"
   /admin/users/{id}/premium:
     $ref: "./admin/admin.yaml#/users_id_premium"
+  /admin/users/{id}/delta-from-history:
+    $ref: "./admin/admin.yaml#/users_id_delta_from_history"
   /admin/branding:
     $ref: "./admin/admin.yaml#/branding"
   /gold/transactions:

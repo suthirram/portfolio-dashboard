@@ -61,7 +61,7 @@ func NewTransactionsService(txns *persistence.TransactionStore, holdings *persis
 // unset or the date is today/future (today's row is the cron's job). Best
 // effort: a recompute failure is logged, not surfaced — the ledger write has
 // already succeeded and must not be rolled back for a history-heal miss.
-func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.ObjectID, dates ...time.Time) {
+func (s *TransactionsService) healSnapshots(ctx context.Context, userId primitive.ObjectID, dates ...time.Time) {
 	if s.recomputer == nil {
 		return
 	}
@@ -74,17 +74,22 @@ func (s *TransactionsService) healSnapshots(ctx context.Context, uid primitive.O
 	if earliest.IsZero() {
 		return
 	}
-	now := time.Now().UTC()
-	if s.now != nil {
-		now = s.now()
-	}
-	if !domain.UTCDate(earliest).Before(domain.UTCDate(now)) {
+	if !domain.UTCDate(earliest).Before(domain.UTCDate(s.currentTime())) {
 		return // today or future: nothing earlier to heal
 	}
-	if err := s.recomputer.RecomputeFrom(ctx, uid, earliest); err != nil {
+	if err := s.recomputer.RecomputeFrom(ctx, userId, earliest); err != nil {
 		logger := s.log(ctx)
-		logger.Warn("snapshot heal failed", zap.String("user_id", uid.Hex()), zap.Error(err))
+		logger.Warn("snapshot heal failed", zap.String("user_id", userId.Hex()), zap.Error(err))
 	}
+}
+
+// currentTime is s.now, or the wall clock (UTC) when a test built the
+// service without it.
+func (s *TransactionsService) currentTime() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now().UTC()
 }
 
 // healAfter heals stored snapshots after a ledger write unless every event
