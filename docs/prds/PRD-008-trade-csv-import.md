@@ -140,6 +140,7 @@ DD/MM/YYYY (1/11/2024 = 1 Nov 2024)".
 | A mangled symbol (`NSE$`) | never auto-matched or auto-created; the user maps or creates it knowingly |
 | Large History heal inside the transaction | one user's snapshots (hundreds of rows) fit easily inside MongoDB's transaction limits |
 | Same-day order without times | rows keep the file's order; a time, when present, wins |
+| A new trade between saved trades of the same day | it replays in its place in the file, saved trades included; the time is stored on the trade, never in its created date |
 
 ## 8. Owner decisions (2026-11-03)
 
