@@ -26,17 +26,23 @@ func (r importRow) key() domain.DividendKey {
 	return domain.DividendKey{HoldingId: r.holding.ID, Day: r.day.Format(time.DateOnly), Cents: domain.AmountCents(r.sheetRow.Amount)}
 }
 
-// partition splits valid rows (sheet order) into new and duplicate by
-// occurrence: each stored dividend with the same key absorbs one sheet row;
-// sheet repeats beyond the stored count are new (PRD-005 §5 A–D).
+// partition splits valid dividend rows (sheet order) into new and duplicate
+// by occurrence (PRD-005 §5 A–D).
 func partition(rows []importRow, existing []domain.Transaction) (fresh, duplicates []importRow) {
-	remaining := make(map[domain.DividendKey]int, len(existing))
-	for _, storedDividend := range existing {
-		remaining[domain.DividendKeyOf(storedDividend)]++
+	return partitionByKey(rows, existing, importRow.key, domain.DividendKeyOf)
+}
+
+// partitionByKey is the occurrence rule shared by every CSV import: each
+// stored event with the same key absorbs one sheet row; sheet repeats beyond
+// the stored count are new.
+func partitionByKey[Row any, Key comparable](rows []Row, existing []domain.Transaction, rowKey func(Row) Key, storedKey func(domain.Transaction) Key) (fresh, duplicates []Row) {
+	remaining := make(map[Key]int, len(existing))
+	for _, stored := range existing {
+		remaining[storedKey(stored)]++
 	}
 	for _, row := range rows {
-		if rowKey := row.key(); remaining[rowKey] > 0 {
-			remaining[rowKey]--
+		if key := rowKey(row); remaining[key] > 0 {
+			remaining[key]--
 			duplicates = append(duplicates, row)
 			continue
 		}
