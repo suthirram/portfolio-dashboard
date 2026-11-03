@@ -46,7 +46,7 @@ Schemas (`portfolio-api.yaml`):
 * `TradeImportCounts { ready, replace, covered, invalid, total }`
 * `TradeImportPreview { counts, names: DividendNameResolution[], rows: DividendImportRowStatus[], warnings }`;
   name status adds `create`, row status adds `replace` and `covered`.
-* `TradeImportResult { imported, replaced, covered, created_holdings, batch_id }`
+* `TradeImportResult { imported, replaced, covered, created_holdings }`
 
 The name, row-status and warning schemas are reused as they are; their
 `Dividend` prefix is historical.
@@ -91,10 +91,10 @@ Inside `runner.InTransaction`, re-run `evaluate`; any invalid row returns
 Otherwise, in order:
 
 1. insert each created holding (`HoldingStore.Insert`);
-2. `InsertMany` the new trades: `type` buy/sell, `date` = UTC day,
-   `amount` rounded to cents, `currency` from `ledgerCurrency`,
-   `date` = the bare day, `import` = `{batch_id, line, sheet_name}`,
-   `created_at` = the import time, a millisecond apart in replay order so
+2. `InsertMany` the new trades: `type` buy/sell, `date` = the bare UTC
+   day, `amount` rounded to cents, `currency` from `ledgerCurrency`, no
+   `import` metadata (nothing reads it; removing it from the dividend
+   import is issue #251), `created_at` = the import time, a millisecond apart in replay order so
    the day's new trades replay as in the file (see "Same-day order");
 3. a row matching a saved trade writes nothing: the saved trade stays
    exactly as it is (no import stamp, so a trade's `import` always names

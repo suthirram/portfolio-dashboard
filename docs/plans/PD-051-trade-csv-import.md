@@ -528,13 +528,12 @@ Replacement:
         warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
     TradeImportResult:
       type: object
-      required: [imported, replaced, covered, created_holdings, batch_id]
+      required: [imported, replaced, covered, created_holdings]
       properties:
         imported: { type: integer }
         replaced: { type: integer }
         covered: { type: integer }
         created_holdings: { type: integer }
-        batch_id: { type: string }
     DividendHistoryOverlay:
       type: object
 ```
@@ -966,13 +965,13 @@ type tradePlan struct {
 }
 
 // toTransaction builds the ledger event for a new imported trade. created
-// orders same-day events (the ledger replays date, then created_at).
-func (r tradeRow) toTransaction(userId primitive.ObjectID, batchId string, created time.Time) domain.Transaction {
+// orders same-day events (the ledger replays date, then created_at). No
+// import metadata is stored: nothing reads it (issue #251).
+func (r tradeRow) toTransaction(userId primitive.ObjectID, created time.Time) domain.Transaction {
     return domain.Transaction{
         ID: primitive.NewObjectID(), UserID: userId, HoldingID: r.holding.ID,
         Type: domain.TxnType(r.sheetRow.Type), Date: r.day, Quantity: r.sheetRow.Quantity,
         Amount: domain.RoundCents(r.sheetRow.Amount), Currency: ledgerCurrency(*r.holding),
-        Import:    &domain.ImportMeta{BatchId: batchId, Line: r.sheetRow.Line, SheetName: sheetName(r.sheetRow.StockName)},
         CreatedAt: created, UpdatedAt: created,
     }
 }
@@ -1130,7 +1129,7 @@ func (s *TradeImportService) splitReplacements(ctx context.Context, userId primi
 func (s *TradeImportService) oversoldHoldings(ctx context.Context, userId primitive.ObjectID, fresh []tradeRow, created []*domain.Holding, now time.Time) (map[primitive.ObjectID]bool, error) {
     byHolding := map[primitive.ObjectID][]domain.Transaction{}
     for i, row := range fresh {
-        byHolding[row.holding.ID] = append(byHolding[row.holding.ID], row.toTransaction(userId, "", now.Add(time.Duration(i)*time.Millisecond)))
+        byHolding[row.holding.ID] = append(byHolding[row.holding.ID], row.toTransaction(userId, now.Add(time.Duration(i)*time.Millisecond)))
     }
     oversold := map[primitive.ObjectID]bool{}
     for holdingId, events := range byHolding {
@@ -1243,7 +1242,6 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
         if plan.preview.Counts.Invalid > 0 {
             return &TradeImportInvalidError{Preview: plan.preview}
         }
-        batchId := primitive.NewObjectID().Hex()
         now := s.now()
         for _, holding := range plan.created {
             if err := s.holdings.Insert(ctx, *holding); err != nil {
@@ -1254,7 +1252,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
         var affected []primitive.ObjectID
         var earliest time.Time
         for i, row := range plan.fresh {
-            trades = append(trades, row.toTransaction(userId, batchId, now.Add(time.Duration(i)*time.Millisecond)))
+            trades = append(trades, row.toTransaction(userId, now.Add(time.Duration(i)*time.Millisecond)))
             if !slices.Contains(affected, row.holding.ID) {
                 affected = append(affected, row.holding.ID)
             }
@@ -1287,7 +1285,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
             }
         }
         result = api.TradeImportResult{Imported: len(trades), Replaced: plan.replaced, Covered: plan.preview.Counts.Covered,
-            CreatedHoldings: len(plan.created), BatchId: batchId}
+            CreatedHoldings: len(plan.created)}
         return nil
     })
     if err != nil {
@@ -1297,7 +1295,7 @@ func (s *TradeImportService) Import(ctx context.Context, userId primitive.Object
         return api.TradeImportResult{}, err
     }
     logger.Info("trades imported", zap.Int("imported", result.Imported), zap.Int("replaced", result.Replaced),
-        zap.Int("covered", result.Covered), zap.Int("created_holdings", result.CreatedHoldings), zap.String("batch_id", result.BatchId))
+        zap.Int("covered", result.Covered), zap.Int("created_holdings", result.CreatedHoldings))
     return result, nil
 }
 ```
@@ -1568,8 +1566,8 @@ func insertedTrades(mt *mtest.T) []bson.Raw {
 
 // dayOrderProblem describes how inserted trades break the day-only order —
 // the given types in file order, each dated at the bare day and created at
-// or after importedAt with created_at rising in file order — or "" when they
-// keep it.
+// or after importedAt with created_at rising in file order, with no import
+// metadata stored (nothing reads it) — or "" when they keep it.
 func dayOrderProblem(inserted []bson.Raw, types []string, day, importedAt time.Time) string {
     if len(inserted) != len(types) {
         return fmt.Sprintf("%d trades inserted; want %d", len(inserted), len(types))
@@ -1584,6 +1582,8 @@ func dayOrderProblem(inserted []bson.Raw, types []string, day, importedAt time.T
             return fmt.Sprintf("trade %d dated %v; want the bare day %v", i, trade.Lookup("date").Time().UTC(), day)
         case !created.After(previous):
             return fmt.Sprintf("trade %d created %v; want after %v (the import, then file order)", i, created, previous)
+        case trade.Lookup("import").Type != 0:
+            return fmt.Sprintf("trade %d stores import metadata %v; want none", i, trade.Lookup("import"))
         }
         previous = created
     }
@@ -2797,7 +2797,7 @@ const ready = { counts: { ready: 2, replace: 1, covered: 0, invalid: 0, total: 3
 beforeEach(() => {
   vi.clearAllMocks()
   mockApi.previewTradeImport.mockResolvedValueOnce(needsLg).mockResolvedValueOnce(ready)
-  mockApi.importTrades.mockResolvedValue({ imported: 2, replaced: 1, covered: 0, created_holdings: 1, batch_id: 'b' })
+  mockApi.importTrades.mockResolvedValue({ imported: 2, replaced: 1, covered: 0, created_holdings: 1 })
 })
 
 const renderModal = (onImported = vi.fn()) => render(<TradeImportModal holdings={holdings} onClose={vi.fn()} onImported={onImported} />)
