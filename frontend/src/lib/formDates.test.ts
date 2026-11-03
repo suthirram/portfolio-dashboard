@@ -64,4 +64,18 @@ describe('normaliseDate', () => {
     expect(normaliseDate('13/13/2020')).toBe('')
     expect(normaliseDate('abc')).toBe('')
   })
+  // The owner's broker file mixes both shapes in one column (PRD-008 §4);
+  // the time is read past and dropped, the day kept.
+  it('keeps only the day when a time follows the date', () => {
+    expect(normaliseDate('1/11/2024')).toBe('2024-11-01')
+    expect(normaliseDate('17-12-2024 03:30 PM')).toBe('2024-12-17')
+    expect(normaliseDate('01-01-2026 12:05 AM')).toBe('2026-01-01')
+    expect(normaliseDate('25-06-2025 15:30')).toBe('2025-06-25')
+    expect(normaliseDate('25-06-2025 09:00:45')).toBe('2025-06-25')
+  })
+  it('rejects an impossible time or a trailing word', () => {
+    expect(normaliseDate('17-12-2024 13:30 PM')).toBe('')
+    expect(normaliseDate('17-12-2024 24:00')).toBe('')
+    expect(normaliseDate('17-12-2024 03:30 PM IST')).toBe('')
+  })
 })
