@@ -15,6 +15,9 @@ import type {
   DividendImportPreview,
   DividendImportResult,
   DividendView,
+  TradeImportInput,
+  TradeImportPreview,
+  TradeImportResult,
 } from '../../types'
 import {
   dividendsPath,
@@ -150,6 +153,11 @@ export const api = {
   // path mapping lives in actAsRouting, so the view never builds it inline.
   listAllTransactions: (userId?: string) =>
     request<TransactionWithHolding[]>('GET', transactionsPath(userId)),
+  // Trades CSV import (PD-051): preview, then an atomic commit.
+  previewTradeImport: (body: TradeImportInput, userId?: string) =>
+    request<TradeImportPreview>('POST', `${transactionsPath(userId)}/import/preview`, body),
+  importTrades: (body: TradeImportInput, userId?: string) =>
+    request<TradeImportResult>('POST', `${transactionsPath(userId)}/import`, body),
 
   // Dividends (PD-048): one currency tab, CSV import, delete-all. Single
   // dividends are written through the ledger methods above.
