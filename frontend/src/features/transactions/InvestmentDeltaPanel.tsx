@@ -12,6 +12,7 @@ import {
   MIN_YEAR, PERFORMANCE_COLUMNS, PERFORMANCE_COLUMN_LABELS, columnPosition, monthRange, monthlyInvestment,
   yearMonth0, type MonthlyInvestment, type PerformanceColumn,
 } from '../history/historyShared'
+import { useIstDay } from '../../lib/useIstDay'
 import { useLiveHistoryRows, useTradingClock } from '../history/useLiveHistoryRows'
 import { InvestmentDeltaChart } from './InvestmentDeltaChart'
 
@@ -28,13 +29,16 @@ interface Props {
 
 export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   const auth = useAuthOptional()
+  const fromHistory = Boolean(auth?.user?.delta_from_history)
   const { todayStr, liveWindowOpen } = useTradingClock()
-  const currentYear = yearMonth0(todayStr).year
+  // The ledger months are as of the IST calendar day (the server's
+  // istToday); History keeps the trading day it snapshots on.
+  const istDay = useIstDay()
+  const currentYear = yearMonth0(fromHistory ? todayStr : istDay).year
   const [open, setOpen] = useState(() => {
     try { return window.localStorage?.getItem(OPEN_KEY) === '1' } catch { return false }
   })
   const [year, setYear] = useState(currentYear)
-  const fromHistory = Boolean(auth?.user?.delta_from_history)
   // The loaded figures and the year they belong to: History rows, or the
   // ledger's months. A ledger refresh keeps the current figures on screen
   // while it reloads; another year shows the spinner until its own arrive.
@@ -56,9 +60,9 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   }
 
   // The ledger months are as of the day they were fetched: while the current
-  // year is shown, a new trading day refetches them, so a month that has just
-  // begun gets its figures without collapsing the panel.
-  const ledgerDay = !fromHistory && year === currentYear ? todayStr : null
+  // year is shown, a new IST day refetches them, so a month that has just
+  // begun gets its figures at midnight without collapsing the panel.
+  const ledgerDay = !fromHistory && year === currentYear ? istDay : null
 
   useEffect(() => {
     if (!open) return
