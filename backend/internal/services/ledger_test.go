@@ -175,3 +175,32 @@ func TestRecomputePosition_OrdersByDateNotInsertion(t *testing.T) {
 	}
 	assertPos(t, got, 0, 0, 1500, 0)
 }
+
+// Oversell is judged at the end of the day: a sell replayed before a same-day
+// buy that covers it waits for the buy (an imported sell dated at the bare
+// day vs a saved buy with a time, PD-051), while a day that still ends short
+// is an oversell.
+func TestRecomputePosition_OversellJudgedAtEndOfDay(t *testing.T) {
+	savedBuy := tx(domain.TxnBuy, 1, 10, 1000)
+	savedBuy.Date = day(1).Add(12 * time.Hour)
+	importedSell := tx(domain.TxnSell, 1, 10, 1500)
+	importedSell.CreatedAt = day(9)
+
+	got, err := RecomputePosition([]domain.Transaction{savedBuy, importedSell})
+	if err != nil {
+		t.Fatalf("a sell covered by a same-day buy: err %v; want none", err)
+	}
+	assertPos(t, got, 0, 0, 500, 0)
+
+	short := importedSell
+	short.Quantity = 11
+	if _, err := RecomputePosition([]domain.Transaction{savedBuy, short}); !errors.Is(err, ErrOversell) {
+		t.Errorf("a day ending short: err %v; want ErrOversell", err)
+	}
+
+	// The next day's buy never covers an earlier day's sell.
+	nextDayBuy := tx(domain.TxnBuy, 2, 10, 1000)
+	if _, err := RecomputePosition([]domain.Transaction{importedSell, nextDayBuy}); !errors.Is(err, ErrOversell) {
+		t.Errorf("a sell covered only the next day: err %v; want ErrOversell", err)
+	}
+}

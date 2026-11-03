@@ -709,7 +709,7 @@
               <span>Inserted as a buy or sell: date = the day, amount = Value (rounded to cents), quantity as written. A day's new trades replay after its saved trades, in file order; the time has no effect.</span>
               <code>ITC · BUY 6 · ₹1,590.60 · 29-09-2026 14:21</code></div>
             <div class="rule"><h4><span class="status s-replace">replace</span> Identical trade exists</h4>
-              <span>Same holding, day, type, quantity and value as a saved trade: the saved trade is kept (id, notes, position) and stamped with this import. Never a second copy (owner, 2026-11-03). Matching is per occurrence: two identical rows replace at most two saved trades.</span>
+              <span>Same holding, day, type, quantity and value as a saved trade: the saved trade stays exactly as it is and nothing is written. Never a second copy (owner, 2026-11-03). Matching is per occurrence: two identical rows against one saved trade add one; a saved trade missing from the file is never removed.</span>
               <code>GOLDBEES · BUY 17 · ₹1,278.40 · 04-04-2025 ⇄ saved</code></div>
             <div class="rule"><h4><span class="status s-covered">covered</span> Inside the opening balance</h4>
               <span>Dated on or before the holding's opening date: already counted in that balance, so it is shown but not imported. With an opening balance but no date set, the rows are invalid until the date is set on the dashboard.</span>
@@ -986,7 +986,7 @@
 
   // Frame 06: the commit transaction.
   const STEPS = ['Re-evaluate the preview against the database now (invalid → 422, nothing written)', 'Insert the created holdings', 'Insert the new trades (replay order)',
-    'Stamp the replaced trades with this import (values unchanged)', 'Save the confirmed symbols as aliases', 'Recompute each affected holding\'s position', 'Heal History from the earliest new trade']
+    'Save the confirmed symbols as aliases', 'Recompute each affected holding\'s position', 'Heal History from the earliest new trade']
   const failAt = document.getElementById('fail-at')
   STEPS.forEach((label, i) => { const option = document.createElement('option'); option.value = String(i + 1); option.textContent = `step ${i + 1}`; failAt.appendChild(option) })
   function renderTx() {

@@ -177,6 +177,24 @@ func TestTradeImport(t *testing.T) {
 		}
 	})
 
+	// A saved buy carrying a time (noon) replays after a bare-day imported
+	// sell; oversell is judged at the end of the day, so the buy covers it.
+	mt.Run("a sell covered by a saved same-day buy with a time imports", func(mt *mtest.T) {
+		noonBuy := stored("2025-04-04", "buy", 5, 400)
+		noonBuy[4].Value = time.Date(2025, 4, 4, 12, 0, 0, 0, time.UTC)
+		mt.AddMockResponses(
+			holdingDocs(mt), transactions(mt), transactions(mt, noonBuy),
+			transactions(mt, noonBuy),     // oversell replay
+			mtest.CreateSuccessResponse(), // insertMany
+			transactions(mt, noonBuy),     // recompute
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: bson.D{{Key: "_id", Value: gold}}}),
+		)
+		input := api.TradeImportInput{Rows: []api.TradeImportRow{tradeSheetRow(2, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeSell, 5, 450)}}
+		if result, err := service(mt).Import(context.Background(), userId, input); err != nil || result.Imported != 1 {
+			t.Fatalf("Import: %+v, %v; want the sell imported", result, err)
+		}
+	})
+
 	mt.Run("a sell beyond the shares held blocks the whole import", func(mt *mtest.T) {
 		mt.AddMockResponses(holdingDocs(mt), transactions(mt), transactions(mt), transactions(mt))
 		input := api.TradeImportInput{Rows: []api.TradeImportRow{tradeSheetRow(2, "2025-04-04", "GOLDBEES", api.TradeImportRowTypeSell, 5, 400)}}
