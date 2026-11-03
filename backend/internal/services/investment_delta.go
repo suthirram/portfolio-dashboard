@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -71,14 +70,26 @@ func investedOn(holdings []domain.Holding, ledgers map[primitive.ObjectID][]doma
 	return invested
 }
 
+// hasActivity reports whether a column has money invested at some month end
+// of the year, or a month whose cost basis changed: a holding carried into
+// the year and sold out still shows its negative delta.
+func hasActivity(values []float64) bool {
+	for i := 1; i < len(values); i++ {
+		if round(values[i]) > 0 || round(values[i]-values[i-1]) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // deltaColumns turns each column's invested amount on the monthEnds days
 // (values[0] = January's opening) into the chart's columns, in chart order.
-// A column appears when some month end of the year has money invested.
+// A column appears when it had activity in the year (hasActivity).
 func deltaColumns(figures map[string][]float64) []api.InvestmentDeltaColumn {
 	columns := []api.InvestmentDeltaColumn{}
 	for _, column := range []string{domain.CurrencyINR, domain.CurrencyEUR, goldColumn} {
 		values, ok := figures[column]
-		if !ok || !slices.ContainsFunc(values[1:], func(value float64) bool { return round(value) > 0 }) {
+		if !ok || !hasActivity(values) {
 			continue
 		}
 		months := make([]api.InvestmentDeltaMonth, 12)
