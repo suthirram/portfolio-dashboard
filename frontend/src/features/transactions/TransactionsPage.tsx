@@ -5,6 +5,7 @@ import type { Holding, TransactionType, TransactionWithHolding } from '../../typ
 import { useAllTransactions } from './useAllTransactions'
 import TransactionsAllTable from './TransactionsAllTable'
 import { InvestmentDeltaPanel } from './InvestmentDeltaPanel'
+import TradeImportModal from './TradeImportModal'
 import TransactionsModal, { TYPE_LABEL } from '../holdings/TransactionsModal'
 import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
@@ -51,6 +52,14 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   // Bumped after each successful ledger write so the investment delta panel
   // reloads the History rows the backend has just healed.
   const [ledgerVersion, setLedgerVersion] = useState(0)
+  const [importing, setImporting] = useState(false)
+
+  // After any ledger write (the editor or a CSV import): reload the table
+  // and tell the investment delta panel.
+  const afterLedgerChange = () => {
+    void refresh()
+    setLedgerVersion(version => version + 1)
+  }
 
   const patch = (next: Partial<Filters>) => setFilters(current => ({ ...current, ...next }))
 
@@ -168,6 +177,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="btn btn-sm" onClick={() => setImporting(true)}>Import CSV</button>
             {filtered && (
               <button className="btn btn-sm" onClick={() => setFilters(emptyFilters())}>
                 Clear filters
@@ -236,11 +246,14 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           holding={editing}
           userId={actAsUserId}
           onClose={() => setEditing(null)}
-          onChanged={() => {
-            void refresh()
-            setLedgerVersion(version => version + 1)
-          }}
+          onChanged={afterLedgerChange}
         />
+      )}
+
+      {/* Act-as imports into the target's ledger, as the dividend import does. */}
+      {importing && (
+        <TradeImportModal holdings={holdings} userId={actAsUserId}
+          onClose={() => setImporting(false)} onImported={afterLedgerChange} />
       )}
     </div>
   )

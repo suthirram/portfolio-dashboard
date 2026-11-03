@@ -178,6 +178,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/transactions/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate a trades CSV import without writing anything */
+        post: operations["previewTradeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Commit a trades CSV import atomically
+         * @description Re-runs the preview against the database as it is now and, when no row
+         *     is invalid, in one transaction: creates the confirmed new holdings,
+         *     inserts new trades, replaces identical existing trades in place, saves
+         *     confirmed aliases, recomputes the affected holdings and heals History
+         *     from the earliest trade. Rows covered by an opening balance are skipped.
+         *     422 returns the fresh preview when rows are invalid; nothing is written.
+         */
+        post: operations["importTrades"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dividends": {
         parameters: {
             query?: never;
@@ -1031,6 +1073,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/transactions/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate a trades CSV import for a user (act-as) without writing anything */
+        post: operations["adminPreviewUserTradeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/transactions/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Commit a trades CSV import for a user (act-as) atomically
+         * @description Re-runs the preview against the database as it is now and, when no row
+         *     is invalid, in one transaction: creates the confirmed new holdings,
+         *     inserts new trades, replaces identical existing trades in place, saves
+         *     confirmed aliases, recomputes the affected holdings and heals History
+         *     from the earliest trade. Rows covered by an opening balance are skipped.
+         *     422 returns the fresh preview when rows are invalid; nothing is written.
+         */
+        post: operations["adminImportUserTrades"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/dividends": {
         parameters: {
             query?: never;
@@ -1371,6 +1461,90 @@ export interface components {
             /** @description Owning holding's ticker (e.g. TCS.NS) */
             symbol?: string;
         };
+        TradeImportRow: {
+            /** @description 1-based file line (header = 1) */
+            line: number;
+            /** Format: date */
+            date: string;
+            /** @description Exchange ticker without suffix (KALYANKJIL) */
+            symbol: string;
+            stock_name: string;
+            /** @enum {string} */
+            exchange: "NSE" | "BSE";
+            /** @enum {string} */
+            type: "buy" | "sell";
+            /** Format: double */
+            quantity: number;
+            /**
+             * Format: double
+             * @description Total cash value of the trade
+             */
+            amount: number;
+            isin?: string | null;
+        };
+        TradeImportInput: {
+            rows: components["schemas"]["TradeImportRow"][];
+            /** @description Popup answers by sheet symbol — a holding id, or null to leave unresolved */
+            mappings?: {
+                [key: string]: string | null;
+            };
+            /** @description Sheet symbols to create a new INR holding for */
+            create?: string[];
+        };
+        TradeImportCounts: {
+            /** @description New trades */
+            ready: number;
+            /** @description Rows that replace an identical existing trade */
+            replace: number;
+            /** @description Rows on or before the holding's opening date */
+            covered: number;
+            invalid: number;
+            total: number;
+        };
+        DividendSuggestion: {
+            holding_id: string;
+            script: string;
+            symbol: string;
+            /** Format: double */
+            score: number;
+        };
+        DividendNameResolution: {
+            sheet_name: string;
+            rows: number;
+            /** @description auto | confirmed | needs_confirmation | ambiguous | unresolved */
+            status: string;
+            holding_id?: string;
+            /** @description script | alias (auto only; a symbol never auto-matches) */
+            matched_by?: string;
+            suggestions: components["schemas"]["DividendSuggestion"][];
+            /** @description Suggested holding id when it is a clear best */
+            preselect?: string;
+        };
+        DividendImportRowStatus: {
+            line: number;
+            /** @description ready | duplicate | invalid */
+            status: string;
+            holding_id?: string;
+            reason?: string;
+        };
+        DividendImportWarning: {
+            line: number;
+            message: string;
+        };
+        TradeImportPreview: {
+            counts: components["schemas"]["TradeImportCounts"];
+            /** @description Per sheet symbol; status adds create */
+            names: components["schemas"]["DividendNameResolution"][];
+            /** @description status: ready | replace | covered | invalid */
+            rows: components["schemas"]["DividendImportRowStatus"][];
+            warnings: components["schemas"]["DividendImportWarning"][];
+        };
+        TradeImportResult: {
+            imported: number;
+            replaced: number;
+            covered: number;
+            created_holdings: number;
+        };
         /** @description One dividend ledger event in a currency tab (PRD-005 §8). */
         DividendRow: {
             id: string;
@@ -1467,36 +1641,6 @@ export interface components {
             duplicate: number;
             invalid: number;
             total: number;
-        };
-        DividendSuggestion: {
-            holding_id: string;
-            script: string;
-            symbol: string;
-            /** Format: double */
-            score: number;
-        };
-        DividendNameResolution: {
-            sheet_name: string;
-            rows: number;
-            /** @description auto | confirmed | needs_confirmation | ambiguous | unresolved */
-            status: string;
-            holding_id?: string;
-            /** @description script | alias (auto only; a symbol never auto-matches) */
-            matched_by?: string;
-            suggestions: components["schemas"]["DividendSuggestion"][];
-            /** @description Suggested holding id when it is a clear best */
-            preselect?: string;
-        };
-        DividendImportRowStatus: {
-            line: number;
-            /** @description ready | duplicate | invalid */
-            status: string;
-            holding_id?: string;
-            reason?: string;
-        };
-        DividendImportWarning: {
-            line: number;
-            message: string;
         };
         DividendImportPreview: {
             counts: components["schemas"]["DividendImportCounts"];
@@ -2333,6 +2477,65 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    previewTradeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeImportInput"];
+            };
+        };
+        responses: {
+            /** @description What an import would do now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    importTrades: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeImportInput"];
+            };
+        };
+        responses: {
+            /** @description Imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Invalid rows — nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportPreview"];
+                };
+            };
         };
     };
     listDividends: {
@@ -3763,6 +3966,73 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminPreviewUserTradeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeImportInput"];
+            };
+        };
+        responses: {
+            /** @description What an import would do now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminImportUserTrades: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeImportInput"];
+            };
+        };
+        responses: {
+            /** @description Imported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description Invalid rows — nothing written */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeImportPreview"];
+                };
+            };
         };
     };
     adminListUserDividends: {
