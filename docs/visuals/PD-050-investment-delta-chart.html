@@ -512,11 +512,11 @@
   .sel div { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-input); min-width: 72px; color: var(--text-primary); }
   .hist-toolbar .grow { flex: 1; }
 
-  /* ---- PD-050: the Transactions page and its bottom panel ---- */
+  /* ---- PD-050: the Transactions page and its panel below the filters ---- */
   .filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
   .filters .grow { flex: 1; }
   .mono { font-family: var(--data, ui-monospace, monospace); }
-  .dock { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px 8px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.25); }
+  .dock { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; }
   .dock-handle { text-align: center; padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
   .dock-body { padding: 0 16px 16px; }
   .dock-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
@@ -561,13 +561,13 @@
 
   <header class="masthead">
     <div class="eyebrow">
-      <span>Visual spec</span><span>PD-050 v2</span><span>PRD-007 · DD-007</span><span>Portfolio Dashboard</span>
-      <span>Owner decisions 2026-11-02 applied</span>
+      <span>Visual spec</span><span>PD-050 v3</span><span>PRD-007 · DD-007</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-11-02 applied; placement 2026-11-03</span>
     </div>
     <h1>Investment delta chart</h1>
     <p class="standfirst">
-      A panel docked to the bottom of the Transactions page, pulled up on
-      demand, charts each month's investment delta for one year: a green or
+      A collapsible panel just below the Transactions page's filters,
+      expanded on demand, charts each month's investment delta for one year: a green or
       red bar for the money added or sold, and a line for the invested amount
       at each month end. Each bar is the History month card's figure for that
       month.
@@ -602,35 +602,33 @@
   </section>
 
   <section class="frame">
-    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">Transactions, collapsed: the handle bar at the bottom</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">Transactions, collapsed: the handle bar below the filters</span><span class="frame-viewport">1280 × auto</span></div>
     <div class="canvas">
       <div class="app" data-app-theme="dark">
         <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
           <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
         <div class="app-main">
           <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <div class="dock marked"><span class="pin">1</span><div class="dock-handle">▼ Investment delta · 2026</div></div>
           <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr><tr><td>02-09-2026</td><td>Vanguard FTSE</td><td>Sell</td><td class="num">€3,200.00</td></tr><tr><td>14-08-2026</td><td>HDFC Bank</td><td>Dividend</td><td class="num">₹1,850.50</td></tr></tbody></table>
-          <div class="dock marked"><span class="pin">1</span><div class="dock-handle">▲ Investment delta · 2026</div></div>
         </div>
       </div>
     </div>
     <ol class="annotations">
-      <li><b>1</b><span>The panel's collapsed form: one full-width bar docked to the bottom edge (<code>position: sticky</code> at the end of the page), so it never covers the filters and keeps its own space after the last row. Collapsed is the default, and in this state the page makes <strong>no</strong> History request. The page remembers open / closed per browser. PRD-007 §5, DD-007 §4.</span></li>
+      <li><b>1</b><span>The panel's collapsed form: one full-width bar straight after the filters (the search section) and above the table, on the same surface as the filters (owner, 2026-11-03; it was a bottom dock in v2). Collapsed is the default, and in this state the page makes <strong>no</strong> History request. The page remembers open / closed per browser. PRD-007 §5, DD-007 §4.</span></li>
     </ol>
   </section>
 
   <section class="frame">
-    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">Pulled up: 2026, India, the October tooltip</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">Expanded: 2026, India, the October tooltip</span><span class="frame-viewport">1280 × auto</span></div>
     <div class="canvas">
       <div class="app" data-app-theme="dark">
         <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
           <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
         <div class="app-main">
           <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
-          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
-          <div class="marked"><span class="pin">1</span>
-          <div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2026</div>
+          <div class="marked"><span class="pin">1</span><div class="dock">
+            <div class="dock-handle">▲ Investment delta · 2026</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
@@ -638,13 +636,13 @@
               </div>
               <div class="chart-box"><svg viewBox="0 0 1000 250" class="delta-svg" role="img" aria-label="Investment delta bars and invested line"><line x1="64" x2="936" y1="16.0" y2="16.0" class="grid"/><text x="56" y="20.0" class="tick" text-anchor="end">25k</text><text x="944" y="20.0" class="tick">920k</text><line x1="64" x2="936" y1="67.0" y2="67.0" class="grid"/><text x="56" y="71.0" class="tick" text-anchor="end">16k</text><text x="944" y="71.0" class="tick">890k</text><line x1="64" x2="936" y1="118.0" y2="118.0" class="grid"/><text x="56" y="122.0" class="tick" text-anchor="end">8k</text><text x="944" y="122.0" class="tick">860k</text><line x1="64" x2="936" y1="169.0" y2="169.0" class="grid"/><text x="56" y="173.0" class="tick" text-anchor="end">-1k</text><text x="944" y="173.0" class="tick">830k</text><line x1="64" x2="936" y1="220.0" y2="220.0" class="grid"/><text x="56" y="224.0" class="tick" text-anchor="end">-10k</text><text x="944" y="224.0" class="tick">800k</text><line x1="64" x2="936" y1="161.7" y2="161.7" class="zero"/><text x="100.3" y="240" class="tick" text-anchor="middle">Jan</text><rect x="80.0" y="89.4" width="40.7" height="72.3" rx="3" class="bar-up"/><text x="173.0" y="240" class="tick" text-anchor="middle">Feb</text><rect x="152.7" y="114.2" width="40.7" height="47.5" rx="3" class="bar-up"/><text x="245.7" y="240" class="tick" text-anchor="middle">Mar</text><rect x="225.3" y="161.7" width="40.7" height="30.3" rx="3" class="bar-down"/><text x="318.3" y="240" class="tick" text-anchor="middle">Apr</text><rect x="298.0" y="74.3" width="40.7" height="87.4" rx="3" class="bar-up"/><text x="391.0" y="240" class="tick" text-anchor="middle">May</text><rect x="370.7" y="104.6" width="40.7" height="57.1" rx="3" class="bar-up"/><text x="463.7" y="240" class="tick" text-anchor="middle">Jun</text><rect x="443.3" y="153.8" width="40.7" height="7.9" rx="3" class="bar-up"/><text x="536.3" y="240" class="tick" text-anchor="middle">Jul</text><rect x="516.0" y="42.2" width="40.7" height="119.5" rx="3" class="bar-up"/><text x="609.0" y="240" class="tick" text-anchor="middle">Aug</text><rect x="588.7" y="125.0" width="40.7" height="36.7" rx="3" class="bar-up"/><text x="681.7" y="240" class="tick" text-anchor="middle">Sep</text><rect x="661.3" y="137.4" width="40.7" height="24.3" rx="3" class="bar-up"/><text x="754.3" y="240" class="tick" text-anchor="middle">Oct</text><rect x="734.0" y="52.0" width="40.7" height="109.7" rx="3" class="bar-up bar-hl"/><text x="827.0" y="240" class="tick" text-anchor="middle">Nov</text><rect x="806.7" y="150.1" width="40.7" height="11.7" rx="3" class="bar-up"/><text x="899.7" y="240" class="tick" text-anchor="middle">Dec</text><polyline class="line-inv" points="100.3,186.1 173.0,172.2 245.7,181.1 318.3,155.6 391.0,138.9 463.7,136.6 536.3,101.8 609.0,91.1 681.7,84.0 754.3,52.0 827.0,48.6"/><circle cx="100.3" cy="186.1" r="3.5" class="dot-inv"/><circle cx="173.0" cy="172.2" r="3.5" class="dot-inv"/><circle cx="245.7" cy="181.1" r="3.5" class="dot-inv"/><circle cx="318.3" cy="155.6" r="3.5" class="dot-inv"/><circle cx="391.0" cy="138.9" r="3.5" class="dot-inv"/><circle cx="463.7" cy="136.6" r="3.5" class="dot-inv"/><circle cx="536.3" cy="101.8" r="3.5" class="dot-inv"/><circle cx="609.0" cy="91.1" r="3.5" class="dot-inv"/><circle cx="681.7" cy="84.0" r="3.5" class="dot-inv"/><circle cx="754.3" cy="52.0" r="3.5" class="dot-inv"/><circle cx="827.0" cy="48.6" r="3.5" class="dot-inv"/></svg><div class="tip" style="left:74%; top:6%"><div class="tip-h">Oct</div><div>Investment delta: <b>+₹18,826.38</b></div><div>Invested (₹): <b>₹8,98,847.70</b></div></div></div><div class="legend"><span><i class="sw sw-up"></i>Money added</span><span><i class="sw sw-down"></i>Sold (cost basis)</span><span><i class="sw sw-line"></i>Invested at month end</span></div>
             </div>
-          </div>
-          </div>
+          </div></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
         </div>
       </div>
     </div>
     <ol class="annotations">
-      <li><b>1</b><span>Twelve bars, Jan to Dec. Each is that month's <strong>investment delta</strong>, the same figure as the History card for the month: October is 8,98,847.70 − 8,80,021.32 = <strong>+₹18,826.38</strong>. Green for money in, red for cost basis sold (March). December has no row yet, so no bar and no point. November is the current month: inside the live window, before today's snapshot lands, its bar and point include <strong>today's live row</strong> from live prices, the same row the History card reads (History's live-row logic, moved into the shared <code>useLiveHistoryRows</code> hook), so a buy made today shows at once and the month still equals the card. The line, on its own right-hand axis, is invested at each month end (₹8,98,847.70 for October): a month's delta is a small fraction of the total, so the two never share an axis. ‹ › change the year (› disabled on the current year); the switch offers only columns with money invested, Gold only for a gold-tracking user. PRD-007 §4–§5, DD-007 §3–§4.</span></li>
+      <li><b>1</b><span>Twelve bars, Jan to Dec. Each is that month's <strong>investment delta</strong>, the same figure as the History card for the month: October is 8,98,847.70 − 8,80,021.32 = <strong>+₹18,826.38</strong>. Green for money in, red for cost basis sold (March). December has no row yet, so no bar and no point. November is the current month: inside the live window, before today's snapshot lands, its bar and point include <strong>today's live row</strong> from live prices, the same row the History card reads (History's live-row logic, moved into the shared <code>useLiveHistoryRows</code> hook), so a buy made today shows at once and the month still equals the card. The line, on its own right-hand axis, is invested at each month end (₹8,98,847.70 for October): a month's delta is a small fraction of the total, so the two never share an axis. ‹ › change the year (› disabled on the current year); the switch offers only columns with money invested, Gold only for a gold-tracking user. After a transaction is added, edited or deleted in a holding&#39;s ledger from this page, the open panel reloads the year (the backend has healed the snapshots by then) with the chart kept on screen meanwhile; collapsed, it fetches nothing. PRD-007 §4–§5, DD-007 §3–§4.</span></li>
     </ol>
   </section>
 
@@ -655,7 +653,7 @@
         <div class="app-main">
           <div class="marked"><span class="pin">A</span>
           <div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2025</div>
+            <div class="dock-handle">▲ Investment delta · 2025</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2025</span><span class="btn btn-sm">›</span></div>
@@ -667,7 +665,7 @@
           </div>
           <div class="states">
             <div class="marked"><span class="pin">B</span><div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-handle">▲ Investment delta · 2026</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
@@ -677,7 +675,7 @@
             </div>
           </div></div>
             <div class="marked"><span class="pin">C</span><div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2021</div>
+            <div class="dock-handle">▲ Investment delta · 2021</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2021</span><span class="btn btn-sm">›</span></div>
@@ -687,7 +685,7 @@
             </div>
           </div></div>
             <div class="marked"><span class="pin">D</span><div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2026</div>
+            <div class="dock-handle">▲ Investment delta · 2026</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
@@ -697,7 +695,7 @@
             </div>
           </div></div>
             <div class="marked"><span class="pin">E</span><div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2020</div>
+            <div class="dock-handle">▲ Investment delta · 2020</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm disabled">‹</span><span class="mono year">2020</span><span class="btn btn-sm">›</span></div>
@@ -727,8 +725,8 @@
           <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
         <div class="app-main">
           <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
-          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
           <span class="muted-note marked"><span class="pin">1</span>(no Investment delta bar)</span>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr><tr><td>17-10-2026</td><td>Infosys</td><td>Buy</td><td class="num">₹12,040.00</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -745,10 +743,8 @@
           <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
         <div class="app-main">
           <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span><span class="muted-note"><b class="mono">142</b> transactions</span></div>
-          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr></tbody></table>
-          <div class="marked"><span class="pin">1</span>
-          <div class="dock">
-            <div class="dock-handle">▼ Investment delta · 2026</div>
+          <div class="marked"><span class="pin">1</span><div class="dock">
+            <div class="dock-handle">▲ Investment delta · 2026</div>
             <div class="dock-body">
               <div class="dock-toolbar">
                 <div class="year-nav"><span class="btn btn-sm">‹</span><span class="mono year">2026</span><span class="btn btn-sm disabled">›</span></div>
@@ -756,8 +752,8 @@
               </div>
               <div class="chart-box"><svg viewBox="0 0 360 220" class="delta-svg" role="img" aria-label="Investment delta bars and invested line"><line x1="64" x2="296" y1="16.0" y2="16.0" class="grid"/><text x="56" y="20.0" class="tick" text-anchor="end">25k</text><text x="304" y="20.0" class="tick">920k</text><line x1="64" x2="296" y1="59.5" y2="59.5" class="grid"/><text x="56" y="63.5" class="tick" text-anchor="end">16k</text><text x="304" y="63.5" class="tick">890k</text><line x1="64" x2="296" y1="103.0" y2="103.0" class="grid"/><text x="56" y="107.0" class="tick" text-anchor="end">8k</text><text x="304" y="107.0" class="tick">860k</text><line x1="64" x2="296" y1="146.5" y2="146.5" class="grid"/><text x="56" y="150.5" class="tick" text-anchor="end">-1k</text><text x="304" y="150.5" class="tick">830k</text><line x1="64" x2="296" y1="190.0" y2="190.0" class="grid"/><text x="56" y="194.0" class="tick" text-anchor="end">-10k</text><text x="304" y="194.0" class="tick">800k</text><line x1="64" x2="296" y1="140.3" y2="140.3" class="zero"/><text x="73.7" y="210" class="tick" text-anchor="middle">Jan</text><rect x="68.8" y="78.6" width="9.7" height="61.6" rx="3" class="bar-up"/><text x="93.0" y="210" class="tick" text-anchor="middle">Feb</text><rect x="88.2" y="99.8" width="9.7" height="40.5" rx="3" class="bar-up"/><text x="112.3" y="210" class="tick" text-anchor="middle">Mar</text><rect x="107.5" y="140.3" width="9.7" height="25.9" rx="3" class="bar-down"/><text x="131.7" y="210" class="tick" text-anchor="middle">Apr</text><rect x="126.8" y="65.7" width="9.7" height="74.6" rx="3" class="bar-up"/><text x="151.0" y="210" class="tick" text-anchor="middle">May</text><rect x="146.2" y="91.6" width="9.7" height="48.7" rx="3" class="bar-up"/><text x="170.3" y="210" class="tick" text-anchor="middle">Jun</text><rect x="165.5" y="133.5" width="9.7" height="6.8" rx="3" class="bar-up"/><text x="189.7" y="210" class="tick" text-anchor="middle">Jul</text><rect x="184.8" y="38.4" width="9.7" height="101.9" rx="3" class="bar-up"/><text x="209.0" y="210" class="tick" text-anchor="middle">Aug</text><rect x="204.2" y="109.0" width="9.7" height="31.3" rx="3" class="bar-up"/><text x="228.3" y="210" class="tick" text-anchor="middle">Sep</text><rect x="223.5" y="119.6" width="9.7" height="20.7" rx="3" class="bar-up"/><text x="247.7" y="210" class="tick" text-anchor="middle">Oct</text><rect x="242.8" y="46.7" width="9.7" height="93.6" rx="3" class="bar-up bar-hl"/><text x="267.0" y="210" class="tick" text-anchor="middle">Nov</text><rect x="262.2" y="130.3" width="9.7" height="9.9" rx="3" class="bar-up"/><text x="286.3" y="210" class="tick" text-anchor="middle">Dec</text><polyline class="line-inv" points="73.7,161.1 93.0,149.3 112.3,156.8 131.7,135.1 151.0,120.8 170.3,118.9 189.7,89.2 209.0,80.0 228.3,74.0 247.7,46.7 267.0,43.8"/><circle cx="73.7" cy="161.1" r="3.5" class="dot-inv"/><circle cx="93.0" cy="149.3" r="3.5" class="dot-inv"/><circle cx="112.3" cy="156.8" r="3.5" class="dot-inv"/><circle cx="131.7" cy="135.1" r="3.5" class="dot-inv"/><circle cx="151.0" cy="120.8" r="3.5" class="dot-inv"/><circle cx="170.3" cy="118.9" r="3.5" class="dot-inv"/><circle cx="189.7" cy="89.2" r="3.5" class="dot-inv"/><circle cx="209.0" cy="80.0" r="3.5" class="dot-inv"/><circle cx="228.3" cy="74.0" r="3.5" class="dot-inv"/><circle cx="247.7" cy="46.7" r="3.5" class="dot-inv"/><circle cx="267.0" cy="43.8" r="3.5" class="dot-inv"/></svg></div><div class="legend"><span><i class="sw sw-up"></i>Money added</span><span><i class="sw sw-down"></i>Sold (cost basis)</span><span><i class="sw sw-line"></i>Invested at month end</span></div>
             </div>
-          </div>
-          </div>
+          </div></div>
+          <table class="hist"><thead><tr><th>Date</th><th>Holding</th><th>Type</th><th class="num">Amount</th></tr></thead><tbody><tr><td>30-10-2026</td><td>Tata Consultancy</td><td>Buy</td><td class="num">₹48,912.00</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -785,8 +781,8 @@
       <table class="spec">
         <thead><tr><th>Frame</th><th>Commitment</th><th>PD-050 task</th></tr></thead>
         <tbody>
-          <tr><td>01</td><td>Collapsed handle bar docked at the bottom by default; no fetch while collapsed; state remembered</td><td>5, 6</td></tr>
-          <tr><td>02</td><td>Bars = the card's monthly investment delta (green / red), line = month-end invested on its own axis; Oct 2026 exact; the current month includes today's live row</td><td>2, 3, 4, 5</td></tr>
+          <tr><td>01</td><td>Collapsed handle bar below the filters by default; no fetch while collapsed; state remembered</td><td>5, 6</td></tr>
+          <tr><td>02</td><td>Bars = the card's monthly investment delta (green / red), line = month-end invested on its own axis; Oct 2026 exact; the current month includes today's live row; reloads after a ledger edit</td><td>2, 3, 4, 5</td></tr>
           <tr><td>03 A–E</td><td>Opens-from-zero, year arrows with bounds, column switch from rows inside the year, loading / empty (baseline-only included) / error states</td><td>2, 5</td></tr>
           <tr><td>04</td><td>Not rendered in admin act-as</td><td>6</td></tr>
           <tr><td>05</td><td>Fills a phone width; toolbar wraps</td><td>4, 5</td></tr>
@@ -796,7 +792,7 @@
   </section>
 
   <footer class="doc-foot">
-    <span>PD-050 visual spec v2</span>
+    <span>PD-050 visual spec v3</span>
     <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
     <span>Mockup, not production markup</span>
   </footer>
