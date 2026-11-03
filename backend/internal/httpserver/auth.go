@@ -76,13 +76,14 @@ const (
 var routeTiers = map[string]routeTier{
 	// Super-admin only — promote / demote / change-region, plus the
 	// admin-roster view itself.
-	"GET /api/admin/admins":             tierSuperAdmin,
-	"POST /api/admin/users/:id/promote": tierSuperAdmin,
-	"POST /api/admin/users/:id/demote":  tierSuperAdmin,
-	"PUT /api/admin/users/:id/region":   tierSuperAdmin,
-	"PUT /api/admin/users/:id/gold":     tierSuperAdmin,
-	"PUT /api/admin/users/:id/premium":  tierSuperAdmin,
-	"PUT /api/admin/branding":           tierSuperAdmin,
+	"GET /api/admin/admins":                       tierSuperAdmin,
+	"POST /api/admin/users/:id/promote":           tierSuperAdmin,
+	"POST /api/admin/users/:id/demote":            tierSuperAdmin,
+	"PUT /api/admin/users/:id/region":             tierSuperAdmin,
+	"PUT /api/admin/users/:id/gold":               tierSuperAdmin,
+	"PUT /api/admin/users/:id/premium":            tierSuperAdmin,
+	"PUT /api/admin/users/:id/delta-from-history": tierSuperAdmin,
+	"PUT /api/admin/branding":                     tierSuperAdmin,
 
 	// Admin or super-admin — every other /api/admin/... route.
 	"GET /api/admin/users":                                       tierAdmin,

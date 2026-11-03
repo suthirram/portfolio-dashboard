@@ -252,6 +252,27 @@ func (e HoldingWithPriceType) Valid() bool {
 	}
 }
 
+// Defines values for InvestmentDeltaColumnColumn.
+const (
+	InvestmentDeltaColumnColumnEUR  InvestmentDeltaColumnColumn = "EUR"
+	InvestmentDeltaColumnColumnGOLD InvestmentDeltaColumnColumn = "GOLD"
+	InvestmentDeltaColumnColumnINR  InvestmentDeltaColumnColumn = "INR"
+)
+
+// Valid indicates whether the value is a known member of the InvestmentDeltaColumnColumn enum.
+func (e InvestmentDeltaColumnColumn) Valid() bool {
+	switch e {
+	case InvestmentDeltaColumnColumnEUR:
+		return true
+	case InvestmentDeltaColumnColumnGOLD:
+		return true
+	case InvestmentDeltaColumnColumnINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TradeImportRowExchange.
 const (
 	TradeImportRowExchangeBSE TradeImportRowExchange = "BSE"
@@ -410,16 +431,16 @@ func (e UserRole) Valid() bool {
 
 // Defines values for DividendCurrency.
 const (
-	EUR DividendCurrency = "EUR"
-	INR DividendCurrency = "INR"
+	DividendCurrencyEUR DividendCurrency = "EUR"
+	DividendCurrencyINR DividendCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the DividendCurrency enum.
 func (e DividendCurrency) Valid() bool {
 	switch e {
-	case EUR:
+	case DividendCurrencyEUR:
 		return true
-	case INR:
+	case DividendCurrencyINR:
 		return true
 	default:
 		return false
@@ -1019,6 +1040,36 @@ type HoldingWithPriceExchange string
 // HoldingWithPriceType defines model for HoldingWithPrice.Type.
 type HoldingWithPriceType string
 
+// InvestmentDelta defines model for InvestmentDelta.
+type InvestmentDelta struct {
+	// Columns Columns with money invested at some month end of the year
+	Columns []InvestmentDeltaColumn `json:"columns"`
+	Year    int                     `json:"year"`
+}
+
+// InvestmentDeltaColumn defines model for InvestmentDeltaColumn.
+type InvestmentDeltaColumn struct {
+	Column InvestmentDeltaColumnColumn `json:"column"`
+
+	// Months 12 entries, January first
+	Months []InvestmentDeltaMonth `json:"months"`
+}
+
+// InvestmentDeltaColumnColumn defines model for InvestmentDeltaColumn.Column.
+type InvestmentDeltaColumnColumn string
+
+// InvestmentDeltaMonth defines model for InvestmentDeltaMonth.
+type InvestmentDeltaMonth struct {
+	// Delta invested minus the previous month end's; null after today
+	Delta *float64 `json:"delta,omitempty"`
+
+	// Invested Cost basis at the month end (today for the current month); null after today
+	Invested *float64 `json:"invested,omitempty"`
+
+	// Month0 0 = January
+	Month0 int `json:"month0"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Password string `json:"password"`
@@ -1334,6 +1385,9 @@ type UpdateSecurityQuestionsRequest struct {
 type User struct {
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 
+	// DeltaFromHistory The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052)
+	DeltaFromHistory bool `json:"delta_from_history"`
+
 	// Disabled Hidden (reversibly blocked) by an admin
 	Disabled bool `json:"disabled"`
 
@@ -1367,6 +1421,12 @@ type User struct {
 
 // UserRole defines model for User.Role.
 type UserRole string
+
+// UserFlagToggleRequest defines model for UserFlagToggleRequest.
+type UserFlagToggleRequest struct {
+	// Enabled Turn the per-user switch on or off for the account
+	Enabled bool `json:"enabled"`
+}
 
 // DividendCurrency defines model for DividendCurrency.
 type DividendCurrency string

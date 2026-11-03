@@ -275,6 +275,7 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 		Locked:             u.Locked,
 		GoldEnabled:        u.GoldEnabled,
 		Premium:            u.Premium,
+		DeltaFromHistory:   u.DeltaFromHistory,
 		MustChangePassword: u.MustChangePassword,
 	}
 	if out.Username == "" {

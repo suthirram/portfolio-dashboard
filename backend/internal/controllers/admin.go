@@ -397,27 +397,15 @@ func (h *Controller) AdminSetUserRegion(ctx context.Context, request api.AdminSe
 // toggle their own account — the owner is the primary gold user. Toggling
 // off hides gold data but deletes nothing.
 func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetUserGoldRequestObject) (api.AdminSetUserGoldResponseObject, error) {
-	caller, ok := superAdminCaller(ctx)
-	if !ok {
-		return api.AdminSetUserGold403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
-	}
-	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
-	if err != nil {
+	allowed, found, err := h.setUserFlag(ctx, request.Id, "gold_enabled", request.Body.Enabled)
+	switch {
+	case err != nil:
 		return nil, err
-	}
-	if !found {
+	case !allowed:
+		return api.AdminSetUserGold403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
 		return api.AdminSetUserGold404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-
-	if err := h.store.Users.Update(ctx, target.ID, bson.M{
-		"gold_enabled": request.Body.Enabled,
-		"updated_at":   time.Now(),
-	}); err != nil {
-		h.reqLog(ctx).Error("gold toggle failed", zap.String("error", err.Error()))
-		return nil, err
-	}
-	h.reqLog(ctx).Info("gold tracking toggled",
-		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
 	return api.AdminSetUserGold204Response{}, nil
 }
 
@@ -426,29 +414,55 @@ func (h *Controller) AdminSetUserGold(ctx context.Context, request api.AdminSetU
 // the gold toggle, the super admin may toggle their own account. Toggling
 // off revokes eligibility but deletes nothing.
 func (h *Controller) AdminSetUserPremium(ctx context.Context, request api.AdminSetUserPremiumRequestObject) (api.AdminSetUserPremiumResponseObject, error) {
-	caller, ok := superAdminCaller(ctx)
-	if !ok {
-		return api.AdminSetUserPremium403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
-	}
-	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
-	if err != nil {
+	allowed, found, err := h.setUserFlag(ctx, request.Id, "premium", request.Body.Enabled)
+	switch {
+	case err != nil:
 		return nil, err
-	}
-	if !found {
+	case !allowed:
+		return api.AdminSetUserPremium403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
 		return api.AdminSetUserPremium404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
 	}
-
-	logger := h.reqLog(ctx)
-	if err := h.store.Users.Update(ctx, target.ID, bson.M{
-		"premium":    request.Body.Enabled,
-		"updated_at": time.Now(),
-	}); err != nil {
-		logger.Error("premium toggle failed", zap.Error(err))
-		return nil, err
-	}
-	logger.Info("premium toggled",
-		zap.String("target", target.ID.Hex()), zap.Bool("enabled", request.Body.Enabled))
 	return api.AdminSetUserPremium204Response{}, nil
+}
+
+// AdminSetUserDeltaFromHistory switches an account's investment delta on
+// Transactions back to History rows (PD-052); off (default) computes it
+// from the ledger. Super admin only; like gold and premium, the super admin
+// may switch their own account.
+func (h *Controller) AdminSetUserDeltaFromHistory(ctx context.Context, request api.AdminSetUserDeltaFromHistoryRequestObject) (api.AdminSetUserDeltaFromHistoryResponseObject, error) {
+	allowed, found, err := h.setUserFlag(ctx, request.Id, "delta_from_history", request.Body.Enabled)
+	switch {
+	case err != nil:
+		return nil, err
+	case !allowed:
+		return api.AdminSetUserDeltaFromHistory403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
+		return api.AdminSetUserDeltaFromHistory404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	return api.AdminSetUserDeltaFromHistory204Response{}, nil
+}
+
+// setUserFlag is the super-admin per-user switch shared by the gold,
+// premium and delta-source toggles: load the target in the caller's scope,
+// set field to enabled (and updated_at), log it. allowed=false: the caller
+// is not the super admin (403); found=false: no such user (404).
+func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, enabled bool) (allowed, found bool, err error) {
+	caller, ok := superAdminCaller(ctx)
+	if !ok {
+		return false, false, nil
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, userIdHex)
+	if err != nil || !found {
+		return true, found, err
+	}
+	logger := h.reqLog(ctx)
+	if err := h.store.Users.Update(ctx, target.ID, bson.M{field: enabled, "updated_at": time.Now()}); err != nil {
+		logger.Error("user flag toggle failed", zap.String("flag", field), zap.Error(err))
+		return true, true, err
+	}
+	logger.Info("user flag toggled", zap.String("flag", field), zap.String("target", target.ID.Hex()), zap.Bool("enabled", enabled))
+	return true, true, nil
 }
 
 // Act on a user's portfolio (region-scoped).
