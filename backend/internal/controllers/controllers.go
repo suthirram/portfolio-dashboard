@@ -28,6 +28,7 @@ type Controller struct {
 	portfolio    *services.PortfolioService
 	history      *services.HistoryService
 	dividends    *services.DividendsService
+	tradeImport  *services.TradeImportService
 	gold         *services.GoldService // nil when Postgres is not configured (DD-003 §1) — gold routes answer 503
 	logger       *zap.Logger
 	cookieSecure bool
@@ -56,15 +57,16 @@ func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller 
 // price service. Used by New and by tests that supply an in-memory mock store
 // or a stub price fetcher.
 func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
+	recomputer := services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger)
 	return &Controller{
 		store:        store,
 		priceService: priceService,
 		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, logger),
-		transactions: services.NewTransactionsService(store.Transactions, store.Holdings,
-			services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger), logger),
+		transactions: services.NewTransactionsService(store.Transactions, store.Holdings, recomputer, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
 		dividends:    services.NewDividendsService(store.Transactions, store.Holdings, store, logger),
+		tradeImport:  services.NewTradeImportService(store.Transactions, store.Holdings, store, recomputer, logger),
 		logger:       logger,
 		cookieSecure: cookieSecure,
 	}

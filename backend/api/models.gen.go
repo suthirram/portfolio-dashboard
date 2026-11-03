@@ -209,25 +209,25 @@ func (e HoldingWithPriceCurrency) Valid() bool {
 
 // Defines values for HoldingWithPriceExchange.
 const (
-	BSE    HoldingWithPriceExchange = "BSE"
-	NASDAQ HoldingWithPriceExchange = "NASDAQ"
-	NSE    HoldingWithPriceExchange = "NSE"
-	NYSE   HoldingWithPriceExchange = "NYSE"
-	OTHER  HoldingWithPriceExchange = "OTHER"
+	HoldingWithPriceExchangeBSE    HoldingWithPriceExchange = "BSE"
+	HoldingWithPriceExchangeNASDAQ HoldingWithPriceExchange = "NASDAQ"
+	HoldingWithPriceExchangeNSE    HoldingWithPriceExchange = "NSE"
+	HoldingWithPriceExchangeNYSE   HoldingWithPriceExchange = "NYSE"
+	HoldingWithPriceExchangeOTHER  HoldingWithPriceExchange = "OTHER"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceExchange enum.
 func (e HoldingWithPriceExchange) Valid() bool {
 	switch e {
-	case BSE:
+	case HoldingWithPriceExchangeBSE:
 		return true
-	case NASDAQ:
+	case HoldingWithPriceExchangeNASDAQ:
 		return true
-	case NSE:
+	case HoldingWithPriceExchangeNSE:
 		return true
-	case NYSE:
+	case HoldingWithPriceExchangeNYSE:
 		return true
-	case OTHER:
+	case HoldingWithPriceExchangeOTHER:
 		return true
 	default:
 		return false
@@ -246,6 +246,42 @@ func (e HoldingWithPriceType) Valid() bool {
 	case Etf:
 		return true
 	case Stock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TradeImportRowExchange.
+const (
+	TradeImportRowExchangeBSE TradeImportRowExchange = "BSE"
+	TradeImportRowExchangeNSE TradeImportRowExchange = "NSE"
+)
+
+// Valid indicates whether the value is a known member of the TradeImportRowExchange enum.
+func (e TradeImportRowExchange) Valid() bool {
+	switch e {
+	case TradeImportRowExchangeBSE:
+		return true
+	case TradeImportRowExchangeNSE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TradeImportRowType.
+const (
+	TradeImportRowTypeBuy  TradeImportRowType = "buy"
+	TradeImportRowTypeSell TradeImportRowType = "sell"
+)
+
+// Valid indicates whether the value is a known member of the TradeImportRowType enum.
+func (e TradeImportRowType) Valid() bool {
+	switch e {
+	case TradeImportRowTypeBuy:
+		return true
+	case TradeImportRowTypeSell:
 		return true
 	default:
 		return false
@@ -320,31 +356,31 @@ func (e TransactionInputType) Valid() bool {
 
 // Defines values for TransactionWithHoldingType.
 const (
-	Bonus    TransactionWithHoldingType = "bonus"
-	Buy      TransactionWithHoldingType = "buy"
-	Dividend TransactionWithHoldingType = "dividend"
-	Merger   TransactionWithHoldingType = "merger"
-	Opening  TransactionWithHoldingType = "opening"
-	Sell     TransactionWithHoldingType = "sell"
-	Split    TransactionWithHoldingType = "split"
+	TransactionWithHoldingTypeBonus    TransactionWithHoldingType = "bonus"
+	TransactionWithHoldingTypeBuy      TransactionWithHoldingType = "buy"
+	TransactionWithHoldingTypeDividend TransactionWithHoldingType = "dividend"
+	TransactionWithHoldingTypeMerger   TransactionWithHoldingType = "merger"
+	TransactionWithHoldingTypeOpening  TransactionWithHoldingType = "opening"
+	TransactionWithHoldingTypeSell     TransactionWithHoldingType = "sell"
+	TransactionWithHoldingTypeSplit    TransactionWithHoldingType = "split"
 )
 
 // Valid indicates whether the value is a known member of the TransactionWithHoldingType enum.
 func (e TransactionWithHoldingType) Valid() bool {
 	switch e {
-	case Bonus:
+	case TransactionWithHoldingTypeBonus:
 		return true
-	case Buy:
+	case TransactionWithHoldingTypeBuy:
 		return true
-	case Dividend:
+	case TransactionWithHoldingTypeDividend:
 		return true
-	case Merger:
+	case TransactionWithHoldingTypeMerger:
 		return true
-	case Opening:
+	case TransactionWithHoldingTypeOpening:
 		return true
-	case Sell:
+	case TransactionWithHoldingTypeSell:
 		return true
-	case Split:
+	case TransactionWithHoldingTypeSplit:
 		return true
 	default:
 		return false
@@ -1118,6 +1154,74 @@ type Summary struct {
 	TotalUnrealized       *float64 `json:"total_unrealized,omitempty"`
 	TotalUnrealizedEur    *float64 `json:"total_unrealized_eur,omitempty"`
 }
+
+// TradeImportCounts defines model for TradeImportCounts.
+type TradeImportCounts struct {
+	// Covered Rows on or before the holding's opening date
+	Covered int `json:"covered"`
+	Invalid int `json:"invalid"`
+
+	// Ready New trades
+	Ready int `json:"ready"`
+
+	// Replace Rows that replace an identical existing trade
+	Replace int `json:"replace"`
+	Total   int `json:"total"`
+}
+
+// TradeImportInput defines model for TradeImportInput.
+type TradeImportInput struct {
+	// Create Sheet symbols to create a new INR holding for
+	Create *[]string `json:"create,omitempty"`
+
+	// Mappings Popup answers by sheet symbol — a holding id, or null to leave unresolved
+	Mappings *map[string]*string `json:"mappings,omitempty"`
+	Rows     []TradeImportRow    `json:"rows"`
+}
+
+// TradeImportPreview defines model for TradeImportPreview.
+type TradeImportPreview struct {
+	Counts TradeImportCounts `json:"counts"`
+
+	// Names Per sheet symbol; status adds create
+	Names []DividendNameResolution `json:"names"`
+
+	// Rows status: ready | replace | covered | invalid
+	Rows     []DividendImportRowStatus `json:"rows"`
+	Warnings []DividendImportWarning   `json:"warnings"`
+}
+
+// TradeImportResult defines model for TradeImportResult.
+type TradeImportResult struct {
+	Covered         int `json:"covered"`
+	CreatedHoldings int `json:"created_holdings"`
+	Imported        int `json:"imported"`
+	Replaced        int `json:"replaced"`
+}
+
+// TradeImportRow defines model for TradeImportRow.
+type TradeImportRow struct {
+	// Amount Total cash value of the trade
+	Amount   float64                `json:"amount"`
+	Date     openapi_types.Date     `json:"date"`
+	Exchange TradeImportRowExchange `json:"exchange"`
+	Isin     *string                `json:"isin,omitempty"`
+
+	// Line 1-based file line (header = 1)
+	Line      int     `json:"line"`
+	Quantity  float64 `json:"quantity"`
+	StockName string  `json:"stock_name"`
+
+	// Symbol Exchange ticker without suffix (KALYANKJIL)
+	Symbol string             `json:"symbol"`
+	Type   TradeImportRowType `json:"type"`
+}
+
+// TradeImportRowExchange defines model for TradeImportRow.Exchange.
+type TradeImportRowExchange string
+
+// TradeImportRowType defines model for TradeImportRow.Type.
+type TradeImportRowType string
 
 // Transaction defines model for Transaction.
 type Transaction struct {

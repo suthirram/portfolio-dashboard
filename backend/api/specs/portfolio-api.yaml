@@ -1171,6 +1171,57 @@ components:
         duplicates: { type: array, items: { $ref: "#/components/schemas/DividendImportRow" } }
         batch_id: { type: string }
         warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    TradeImportRow:
+      type: object
+      required: [line, date, symbol, stock_name, exchange, type, quantity, amount]
+      properties:
+        line: { type: integer, description: 1-based file line (header = 1) }
+        date: { type: string, format: date }
+        symbol: { type: string, description: Exchange ticker without suffix (KALYANKJIL) }
+        stock_name: { type: string }
+        exchange: { type: string, enum: [NSE, BSE] }
+        type: { type: string, enum: [buy, sell] }
+        quantity: { type: number, format: double }
+        amount: { type: number, format: double, description: Total cash value of the trade }
+        isin: { type: string, nullable: true }
+    TradeImportInput:
+      type: object
+      required: [rows]
+      properties:
+        rows: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/TradeImportRow" } }
+        mappings:
+          type: object
+          description: Popup answers by sheet symbol — a holding id, or null to leave unresolved
+          additionalProperties: { type: string, nullable: true }
+        create:
+          type: array
+          description: Sheet symbols to create a new INR holding for
+          items: { type: string }
+    TradeImportCounts:
+      type: object
+      required: [ready, replace, covered, invalid, total]
+      properties:
+        ready: { type: integer, description: New trades }
+        replace: { type: integer, description: Rows that replace an identical existing trade }
+        covered: { type: integer, description: Rows on or before the holding's opening date }
+        invalid: { type: integer }
+        total: { type: integer }
+    TradeImportPreview:
+      type: object
+      required: [counts, names, rows, warnings]
+      properties:
+        counts: { $ref: "#/components/schemas/TradeImportCounts" }
+        names: { type: array, description: "Per sheet symbol; status adds create", items: { $ref: "#/components/schemas/DividendNameResolution" } }
+        rows: { type: array, description: "status: ready | replace | covered | invalid", items: { $ref: "#/components/schemas/DividendImportRowStatus" } }
+        warnings: { type: array, items: { $ref: "#/components/schemas/DividendImportWarning" } }
+    TradeImportResult:
+      type: object
+      required: [imported, replaced, covered, created_holdings]
+      properties:
+        imported: { type: integer }
+        replaced: { type: integer }
+        covered: { type: integer }
+        created_holdings: { type: integer }
     DividendHistoryOverlay:
       type: object
       required: [to_date, on_day]

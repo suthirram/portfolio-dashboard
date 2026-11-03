@@ -78,6 +78,16 @@ func (s *TransactionStore) ListDividendsByHoldings(ctx context.Context, userId p
 	}), dividendOrder)
 }
 
+// ListTradesByHoldings returns the buy and sell events of the given holdings
+// with from ≤ date ≤ to — the replace window of a trades import.
+func (s *TransactionStore) ListTradesByHoldings(ctx context.Context, userId primitive.ObjectID, holdingIds []primitive.ObjectID, from, to time.Time) ([]domain.Transaction, error) {
+	return s.find(ctx, scopedFilter(userId, bson.M{
+		"type":       bson.M{"$in": []string{string(domain.TxnBuy), string(domain.TxnSell)}},
+		"holding_id": bson.M{"$in": holdingIds},
+		"date":       bson.M{"$gte": from, "$lte": to},
+	}), dividendOrder)
+}
+
 // OpeningsByUser returns uid's opening events keyed by holding id (one per
 // holding — the opening is seeded once). Used to enrich the holdings list with
 // each holding's opening-date status in a single query.

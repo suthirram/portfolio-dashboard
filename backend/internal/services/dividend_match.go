@@ -155,10 +155,13 @@ func suggestionScore(name string, holding domain.Holding) float64 {
 	return best
 }
 
-// nameCount is one distinct sheet name and how many rows use it.
+// nameCount is one distinct sheet name and how many rows use it. label is
+// the text suggestions are scored on: the name itself for a dividend sheet,
+// the stock name for a trade sheet keyed by symbol.
 type nameCount struct {
-	name string
-	rows int
+	name  string
+	label string
+	rows  int
 }
 
 // countNames lists distinct sheet names in first-appearance order.
@@ -175,7 +178,7 @@ func countNames(rows []api.DividendImportRow) []nameCount {
 			continue
 		}
 		index[name] = len(out)
-		out = append(out, nameCount{name: name, rows: 1})
+		out = append(out, nameCount{name: name, label: name, rows: 1})
 	}
 	return out
 }
@@ -193,39 +196,53 @@ type exactMatch struct {
 	by      string
 }
 
-// resolveNames resolves each sheet name against candidates (the tab's
-// currency only), honouring the user's popup answers in mappings: a holding
-// id confirms, nil leaves the name unresolved.
+// matchIndex maps an exactKey to the holdings it names automatically.
+type matchIndex map[string][]exactMatch
+
+// add records that key names holding (by = how: script, symbol, alias).
+func (index matchIndex) add(key, by string, holding *domain.Holding) {
+	if key == "" {
+		return
+	}
+	for _, match := range index[key] {
+		if match.holding.ID == holding.ID {
+			return
+		}
+	}
+	index[key] = append(index[key], exactMatch{holding: holding, by: by})
+}
+
+// resolveNames resolves each dividend sheet name against candidates (the
+// tab's currency only), honouring the user's popup answers in mappings: a
+// holding id confirms, nil leaves the name unresolved.
 func resolveNames(names []nameCount, candidates []domain.Holding, mappings map[string]*string) []nameResolution {
-	exact := map[string][]exactMatch{}
-	holdingsById := map[string]*domain.Holding{}
+	index := matchIndex{}
 	for i := range candidates {
 		holding := &candidates[i]
-		holdingsById[holding.ID.Hex()] = holding
-		addMatch := func(key, by string) {
-			if key == "" {
-				return
-			}
-			for _, match := range exact[key] {
-				if match.holding.ID == holding.ID {
-					return
-				}
-			}
-			exact[key] = append(exact[key], exactMatch{holding: holding, by: by})
-		}
 		// Automatic matches: the display name (case/space-insensitive) or a name
 		// the owner confirmed before. The symbol is deliberately absent — a
 		// symbol-shaped sheet name is a suggestion (suggestionScore), not a match.
-		addMatch(exactKey(holding.Script), "script")
+		index.add(exactKey(holding.Script), "script", holding)
 		for _, alias := range holding.Aliases {
-			addMatch(alias, "alias")
+			index.add(alias, "alias", holding)
 		}
+	}
+	return resolveWith(names, index, candidates, mappings)
+}
+
+// resolveWith is the resolution shared by every CSV import: an answer in
+// mappings wins; otherwise one exact match is automatic, several are
+// ambiguous, and none asks the user, with suggestions scored on the label.
+func resolveWith(names []nameCount, index matchIndex, candidates []domain.Holding, mappings map[string]*string) []nameResolution {
+	holdingsById := map[string]*domain.Holding{}
+	for i := range candidates {
+		holdingsById[candidates[i].ID.Hex()] = &candidates[i]
 	}
 
 	out := make([]nameResolution, 0, len(names))
 	for _, sheet := range names {
 		resolution := nameResolution{view: api.DividendNameResolution{SheetName: sheet.name, Rows: sheet.rows, Suggestions: []api.DividendSuggestion{}}}
-		matches := exact[exactKey(sheet.name)]
+		matches := index[exactKey(sheet.name)]
 
 		if answer, answered := mappings[sheet.name]; answered {
 			if holding := lookupAnswer(answer, holdingsById); holding == nil {
@@ -251,7 +268,7 @@ func resolveNames(names []nameCount, candidates []domain.Holding, mappings map[s
 			}
 		default:
 			resolution.view.Status = nameNeedsConfirmation
-			resolution.view.Suggestions, resolution.view.Preselect = suggest(sheet.name, candidates)
+			resolution.view.Suggestions, resolution.view.Preselect = suggest(sheet.label, candidates)
 		}
 		out = append(out, resolution)
 	}

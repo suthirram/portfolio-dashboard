@@ -561,3 +561,66 @@ users_id_transactions_transactionid:
         content: { application/json: { schema: { type: object, properties: { message: { type: string } } } } }
       "400": { $ref: "../portfolio-api.yaml#/components/responses/BadRequest" }
       "404": { $ref: "../portfolio-api.yaml#/components/responses/NotFound" }
+
+users_id_transactions_import_preview:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Evaluate a trades CSV import for a user (act-as) without writing anything
+    operationId: adminPreviewUserTradeImport
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/TradeImportInput"
+    responses:
+      "200":
+        description: What an import would do now
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/TradeImportPreview"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
+users_id_transactions_import:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+  post:
+    tags: [Admin]
+    summary: Commit a trades CSV import for a user (act-as) atomically
+    description: |
+      Re-runs the preview against the database as it is now and, when no row
+      is invalid, in one transaction: creates the confirmed new holdings,
+      inserts new trades, replaces identical existing trades in place, saves
+      confirmed aliases, recomputes the affected holdings and heals History
+      from the earliest trade. Rows covered by an opening balance are skipped.
+      422 returns the fresh preview when rows are invalid; nothing is written.
+    operationId: adminImportUserTrades
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/TradeImportInput"
+    responses:
+      "200":
+        description: Imported
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/TradeImportResult"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "422":
+        description: Invalid rows — nothing written
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/TradeImportPreview"

@@ -54,7 +54,42 @@ func RecomputePosition(txns []domain.Transaction) (Position, error) {
 	var dividendCents int64
 	var oversell error
 
-	for _, t := range ordered {
+	sell := func(t domain.Transaction) {
+		var avg float64
+		if totalQty > 0 {
+			avg = totalBasis / totalQty
+		}
+		qty := t.Quantity
+		if qty > totalQty {
+			qty = totalQty
+			oversell = ErrOversell
+		}
+		// proceeds (Amount) are the full sell credit; cost removed at avg.
+		pos.RealizedPnL += t.Amount - avg*qty
+		totalQty -= qty
+		totalBasis -= avg * qty
+	}
+	// Oversell is judged at the end of the day (owner, 2026-11-03): the
+	// ledger keeps days, not times, so a sell that exceeds the shares held
+	// waits for the rest of its day, where a same-day buy may cover it. Only
+	// a day that still ends short is an oversell. A ledger that never
+	// oversells never waits, so its replay is unchanged.
+	var waiting []domain.Transaction
+	settle := func(endOfDay bool) {
+		for len(waiting) > 0 && (endOfDay || waiting[0].Quantity <= totalQty) {
+			sell(waiting[0])
+			waiting = waiting[1:]
+		}
+	}
+
+	for i, t := range ordered {
+		if i > 0 && !domain.UTCDate(t.Date).Equal(domain.UTCDate(ordered[i-1].Date)) {
+			settle(true)
+		}
+		if t.Type == domain.TxnSell && t.Quantity > totalQty {
+			waiting = append(waiting, t)
+			continue
+		}
 		switch t.Type {
 		case domain.TxnOpening:
 			if t.Quantity > 0 {
@@ -68,19 +103,7 @@ func RecomputePosition(txns []domain.Transaction) (Position, error) {
 				totalBasis += t.Amount
 			}
 		case domain.TxnSell:
-			var avg float64
-			if totalQty > 0 {
-				avg = totalBasis / totalQty
-			}
-			qty := t.Quantity
-			if qty > totalQty {
-				qty = totalQty
-				oversell = ErrOversell
-			}
-			// proceeds (Amount) are the full sell credit; cost removed at avg.
-			pos.RealizedPnL += t.Amount - avg*qty
-			totalQty -= qty
-			totalBasis -= avg * qty
+			sell(t)
 		case domain.TxnSplit, domain.TxnBonus:
 			// quantity ×Ratio, basis invariant ⇒ running average tracks
 			// totalBasis/totalQty automatically.
@@ -92,7 +115,9 @@ func RecomputePosition(txns []domain.Transaction) (Position, error) {
 		case domain.TxnMerger:
 			// no-op on the position; recorded for audit only
 		}
+		settle(false)
 	}
+	settle(true)
 
 	pos.TotalDividends = domain.CentsToMoney(dividendCents)
 	pos.StocksOwned = totalQty
