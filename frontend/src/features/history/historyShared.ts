@@ -441,6 +441,23 @@ export type PerformanceColumn = RegionKey | 'GOLD'
 
 export const PERFORMANCE_COLUMNS: readonly PerformanceColumn[] = [...REGIONS, 'GOLD']
 
+export const PERFORMANCE_COLUMN_LABELS: Record<PerformanceColumn, string> = {
+  INR: '🇮🇳 India',
+  EUR: '🇪🇺 Europe',
+  GOLD: '🥇 Gold',
+}
+
+// Gold is valued in rupees, like its table column.
+export const PERFORMANCE_COLUMN_SYMBOL: Record<PerformanceColumn, string> = { ...CURRENCY_SYMBOL, GOLD: CURRENCY_SYMBOL.INR }
+
+// fmtSignedCurrency renders a money change with an explicit sign and a
+// U+2212 minus, e.g. "+₹18,826.38" / "−€475.92" (the PD-049 card and the
+// PD-050 chart).
+export function fmtSignedCurrency(amount: number, sym: string): string {
+  const sign = amount > 0 ? '+' : amount < 0 ? '−' : ''
+  return sign + fmtCurrency(Math.abs(amount), sym)
+}
+
 export interface PeriodPerformance {
   column: PerformanceColumn
   openingDate: string
@@ -458,7 +475,7 @@ export interface PeriodPerformance {
 
 // columnPosition reads one column's invested/current off a row; an empty
 // column (absent, or nothing invested) reads as zero.
-function columnPosition(row: HistoryRow, column: PerformanceColumn): { invested: number; current: number } {
+export function columnPosition(row: HistoryRow, column: PerformanceColumn): { invested: number; current: number } {
   const position = column === 'GOLD' ? row.gold : row.regions[column]
   return position && position.invested > 0
     ? { invested: position.invested, current: position.current }
@@ -510,6 +527,40 @@ export function periodPerformance(rows: HistoryRow[], monthStart: string): Perio
     })
   }
   return results
+}
+
+// ---- Monthly investment (PD-050) ----
+
+export interface MonthlyInvestment {
+  month0: number
+  // The month's investment delta (the History card's figure); null = no bar.
+  delta: number | null
+  // Invested on the month's closing row; null = no line point.
+  invested: number | null
+}
+
+// monthlyInvestment is, for one column and each month of `year` (Jan
+// first), the History card's investment delta and the invested amount at
+// the month end. rows are the year's History rows plus the latest row
+// before 1 Jan (include_previous). Each month runs periodPerformance on the
+// rows up to its last day, so the latest row before the month opens it and
+// its last row closes it, exactly as on the card. A month with no row of
+// its own (future, gap) has neither value; one with nothing to compare
+// against (a single-row first month) has a line point but no bar.
+export function monthlyInvestment(rows: HistoryRow[], year: number, column: PerformanceColumn): MonthlyInvestment[] {
+  return MONTHS.map((_, month0) => {
+    const { from, to } = monthRange(year, month0)
+    const upToMonthEnd = rows.filter(row => row.date <= to)
+    const closing = upToMonthEnd.reduce<HistoryRow | null>(
+      (latest, row) => (latest === null || row.date > latest.date ? row : latest), null)
+    if (!closing || closing.date < from) return { month0, delta: null, invested: null }
+    const performance = periodPerformance(upToMonthEnd, from).find(perf => perf.column === column)
+    return {
+      month0,
+      delta: performance ? performance.moneyInvested : null,
+      invested: columnPosition(closing, column).invested,
+    }
+  })
 }
 
 // regionInvestedWentUp reports whether the region's invested amount on
