@@ -35,13 +35,13 @@ export default function AdminUserList() {
   useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])
 
   const regionLabel = useCallback((id: string) =>
-    regions.find(r => r.id === id)?.label ?? id, [regions])
+    regions.find(region => region.id === id)?.label ?? id, [regions])
 
   const visible = useMemo(() => {
-    const q = filter.trim().toLowerCase()
-    return users.filter(u => {
-      if (!q) return true
-      return u.username.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+    const needle = filter.trim().toLowerCase()
+    return users.filter(listedUser => {
+      if (!needle) return true
+      return listedUser.username.toLowerCase().includes(needle) || listedUser.name.toLowerCase().includes(needle)
     })
   }, [users, filter])
 
@@ -58,15 +58,15 @@ export default function AdminUserList() {
     }
   }
 
-  const setRegionFor = async (u: User) => {
+  const setRegionFor = async (listedUser: User) => {
     if (!isSuper) return
     const choice = prompt(
-      `Move ${u.username} to which region? (${regions.map(r => r.id).join(', ')})`,
-      u.region || regions[0]?.id || '',
+      `Move ${listedUser.username} to which region? (${regions.map(region => region.id).join(', ')})`,
+      listedUser.region || regions[0]?.id || '',
     )
     if (!choice) return
-    if (!regions.find(r => r.id === choice)) { alert('Unknown region'); return }
-    await runAction(u.id, () => api.adminSetUserRegion(u.id, { region: choice }))
+    if (!regions.find(region => region.id === choice)) { alert('Unknown region'); return }
+    await runAction(listedUser.id, () => api.adminSetUserRegion(listedUser.id, { region: choice }))
   }
 
   const th: React.CSSProperties = {
@@ -137,23 +137,23 @@ export default function AdminUserList() {
               </tr>
             </thead>
             <tbody>
-              {visible.map(u => {
-                const isSelf = u.id === caller?.id
-                const isRowSuper = u.role === 'superadmin'
+              {visible.map(listedUser => {
+                const isSelf = listedUser.id === caller?.id
+                const isRowSuper = listedUser.role === 'superadmin'
                 const flags: string[] = []
-                if (u.disabled) flags.push('Hidden')
-                if (u.locked) flags.push('Locked')
+                if (listedUser.disabled) flags.push('Hidden')
+                if (listedUser.locked) flags.push('Locked')
                 return (
-                  <tr key={u.id} style={{ opacity: u.disabled ? 0.55 : 1 }}>
+                  <tr key={listedUser.id} style={{ opacity: listedUser.disabled ? 0.55 : 1 }}>
                     <td style={td}>
-                      <Link to={`/admin/users/${u.id}`} style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>
-                        {u.username}
+                      <Link to={`/admin/users/${listedUser.id}`} style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>
+                        {listedUser.username}
                       </Link>
                       {isSelf && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)' }}>(you)</span>}
                     </td>
-                    <td style={td}>{u.name}</td>
-                    <td style={td}>{u.role}</td>
-                    <td style={td}>{u.region ? regionLabel(u.region) : '—'}</td>
+                    <td style={td}>{listedUser.name}</td>
+                    <td style={td}>{listedUser.role}</td>
+                    <td style={td}>{listedUser.region ? regionLabel(listedUser.region) : '—'}</td>
                     <td style={td}>
                       {flags.length === 0
                         ? <span style={{ color: 'var(--green)' }}>Active</span>
@@ -161,61 +161,69 @@ export default function AdminUserList() {
                     </td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
-                        <Link to={`/admin/users/${u.id}`} className="btn btn-sm">
+                        <Link to={`/admin/users/${listedUser.id}`} className="btn btn-sm">
                           Open
                         </Link>
-                        {u.locked && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminResetLockout(u.id))}>
+                        {listedUser.locked && (
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminResetLockout(listedUser.id))}>
                             Unlock
                           </button>
                         )}
-                        {!isRowSuper && !u.disabled && !isSelf && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminHideUser(u.id), `Hide ${u.username}? They cannot log in until reactivated.`)}>
+                        {!isRowSuper && !listedUser.disabled && !isSelf && (
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminHideUser(listedUser.id), `Hide ${listedUser.username}? They cannot log in until reactivated.`)}>
                             Hide
                           </button>
                         )}
-                        {!isRowSuper && u.disabled && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminReactivateUser(u.id))}>
+                        {!isRowSuper && listedUser.disabled && (
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminReactivateUser(listedUser.id))}>
                             Reactivate
                           </button>
                         )}
-                        {isSuper && !isRowSuper && !isSelf && u.role === 'user' && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminPromoteUser(u.id), `Promote ${u.username} to admin?`)}>
+                        {isSuper && !isRowSuper && !isSelf && listedUser.role === 'user' && (
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminPromoteUser(listedUser.id), `Promote ${listedUser.username} to admin?`)}>
                             Promote
                           </button>
                         )}
-                        {isSuper && u.role === 'admin' && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminDemoteUser(u.id), `Demote ${u.username} back to user?`)}>
+                        {isSuper && listedUser.role === 'admin' && (
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminDemoteUser(listedUser.id), `Demote ${listedUser.username} back to user?`)}>
                             Demote
                           </button>
                         )}
                         {isSuper && !isRowSuper && !isSelf && (
-                          <button className="btn btn-sm" disabled={busy === u.id} onClick={() => setRegionFor(u)}>
+                          <button className="btn btn-sm" disabled={busy === listedUser.id} onClick={() => setRegionFor(listedUser)}>
                             Move region
                           </button>
                         )}
                         {isSuper && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminSetUserGold(u.id, { enabled: !u.gold_enabled }),
-                              u.gold_enabled ? `Disable gold tracking for ${u.username}? Data is kept, only hidden.` : undefined)}>
-                            {u.gold_enabled ? 'Disable gold' : 'Enable gold'}
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminSetUserGold(listedUser.id, { enabled: !listedUser.gold_enabled }),
+                              listedUser.gold_enabled ? `Disable gold tracking for ${listedUser.username}? Data is kept, only hidden.` : undefined)}>
+                            {listedUser.gold_enabled ? 'Disable gold' : 'Enable gold'}
                           </button>
                         )}
                         {isSuper && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminSetUserPremium(u.id, { enabled: !u.premium }),
-                              u.premium ? `Disable premium for ${u.username}? Their theme falls back to dark.` : undefined)}>
-                            {u.premium ? 'Disable premium' : 'Enable premium'}
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminSetUserPremium(listedUser.id, { enabled: !listedUser.premium }),
+                              listedUser.premium ? `Disable premium for ${listedUser.username}? Their theme falls back to dark.` : undefined)}>
+                            {listedUser.premium ? 'Disable premium' : 'Enable premium'}
+                          </button>
+                        )}
+                        {isSuper && (
+                          // PD-052: the Transactions investment delta reads the ledger by
+                          // default; this switches the account back to History rows.
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminSetUserDeltaFromHistory(listedUser.id, { enabled: !listedUser.delta_from_history }))}>
+                            {listedUser.delta_from_history ? 'Delta from ledger' : 'Delta from History'}
                           </button>
                         )}
                         {!isRowSuper && !isSelf && (
-                          <button className="btn btn-sm btn-danger" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminDeleteUser(u.id), `Permanently delete ${u.username} and all their holdings? This cannot be undone.`)}>
+                          <button className="btn btn-sm btn-danger" disabled={busy === listedUser.id}
+                            onClick={() => runAction(listedUser.id, () => api.adminDeleteUser(listedUser.id), `Permanently delete ${listedUser.username} and all their holdings? This cannot be undone.`)}>
                             Delete
                           </button>
                         )}

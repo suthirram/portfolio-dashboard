@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { User } from '../../lib/api/client'
+import { api, type User } from '../../lib/api/client'
 import AdminUserList from './AdminUserList'
 
 const superAdmin: User = {
@@ -18,6 +18,7 @@ vi.mock('../../lib/api/client', () => ({
   api: {
     adminListUsers: vi.fn().mockImplementation(() => Promise.resolve([rowUser])),
     getRegions: vi.fn().mockResolvedValue([{ id: 'india', label: 'India' }]),
+    adminSetUserDeltaFromHistory: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -32,7 +33,7 @@ describe('AdminUserList action buttons', () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
 
     // All plain actions share the same class set (uniform size/colour).
-    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium']) {
+    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium', 'Delta from History']) {
       const el = await screen.findByRole('button', { name })
       expect(el, `${name} button`).toHaveClass('btn', 'btn-sm')
     }
@@ -50,5 +51,13 @@ describe('AdminUserList action buttons', () => {
     const wrap = container.querySelector('.table-scroll')
     expect(wrap).not.toBeNull()
     expect(wrap!.querySelector('table')).not.toBeNull()
+  })
+
+  // PD-052: the super admin switches an account's investment delta back to
+  // History rows; the ledger is the default.
+  it('switches the investment delta to History for the account', async () => {
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Delta from History' }))
+    await waitFor(() => expect(api.adminSetUserDeltaFromHistory).toHaveBeenCalledWith('u1', { enabled: true }))
   })
 })
