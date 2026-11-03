@@ -57,6 +57,19 @@ func TestPartition_OccurrenceBased(t *testing.T) {
 	}
 }
 
+// The occurrence rule works for any row and key type, so the trade import
+// reuses it with its own key.
+func TestPartitionByKey_AnyKey(t *testing.T) {
+	stored := []domain.Transaction{{Quantity: 2}, {Quantity: 2}, {Quantity: 5}}
+	rows := []int{2, 2, 2, 5, 7}
+	fresh, duplicates := partitionByKey(rows, stored,
+		func(row int) float64 { return float64(row) },
+		func(stored domain.Transaction) float64 { return stored.Quantity })
+	if len(duplicates) != 3 || len(fresh) != 2 || fresh[0] != 2 || fresh[1] != 7 {
+		t.Fatalf("fresh %v, duplicates %v; want fresh [2 7] and 3 duplicates", fresh, duplicates)
+	}
+}
+
 func TestCumulativeWarnings(t *testing.T) {
 	cumulative := func(value float64) *float64 { return &value }
 	consistent := []api.DividendImportRow{sheetRow(2, "2020-01-01", 300, cumulative(300)), sheetRow(3, "2020-01-01", 300, cumulative(600)), sheetRow(4, "2020-03-15", 1250.5, cumulative(1850.5))}
