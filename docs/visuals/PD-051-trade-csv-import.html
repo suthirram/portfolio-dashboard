@@ -1,0 +1,991 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trades CSV Import Spec</title>
+
+
+<style>
+  /* ---------------------------------------------------------------------
+     Document chrome tokens. Three-state theming: bare :root is the light
+     palette, redefined for a dark OS (unless the viewer explicitly chose
+     light) and again for an explicit dark choice. Component rules only ever
+     read these tokens, never a literal.
+     --------------------------------------------------------------------- */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-rule-soft: #e8ecf4;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-rule-soft: #1a2032;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-rule-soft: #1a2032;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* --- Document typography ---------------------------------------------
+     Three roles, all system faces (the artifact CSP blocks font CDNs, and a
+     silent fallback would be worse than an honest system stack):
+       prose  — Georgia/serif, deliberately unlike the app's own UI face so
+                spec commentary never reads as part of a mockup
+       label  — Helvetica Neue/Arial, uppercase + tracked, for frame chrome
+       data   — Menlo/ui-monospace, for field names and numbers
+     --------------------------------------------------------------------- */
+  :root {
+    --prose: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --label: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --data: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--prose);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* --- Masthead -------------------------------------------------------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: var(--label);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .eyebrow a { color: var(--doc-accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  .eyebrow a:hover, .eyebrow a:focus-visible { border-bottom-color: currentColor; }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(30px, 4.4vw, 46px);
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 18px;
+    color: var(--doc-ink-soft);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-rule);
+    border: 1px solid var(--doc-rule);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .meta-cell { background: var(--doc-panel); padding: 14px 16px; }
+  .meta-cell dt {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    margin: 0 0 5px;
+  }
+  .meta-cell dd { margin: 0; font-size: 14px; font-family: var(--data); color: var(--doc-ink); }
+
+  /* --- Section headings ------------------------------------------------ */
+
+  h2 {
+    margin: 0;
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--doc-ink-faint);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .prose-stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* --- Theme switcher -------------------------------------------------- */
+
+  .switcher {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    background: var(--doc-bg);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+
+  .switcher-label {
+    font-family: var(--label);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+  }
+
+  .switcher button {
+    font-family: var(--label);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 2px;
+    border: 1px solid var(--doc-rule);
+    background: var(--doc-panel);
+    color: var(--doc-ink-soft);
+    cursor: pointer;
+  }
+  .switcher button:hover { color: var(--doc-ink); border-color: var(--doc-ink-faint); }
+  .switcher button[aria-pressed="true"] {
+    color: var(--doc-accent);
+    border-color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    font-weight: 700;
+  }
+  .switcher button:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  /* --- Frames ----------------------------------------------------------
+     A frame = one labelled artboard on a canvas, the way the same screen
+     would sit in a design file: chrome strip with frame id + viewport,
+     the rendered mockup, then numbered annotations beneath it.
+     --------------------------------------------------------------------- */
+
+  .frame { display: flex; flex-direction: column; gap: 14px; }
+
+  .frame-chrome {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-family: var(--label);
+  }
+  .frame-id {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--doc-accent);
+    background: var(--doc-accent-soft);
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+  .frame-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-ink); }
+  .frame-viewport { font-family: var(--data); font-size: 11px; color: var(--doc-ink-faint); margin-left: auto; }
+
+  .canvas {
+    background: var(--doc-canvas);
+    border: 1px solid var(--doc-rule);
+    border-radius: 3px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+
+  .annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 10px 22px;
+  }
+  .annotations li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 9px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    line-height: 1.45;
+  }
+  .annotations b {
+    font-family: var(--data);
+    font-size: 11px;
+    color: var(--doc-accent);
+    border: 1px solid var(--doc-accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .annotations code, p code, li code, td code {
+    font-family: var(--data);
+    font-size: 0.86em;
+    color: var(--doc-ink);
+  }
+
+  .callout {
+    border-left: 3px solid var(--doc-note);
+    background: var(--doc-note-soft);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--doc-ink-soft);
+    max-width: 78ch;
+  }
+  .callout strong { color: var(--doc-ink); }
+
+  /* --- Spec table ------------------------------------------------------ */
+
+  .spec-scroll { overflow-x: auto; border: 1px solid var(--doc-rule); border-radius: 3px; }
+  table.spec { border-collapse: collapse; width: 100%; min-width: 620px; font-family: var(--label); font-size: 13px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--doc-rule-soft); vertical-align: top; }
+  table.spec thead th {
+    background: var(--doc-panel);
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--doc-ink-faint);
+    border-bottom: 1px solid var(--doc-rule);
+  }
+  table.spec td { color: var(--doc-ink-soft); }
+  table.spec td:first-child { font-family: var(--data); color: var(--doc-ink); white-space: nowrap; }
+  table.spec tbody tr:last-child td { border-bottom: none; }
+
+  /* =====================================================================
+     APP MOCKUP. Palettes copied verbatim from
+     frontend/src/styles/tokens.css so the frames are token-accurate, and
+     scoped to .app[data-app-theme] rather than :root so the in-page theme
+     switcher can't collide with the viewer's own document theme.
+     ===================================================================== */
+
+  .app {
+    --bg-primary: #0a0c16;
+    --bg-secondary: #121524;
+    --bg-card: #171b2e;
+    --bg-card-hover: #1d2238;
+    --bg-input: #0d101f;
+    --border: #232842;
+    --border-light: #2e3453;
+    --text-primary: #eef1f8;
+    --text-secondary: #939dbb;
+    --text-muted: #545d85;
+    --green: #00d69f;
+    --green-dim: rgba(0, 214, 159, 0.12);
+    --red: #ff5c7a;
+    --red-dim: rgba(255, 92, 122, 0.12);
+    --blue: #5b93ff;
+    --blue-dim: rgba(91, 147, 255, 0.12);
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+    --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+    --bg-glass: rgba(14, 17, 31, 0.92);
+
+    font-family: Roboto, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    min-width: 980px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0f3fa;
+    --bg-input: #ffffff;
+    --border: #dfe4ef;
+    --border-light: #cbd3e4;
+    --text-primary: #0f1526;
+    --text-secondary: #4b5670;
+    --text-muted: #7a849e;
+    --green: #0b9e6c;
+    --green-dim: rgba(11, 158, 108, 0.10);
+    --red: #dc2649;
+    --red-dim: rgba(220, 38, 73, 0.10);
+    --blue: #2f6bdb;
+    --blue-dim: rgba(47, 107, 219, 0.10);
+    --yellow: #d97706;
+    --purple: #7c3aed;
+    --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+    --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+    --bg-glass: rgba(255, 255, 255, 0.95);
+  }
+
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f;
+    --bg-secondary: #0d0519;
+    --bg-card: #120826;
+    --bg-card-hover: #1a0c33;
+    --bg-input: #0a0416;
+    --border: #2e1354;
+    --border-light: #45207a;
+    --text-primary: #f2e9ff;
+    --text-secondary: #a78fd6;
+    --text-muted: #64509a;
+    --green: #00ffa3;
+    --green-dim: rgba(0, 255, 163, 0.12);
+    --red: #ff2e6c;
+    --red-dim: rgba(255, 46, 108, 0.14);
+    --blue: #00e5ff;
+    --blue-dim: rgba(0, 229, 255, 0.12);
+    --yellow: #ffe600;
+    --purple: #c26bff;
+    --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+    --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+    --bg-glass: rgba(10, 4, 22, 0.92);
+  }
+
+  /* Nav — mirrors .page-nav + .nav-glass + .dash-nav-btn */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 20px;
+    background: var(--bg-glass);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-tile {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    background: var(--gradient-brand);
+    color: #fff;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+  }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .nav-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .nav-spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-brand);
+    color: #fff;
+    border: 1px solid transparent;
+    box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+    white-space: nowrap;
+  }
+  .btn-current { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; }
+  .pill {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  /* The marker ring that points at what this frame introduces. */
+  .marked { position: relative; }
+  .marked::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed var(--blue);
+    border-radius: 11px;
+    pointer-events: none;
+  }
+  .pin {
+    position: absolute;
+    top: -10px; right: -12px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #04070f;
+    font-family: var(--data);
+    font-size: 11px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    z-index: 2;
+  }
+
+  .app-main { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  footer.doc-foot {
+    border-top: 1px solid var(--doc-rule);
+    padding-top: 20px;
+    font-family: var(--label);
+    font-size: 12px;
+    color: var(--doc-ink-faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+  footer.doc-foot a { color: var(--doc-accent); text-decoration: none; }
+  footer.doc-foot a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  /* --- PD-049 additions (tokens only, no new values) ------------------ */
+  .hist-nav { display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 20px; background: var(--bg-glass); border-bottom: 1px solid var(--border); }
+  .icon-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); display: grid; place-items: center; flex-shrink: 0; }
+  .hist-title { font-size: 17px; font-weight: 700; }
+  .theme-dots { margin-left: auto; display: flex; gap: 6px; }
+  .theme-dots span { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-light); background: var(--bg-card); }
+  .theme-dots span.on { background: var(--blue); border-color: var(--blue); }
+  .hist-toolbar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .sel { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+  .sel span { color: var(--text-secondary); }
+  .sel div { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-input); min-width: 72px; color: var(--text-primary); }
+  .hist-toolbar .grow { flex: 1; }
+
+  /* ---- PD-051: tokens only ---- */
+  .filters { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .filters .grow { flex: 1; }
+  .mono { font-family: var(--data, ui-monospace, monospace); }
+  .modal { background: var(--bg-card, var(--bg-secondary)); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-width: 760px; margin: 0 auto; box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+  .modal h3 { margin: 0; font-size: 15px; color: var(--text-primary); }
+  .banner { padding: 8px 12px; border: 1px solid var(--blue); background: var(--blue-dim); border-radius: 6px; font-size: 12px; color: var(--text-primary); }
+  .steps { display: flex; gap: 6px; flex-wrap: wrap; }
+  .steps button { border-radius: 999px; }
+  .steps button[aria-current="step"] { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .row-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  fieldset.sym { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; margin: 0; }
+  fieldset.sym legend { font-family: var(--data, ui-monospace, monospace); color: var(--yellow); font-size: 13px; }
+  fieldset.sym label { display: flex; gap: 8px; font-size: 13px; color: var(--text-primary); align-items: center; }
+  .counts { border-collapse: collapse; font-size: 13px; min-width: 300px; }
+  .counts td { padding: 5px 10px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+  .counts td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .counts tr.total td { font-weight: 700; }
+  .status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; }
+  .s-ready { color: var(--green); border-color: var(--green); }
+  .s-replace { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); }
+  .s-covered { color: var(--text-muted); border-color: var(--border); }
+  .s-invalid { color: var(--red); border-color: var(--red); }
+  .toggles { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); align-items: center; }
+  .toggles label { display: flex; gap: 6px; align-items: center; }
+  .rows-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+  table.rows { border-collapse: collapse; width: 100%; font-size: 12px; }
+  table.rows th, table.rows td { padding: 6px 9px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  table.rows thead th { position: sticky; top: 0; background: var(--bg-secondary); color: var(--text-muted); font-weight: 500; font-size: 11px; }
+  table.rows td.num { text-align: right; }
+  table.rows tr.hl td { background: var(--blue-dim); }
+  .filterbar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filterbar button { border-radius: 999px; }
+  .filterbar button[aria-pressed="true"] { color: var(--blue); border-color: var(--blue); background: var(--blue-dim); font-weight: 600; }
+  .play { display: grid; grid-template-columns: minmax(220px, 340px) 1fr; gap: 14px; align-items: start; }
+  .play input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text-primary); font-family: var(--data, ui-monospace, monospace); font-size: 14px; box-sizing: border-box; }
+  .verdict { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 13px; color: var(--text-primary); min-height: 52px; }
+  .verdict.ok { border-color: var(--green); } .verdict.bad { border-color: var(--red); }
+  .samples { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .rule { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--bg-secondary); display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+  .rule h4 { margin: 0; font-size: 13px; color: var(--text-primary); display: flex; gap: 8px; align-items: center; }
+  .rule code { font-size: 11px; }
+  .tx { border: 2px dashed var(--blue); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .tx.failed { border-color: var(--red); }
+  .tx-step { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--text-primary); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); }
+  .tx-step .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); flex: none; }
+  .tx-step.done .dot { background: var(--green); }
+  .tx-step.fail { border-color: var(--red); } .tx-step.fail .dot { background: var(--red); }
+  .tx-step.rolled { opacity: 0.45; text-decoration: line-through; }
+  .tx-note { font-size: 12px; font-weight: 600; }
+  .result-line { color: var(--green); font-size: 14px; }
+  .tool-row { display: flex; gap: 8px; align-items: center; }
+  .app.phone { min-width: 0; width: 390px; }
+  .phone .app-main { padding: 14px 16px 18px; }
+  .phone .hist-nav { padding: 0 16px; }
+  .phone .modal { padding: 12px; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Visual spec</span><span>PD-051 v1</span><span>PRD-008 · DD-008</span><span>Portfolio Dashboard</span>
+      <span>Owner decisions 2026-11-03 applied</span>
+    </div>
+    <h1>Import trades from a broker CSV</h1>
+    <p class="standfirst">
+      An <strong>Import CSV</strong> button on All transactions reads a broker's order history into buy and sell
+      ledger events. This page is interactive: every frame runs on the owner's real Groww export (63 orders,
+      15 symbols) and recomputes as you choose answers, so the counts, statuses and dates shown are the ones the
+      import produces.
+    </p>
+    <dl class="meta-grid">
+      <div class="meta-cell"><dt>Route</dt><dd>/transactions (own + admin act-as)</dd></div>
+      <div class="meta-cell"><dt>Dates</dt><dd>always DD/MM/YYYY, time optional</dd></div>
+      <div class="meta-cell"><dt>Same trade</dt><dd>replaced, never duplicated</dd></div>
+      <div class="meta-cell"><dt>Opening balance</dt><dd>earlier rows covered</dd></div>
+      <div class="meta-cell"><dt>Commit</dt><dd>one MongoDB transaction, History included</dd></div>
+      <div class="meta-cell"><dt>Reuses</dt><dd>the dividend import's flow + matching</dd></div>
+    </dl>
+  </header>
+
+  <div class="switcher">
+    <span class="switcher-label">Render frames in</span>
+    <button type="button" data-theme-btn="dark" aria-pressed="true">Dark (default)</button>
+    <button type="button" data-theme-btn="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme-btn="cyberpunk" aria-pressed="false">Cyberpunk (premium)</button>
+  </div>
+
+  <section class="section">
+    <h2>About these frames</h2>
+    <p class="callout">
+      No Figma account is wired into this project, so this page plays that role (<code>docs/visuals/README.md</code>).
+      <strong>Every colour, radius and type size is read from <code>frontend/src/styles/tokens.css</code></strong>.
+      The rows are the owner's file; the holdings in frames 02–03 are an example portfolio (the 10 symbols the owner
+      still holds, plus <em>Jio Platforms Ltd</em> and <em>National Stock Exchange of India</em> under other symbols).
+      The scripts on this page only illustrate the rules; they are not production code. Not production markup.
+    </p>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">01</span><span class="frame-name">All transactions: the Import CSV button</span><span class="frame-viewport">1280 × auto</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="hist-nav"><span class="icon-btn">←</span><span class="hist-title">All transactions</span>
+          <span class="theme-dots"><span class="on"></span><span></span><span></span></span></div>
+        <div class="app-main">
+          <div class="filters"><div class="sel"><span>Search</span><div>Script, symbol or notes</div></div><div class="sel"><span>Holding</span><div>All holdings</div></div><span class="grow"></span>
+            <span class="marked"><span class="pin">1</span><button type="button" class="btn btn-sm" data-goto="pick">Import CSV</button></span>
+            <span class="muted-note"><b class="mono">142</b> transactions</span></div>
+          <div class="muted">▼ Investment delta · 2026 (PD-050) · subtotals · table …</div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>In the filters toolbar, on the user's own page <strong>and</strong> in admin act-as, where it imports into the target's ledger (owner, 2026-11-03). It opens frame 02. After a successful import the table and an open investment delta chart reload (<code>afterLedgerChange</code>, shared with the ledger editor). PRD-008 §5, DD-008 §5.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">02</span><span class="frame-name">The import dialog — click through it</span><span class="frame-viewport">interactive · 1280 wide</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="steps" role="tablist" aria-label="Import steps">
+            <button type="button" class="btn btn-sm" data-step="pick">1 · Choose file</button>
+            <button type="button" class="btn btn-sm" data-step="names">2 · Confirm symbols</button>
+            <button type="button" class="btn btn-sm" data-step="preview">3 · Preview</button>
+            <button type="button" class="btn btn-sm" data-step="result">4 · Result</button>
+          </div>
+          <div class="toggles">
+            <label><input type="checkbox" id="opt-opening"> Holdings have opening balances dated <b class="mono">15-06-2026</b> (the dashboard prompt's default)</label>
+            <label><input type="checkbox" id="opt-reupload"> This file was already imported once</label>
+          </div>
+          <div class="modal" id="dialog" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>A</b><span><strong>Choose file.</strong> A .csv or tab-separated file up to 1 MB / 5,000 rows; the separator is detected. The banner states the date rule. Nothing is saved until Confirm. The browser reads the file (<code>parseTradeCsv</code>); not-executed orders are listed as skipped, bad lines carry their reason.</span></li>
+      <li><b>B</b><span><strong>Confirm symbols</strong> appears only for symbols with no exact match. A symbol matches a holding without its exchange suffix (GOLDBEES → GOLDBEES.NS, also on the 06-05-2025 BSE row) or a name confirmed before. Each unknown symbol can be mapped (suggestions are scored on the stock name), <strong>created</strong> as a new INR holding, or left unresolved — then its rows are invalid. Try leaving <code>NSE$</code> unresolved and watch Confirm disable. Answers are remembered as aliases.</span></li>
+      <li><b>C</b><span><strong>Preview</strong> counts ready, replaces-an-identical-trade, covered-by-the-opening-balance and invalid rows, and lists every invalid line. Tick the toggles: with opening balances dated 15-06-2026 most of the file is covered (it is already inside those balances); with "already imported", every row becomes a replacement — re-uploading never duplicates.</span></li>
+      <li><b>D</b><span><strong>Result.</strong> Everything in frame 06 committed together. PRD-008 §5, DD-008 §3–§4.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">03</span><span class="frame-name">Every row of the owner's file, as the preview classifies it</span><span class="frame-viewport">live · follows frame 02</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="filterbar" id="row-filter"></div>
+          <div class="rows-scroll">
+            <table class="rows"><thead><tr><th>Line</th><th>Date as written</th><th>Read as</th><th>Time</th><th>Symbol</th><th>Holding</th><th>Type</th><th class="num">Qty</th><th class="num">Value ₹</th><th>Status</th></tr></thead>
+              <tbody id="rows-body"></tbody></table>
+          </div>
+          <p class="muted" id="rows-foot"></p>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The <em>Read as</em> column is the import's reading of the date cell. Rows written <code>1/11/2024</code> are the cells Excel turned into dates — every one has a day ≤ 12 and no time — and they read <strong>day-first</strong> (1 Nov 2024), which keeps the file in date order. Rows like <code>17-12-2024 03:30 PM</code> keep their time, which only orders same-day trades. Filter by status to see which rows a choice in frame 02 changes.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">04</span><span class="frame-name">The date reader — type any cell</span><span class="frame-viewport">interactive</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="play">
+            <div>
+              <label class="muted" for="date-in">Execution date and time</label>
+              <input id="date-in" value="1/11/2024" autocomplete="off" spellcheck="false">
+              <div class="samples" id="date-samples"></div>
+            </div>
+            <div class="verdict" id="date-out"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Always day-first (owner, 2026-11-03): <code>D/M/YYYY</code>, <code>DD-MM-YYYY</code>, <code>DD.MM.YYYY</code> or <code>YYYY-MM-DD</code>, optionally followed by <code>h:mm</code> with AM/PM, or a 24-hour time with optional seconds. An impossible date (31/02/2025), an impossible time (13:30 PM) or trailing text makes the line invalid, with this message. The same reader serves the dividend import and the History paste (<code>parseDateTime</code>, DD-008 §5).</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">05</span><span class="frame-name">The four row outcomes</span><span class="frame-viewport">rules</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="rules">
+            <div class="rule"><h4><span class="status s-ready">ready</span> New trade</h4>
+              <span>Inserted as a buy or sell: date = the day, amount = Value (rounded to cents), quantity as written. Same-day rows replay in file order, or by time when given.</span>
+              <code>ITC · BUY 6 · ₹1,590.60 · 29-09-2026 14:21</code></div>
+            <div class="rule"><h4><span class="status s-replace">replace</span> Identical trade exists</h4>
+              <span>Same holding, day, type, quantity and value as a saved trade: the saved trade is kept (id, notes, position) and stamped with this import. Never a second copy (owner, 2026-11-03). Matching is per occurrence: two identical rows replace at most two saved trades.</span>
+              <code>GOLDBEES · BUY 17 · ₹1,278.40 · 04-04-2025 ⇄ saved</code></div>
+            <div class="rule"><h4><span class="status s-covered">covered</span> Inside the opening balance</h4>
+              <span>Dated on or before the holding's opening date: already counted in that balance, so it is shown but not imported. With an opening balance but no date set, the rows are invalid until the date is set on the dashboard.</span>
+              <code>TCS · BUY 1 · 03-06-2026 ≤ opening 15-06-2026</code></div>
+            <div class="rule"><h4><span class="status s-invalid">invalid</span> Blocks the import</h4>
+              <span>A bad date, type, exchange, quantity or value; a date after today; an unresolved symbol; or a sell beyond the shares held once the new trades are in ("sells more ITC than held — check earlier buys or the opening balance"). Fix the file and choose it again.</span>
+              <code>ITC · SELL 50 · 07-04-2025 → oversell</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Rows whose order did not execute (<code>Order status</code> ≠ Executed) are a fifth group, <strong>skipped</strong>: listed under the counts, never sent. The owner's sample has none. PRD-008 §5, DD-008 §3.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">06</span><span class="frame-name">Confirm: one transaction (ACID) — make a step fail</span><span class="frame-viewport">interactive</span></div>
+    <div class="canvas">
+      <div class="app" data-app-theme="dark">
+        <div class="app-main">
+          <div class="tool-row"><label class="muted" for="fail-at">Simulate a failure at</label>
+            <select id="fail-at"><option value="0">no step (success)</option></select></div>
+          <div class="tx" id="tx"></div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>Confirm re-runs the whole preview against the database as it is now, inside <code>InTransaction</code>. If any row became invalid, nothing is written and the fresh preview comes back (422: "The data changed since the preview — review it again."). Otherwise steps 2–7 run in the same transaction, <strong>including the History heal</strong> from the earliest new trade (owner: ACID). Any failure rolls every step back. Single ledger edits keep their best-effort heal after the write. DD-008 §4.</span></li>
+    </ol>
+  </section>
+
+  <section class="frame">
+    <div class="frame-chrome"><span class="frame-id">07</span><span class="frame-name">Phone width</span><span class="frame-viewport">390 × auto</span></div>
+    <div class="canvas">
+      <div class="app phone" data-app-theme="dark">
+        <div class="app-main">
+          <div class="modal">
+            <h3>Preview import</h3>
+            <div class="banner">Buys and sells into <b>₹ INR</b> holdings · dates read as <b>DD/MM/YYYY</b> (1/11/2024 = 1 Nov 2024)</div>
+            <table class="counts"><tbody>
+              <tr><td>Ready to import</td><td class="n">63</td></tr><tr><td>Replaces an identical trade</td><td class="n">0</td></tr>
+              <tr><td>Covered by the opening balance</td><td class="n">0</td></tr><tr><td>Invalid</td><td class="n">0</td></tr>
+              <tr class="total"><td>Total</td><td class="n">63</td></tr></tbody></table>
+            <div class="row-actions"><button type="button" class="btn btn-sm">Choose another file</button><button type="button" class="btn-primary btn-sm">Confirm import</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="annotations">
+      <li><b>1</b><span>The dialog is the same component at any width; the actions wrap. Counts here are frame 02's with every unknown symbol created (static).</span></li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <h2>What the frames commit the implementation to</h2>
+    <div class="spec-scroll">
+      <table class="spec">
+        <thead><tr><th>Frame</th><th>Commitment</th><th>PD-051 task</th></tr></thead>
+        <tbody>
+          <tr><td>01</td><td>Import CSV in the toolbar, own and act-as; table + investment delta reload after import</td><td>4</td></tr>
+          <tr><td>02</td><td>pick → symbols (map / create / leave) → preview → result; Confirm disabled while invalid; 422 re-preview</td><td>2, 3, 4</td></tr>
+          <tr><td>03</td><td>Day-first reading of both date shapes; statuses ready / replace / covered / invalid</td><td>2, 3, 4</td></tr>
+          <tr><td>04</td><td>parseDateTime rules and messages</td><td>3</td></tr>
+          <tr><td>05</td><td>Replace by holding + day + type + quantity + value, per occurrence; opening cover; oversell; skipped</td><td>2, 4</td></tr>
+          <tr><td>06</td><td>One transaction: holdings, trades, replacements, aliases, positions, History heal</td><td>2</td></tr>
+          <tr><td>07</td><td>Usable at phone width</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>PD-051 visual spec v1</span>
+    <span>Rendered from <code>frontend/src/styles/tokens.css</code></span>
+    <span>Mockup, not production markup</span>
+  </footer>
+</div>
+
+
+<script>
+  // Theme switcher (as every spec).
+  const themeButtons = document.querySelectorAll('[data-theme-btn]')
+  themeButtons.forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.app').forEach(app => { app.dataset.appTheme = btn.dataset.themeBtn })
+    themeButtons.forEach(other => other.setAttribute('aria-pressed', String(other === btn)))
+  }))
+
+  const ROWS = [{"line": 2, "name": "KALYAN JEWELLERS IND LTD", "symbol": "KALYANKJIL", "type": "BUY", "qty": 3, "value": 2010, "exchange": "NSE", "cell": "1/11/2024"}, {"line": 3, "name": "MOTISONS JEWELLERS LTD", "symbol": "MOTISONS", "type": "BUY", "qty": 1, "value": 297, "exchange": "NSE", "cell": "1/11/2024"}, {"line": 4, "name": "PC JEWELLER LTD", "symbol": "PCJEWELLER", "type": "BUY", "qty": 5, "value": 790, "exchange": "NSE", "cell": "1/11/2024"}, {"line": 5, "name": "HCL TECHNOLOGIES LTD", "symbol": "HCLTECH", "type": "BUY", "qty": 1, "value": 1777, "exchange": "NSE", "cell": "1/11/2024"}, {"line": 6, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 2, "value": 128.54, "exchange": "NSE", "cell": "7/11/2024"}, {"line": 7, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 2, "value": 127.62, "exchange": "NSE", "cell": "2/12/2024"}, {"line": 8, "name": "VISHAL MEGA MART LIMITED", "symbol": "VMM", "type": "BUY", "qty": 190, "value": 14820, "exchange": "NSE", "cell": "17-12-2024 03:30 PM"}, {"line": 9, "name": "VISHAL MEGA MART LIMITED", "symbol": "VMM", "type": "SELL", "qty": 190, "value": 20896.2, "exchange": "NSE", "cell": "19-12-2024 10:11 AM"}, {"line": 10, "name": "CENTRAL DEPO SER (I) LTD", "symbol": "CDSL", "type": "BUY", "qty": 2, "value": 3704.26, "exchange": "NSE", "cell": "23-12-2024 11:27 AM"}, {"line": 11, "name": "HCL TECHNOLOGIES LTD", "symbol": "HCLTECH", "type": "BUY", "qty": 1, "value": 1924, "exchange": "NSE", "cell": "23-12-2024 11:27 AM"}, {"line": 12, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 7, "value": 447.16, "exchange": "NSE", "cell": "31-12-2024 12:03 PM"}, {"line": 13, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 2, "value": 130.02, "exchange": "NSE", "cell": "3/1/2025"}, {"line": 14, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 2, "value": 137.98, "exchange": "NSE", "cell": "3/2/2025"}, {"line": 15, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 1, "value": 427, "exchange": "NSE", "cell": "10/2/2025"}, {"line": 16, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 7, "value": 511.35, "exchange": "NSE", "cell": "11/2/2025"}, {"line": 17, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 10, "value": 720, "exchange": "NSE", "cell": "10/3/2025"}, {"line": 18, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 17, "value": 1278.4, "exchange": "NSE", "cell": "4/4/2025"}, {"line": 19, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 1, "value": 400, "exchange": "NSE", "cell": "7/4/2025"}, {"line": 20, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 1, "value": 73.55, "exchange": "NSE", "cell": "7/4/2025"}, {"line": 21, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 3, "value": 245.58, "exchange": "BSE", "cell": "6/5/2025"}, {"line": 22, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 4, "value": 315.32, "exchange": "NSE", "cell": "13-05-2025 12:42 PM"}, {"line": 23, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 1, "value": 419.35, "exchange": "NSE", "cell": "2/6/2025"}, {"line": 24, "name": "TATA MOTORS PASS VEH LTD", "symbol": "TMPV", "type": "BUY", "qty": 1, "value": 674, "exchange": "NSE", "cell": "25-06-2025 09:00 AM"}, {"line": 25, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 1, "value": 413.9, "exchange": "NSE", "cell": "3/7/2025"}, {"line": 26, "name": "THE SOUTH INDIAN BANK LTD", "symbol": "SOUTHBANK", "type": "BUY", "qty": 5, "value": 155.35, "exchange": "NSE", "cell": "3/7/2025"}, {"line": 27, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 7, "value": 571.27, "exchange": "NSE", "cell": "1/8/2025"}, {"line": 28, "name": "THE SOUTH INDIAN BANK LTD", "symbol": "SOUTHBANK", "type": "BUY", "qty": 3, "value": 87.27, "exchange": "NSE", "cell": "8/8/2025"}, {"line": 29, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 12, "value": 999.48, "exchange": "NSE", "cell": "11/8/2025"}, {"line": 30, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 4, "value": 375.52, "exchange": "NSE", "cell": "25-09-2025 12:31 PM"}, {"line": 31, "name": "TATA CAPITAL LIMITED", "symbol": "TATACAP", "type": "BUY", "qty": 46, "value": 14996, "exchange": "NSE", "cell": "10/10/2025"}, {"line": 32, "name": "LG ELECTRONICS INDIA LTD", "symbol": "LGEINDIA", "type": "BUY", "qty": 13, "value": 14820, "exchange": "NSE", "cell": "13-10-2025 03:30 PM"}, {"line": 33, "name": "LG ELECTRONICS INDIA LTD", "symbol": "LGEINDIA", "type": "SELL", "qty": 13, "value": 22258.6, "exchange": "NSE", "cell": "14-10-2025 10:00 AM"}, {"line": 34, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 2, "value": 5990, "exchange": "NSE", "cell": "14-10-2025 10:20 AM"}, {"line": 35, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 12, "value": 1260.48, "exchange": "NSE", "cell": "20-10-2025 09:18 AM"}, {"line": 36, "name": "TATA CAPITAL LIMITED", "symbol": "TATACAP", "type": "SELL", "qty": 46, "value": 15000.6, "exchange": "NSE", "cell": "27-10-2025 10:12 AM"}, {"line": 37, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 5, "value": 509.45, "exchange": "NSE", "cell": "17-11-2025 09:16 AM"}, {"line": 38, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 3, "value": 301.17, "exchange": "NSE", "cell": "18-11-2025 09:47 AM"}, {"line": 39, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 1, "value": 402.6, "exchange": "NSE", "cell": "4/12/2025"}, {"line": 40, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 10, "value": 1061.8, "exchange": "NSE", "cell": "4/12/2025"}, {"line": 41, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 6, "value": 2231.1, "exchange": "NSE", "cell": "1/1/2026"}, {"line": 42, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 6, "value": 2061, "exchange": "NSE", "cell": "6/1/2026"}, {"line": 43, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 3, "value": 1003.5, "exchange": "NSE", "cell": "13-01-2026 12:04 PM"}, {"line": 44, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 10, "value": 3164, "exchange": "NSE", "cell": "1/2/2026"}, {"line": 45, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 1, "value": 2930.3, "exchange": "NSE", "cell": "6/2/2026"}, {"line": 46, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 1, "value": 2507.3, "exchange": "NSE", "cell": "10/3/2026"}, {"line": 47, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 16, "value": 4816, "exchange": "NSE", "cell": "12/5/2026"}, {"line": 48, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 18, "value": 5452.2, "exchange": "NSE", "cell": "25-05-2026 01:20 PM"}, {"line": 49, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 1, "value": 2240, "exchange": "NSE", "cell": "3/6/2026"}, {"line": 50, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 1, "value": 2057.5, "exchange": "NSE", "cell": "23-06-2026 03:16 PM"}, {"line": 51, "name": "National Stock Exchange of Ind", "symbol": "NSE$", "type": "BUY", "qty": 8, "value": 14280, "exchange": "NSE", "cell": "23-09-2026 03:30 PM"}, {"line": 52, "name": "National Stock Exchange of Ind", "symbol": "NSE$", "type": "SELL", "qty": 6, "value": 11202, "exchange": "BSE", "cell": "24-09-2026 10:13 AM"}, {"line": 53, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 10, "value": 1206.8, "exchange": "NSE", "cell": "29-09-2026 02:19 PM"}, {"line": 54, "name": "TATA MOTORS PASS VEH LTD", "symbol": "TMPV", "type": "BUY", "qty": 5, "value": 1390.75, "exchange": "NSE", "cell": "29-09-2026 02:20 PM"}, {"line": 55, "name": "HCL TECHNOLOGIES LTD", "symbol": "HCLTECH", "type": "BUY", "qty": 2, "value": 2458.6, "exchange": "NSE", "cell": "29-09-2026 02:21 PM"}, {"line": 56, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 6, "value": 1590.6, "exchange": "NSE", "cell": "29-09-2026 02:21 PM"}, {"line": 57, "name": "TATA CONSULTANCY SERV LT", "symbol": "TCS", "type": "BUY", "qty": 2, "value": 4086.2, "exchange": "NSE", "cell": "29-09-2026 02:22 PM"}, {"line": 58, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 3, "value": 361.95, "exchange": "NSE", "cell": "29-09-2026 02:23 PM"}, {"line": 59, "name": "ITC LTD", "symbol": "ITC", "type": "BUY", "qty": 4, "value": 1031.8, "exchange": "NSE", "cell": "1/10/2026"}, {"line": 60, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 10, "value": 1197.5, "exchange": "NSE", "cell": "14-10-2026 01:29 PM"}, {"line": 61, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 10, "value": 1169.7, "exchange": "NSE", "cell": "22-10-2026 10:04 AM"}, {"line": 62, "name": "JIO PLATFORMS LIMITED", "symbol": "JPL", "type": "BUY", "qty": 12, "value": 13428, "exchange": "NSE", "cell": "27-10-2026 03:30 PM"}, {"line": 63, "name": "JIO PLATFORMS LIMITED", "symbol": "JPL", "type": "SELL", "qty": 10, "value": 14150, "exchange": "BSE", "cell": "28-10-2026 03:07 PM"}, {"line": 64, "name": "NIP IND ETF GOLD BEES", "symbol": "GOLDBEES", "type": "BUY", "qty": 26, "value": 2933.58, "exchange": "NSE", "cell": "2/11/2026"}]
+  // Example portfolio: base symbols the user already holds (frame 02 notes).
+  const HELD = { KALYANKJIL: 'Kalyan Jewellers', MOTISONS: 'Motisons Jewellers', PCJEWELLER: 'PC Jeweller', HCLTECH: 'HCL Technologies',
+    GOLDBEES: 'Gold BeES', CDSL: 'CDSL', ITC: 'ITC', TMPV: 'Tata Motors PV', SOUTHBANK: 'South Indian Bank', TCS: 'TCS' }
+  const OTHER = { JIOPLA: 'Jio Platforms Ltd', NSEIND: 'National Stock Exchange of India' }
+  const UNKNOWN = { VMM: { suggest: null }, TATACAP: { suggest: null }, LGEINDIA: { suggest: null },
+    JPL: { suggest: 'JIOPLA', why: 'initials of “Jio Platforms Ltd”' }, 'NSE$': { suggest: 'NSEIND', why: '“National Stock Exchange of India”' } }
+  const OPENING = '2026-06-15'
+
+  // The date rule (illustrative port of parseDateTime).
+  const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]m)?$/i
+  function readDate(raw) {
+    const [datePart = '', ...rest] = raw.trim().split(/\s+/)
+    let year, month, day
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart)
+    const dayFirst = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(datePart)
+    if (iso) [year, month, day] = [+iso[1], +iso[2], +iso[3]]
+    else if (dayFirst) [day, month, year] = [+dayFirst[1], +dayFirst[2], +dayFirst[3]]
+    else return { error: 'not a DD/MM/YYYY date' }
+    const probe = new Date(Date.UTC(year, month - 1, day))
+    if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return { error: `${day}/${month}/${year} is not a calendar date` }
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    if (rest.length === 0) return { date, minutes: null }
+    const time = TIME.exec(rest.join(' '))
+    if (!time) return { error: `"${rest.join(' ')}" is not a time like 03:30 PM or 15:30` }
+    let hours = +time[1]; const minutes = +time[2]; const meridiem = time[4] && time[4].toLowerCase()
+    if (minutes > 59 || (meridiem ? hours < 1 || hours > 12 : hours > 23)) return { error: `${rest.join(' ')} is not a clock time` }
+    if (meridiem === 'pm' && hours !== 12) hours += 12
+    if (meridiem === 'am' && hours === 12) hours = 0
+    return { date, minutes: hours * 60 + minutes }
+  }
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const longDate = iso => { const [y, m, d] = iso.split('-'); return `${+d} ${MONTHS[+m - 1]} ${y}` }
+  const dmy = iso => iso.split('-').reverse().join('-')
+  const hhmm = minutes => minutes == null ? '—' : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+  const money = value => value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  // State of frame 02.
+  const state = { step: 'pick', picked: false, answers: {}, filter: 'all' }
+  for (const symbol of Object.keys(UNKNOWN)) state.answers[symbol] = UNKNOWN[symbol].suggest ? 'map:' + UNKNOWN[symbol].suggest : 'create'
+
+  function holdingOf(symbol) {
+    if (HELD[symbol]) return { label: `${HELD[symbol]} · ${symbol}.NS`, created: false }
+    const answer = state.answers[symbol]
+    if (!answer || answer === 'leave') return null
+    if (answer === 'create') return { label: `new · ${symbol}.NS`, created: true }
+    const target = answer.slice(4)
+    return { label: `${OTHER[target]} · ${target}.NS`, created: false }
+  }
+  function classify() {
+    const opening = document.getElementById('opt-opening').checked
+    const reupload = document.getElementById('opt-reupload').checked
+    return ROWS.map(row => {
+      const read = readDate(row.cell)
+      const holding = holdingOf(row.symbol)
+      let status = 'ready', reason = ''
+      if (!holding) { status = 'invalid'; reason = `no holding chosen for "${row.symbol}"` }
+      else if (opening && !holding.created && read.date <= OPENING) status = 'covered'
+      else if (reupload) status = 'replace'
+      return { ...row, ...read, holding, status, reason }
+    })
+  }
+  function counts(rows) {
+    const out = { ready: 0, replace: 0, covered: 0, invalid: 0 }
+    rows.forEach(row => { out[row.status]++ })
+    return out
+  }
+
+  const dialog = document.getElementById('dialog')
+  function render() {
+    document.querySelectorAll('[data-step]').forEach(btn => {
+      btn.setAttribute('aria-current', btn.dataset.step === state.step ? 'step' : 'false')
+      btn.disabled = btn.dataset.step !== 'pick' && !state.picked
+    })
+    const rows = classify()
+    const tally = counts(rows)
+    const banner = '<div class="banner">Buys and sells into <b>₹ INR</b> holdings · dates read as <b>DD/MM/YYYY</b> (1/11/2024 = 1 Nov 2024), a time like 03:30 PM is optional' + (state.picked ? ' · orders.csv' : '') + '</div>'
+    let html = ''
+    if (state.step === 'pick') {
+      html = `<h3>Import trades</h3>${banner}
+        <div><button type="button" class="btn" id="choose">Choose a .csv file</button></div>
+        <p class="muted">A broker order history with the columns <code>Stock name, Symbol, ISIN, Type, Quantity, Value, Exchange, Execution date and time, Order status</code> (comma- or tab-separated). Nothing is saved until you confirm.</p>
+        <p class="muted">Clicking “Choose” loads the owner's 63-row export.</p>`
+    } else if (state.step === 'names') {
+      const fields = Object.keys(UNKNOWN).map(symbol => {
+        const info = UNKNOWN[symbol]
+        const rowsOf = ROWS.filter(row => row.symbol === symbol)
+        const name = rowsOf[0].name
+        const option = (value, label, extra = '') => `<label><input type="radio" name="sym-${symbol}" value="${value}" ${state.answers[symbol] === value ? 'checked' : ''}> ${label}${extra}</label>`
+        const suggest = info.suggest ? option('map:' + info.suggest, `${OTHER[info.suggest]} · ${info.suggest}.NS`, ` <span class="muted">suggested · ${info.why}</span>`) : ''
+        const others = Object.keys(OTHER).filter(key => key !== info.suggest).map(key => option('map:' + key, `${OTHER[key]} · ${key}.NS`, ' <span class="muted">other holding</span>')).join('')
+        return `<fieldset class="sym"><legend>${symbol} <span class="muted">· ${rowsOf.length} rows · ${name}</span></legend>${suggest}${others}
+          ${option('create', `Create a new holding ${symbol}`, ` <span class="muted">${name} · ${symbol}.NS · INR</span>`)}
+          ${option('leave', 'Leave unresolved', ' <span class="muted">its rows become invalid</span>')}</fieldset>`
+      }).join('')
+      html = `<h3>Confirm symbols</h3><p class="muted">These symbols don't match a holding. Choose the holding each one means, or create a new one. Your answers are remembered for next time.</p>
+        <p class="muted">${Object.keys(HELD).length} symbols matched automatically by symbol (GOLDBEES, ITC, TCS, …).</p>${fields}
+        <div class="row-actions"><button type="button" class="btn" data-goto="pick">Back</button><button type="button" class="btn-primary" data-goto="preview">Continue to preview</button></div>`
+    } else if (state.step === 'preview') {
+      const invalid = rows.filter(row => row.status === 'invalid')
+      const blocked = tally.invalid > 0 || tally.ready + tally.replace === 0
+      html = `<h3>Preview import</h3>${banner}
+        <table class="counts"><tbody>
+          <tr><td>Ready to import</td><td class="n">${tally.ready}</td></tr>
+          <tr><td>Replaces an identical trade</td><td class="n">${tally.replace}</td></tr>
+          <tr><td>Covered by the opening balance</td><td class="n">${tally.covered}</td></tr>
+          <tr><td>Invalid</td><td class="n">${tally.invalid}</td></tr>
+          <tr class="total"><td>Total</td><td class="n">${rows.length}</td></tr></tbody></table>
+        ${tally.replace ? '<p class="muted">A row with the same holding, day, type, quantity and value as a saved trade replaces it — nothing is duplicated.</p>' : ''}
+        ${tally.covered ? '<p class="muted">Rows on or before a holding’s opening date are already in its opening balance and are not imported.</p>' : ''}
+        ${invalid.length ? `<p class="tx-note" style="color:var(--red)">${invalid.length} rows need fixing before you can import. Nothing has been saved.</p>
+          <table class="counts"><tbody>${invalid.map(row => `<tr><td>${row.line}</td><td>${row.reason}</td></tr>`).join('')}</tbody></table>` : ''}
+        <div class="row-actions"><button type="button" class="btn" data-goto="names">Change symbols</button><button type="button" class="btn" data-goto="pick">Choose another file</button>
+          <button type="button" class="btn-primary" data-goto="result" ${blocked ? 'disabled' : ''}>Confirm import</button></div>`
+    } else {
+      const created = Object.keys(UNKNOWN).filter(symbol => state.answers[symbol] === 'create').length
+      html = `<h3>Import complete</h3>${banner}
+        <p class="result-line"><b>${tally.ready} imported</b> · ${tally.replace} replaced · ${tally.covered} covered by an opening balance${created ? ` · ${created} new holdings` : ''}</p>
+        <p class="muted">Saved together: the new holdings, trades, replacements, remembered symbols, positions and History from ${dmy(rows.filter(row => row.status === 'ready').map(row => row.date).sort()[0] || OPENING)} (frame 06).</p>
+        <div class="row-actions"><button type="button" class="btn-primary" data-goto="pick">Done</button></div>`
+    }
+    dialog.innerHTML = html
+    renderRows(rows, tally)
+  }
+
+  function renderRows(rows, tally) {
+    const bar = document.getElementById('row-filter')
+    const options = [['all', `All ${rows.length}`], ['ready', `Ready ${tally.ready}`], ['replace', `Replace ${tally.replace}`], ['covered', `Covered ${tally.covered}`], ['invalid', `Invalid ${tally.invalid}`], ['slash', 'Excel-converted dates']]
+    bar.innerHTML = options.map(([key, label]) => `<button type="button" class="btn btn-sm" data-filter="${key}" aria-pressed="${state.filter === key}">${label}</button>`).join('')
+    const shown = rows.filter(row => state.filter === 'all' || (state.filter === 'slash' ? row.cell.includes('/') : row.status === state.filter))
+    document.getElementById('rows-body').innerHTML = shown.map(row => `<tr>
+      <td>${row.line}</td><td class="mono">${row.cell}</td><td>${row.date ? longDate(row.date) : '—'}</td><td class="mono">${hhmm(row.minutes)}</td>
+      <td class="mono">${row.symbol}</td><td>${row.holding ? row.holding.label : '<span class="muted">unresolved</span>'}</td><td>${row.type}</td>
+      <td class="num">${row.qty}</td><td class="num">${money(row.value)}</td><td><span class="status s-${row.status}">${row.status}</span></td></tr>`).join('')
+    const slash = rows.filter(row => row.cell.includes('/'))
+    document.getElementById('rows-foot').textContent = `${slash.length} of ${rows.length} date cells were converted by Excel (D/M/YYYY, no time); every one has a day ≤ 12, and read day-first the file stays in date order.`
+  }
+
+  document.addEventListener('click', event => {
+    const goto = event.target.closest('[data-goto]')
+    const stepButton = event.target.closest('[data-step]')
+    const filterButton = event.target.closest('[data-filter]')
+    if (event.target.id === 'choose') { state.picked = true; state.step = 'names' }
+    else if (goto) state.step = goto.dataset.goto
+    else if (stepButton && !stepButton.disabled) state.step = stepButton.dataset.step
+    else if (filterButton) state.filter = filterButton.dataset.filter
+    else return
+    render()
+  })
+  document.addEventListener('change', event => {
+    if (event.target.name && event.target.name.startsWith('sym-')) state.answers[event.target.name.slice(4)] = event.target.value
+    render()
+  })
+
+  // Frame 04: the date reader.
+  const dateIn = document.getElementById('date-in'), dateOut = document.getElementById('date-out')
+  const SAMPLES = ['1/11/2024', '17-12-2024 03:30 PM', '6/5/2025', '13-05-2025 12:42 PM', '01-01-2026 12:05 AM', '25-06-2025 15:30', '2026-11-02', '31/02/2025', '17-12-2024 13:30 PM', '11/13/2024']
+  document.getElementById('date-samples').innerHTML = SAMPLES.map(sample => `<button type="button" class="btn btn-sm" data-sample="${sample}">${sample}</button>`).join('')
+  document.getElementById('date-samples').addEventListener('click', event => { const btn = event.target.closest('[data-sample]'); if (btn) { dateIn.value = btn.dataset.sample; readCell() } })
+  function readCell() {
+    const read = readDate(dateIn.value)
+    dateOut.className = 'verdict ' + (read.error ? 'bad' : 'ok')
+    dateOut.innerHTML = read.error
+      ? `<b>Invalid line</b> — Date "${dateIn.value}" is not a DD/MM/YYYY date (a time like 03:30 PM is optional): ${read.error}.`
+      : `<b>${longDate(read.date)}</b> · stored as <code>${read.date}</code>${read.minutes == null ? ' · no time (keeps file order within the day)' : ` · ${hhmm(read.minutes)} (orders same-day trades)`}`
+  }
+  dateIn.addEventListener('input', readCell)
+  readCell()
+
+  // Frame 06: the commit transaction.
+  const STEPS = ['Re-evaluate the preview against the database now (invalid → 422, nothing written)', 'Insert the created holdings', 'Insert the new trades (replay order)',
+    'Stamp the replaced trades with this import (values unchanged)', 'Save the confirmed symbols as aliases', 'Recompute each affected holding\'s position', 'Heal History from the earliest new trade']
+  const failAt = document.getElementById('fail-at')
+  STEPS.forEach((label, i) => { const option = document.createElement('option'); option.value = String(i + 1); option.textContent = `step ${i + 1}`; failAt.appendChild(option) })
+  function renderTx() {
+    const fail = +failAt.value
+    const tx = document.getElementById('tx')
+    tx.className = 'tx' + (fail ? ' failed' : '')
+    tx.innerHTML = '<div class="muted">InTransaction { … }</div>' + STEPS.map((label, i) => {
+      const n = i + 1
+      const cls = !fail ? 'done' : n < fail ? 'rolled' : n === fail ? 'fail' : 'rolled'
+      return `<div class="tx-step ${cls}"><span class="dot"></span><b>${n}</b> ${label}</div>`
+    }).join('') + (fail
+      ? `<div class="tx-note" style="color:var(--red)">Step ${fail} failed → the transaction aborts: no holding, trade, alias, position or History change is kept. The dialog shows the error; the user can retry.</div>`
+      : '<div class="tx-note" style="color:var(--green)">Commit: all seven steps become visible together.</div>')
+  }
+  failAt.addEventListener('change', renderTx)
+  renderTx()
+  render()
+</script>
+
