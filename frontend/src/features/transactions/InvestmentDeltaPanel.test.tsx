@@ -58,7 +58,7 @@ describe('InvestmentDeltaPanel', () => {
   it('starts collapsed and fetches nothing', () => {
     renderPanel()
     expect(handleButton()).toHaveAttribute('aria-expanded', 'false')
-    expect(handleButton()).toHaveTextContent('▲ Investment delta · 2026')
+    expect(handleButton()).toHaveTextContent('▼ Investment delta · 2026')
     expect(mockApi.listHistory).not.toHaveBeenCalled()
   })
 

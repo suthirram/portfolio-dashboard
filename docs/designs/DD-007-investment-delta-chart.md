@@ -93,12 +93,12 @@ row, so the year's bars add up to the change in invested over the year.
 
 `features/transactions/InvestmentDeltaPanel.tsx`:
 
-* Wrapper `position: sticky; bottom: 0` at the end of the page's `<main>`,
-  `--bg-secondary` surface, top border and radius 8 on the top corners, so it
-  sits on the bottom edge and scrolls with nothing.
+* Rendered in `<main>` straight after the filters section, above the
+  subtotals and the table; the same `--bg-secondary` surface, border and
+  `--radius` as the filters (owner, 2026-11-03; it was a sticky bottom dock).
 * Collapsed: one full-width button, `aria-expanded="false"`, label
-  "▲ Investment delta · ‹year›".
-* Open: the same button (▼, `aria-expanded="true"`), then a toolbar (‹ year ›
+  "▼ Investment delta · ‹year›".
+* Open: the same button (▲, `aria-expanded="true"`), then a toolbar (‹ year ›
   with `aria-label`s "Previous year" / "Next year", and the column switch as
   `aria-pressed` buttons), then the chart at 260 px.
 * Opens: reads `pd_txn_delta_open` on mount; writes it on toggle (try/catch
@@ -106,6 +106,13 @@ row, so the year's bars add up to the change in invested over the year.
 * Fetches when open and on year change, with a `cancelled` flag so a late
   response for an earlier year is dropped.
 * `theme` comes in as a prop, as on History.
+* `refreshKey`: `TransactionsPage` bumps a `ledgerVersion` counter in the
+  ledger editor's `onChanged`, next to the table's `refresh()`. The key is
+  in the fetch effect's deps (an open panel reloads the year; the effect
+  still returns early while collapsed) and is passed to
+  `useLiveHistoryRows` (today's live row refetches `/prices`). The rows are
+  held with the year they belong to, so a refresh keeps the chart on screen
+  until the new rows land, while a year change shows the spinner.
 * Column switch: a column is offered only when a row **dated inside the
   selected year** (the live row included) has money invested in it.
   `include_previous` returns the latest earlier row even for a year with
@@ -162,6 +169,7 @@ as the last child of `<main>`.
 |---|---|
 | A year of rows is a large payload (≈365 rows with per-stock lines) | fetched only when the panel is open, once per year change; the full-history chart already loads more |
 | A late response overwrites a newer year | the effect's `cancelled` flag drops it |
-| The panel adds `/prices` calls | only while pulled up on the current year inside the live window, every 5 minutes, as History does; the prices are cached server-side for 5 minutes |
+| The panel adds `/prices` calls | only while open on the current year inside the live window, every 5 minutes, as History does; the prices are cached server-side for 5 minutes |
 | Bad source data (e.g. placeholder gold prices) | the chart shows invested, not value, so placeholder prices do not affect it |
-| Panel hides the table's last rows | sticky keeps the panel's own space at the end of `<main>`, so scrolling to the bottom reveals every row; the open panel covers rows only while the user has pulled it up |
+| The open panel pushes the table down | collapsed by default to one bar, and the state is remembered |
+| A ledger edit leaves the chart stale | the `refreshKey` reload above; snapshot healing runs inside the mutation request, so the reload sees the healed rows |

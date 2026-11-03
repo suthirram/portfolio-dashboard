@@ -1,5 +1,6 @@
-// The Transactions page's bottom panel (PD-050): pulled up from a handle bar,
-// it charts each month's investment delta for one year and one column.
+// The Transactions page's investment delta panel (PD-050), just below the
+// filters: expanded from a handle bar, it charts each month's investment
+// delta for one year and one column.
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api, type HistoryRow } from '../../lib/api/client'
@@ -87,7 +88,7 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   return (
     <section style={dock}>
       <button type="button" onClick={toggle} aria-expanded={open} style={handle}>
-        {open ? '▼' : '▲'} Investment delta · {year}
+        {open ? '▲' : '▼'} Investment delta · {year}
       </button>
       {open && (
         <div style={{ padding: '0 16px 16px' }}>
@@ -126,10 +127,10 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
   )
 }
 
+// The same surface as the filters section above it.
 const dock: CSSProperties = {
-  position: 'sticky', bottom: 0, zIndex: 5,
   background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-  borderRadius: '8px 8px 0 0', boxShadow: '0 -4px 16px rgba(0,0,0,0.25)',
+  borderRadius: 'var(--radius)',
 }
 const handle: CSSProperties = {
   width: '100%', background: 'none', border: 'none', cursor: 'pointer',

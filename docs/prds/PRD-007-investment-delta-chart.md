@@ -25,8 +25,8 @@ the Transactions page, where the money movements themselves are listed.
 2. Each bar equals the investment delta the History card shows for that
    month, to the cent.
 3. Previous and next arrows move between years.
-4. The chart stays out of the way: a panel at the bottom of the page that
-   the user pulls up when they want it.
+4. The chart stays out of the way: a collapsible panel just below the
+   filters that the user expands when they want it.
 
 ## 3. Non-goals (v1)
 
@@ -61,10 +61,16 @@ Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 
 ## 5. Behaviour
 
-* **Placement.** A panel docked to the bottom of the Transactions page,
-  collapsed by default to a handle bar: "▲ Investment delta · 2026". Clicking
-  the bar pulls the panel up; clicking it again (▼) collapses it. The page
-  remembers open / closed per browser.
+* **Placement.** A panel just below the Transactions filters (the search
+  section), above the subtotals and the table, collapsed by default to a
+  handle bar: "▼ Investment delta · 2026". Clicking the bar expands the
+  panel; clicking it again (▲) collapses it. The page remembers open /
+  closed per browser.
+* **After a ledger edit.** Adding, editing or deleting a transaction through
+  the page's ledger editor reloads an open panel's year (the backend has
+  healed the affected snapshots by then) and today's live row, keeping the
+  current chart on screen while it reloads. A collapsed panel fetches
+  nothing; it loads fresh rows when next opened.
 * **Chart.** Twelve bars, Jan to Dec, one per month: green above zero
   (money added), red below (cost basis sold). A line on its own right-hand
   axis shows invested at each month end. The tooltip shows the month, the
@@ -105,7 +111,7 @@ Worked example (INR, October 2026): 8,98,847.70 − 8,80,021.32 =
 | 1 | What a month's delta is | The History card's investment delta (PRD-006), from History rows |
 | 2 | Currencies | One chart with an INR / EUR / Gold switch |
 | 3 | The line | Invested at each month end |
-| 4 | Placement | Bottom panel, collapsed by default, state remembered |
+| 4 | Placement | Collapsible panel just below the filters (moved from the bottom, 2026-11-03), collapsed by default, state remembered |
 | 5 | Admin act-as | Not shown; only the user sees their own |
 | 6 | Today's live row | Included, through History's own live-row logic shared with the panel (plan review) |
 | 7 | A year with only the earlier baseline row | Empty (plan review) |

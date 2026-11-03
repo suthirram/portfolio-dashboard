@@ -182,6 +182,9 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
           </div>
         </section>
 
+        {/* The user's own portfolio only: History has no act-as read (PRD-007 §3). */}
+        {!actAsUserId && <InvestmentDeltaPanel theme={theme} refreshKey={ledgerVersion} />}
+
         {/* Per-currency subtotals — never combined across currencies. */}
         {subtotals.length > 0 && (
           <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
@@ -226,9 +229,6 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             onEdit={openEditor}
           />
         )}
-
-        {/* The user's own portfolio only: History has no act-as read (PRD-007 §3). */}
-        {!actAsUserId && <InvestmentDeltaPanel theme={theme} refreshKey={ledgerVersion} />}
       </main>
 
       {editing && (

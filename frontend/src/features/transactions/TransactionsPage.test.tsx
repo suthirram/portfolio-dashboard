@@ -60,6 +60,16 @@ describe('TransactionsPage', () => {
     expect(screen.getByRole('button', { name: /Investment delta/ })).toBeInTheDocument()
   })
 
+  it('places the investment delta panel just below the filters, above the table', async () => {
+    renderPage()
+    await screen.findByText('SIP tranche')
+    const panel = screen.getByRole('button', { name: /Investment delta/ })
+    const follows = (earlier: Element, later: Element) =>
+      Boolean(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(follows(screen.getByLabelText('Search'), panel)).toBe(true)
+    expect(follows(panel, screen.getByText('SIP tranche'))).toBe(true)
+  })
+
   it('does not show the investment delta panel in admin act-as', async () => {
     renderPage({ actAsUserId: 'u2', actAsLabel: "bob's transactions" })
     await screen.findByText('SIP tranche')

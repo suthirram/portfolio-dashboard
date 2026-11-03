@@ -44,14 +44,15 @@ date keeps the historical snapshots valuing that holding from the right day.
 
 ### Investment delta chart
 
-The **All transactions** page has an **Investment delta** panel docked at
-the bottom (your own portfolio only; not in admin act-as). Pull it up for a
+The **All transactions** page has an **Investment delta** panel just below
+the filters (your own portfolio only; not in admin act-as). Expand it for a
 Jan–Dec chart: each month's bar is the money added (green) or the cost
 basis sold (red), the same figure as the History month card, and the line
 is the invested amount at each month end. ‹ › change the year, and the
 INR / EUR / Gold buttons switch the currency
 ([PRD-007](prds/PRD-007-investment-delta-chart.md)). The panel remembers
-whether you left it open.
+whether you left it open, and reloads after you edit or delete a
+transaction in a holding's ledger, so it matches History.
 
 ## Symbol format (Yahoo Finance)
 
