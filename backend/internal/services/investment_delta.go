@@ -30,7 +30,7 @@ const goldColumn = "GOLD"
 // day (GoldService.InvestedOn: purchases only, no price needed). The caller
 // passes nil when the user has no gold, or Postgres is not configured.
 type GoldInvested interface {
-	InvestedOn(ctx context.Context, uid string, days []time.Time) ([]float64, error)
+	InvestedOn(ctx context.Context, userId string, days []time.Time) ([]float64, error)
 }
 
 // monthEnds lists the days the chart reads for year: 31 Dec of the previous
