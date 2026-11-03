@@ -90,21 +90,46 @@ func TestDeltaColumns(t *testing.T) {
 	}
 }
 
-// fakeGold stands in for the gold ledger's per-date invested amount.
+// Gold invested counts each purchase from its own day, with no price: a
+// January purchase is January's even when no price exists, or the first
+// price is only entered in March (History's overlay has no row value until
+// then, which would push the purchase into March).
+func TestGoldInvestedOn_NeedsNoPrice(t *testing.T) {
+	purchases := []domain.GoldTransaction{
+		{Date: mustDate("2026-01-05"), ActualPaid: 70000},
+		{Date: mustDate("2026-05-20"), ActualPaid: 36000},
+	}
+	days := []time.Time{mustDate("2025-12-31"), mustDate("2026-01-31"), mustDate("2026-02-28"), mustDate("2026-03-31"), mustDate("2026-05-20")}
+	got := goldInvestedOn(purchases, days)
+	want := []float64{0, 70000, 70000, 70000, 106000}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("invested on %v = %v; want %v (no price needed; the day inclusive)", days, got, want)
+		}
+	}
+
+	firstPriceInMarch := []domain.GoldPrice{{Date: mustDate("2026-03-10"), PricePerGram: 7000}}
+	overlay := goldOverlay(purchases, firstPriceInMarch, days)
+	if _, ok := overlay["2026-01-31"]; ok {
+		t.Errorf("goldOverlay valued 31 Jan before any price; this test's premise changed")
+	}
+}
+
+// fakeGold stands in for GoldService.InvestedOn.
 type fakeGold struct {
 	invested map[string]float64
 	err      error
 }
 
-func (gold fakeGold) HistoryOverlay(_ context.Context, _ string, dates []string) (map[string]domain.GoldHistoryPoint, error) {
+func (gold fakeGold) InvestedOn(_ context.Context, _ string, days []time.Time) ([]float64, error) {
 	if gold.err != nil {
 		return nil, gold.err
 	}
-	points := map[string]domain.GoldHistoryPoint{}
-	for _, date := range dates {
-		points[date] = domain.GoldHistoryPoint{Invested: gold.invested[date]}
+	values := make([]float64, len(days))
+	for i, day := range days {
+		values[i] = gold.invested[day.Format(time.DateOnly)]
 	}
-	return points, nil
+	return values, nil
 }
 
 func TestTransactionsService_InvestmentDelta(t *testing.T) {
