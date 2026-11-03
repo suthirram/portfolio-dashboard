@@ -54,6 +54,29 @@ INR / EUR / Gold buttons switch the currency
 whether you left it open, and reloads after you edit or delete a
 transaction in a holding's ledger, so it matches History.
 
+### Importing trades from a CSV
+
+**Import CSV** on the All transactions page reads a broker's order history
+(Groww's columns: Stock name, Symbol, ISIN, Type, Quantity, Value,
+Exchange, Execution date and time, Order status; comma- or tab-separated)
+and adds each executed buy and sell to its holding's ledger
+([PRD-008](prds/PRD-008-trade-csv-import.md)):
+
+* **Dates are day-first**: `1/11/2024` is 1 November 2024, and
+  `17-12-2024 03:30 PM` is 17 December 2024; the time only orders trades on
+  the same day.
+* **Symbols** match a holding without its exchange suffix (`GOLDBEES`
+  finds `GOLDBEES.NS`, also on a BSE row). An unknown symbol asks you to
+  pick the holding, create a new INR holding, or leave it out.
+* **Nothing is duplicated**: a row with the same holding, day, type,
+  quantity and value as a saved trade replaces it, so uploading the same
+  file twice changes nothing.
+* **Opening balances win**: rows on or before a holding's opening date are
+  already in that balance and are skipped.
+* **All or nothing**: the preview shows every count first; the import then
+  saves the trades, new holdings, positions and History together, or
+  nothing at all. An admin can import into a user's ledger from act-as.
+
 ## Symbol format (Yahoo Finance)
 
 | Exchange | Format | Example |

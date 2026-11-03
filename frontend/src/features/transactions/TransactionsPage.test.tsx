@@ -72,6 +72,19 @@ describe('TransactionsPage', () => {
     expect(screen.getByRole('button', { name: /Investment delta/ })).toBeInTheDocument()
   })
 
+  it('opens the trades CSV import from the toolbar, own page and act-as alike', async () => {
+    const { unmount } = renderPage()
+    await screen.findByText('SIP tranche')
+    fireEvent.click(screen.getByRole('button', { name: 'Import CSV' }))
+    expect(screen.getByRole('dialog', { name: 'Import trades' })).toBeInTheDocument()
+    unmount()
+
+    renderPage({ actAsUserId: 'u2', actAsLabel: "bob's transactions" })
+    await screen.findByText('SIP tranche')
+    fireEvent.click(screen.getByRole('button', { name: 'Import CSV' }))
+    expect(screen.getByRole('dialog', { name: 'Import trades' })).toBeInTheDocument()
+  })
+
   it('places the investment delta panel just below the filters, above the table', async () => {
     renderPage()
     await screen.findByText('SIP tranche')
