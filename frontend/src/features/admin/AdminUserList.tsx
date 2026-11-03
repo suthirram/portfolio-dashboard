@@ -7,7 +7,7 @@ import { AdminShell } from './AdminShell'
 type StatusFilter = 'active' | 'all'
 
 export default function AdminUserList() {
-  const { user: caller } = useAuth()
+  const { user: caller, refresh: refreshCaller } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [regions, setRegions] = useState<Region[]>([])
   const [loading, setLoading] = useState(true)
@@ -215,9 +215,14 @@ export default function AdminUserList() {
                         )}
                         {isSuper && (
                           // PD-052: the Transactions investment delta reads the ledger by
-                          // default; this switches the account back to History rows.
+                          // default; this switches the account back to History rows. On
+                          // the caller's own account the session user is refreshed too, so
+                          // the panel follows without a page reload.
                           <button className="btn btn-sm" disabled={busy === listedUser.id}
-                            onClick={() => runAction(listedUser.id, () => api.adminSetUserDeltaFromHistory(listedUser.id, { enabled: !listedUser.delta_from_history }))}>
+                            onClick={() => runAction(listedUser.id, async () => {
+                              await api.adminSetUserDeltaFromHistory(listedUser.id, { enabled: !listedUser.delta_from_history })
+                              if (isSelf) await refreshCaller()
+                            })}>
                             {listedUser.delta_from_history ? 'Delta from ledger' : 'Delta from History'}
                           </button>
                         )}

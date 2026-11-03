@@ -22,8 +22,10 @@ vi.mock('../../lib/api/client', () => ({
   },
 }))
 
+const refreshCaller = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+
 vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ user: superAdmin, logout: vi.fn() }),
+  useAuth: () => ({ user: superAdmin, logout: vi.fn(), refresh: refreshCaller }),
 }))
 
 describe('AdminUserList action buttons', () => {
@@ -59,5 +61,16 @@ describe('AdminUserList action buttons', () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: 'Delta from History' }))
     await waitFor(() => expect(api.adminSetUserDeltaFromHistory).toHaveBeenCalledWith('u1', { enabled: true }))
+    expect(refreshCaller).not.toHaveBeenCalled()
+  })
+
+  // On the super admin's own account the session user is refreshed, so the
+  // Transactions panel follows without a page reload.
+  it('refreshes the signed-in user after switching their own account', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...superAdmin, delta_from_history: false }])
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Delta from History' }))
+    await waitFor(() => expect(refreshCaller).toHaveBeenCalledTimes(1))
+    expect(api.adminSetUserDeltaFromHistory).toHaveBeenCalledWith('sa1', { enabled: true })
   })
 })

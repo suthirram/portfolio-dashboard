@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HistoryList, HistoryRow, InvestmentDelta } from '../../lib/api/client'
 import type { MonthlyInvestment } from '../history/historyShared'
 import { historyRow } from '../history/historyTestRows'
@@ -238,6 +238,22 @@ describe('InvestmentDeltaPanel (from the ledger)', () => {
     await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenLastCalledWith(shown - 1))
     rerender(<InvestmentDeltaPanel theme="dark" refreshKey={1} />)
     await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(3))
+  })
+
+  it('refetches the current year when a new trading day starts', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      vi.setSystemTime(new Date('2026-06-30T21:00:00Z')) // trading day 30 Jun, live window closed
+      renderPanel()
+      fireEvent.click(handleButton())
+      await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(1))
+      // Past the next boundary (03:30 UTC on 1 Jul): the trading day is now 1 Jul.
+      await act(async () => { vi.advanceTimersByTime(8 * 3600 * 1000) })
+      await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2))
+      expect(mockApi.getInvestmentDelta).toHaveBeenLastCalledWith(2026)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('says so when nothing was invested in the year', async () => {

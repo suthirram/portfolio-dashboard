@@ -55,6 +55,11 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
     })
   }
 
+  // The ledger months are as of the day they were fetched: while the current
+  // year is shown, a new trading day refetches them, so a month that has just
+  // begun gets its figures without collapsing the panel.
+  const ledgerDay = !fromHistory && year === currentYear ? todayStr : null
+
   useEffect(() => {
     if (!open) return
     let cancelled = false
@@ -74,7 +79,7 @@ export function InvestmentDeltaPanel({ theme, refreshKey = 0 }: Props) {
       }
     })()
     return () => { cancelled = true }
-  }, [open, year, refreshKey, fromHistory])
+  }, [open, year, refreshKey, fromHistory, ledgerDay])
 
   // Today's live row, as on History, while the current year is pulled up
   // (the History version only: the ledger is already as of today).
