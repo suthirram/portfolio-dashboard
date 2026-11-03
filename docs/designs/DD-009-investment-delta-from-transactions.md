@@ -30,7 +30,9 @@ the shared super-admin switch path selects the PD-050 version.
   after the current IST year.
 * `InvestmentDelta { year, columns: InvestmentDeltaColumn[] }`;
   `InvestmentDeltaColumn { column: INR|EUR|GOLD, months: InvestmentDeltaMonth[12] }`;
-  `InvestmentDeltaMonth { month0, invested?, delta? }`, both null after today.
+  `InvestmentDeltaMonth { month0, invested, delta }`: all three required;
+  `invested` and `delta` are `null` after today (an explicit null, not a
+  missing key).
 * `User.delta_from_history: boolean` (required in the schema; omitted in
   Mongo = false).
 * `PUT /admin/users/{id}/delta-from-history` with `UserFlagToggleRequest

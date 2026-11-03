@@ -138,7 +138,7 @@ git fetch origin && git checkout -b feat/PD-052-delta-api origin/feat/PD-052-del
 
 * [ ] **Step 2: Schemas (Edit `backend/api/specs/portfolio-api.yaml`)**
 
-WHY: the month shape mirrors the chart's `MonthlyInvestment` (month0, invested, delta; null after today), so the panel maps it straight through. `delta_from_history` joins the user like `gold_enabled` and `premium`; `UserFlagToggleRequest` is the body of the new switch (DD-009 §2).
+WHY: the month shape mirrors the chart's `MonthlyInvestment` (month0, invested, delta; required and null after today, so an empty month says null rather than dropping the key), so the panel maps it straight through. `delta_from_history` joins the user like `gold_enabled` and `premium`; `UserFlagToggleRequest` is the body of the new switch (DD-009 §2).
 
 Current:
 
@@ -223,7 +223,7 @@ Replacement:
         created_holdings: { type: integer }
     InvestmentDeltaMonth:
       type: object
-      required: [month0]
+      required: [month0, invested, delta]
       properties:
         month0: { type: integer, description: 0 = January }
         invested: { type: number, format: double, nullable: true, description: "Cost basis at the month end (today for the current month); null after today" }
@@ -705,6 +705,7 @@ package services
 
 import (
     "context"
+    "encoding/json"
     "errors"
     "testing"
     "time"
@@ -785,6 +786,10 @@ func TestDeltaColumns(t *testing.T) {
     }
     if india[3].Invested != nil || india[3].Delta != nil || india[11].Month0 != 11 {
         t.Errorf("April onwards = %+v; want empty months 3–11", india[3:])
+    }
+    // On the wire an empty month says so: null, not a missing key.
+    if wire, _ := json.Marshal(india[11]); string(wire) != `{"delta":null,"invested":null,"month0":11}` {
+        t.Errorf("December JSON = %s; want explicit nulls", wire)
     }
 }
 
@@ -1177,7 +1182,7 @@ Expected: no gofmt output; every package `ok`; `0 issues.`
 WHY: the PR body carries the curl block below (endpoint PRs).
 
 ```bash
-git add backend/api/specs/ backend/api/models.gen.go backend/api/server.gen.go backend/internal/domain/user.go backend/internal/services/mapper.go backend/internal/services/clock.go backend/internal/services/transactions.go backend/internal/services/investment_delta.go backend/internal/services/investment_delta_test.go backend/internal/controllers/investment_delta.go backend/internal/controllers/admin.go backend/internal/controllers/admin_test.go backend/internal/httpserver/auth.go
+git add backend/api/specs/portfolio-api.yaml backend/api/specs/transactions/transactions.yaml backend/api/specs/admin/admin.yaml backend/api/specs/openapi.yaml backend/api/models.gen.go backend/api/server.gen.go backend/internal/domain/user.go backend/internal/services/mapper.go backend/internal/services/clock.go backend/internal/services/transactions.go backend/internal/services/investment_delta.go backend/internal/services/investment_delta_test.go backend/internal/controllers/investment_delta.go backend/internal/controllers/admin.go backend/internal/controllers/admin_test.go backend/internal/httpserver/auth.go
 git commit -m "✨ Compute the investment delta from the ledger"
 git push -u origin feat/PD-052-delta-api
 gh pr create --base feat/PD-052-delta-from-transactions --title "✨ Serve the investment delta from the ledger, with a per-user switch" --body-file pr2.md
@@ -1191,7 +1196,7 @@ How to test (PR2 body), with the dev stack running:
 curl -s -c jar -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"<dev password>"}' localhost:8080/api/auth/login
 curl -s -b jar 'localhost:8080/api/transactions/investment-delta?year=2026'
-# 200: {"year":2026,"columns":[{"column":"INR","months":[{"month0":0,"invested":…,"delta":…}, …]}]}
+# 200: {"year":2026,"columns":[{"column":"INR","months":[{"month0":0,"invested":…,"delta":…}, …]}]}; months after today: null
 curl -s -b jar -o /dev/null -w '%{http_code}\n' 'localhost:8080/api/transactions/investment-delta?year=2019'
 # 400
 curl -s -b jar -X PUT -H 'X-Requested-With: portfolio-dashboard' -H 'Content-Type: application/json' \
