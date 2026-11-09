@@ -43,9 +43,9 @@ the owner explicitly authorizes a combined change.
 * [x] Run `go test ./...` in `backend`. Expected: all packages pass.
 
 Backend tests, Markdown lint, YAML lint, and diff whitespace checks pass.
-Full Go lint reports existing findings in untouched generated server code
-and stale external-worktree cache entries; no changed-code finding reported.
-`golangci-lint run --timeout=1m --new-from-rev=HEAD ./...` passes (zero issues).
+Initial Go lint findings came from stale external-worktree cache entries.
+All commit hooks, including full Go lint, pass with an isolated lint cache
+(`GOLANGCI_LINT_CACHE=/tmp/pd-daygain-pr-lint-cache`).
 Frontend types were regenerated to verify the contract; their additive output
 is deferred to the UI slice to keep this branch backend-only.
 
@@ -84,4 +84,4 @@ frontend before backend if needed; no stored data needs repair.
 * [x] Review repository rules, task-breakdown, run-app, and snapshot ADR.
 * [x] Record historical-close priority and closed-market limitations.
 
-Next: verify the backend slice, then ship the frontend consumer in sequence.
+Next: review and merge the backend slice, then ship the frontend consumer.
