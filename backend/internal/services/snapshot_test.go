@@ -262,6 +262,11 @@ func (m *multiStub) GetForexRate(_ context.Context, _, _ string) (float64, error
 	return 0.011, nil
 }
 
+func (m *multiStub) GetQuote(ctx context.Context, symbol string) (Quote, error) {
+	price, currency, err := m.GetPrice(ctx, symbol)
+	return Quote{Price: price, Currency: currency}, err
+}
+
 // -- Run/Report --
 
 // weekday is a fixed Tuesday for Run tests: the zero-value RunOptions.Date

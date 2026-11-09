@@ -60,6 +60,24 @@ func TestHoldingWithPriceToAPI_RoundsToTwoDecimals(t *testing.T) {
 	}
 }
 
+func TestHoldingWithPriceToAPI_PreviousCloseNativeCurrency(t *testing.T) {
+	for _, currency := range []string{"INR", "EUR"} {
+		t.Run(currency, func(t *testing.T) {
+			holding := domain.Holding{Symbol: "TEST", Currency: currency, StocksOwned: 2, AvgCostPrice: 90}
+			prices := &stubPriceFetcher{price: 105, previousClose: new(100.125)}
+			got := HoldingWithPriceToAPI(context.Background(), holding, prices, 0.011)
+			if got.PreviousClosePrice == nil || *got.PreviousClosePrice != 100.125 {
+				t.Fatalf("previous close = %v, want native unrounded 100.125", got.PreviousClosePrice)
+			}
+			prices.previousClose = nil
+			got = HoldingWithPriceToAPI(context.Background(), holding, prices, 0.011)
+			if got.PreviousClosePrice != nil || got.PriceError != nil || *got.CurrentPrice != 105 {
+				t.Fatalf("missing close must preserve live pricing: %+v", got)
+			}
+		})
+	}
+}
+
 func TestOpeningStatus(t *testing.T) {
 	withOpening := primitive.NewObjectID()
 	withDate := primitive.NewObjectID()

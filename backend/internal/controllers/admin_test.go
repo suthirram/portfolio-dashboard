@@ -29,6 +29,43 @@ func superAdmin() *domain.User {
 	}
 }
 
+func TestAdminGetUserPrices_PreviousClose(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("authorized admin receives target previous close", func(mt *mtest.T) {
+		userId := primitive.NewObjectID()
+		target := userDocument(t, userId, "target", "irrelevant1", domain.RoleUser, "india", nil)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
+				holdingDocument(primitive.NewObjectID(), "TCS", "TCS.NS", "NSE", 10, 3000, 0)),
+		)
+		handler := newIntegrationHandler(mt, &mockPriceFetcher{
+			forexRate:      0.011,
+			prices:         map[string]float64{"TCS.NS": 3600},
+			previousCloses: map[string]float64{"TCS.NS": 3500},
+		})
+		response, err := handler.AdminGetUserPrices(userCtx(regionalAdmin("india")), api.AdminGetUserPricesRequestObject{Id: userId.Hex()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, ok := response.(api.AdminGetUserPrices200JSONResponse)
+		if !ok || got.Holdings == nil || len(*got.Holdings) != 1 {
+			t.Fatalf("unexpected response: %#v", response)
+		}
+		previousClose := (*got.Holdings)[0].PreviousClosePrice
+		if previousClose == nil || *previousClose != 3500 {
+			t.Fatalf("previous close = %v, want 3500", previousClose)
+		}
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "find" && event.Command.Lookup("find").StringValue() == "holdings" {
+				if gotUserId := event.Command.Lookup("filter").Document().Lookup("user_id").ObjectID(); gotUserId != userId {
+					t.Fatalf("holdings owner = %v, want %v", gotUserId, userId)
+				}
+			}
+		}
+	})
+}
+
 // findFilter extracts the filter document of the first `find` command.
 func findFilter(t *testing.T, mt *mtest.T) bson.Raw {
 	t.Helper()

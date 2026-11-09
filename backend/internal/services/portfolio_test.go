@@ -15,15 +15,20 @@ import (
 )
 
 type stubPriceFetcher struct {
-	price    float64
-	priceCur string
-	priceErr error
-	rate     float64
-	rateErr  error
+	previousClose *float64
+	price         float64
+	priceCur      string
+	priceErr      error
+	rate          float64
+	rateErr       error
 }
 
 func (s *stubPriceFetcher) GetPrice(_ context.Context, _ string) (float64, string, error) {
 	return s.price, s.priceCur, s.priceErr
+}
+
+func (s *stubPriceFetcher) GetQuote(_ context.Context, _ string) (Quote, error) {
+	return Quote{Price: s.price, Currency: s.priceCur, PreviousClosePrice: s.previousClose}, s.priceErr
 }
 
 func (s *stubPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64, error) {

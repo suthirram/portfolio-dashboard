@@ -1006,7 +1006,10 @@ type HoldingWithPrice struct {
 
 	// OpeningDate User-set effective date of the opening balance; null when not yet set
 	OpeningDate *openapi_types.Date `json:"opening_date,omitempty"`
-	PriceError  *string             `json:"price_error,omitempty"`
+
+	// PreviousClosePrice Optional Yahoo previous session close in the holding's native price currency. Historical closes take priority in the dashboard.
+	PreviousClosePrice *float64 `json:"previous_close_price,omitempty"`
+	PriceError         *string  `json:"price_error,omitempty"`
 
 	// RealizedPnl Profit/loss from shares already sold, in the holding's currency (derived, average cost)
 	RealizedPnl    *float64 `json:"realized_pnl,omitempty"`

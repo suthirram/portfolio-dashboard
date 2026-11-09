@@ -35,6 +35,7 @@ func apiDate(d *time.Time) *openapi_types.Date {
 // rather than the concrete type so tests can substitute a stub.
 type PriceFetcher interface {
 	GetPrice(ctx context.Context, symbol string) (float64, string, error)
+	GetQuote(ctx context.Context, symbol string) (Quote, error)
 	GetForexRate(ctx context.Context, from, to string) (float64, error)
 }
 
@@ -143,7 +144,11 @@ func HoldingWithPriceToAPI(ctx context.Context, holding domain.Holding, ps Price
 	}
 
 	if holding.Symbol != "" {
-		price, _, priceErr := ps.GetPrice(ctx, holding.Symbol)
+		quote, priceErr := ps.GetQuote(ctx, holding.Symbol)
+		price := quote.Price
+		if priceErr == nil {
+			hwp.PreviousClosePrice = quote.PreviousClosePrice
+		}
 		if priceErr != nil {
 			// A failed/delisted price (Yahoo 404) is treated as a market
 			// price of 0: current value 0, full cost as unrealized loss.
