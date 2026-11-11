@@ -19,11 +19,12 @@ import (
 )
 
 type mockPriceFetcher struct {
-	prices     map[string]float64
-	currencies map[string]string
-	priceErrs  map[string]error
-	forexRate  float64
-	forexErr   error
+	previousCloses map[string]float64
+	prices         map[string]float64
+	currencies     map[string]string
+	priceErrs      map[string]error
+	forexRate      float64
+	forexErr       error
 }
 
 func (m *mockPriceFetcher) GetPrice(_ context.Context, symbol string) (float64, string, error) {
@@ -46,6 +47,15 @@ func (m *mockPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64
 		return 0, m.forexErr
 	}
 	return m.forexRate, nil
+}
+
+func (m *mockPriceFetcher) GetQuote(ctx context.Context, symbol string) (services.Quote, error) {
+	price, currency, err := m.GetPrice(ctx, symbol)
+	quote := services.Quote{Price: price, Currency: currency}
+	if previousClose, ok := m.previousCloses[symbol]; ok {
+		quote.PreviousClosePrice = &previousClose
+	}
+	return quote, err
 }
 
 func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {

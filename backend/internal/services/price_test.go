@@ -64,6 +64,57 @@ func TestGetPrice_ReturnsLivePriceAndCurrency(t *testing.T) {
 	}
 }
 
+func TestGetQuote_PreviousCloseAndCache(t *testing.T) {
+	testCases := []struct {
+		name     string
+		metadata string
+		want     *float64
+	}{
+		{name: "session close wins", metadata: `,"previousClose":100.25,"chartPreviousClose":90`, want: new(100.25)},
+		{name: "chart close fallback", metadata: `,"chartPreviousClose":99.5`, want: new(99.5)},
+		{name: "zero session close fallback", metadata: `,"previousClose":0,"chartPreviousClose":99.5`, want: new(99.5)},
+		{name: "missing close", metadata: ``},
+		{name: "invalid closes", metadata: `,"previousClose":-1,"chartPreviousClose":0`},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				calls++
+				if request.URL.Query().Get("range") != "1d" {
+					t.Error("previous close must use a one-day chart range")
+				}
+				_, err := writer.Write([]byte(`{"chart":{"result":[{"meta":{"currency":"INR","regularMarketPrice":105` + testCase.metadata + `}}]}}`))
+				if err != nil {
+					t.Errorf("write response: %v", err)
+				}
+			}))
+			defer server.Close()
+			service := newTestPriceService(server.URL)
+			ctx := context.Background()
+			if _, _, err := service.GetPrice(ctx, "TCS.NS"); err != nil {
+				t.Fatal(err)
+			}
+			for range 2 {
+				quote, err := service.GetQuote(ctx, "TCS.NS")
+				if err != nil || quote.Price != 105 || quote.Currency != "INR" {
+					t.Fatalf("quote = %+v, err = %v", quote, err)
+				}
+				if testCase.want == nil {
+					if quote.PreviousClosePrice != nil {
+						t.Fatalf("unexpected previous close %v", *quote.PreviousClosePrice)
+					}
+				} else if quote.PreviousClosePrice == nil || *quote.PreviousClosePrice != *testCase.want {
+					t.Fatalf("previous close = %v, want %v", quote.PreviousClosePrice, *testCase.want)
+				}
+			}
+			if calls != 1 {
+				t.Fatalf("Yahoo calls = %d, want one shared cached response", calls)
+			}
+		})
+	}
+}
+
 func TestGetPrice_CachesResultOnSecondCall(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

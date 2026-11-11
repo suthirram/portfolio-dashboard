@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,9 +20,16 @@ import (
 
 // cachedPrice holds a price with a timestamp for TTL-based invalidation.
 type cachedPrice struct {
-	price     float64
-	currency  string
-	fetchedAt time.Time
+	price              float64
+	currency           string
+	previousClosePrice *float64
+	fetchedAt          time.Time
+}
+
+type Quote struct {
+	Price              float64
+	Currency           string
+	PreviousClosePrice *float64
 }
 
 // PriceService fetches live quotes from Yahoo Finance with a TTL cache.
@@ -59,8 +67,10 @@ type yahooChartResp struct {
 	Chart struct {
 		Result []struct {
 			Meta struct {
-				Currency           string  `json:"currency"`
-				RegularMarketPrice float64 `json:"regularMarketPrice"`
+				Currency           string   `json:"currency"`
+				RegularMarketPrice float64  `json:"regularMarketPrice"`
+				PreviousClose      *float64 `json:"previousClose"`
+				ChartPreviousClose *float64 `json:"chartPreviousClose"`
 			} `json:"meta"`
 		} `json:"result"`
 		Error any `json:"error"`
@@ -71,35 +81,42 @@ type yahooChartResp struct {
 // For NSE stocks append ".NS" (e.g. "TCS.NS"), for BSE append ".BO".
 // US symbols are plain (e.g. "AAPL").
 func (s *PriceService) GetPrice(ctx context.Context, symbol string) (_ float64, _ string, retErr error) {
+	ctx, span := tracer.Start(ctx, "PriceService.GetPrice")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer endSpan(span, &retErr)
+	quote, err := s.GetQuote(ctx, symbol)
+	return quote.Price, quote.Currency, err
+}
+
+func (s *PriceService) GetQuote(ctx context.Context, symbol string) (_ Quote, retErr error) {
+	ctx, span := tracer.Start(ctx, "PriceService.GetQuote")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer endSpan(span, &retErr)
 	logger := s.log()
 	if c, ok := s.cacheGet(symbol); ok {
 		logger.Debug("price cache hit",
 			zap.String("symbol", symbol),
 			zap.Float64("price", c.price),
 		)
-		return c.price, c.currency, nil
+		return Quote{Price: c.price, Currency: c.currency, PreviousClosePrice: c.previousClosePrice}, nil
 	}
 
-	ctx, span := tracer.Start(ctx, "PriceService.GetPrice")
-	span.SetAttributes(attribute.String("symbol", symbol))
-	defer endSpan(span, &retErr)
-
-	price, currency, err := s.fetch(ctx, symbol)
+	quote, err := s.fetch(ctx, symbol)
 	if err != nil {
 		logger.Warn("price fetch failed",
 			zap.String("symbol", symbol),
-			zap.String("error", err.Error()),
+			zap.Error(err),
 		)
-		return 0, "", err
+		return Quote{}, err
 	}
 
-	s.cacheSet(symbol, price, currency)
+	s.cacheSet(symbol, quote)
 	logger.Debug("price fetched",
 		zap.String("symbol", symbol),
-		zap.Float64("price", price),
-		zap.String("currency", currency),
+		zap.Float64("price", quote.Price),
+		zap.String("currency", quote.Currency),
 	)
-	return price, currency, nil
+	return quote, nil
 }
 
 // GetForexRate returns how many `to` units equal 1 `from` unit.
@@ -127,23 +144,34 @@ func (s *PriceService) cacheGet(symbol string) (cachedPrice, bool) {
 	return c, true
 }
 
-func (s *PriceService) cacheSet(symbol string, price float64, currency string) {
+func (s *PriceService) cacheSet(symbol string, quote Quote) {
 	s.cacheMu.Lock()
 	defer s.cacheMu.Unlock()
-	s.cache[symbol] = cachedPrice{price: price, currency: currency, fetchedAt: time.Now()}
+	s.cache[symbol] = cachedPrice{price: quote.Price, currency: quote.Currency, previousClosePrice: quote.PreviousClosePrice, fetchedAt: time.Now()}
 }
 
-func (s *PriceService) fetch(ctx context.Context, symbol string) (_ float64, _ string, retErr error) {
+func (s *PriceService) fetch(ctx context.Context, symbol string) (_ Quote, retErr error) {
 	ctx, span := tracer.Start(ctx, "PriceService.fetch")
 	defer endSpan(span, &retErr)
 	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&range=1d",
 		s.baseURL, url.PathEscape(symbol))
 	yr, err := s.fetchChart(ctx, endpoint, symbol)
 	if err != nil {
-		return 0, "", err
+		return Quote{}, err
 	}
 	meta := yr.Chart.Result[0].Meta
-	return meta.RegularMarketPrice, meta.Currency, nil
+	previousClose := meta.PreviousClose
+	if !validPreviousClose(previousClose) {
+		previousClose = meta.ChartPreviousClose
+	}
+	if !validPreviousClose(previousClose) {
+		previousClose = nil
+	}
+	return Quote{Price: meta.RegularMarketPrice, Currency: meta.Currency, PreviousClosePrice: previousClose}, nil
+}
+
+func validPreviousClose(price *float64) bool {
+	return price != nil && *price > 0 && !math.IsNaN(*price) && !math.IsInf(*price, 0)
 }
 
 // fetchChart performs the Yahoo chart GET and decodes the shared response,

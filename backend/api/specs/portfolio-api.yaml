@@ -618,6 +618,10 @@ components:
             current_price:
               type: number
               format: double
+            previous_close_price:
+              type: number
+              format: double
+              description: Optional Yahoo previous session close in the holding's native price currency. Historical closes take priority in the dashboard.
             cost_price:
               type: number
               format: double

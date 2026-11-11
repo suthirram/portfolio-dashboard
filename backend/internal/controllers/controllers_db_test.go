@@ -482,8 +482,9 @@ func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 
 		const eurRate = 0.011
 		h := newIntegrationHandler(mt, &mockPriceFetcher{
-			forexRate: eurRate,
-			prices:    map[string]float64{"TCS.NS": 3600},
+			forexRate:      eurRate,
+			prices:         map[string]float64{"TCS.NS": 3600},
+			previousCloses: map[string]float64{"TCS.NS": 3500},
 		})
 
 		resp, err := h.GetPrices(userCtx(scopedUser()), api.GetPricesRequestObject{})
@@ -498,6 +499,9 @@ func TestIntegration_GetPrices_ReturnsEnrichedHoldings(t *testing.T) {
 			t.Fatalf("Holdings = %#v, want one holding", got.Holdings)
 		}
 		priced := (*got.Holdings)[0]
+		if priced.PreviousClosePrice == nil || *priced.PreviousClosePrice != 3500 {
+			t.Errorf("PreviousClosePrice = %v, want 3500", priced.PreviousClosePrice)
+		}
 		if priced.CurrentPrice == nil || *priced.CurrentPrice != 3600 {
 			t.Errorf("CurrentPrice = %v, want 3600", priced.CurrentPrice)
 		}
