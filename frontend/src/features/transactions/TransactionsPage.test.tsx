@@ -175,8 +175,7 @@ describe('TransactionsPage', () => {
 
     await waitFor(() => expect(screen.queryByText('₹48,912.00')).not.toBeInTheDocument())
     // "1 of 3" — the count is the only active-filter signal the view needs.
-    expect(screen.getByText('1')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && element.textContent === '1 of 3 transactions')).toBeInTheDocument()
     expect(screen.getAllByText('€3,200.00').length).toBeGreaterThan(0)
   })
 
@@ -237,5 +236,39 @@ describe('TransactionsPage', () => {
     renderPage()
 
     expect(await screen.findByText('No transactions yet')).toBeInTheDocument()
+  })
+})
+
+describe('TransactionsPage pagination', () => {
+  // 40 buys, a day apart, newest first by the default sort.
+  const many: TransactionWithHolding[] = Array.from({ length: 40 }, (_, i) => ({
+    id: `p${i + 1}`, holding_id: 'h1', type: 'buy', date: `2026-0${1 + Math.floor(i / 28)}-${String(1 + (i % 28)).padStart(2, '0')}T00:00:00Z`,
+    quantity: 1, amount: 1000 + i, currency: 'INR', notes: `lot ${i + 1}`,
+    script: 'Tata Consultancy', symbol: 'TCS.NS', created_at: '2026-01-01T10:00:00Z',
+  }))
+  const bodyRows = () => screen.getAllByRole('row').filter(row => row.closest('tbody'))
+
+  it('shows 15 transactions per page with a Gmail-style range', async () => {
+    mockApi.listAllTransactions.mockResolvedValue(many)
+    renderPage()
+    await screen.findByText('lot 40')
+    const pager = screen.getByRole('navigation', { name: 'Transactions pages' })
+    expect(pager).toHaveTextContent('1–15 of 40')
+    expect(bodyRows()).toHaveLength(15)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(pager).toHaveTextContent('16–30 of 40')
+    expect(screen.queryByText('lot 40')).toBeNull()
+    expect(screen.getByText('lot 25')).toBeInTheDocument()
+  })
+
+  it('goes back to the first page when a filter changes', async () => {
+    mockApi.listAllTransactions.mockResolvedValue(many)
+    renderPage()
+    await screen.findByText('lot 40')
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'lot 1' } })
+    // lot 1 and lot 10–19: 11 rows, one page.
+    expect(screen.getByRole('navigation', { name: 'Transactions pages' })).toHaveTextContent('1–11 of 11')
   })
 })
