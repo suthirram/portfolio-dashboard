@@ -75,13 +75,18 @@ describe('HistoryPage', () => {
     })
   })
 
-  it('year dropdown spans 2020 → current year regardless of snapshot range', async () => {
+  it('month navigator spans January 2020 → the current month regardless of snapshot range', async () => {
     renderPage()
-    const opts = Array.from(document.querySelectorAll('option')).map(option => option.textContent)
-    // Years are contiguous, oldest first.
-    for (let yearOption = 2020; yearOption <= 2026; yearOption++) {
-      expect(opts).toContain(String(yearOption))
-    }
+    fireEvent.click(screen.getByRole('button', { name: /^Month: June 2026/ }))
+    // Back year by year to 2020, and no further.
+    for (let clicks = 0; clicks < 6; clicks++) fireEvent.click(screen.getByRole('button', { name: 'Previous year' }))
+    expect(screen.getByRole('button', { name: 'January 2020' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Previous year' })).toBeDisabled()
+    // Forward to 2026: months after June have no rows yet.
+    for (let clicks = 0; clicks < 6; clicks++) fireEvent.click(screen.getByRole('button', { name: 'Next year' }))
+    expect(screen.getByRole('button', { name: 'June 2026' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'July 2026' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled()
   })
 
   it('renders the friendly empty state when the month has no rows', async () => {
@@ -142,7 +147,7 @@ describe('HistoryPage', () => {
     await screen.findByRole('table', { name: 'Jun 2026 performance' })
 
     mockApi.listHistory.mockReturnValueOnce(new Promise(() => {})) // May never lands
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' })) // May
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledWith('2026-05-01', '2026-05-31', true))
     expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
   })
@@ -153,7 +158,7 @@ describe('HistoryPage', () => {
     await screen.findByRole('table', { name: 'Jun 2026 performance' })
 
     mockApi.listHistory.mockRejectedValueOnce(new Error('boom'))
-    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: '4' } }) // May
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' })) // May
     expect(await screen.findByText('Error: boom')).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: /performance/ })).not.toBeInTheDocument()
   })
@@ -217,8 +222,8 @@ describe('HistoryPage', () => {
     renderPage()
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(1))
 
-    const monthSelect = screen.getAllByRole('combobox')[1] // Year, Month
-    fireEvent.change(monthSelect, { target: { value: '0' } }) // January
+    fireEvent.click(screen.getByRole('button', { name: /^Month: / }))
+    fireEvent.click(screen.getByRole('button', { name: 'January 2026' }))
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledTimes(2))
     const calls = mockApi.listHistory.mock.calls
     const lastArgs = calls[calls.length - 1]
@@ -356,8 +361,8 @@ describe('HistoryPage', () => {
       await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalled())
 
       // Navigate deliberately to March 2026.
-      const monthSelect = document.querySelectorAll('select')[1] as HTMLSelectElement
-      fireEvent.change(monthSelect, { target: { value: '2' } })
+      fireEvent.click(screen.getByRole('button', { name: /^Month: / }))
+      fireEvent.click(screen.getByRole('button', { name: 'March 2026' }))
       await waitFor(() =>
         expect(mockApi.listHistory).toHaveBeenCalledWith('2026-03-01', '2026-03-31', true))
 

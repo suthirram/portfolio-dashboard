@@ -26,10 +26,11 @@ import {
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
   chartTooltipProps, fmtAxisAmount, fmtCurrency, goldChartData, monthRange,
   niceDomain, perCurrencyChartData,
-  regionHasData, selectStyle, symmetricDomain, tradingDateIST, yearMonth0,
+  regionHasData, symmetricDomain, tradingDateIST, yearMonth0,
   type RegionKey,
 } from './historyShared'
 import { HistoryTable } from './HistoryTable'
+import { MonthNavigator } from './MonthNavigator'
 import { PeriodPerformanceCard } from './PeriodPerformanceCard'
 import { useLiveHistoryRows, useTradingClock } from './useLiveHistoryRows'
 import {
@@ -147,14 +148,6 @@ export default function HistoryPage() {
   const displayRows = useLiveHistoryRows(rows, {
     active: isCurrentMonth, todayStr, liveWindowOpen, goldEnabled: Boolean(auth?.user?.gold_enabled),
   })
-
-  const years = useMemo(() => {
-    const current = now.getUTCFullYear()
-    const start = Math.min(MIN_YEAR, current)
-    const out: number[] = []
-    for (let yearOption = start; yearOption <= current; yearOption++) out.push(yearOption)
-    return out
-  }, [now])
 
   // One chart per currency. Compute series per bucket.
   //
@@ -275,18 +268,10 @@ export default function HistoryPage() {
 
       <main className="page-main" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto' }}>
         <section className="page-toolbar" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Year</span>
-            <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>
-              {years.map(yearOption => <option key={yearOption} value={yearOption}>{yearOption}</option>)}
-            </select>
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Month</span>
-            <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selectStyle}>
-              {MONTHS.map((monthName, i) => <option key={i} value={i}>{monthName}</option>)}
-            </select>
-          </label>
+          {/* From January of MIN_YEAR to the current trading month. */}
+          <MonthNavigator value={{ year, month0: month }} min={{ year: MIN_YEAR, month0: 0 }} max={today}
+            onChange={next => { setYear(next.year); setMonth(next.month0) }} />
+
           <span style={{ flex: 1 }} />
           {/* Active look comes from the shared .btn[aria-pressed="true"] rule. */}
           <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop} className="btn"

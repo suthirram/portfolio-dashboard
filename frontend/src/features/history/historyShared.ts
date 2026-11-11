@@ -829,13 +829,6 @@ export const actionTh: CSSProperties = { ...th, width: 72, minWidth: 72, textAli
 export const actionTd: CSSProperties = { ...td, width: 72, minWidth: 72, textAlign: 'center', verticalAlign: 'middle' }
 export const actionCell: CSSProperties = { display: 'inline-flex', gap: 8, alignItems: 'center', justifyContent: 'center' }
 
-// selectStyle keeps the Year/Month dropdowns theme-aware. Without an explicit
-// background/colour, native <select> falls back to the browser default (white
-// on black text), which reads as light-mode in the dark theme.
-export const selectStyle: CSSProperties = {
-  padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)',
-  background: 'var(--bg-card)', color: 'var(--text-primary)',
-}
 // Recharts renders its tooltip with a hard-coded white background; in dark mode
 // the (theme-set) white text then sits on white. Force a theme-aware surface.
 export const chartTooltipProps = {
