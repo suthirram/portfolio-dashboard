@@ -30,6 +30,9 @@ type User struct {
 	// DeltaFromHistory switches the Transactions page's investment delta back
 	// to History rows (PD-052); omitted = false = computed from the ledger.
 	DeltaFromHistory bool `bson:"delta_from_history,omitempty" json:"delta_from_history"`
+	// UiRevamp opts an account into the glass UI (PD-054); omitted = false =
+	// the current UI.
+	UiRevamp bool `bson:"ui_revamp,omitempty" json:"ui_revamp"`
 
 	LoginFailures            int  `bson:"login_failures" json:"-"`
 	SecurityQuestionFailures int  `bson:"security_question_failures" json:"-"`

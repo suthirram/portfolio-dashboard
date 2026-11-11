@@ -20,12 +20,15 @@ import AdminUserDividends from './features/admin/AdminUserDividends'
 import AdminManageAdmins from './features/admin/AdminManageAdmins'
 import AdminBranding from './features/admin/AdminBranding'
 import { BrandingProvider } from './lib/useBranding'
+import { UiModeSync } from './lib/uiMode'
+import { ShellLayout } from './components/shell/AppShell'
 
 export default function App() {
   return (
     <BrowserRouter>
       <BrandingProvider>
         <AuthProvider>
+          <UiModeSync />
           <CurrencySprinkle />
           <Routes>
             <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
@@ -33,20 +36,24 @@ export default function App() {
             <Route path="/forgot-password" element={<RedirectIfAuthed><ForgotPasswordPage /></RedirectIfAuthed>} />
             <Route path="/onboarding" element={<OnboardingPage />} />
 
-            <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-            <Route path="/history" element={<RequireAuth><HistoryPage /></RequireAuth>} />
-            <Route path="/transactions" element={<RequireAuth><TransactionsPage /></RequireAuth>} />
-            <Route path="/dividends" element={<RequireAuth><DividendsPage /></RequireAuth>} />
-            <Route path="/history/chart/:region" element={<RequireAuth><HistoryChartPage /></RequireAuth>} />
-            <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
-            <Route path="/gold" element={<RequireGold><GoldPage /></RequireGold>} />
+            {/* Signed-in pages: inside the glass shell for ui_revamp accounts
+                (PD-054), on their own for everyone else. */}
+            <Route element={<ShellLayout />}>
+              <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+              <Route path="/history" element={<RequireAuth><HistoryPage /></RequireAuth>} />
+              <Route path="/transactions" element={<RequireAuth><TransactionsPage /></RequireAuth>} />
+              <Route path="/dividends" element={<RequireAuth><DividendsPage /></RequireAuth>} />
+              <Route path="/history/chart/:region" element={<RequireAuth><HistoryChartPage /></RequireAuth>} />
+              <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+              <Route path="/gold" element={<RequireGold><GoldPage /></RequireGold>} />
 
-            <Route path="/admin" element={<RequireAdmin><AdminUserList /></RequireAdmin>} />
-            <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserView /></RequireAdmin>} />
-            <Route path="/admin/users/:id/transactions" element={<RequireAdmin><AdminUserTransactions /></RequireAdmin>} />
-            <Route path="/admin/users/:id/dividends" element={<RequireAdmin><AdminUserDividends /></RequireAdmin>} />
-            <Route path="/admin/admins" element={<RequireSuperAdmin><AdminManageAdmins /></RequireSuperAdmin>} />
-            <Route path="/admin/branding" element={<RequireSuperAdmin><AdminBranding /></RequireSuperAdmin>} />
+              <Route path="/admin" element={<RequireAdmin><AdminUserList /></RequireAdmin>} />
+              <Route path="/admin/users/:id" element={<RequireAdmin><AdminUserView /></RequireAdmin>} />
+              <Route path="/admin/users/:id/transactions" element={<RequireAdmin><AdminUserTransactions /></RequireAdmin>} />
+              <Route path="/admin/users/:id/dividends" element={<RequireAdmin><AdminUserDividends /></RequireAdmin>} />
+              <Route path="/admin/admins" element={<RequireSuperAdmin><AdminManageAdmins /></RequireSuperAdmin>} />
+              <Route path="/admin/branding" element={<RequireSuperAdmin><AdminBranding /></RequireSuperAdmin>} />
+            </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

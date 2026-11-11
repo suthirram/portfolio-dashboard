@@ -4,6 +4,7 @@
 @import './styles/tokens.css';
 @import './styles/base.css';
 @import './styles/components.css';
+@import './styles/glass.css';
 
 /* Shared page chrome. .page-nav is the sticky glass header every page shell
  * uses (pair with .nav-glass); .page-main is the content container. The

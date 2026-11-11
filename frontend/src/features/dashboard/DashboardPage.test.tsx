@@ -1,6 +1,6 @@
-import { render, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import DashboardPage, { dividendIncome } from './DashboardPage'
 import type { HoldingWithPrice } from '../../types'
 import type { GroupDayChange } from '../holdings/dashboardPriceMovement'
@@ -8,26 +8,32 @@ import type { GroupDayChange } from '../holdings/dashboardPriceMovement'
 // The holdings the mocked hook returns, and the props SummaryCards got.
 const dashboard = vi.hoisted(() => ({
   enriched: [] as unknown[],
+  summary: null as unknown,
+  uiRevamp: false,
   summaryProps: null as null | { computedDayChangeInr?: GroupDayChange | null; computedDayChangeEur?: GroupDayChange | null },
 }))
 
 vi.mock('../holdings/useHoldings', () => ({
   useHoldings: () => ({
-    holdings: [], enriched: dashboard.enriched, summary: null,
+    holdings: [], enriched: dashboard.enriched, summary: dashboard.summary,
     loadingHoldings: false, loadingPrices: false, lastRefresh: null,
     refresh: vi.fn(), fetchPrices: vi.fn(), remove: vi.fn(),
   }),
 }))
 
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({
+vi.mock('../auth/AuthContext', () => {
+  const session = () => ({
     user: {
       id: 'u1', username: 'alice', name: 'Alice', role: 'admin',
-      region: 'india', gold_enabled: true, premium: false,
+      region: 'india', gold_enabled: true, premium: false, ui_revamp: dashboard.uiRevamp,
     },
+    loading: false,
     logout: vi.fn(),
-  }),
-}))
+  })
+  return { useAuth: session, useAuthOptional: session }
+})
+
+vi.mock('../holdings/AddEditModal', () => ({ default: () => <div role="dialog" aria-label="Add holding" /> }))
 
 vi.mock('../../lib/api/client', () => ({
   api: {
@@ -107,6 +113,53 @@ describe('DashboardPage summary day gain', () => {
     dashboard.enriched = [held('INR', 120, 100)]
     render(<MemoryRouter><DashboardPage /></MemoryRouter>)
     expect(dashboard.summaryProps?.computedDayChangeEur).toBeUndefined()
+  })
+})
+
+describe('DashboardPage in the glass UI (PD-054)', () => {
+  afterEach(() => {
+    dashboard.uiRevamp = false
+    dashboard.summary = null
+  })
+
+  it('shows the hero only for a glass account', () => {
+    dashboard.summary = { total_current_value: 1000, total_current_value_eur: 11, total_cost: 800, total_unrealized: 200 }
+    const { unmount } = render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    expect(screen.queryByLabelText('Portfolio overview')).toBeNull()
+    unmount()
+
+    dashboard.uiRevamp = true
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    expect(screen.getByLabelText('Portfolio overview')).toBeInTheDocument()
+  })
+
+  it('marks the header copies of the shell controls, but keeps act-as links', () => {
+    const { container, unmount } = render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    const header = container.querySelector('header')!
+    expect(within(header).getByRole('link', { name: /History/ })).toHaveClass('shell-dup')
+    unmount()
+
+    const actAs = render(<MemoryRouter><DashboardPage actAsUserId="u2" actAsLabel="bob" /></MemoryRouter>)
+    const actAsHeader = actAs.container.querySelector('header')!
+    expect(within(actAsHeader).getByRole('link', { name: /Transactions/ })).not.toHaveClass('shell-dup')
+  })
+
+  it('opens Add holding when the shell sends openAdd', () => {
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/', state: { openAdd: true } }]}>
+        <DashboardPage />
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('dialog', { name: 'Add holding' })).toBeInTheDocument()
+  })
+
+  it('ignores openAdd in act-as views', () => {
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/admin/users/u2', state: { openAdd: true } }]}>
+        <DashboardPage actAsUserId="u2" />
+      </MemoryRouter>,
+    )
+    expect(screen.queryByRole('dialog', { name: 'Add holding' })).toBeNull()
   })
 })
 

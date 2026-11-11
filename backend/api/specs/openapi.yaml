@@ -135,6 +135,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_premium"
   /admin/users/{id}/delta-from-history:
     $ref: "./admin/admin.yaml#/users_id_delta_from_history"
+  /admin/users/{id}/ui-revamp:
+    $ref: "./admin/admin.yaml#/users_id_ui_revamp"
   /admin/branding:
     $ref: "./admin/admin.yaml#/branding"
   /gold/transactions:

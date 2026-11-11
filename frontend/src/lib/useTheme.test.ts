@@ -84,6 +84,17 @@ describe('useTheme premium gating (PD-046)', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
+  // PD-054: the glass shell's picker and the page's own state (which charts
+  // read) are separate instances; a pick in one reaches the other.
+  it('keeps every mounted instance on the same theme', () => {
+    const shell = renderHook(() => useTheme({ premium: false }))
+    const page = renderHook(() => useTheme({ premium: false }))
+    act(() => shell.result.current.set('light'))
+    expect(page.result.current.theme).toBe('light')
+    act(() => page.result.current.set('dark'))
+    expect(shell.result.current.theme).toBe('dark')
+  })
+
   it('labels the next theme, cyber only for premium', () => {
     expect(nextThemeLabel('dark', true)).toBe('☀ Light')
     expect(nextThemeLabel('light', true)).toBe('⚡ Cyber')

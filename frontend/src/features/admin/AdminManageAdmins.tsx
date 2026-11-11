@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
-import { useAuth } from '../auth/AuthContext'
+import { useUiRevamp } from '../../lib/uiMode'
 import { AdminShell } from './AdminShell'
+import { AdminUserSettings } from './AdminUserSettings'
+import { useAdminActions } from './useAdminActions'
 
 export default function AdminManageAdmins() {
-  const { user: caller } = useAuth()
   const [admins, setAdmins] = useState<User[]>([])
   const [regions, setRegions] = useState<Region[]>([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
+  const revamp = useUiRevamp()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -28,26 +29,39 @@ export default function AdminManageAdmins() {
   useEffect(() => { void load() }, [load])
   useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])
 
-  const regionLabel = (id: string) => regions.find(r => r.id === id)?.label ?? id
+  const { caller, busy, runAction, toggleFeature } = useAdminActions(load)
+  const regionLabel = (id: string) => regions.find(region => region.id === id)?.label ?? id
 
-  const runAction = async (id: string, fn: () => Promise<unknown>, msg?: string) => {
-    if (msg && !confirm(msg)) return
-    setBusy(id)
-    try {
-      await fn()
-      await load()
-    } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Action failed')
-    } finally {
-      setBusy(null)
-    }
+  const setRegionFor = async (listedAdmin: User) => {
+    const choice = prompt(`Move ${listedAdmin.username} to which region? (${regions.map(region => region.id).join(', ')})`, listedAdmin.region || regions[0]?.id || '')
+    if (!choice) return
+    if (!regions.find(region => region.id === choice)) { alert('Unknown region'); return }
+    await runAction(listedAdmin.id, () => api.adminSetUserRegion(listedAdmin.id, { region: choice }))
   }
 
-  const setRegionFor = async (u: User) => {
-    const choice = prompt(`Move ${u.username} to which region? (${regions.map(r => r.id).join(', ')})`, u.region || regions[0]?.id || '')
-    if (!choice) return
-    if (!regions.find(r => r.id === choice)) { alert('Unknown region'); return }
-    await runAction(u.id, () => api.adminSetUserRegion(u.id, { region: choice }))
+  const intro = (
+    <div style={{ marginBottom: 16 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 600 }}>Administrators</h1>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
+        One admin per region. Promote a user from the <Link to="/admin" style={{ color: 'var(--blue)' }}>Users</Link> view.
+      </p>
+    </div>
+  )
+
+  // The glass UI (PD-054) gets the same list + settings layout as Users.
+  if (revamp) {
+    return (
+      <AdminShell>
+        {intro}
+        {err && <div className="alert-danger">{err}</div>}
+        {loading && admins.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
+        ) : (
+          <AdminUserSettings users={admins} regions={regions} caller={caller} busy={busy}
+            runAction={runAction} onFeature={toggleFeature} listLabel="Administrators" />
+        )}
+      </AdminShell>
+    )
   }
 
   const th: React.CSSProperties = {
@@ -58,12 +72,7 @@ export default function AdminManageAdmins() {
   const td: React.CSSProperties = { padding: '12px', borderBottom: '1px solid var(--border)', fontSize: 13 }
   return (
     <AdminShell>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>Administrators</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 4 }}>
-          One admin per region. Promote a user from the <Link to="/admin" style={{ color: 'var(--blue)' }}>Users</Link> view.
-        </p>
-      </div>
+      {intro}
 
       {err && (
         <div className="alert-danger">{err}</div>
@@ -87,31 +96,31 @@ export default function AdminManageAdmins() {
               </tr>
             </thead>
             <tbody>
-              {admins.map(u => {
-                const isSelf = u.id === caller?.id
-                const isRowSuper = u.role === 'superadmin'
+              {admins.map(listedAdmin => {
+                const isSelf = listedAdmin.id === caller?.id
+                const isRowSuper = listedAdmin.role === 'superadmin'
                 return (
-                  <tr key={u.id}>
+                  <tr key={listedAdmin.id}>
                     <td style={td}>
-                      <Link to={`/admin/users/${u.id}`}
+                      <Link to={`/admin/users/${listedAdmin.id}`}
                         style={{ color: 'var(--blue)', textDecoration: 'none', fontWeight: 500 }}>
-                        {u.username}
+                        {listedAdmin.username}
                       </Link>
                       {isSelf && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)' }}>(you)</span>}
                     </td>
-                    <td style={td}>{u.name}</td>
-                    <td style={td}>{u.role}</td>
-                    <td style={td}>{u.region ? regionLabel(u.region) : '— all regions —'}</td>
+                    <td style={td}>{listedAdmin.name}</td>
+                    <td style={td}>{listedAdmin.role}</td>
+                    <td style={td}>{listedAdmin.region ? regionLabel(listedAdmin.region) : '— all regions —'}</td>
                     <td style={{ ...td, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                         {!isRowSuper && (
-                          <button className="btn btn-sm" disabled={busy === u.id}
-                            onClick={() => runAction(u.id, () => api.adminDemoteUser(u.id), `Demote ${u.username} back to user?`)}>
+                          <button className="btn btn-sm" disabled={busy === listedAdmin.id}
+                            onClick={() => runAction(listedAdmin.id, () => api.adminDemoteUser(listedAdmin.id), `Demote ${listedAdmin.username} back to user?`)}>
                             Demote
                           </button>
                         )}
                         {!isRowSuper && !isSelf && (
-                          <button className="btn btn-sm" disabled={busy === u.id} onClick={() => setRegionFor(u)}>
+                          <button className="btn btn-sm" disabled={busy === listedAdmin.id} onClick={() => setRegionFor(listedAdmin)}>
                             Move region
                           </button>
                         )}

@@ -615,6 +615,73 @@ func TestAdminSetUserDeltaFromHistory(t *testing.T) {
 	})
 }
 
+// PD-054: the per-user switch to the glass UI, on the shared super-admin
+// flag path.
+func TestAdminSetUserUiRevamp(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("super admin switches an account to the glass UI", func(mt *mtest.T) {
+		target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+			mtest.CreateSuccessResponse(),
+		)
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiRevamp(userCtx(superAdmin()), api.AdminSetUserUiRevampRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiRevamp: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiRevamp204Response); !ok {
+			t.Fatalf("response = %T, want 204", resp)
+		}
+		updated := false
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "update" {
+				updated = true
+				set := event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
+				if enabled, ok := set.Lookup("ui_revamp").BooleanOK(); !ok || !enabled {
+					t.Errorf("update $set = %v; want ui_revamp true", set)
+				}
+			}
+		}
+		if !updated {
+			t.Fatal("no update command sent")
+		}
+	})
+
+	mt.Run("regional admins cannot switch it", func(mt *mtest.T) {
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiRevamp(userCtx(regionalAdmin("india")), api.AdminSetUserUiRevampRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: true},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiRevamp: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiRevamp403JSONResponse); !ok {
+			t.Fatalf("response = %T, want 403", resp)
+		}
+	})
+
+	mt.Run("unknown target is a 404", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch))
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiRevamp(userCtx(superAdmin()), api.AdminSetUserUiRevampRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UserFlagToggleRequest{Enabled: false},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiRevamp: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiRevamp404JSONResponse); !ok {
+			t.Fatalf("response = %T, want 404", resp)
+		}
+	})
+}
+
 func TestAdminSetUserRegion(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 

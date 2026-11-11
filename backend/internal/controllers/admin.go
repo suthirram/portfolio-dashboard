@@ -443,6 +443,22 @@ func (h *Controller) AdminSetUserDeltaFromHistory(ctx context.Context, request a
 	return api.AdminSetUserDeltaFromHistory204Response{}, nil
 }
 
+// AdminSetUserUiRevamp switches an account to the glass UI (PD-054); off
+// (default) keeps the current UI. Super admin only; like gold and premium,
+// the super admin may switch their own account.
+func (h *Controller) AdminSetUserUiRevamp(ctx context.Context, request api.AdminSetUserUiRevampRequestObject) (api.AdminSetUserUiRevampResponseObject, error) {
+	allowed, found, err := h.setUserFlag(ctx, request.Id, "ui_revamp", request.Body.Enabled)
+	switch {
+	case err != nil:
+		return nil, err
+	case !allowed:
+		return api.AdminSetUserUiRevamp403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
+		return api.AdminSetUserUiRevamp404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	return api.AdminSetUserUiRevamp204Response{}, nil
+}
+
 // setUserFlag is the super-admin per-user switch shared by the gold,
 // premium and delta-source toggles: load the target in the caller's scope,
 // set field to enabled (and updated_at), log it. allowed=false: the caller

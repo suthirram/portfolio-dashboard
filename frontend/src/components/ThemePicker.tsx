@@ -4,7 +4,9 @@ import type { ThemeName } from '../lib/useTheme'
 // ThemePicker: direct one-click theme selection (no cycling). Rendered
 // inside the dashboard's user menu. Page headers use the inline variant,
 // which shows the current theme first and opens the options on click. The
-// Cyber option appears only for premium accounts.
+// Cyber option appears only for premium accounts. The inline root carries
+// .theme-picker-inline so the glass shell (PD-054), which has its own
+// picker, can hide the page header's copy.
 
 const OPTIONS: { id: ThemeName; label: string; premiumOnly?: boolean }[] = [
   { id: 'cyberpunk', label: '⚡ Cyber', premiumOnly: true },
@@ -16,20 +18,20 @@ const OPTIONS: { id: ThemeName; label: string; premiumOnly?: boolean }[] = [
 export default function ThemePicker({ theme, premium, onSelect, variant = 'menu' }: {
   theme: ThemeName
   premium?: boolean
-  onSelect: (t: ThemeName) => void
+  onSelect: (theme: ThemeName) => void
   /** 'menu' = direct choices inside a dropdown; 'inline' = compact page-header dropdown. */
   variant?: 'menu' | 'inline'
 }) {
   const [open, setOpen] = useState(false)
-  const options = OPTIONS.filter(o => !o.premiumOnly || premium)
-  const current = OPTIONS.find(o => o.id === theme) ?? OPTIONS[0]
+  const options = OPTIONS.filter(option => !option.premiumOnly || premium)
+  const current = OPTIONS.find(option => option.id === theme) ?? OPTIONS[0]
   const buttons = (
     <div role="group" aria-label="Theme" style={{ display: 'flex', gap: 6 }}>
-      {options.map(o => {
-        const active = theme === o.id
+      {options.map(option => {
+        const active = theme === option.id
         return (
-          <button key={o.id} onClick={() => {
-            onSelect(o.id)
+          <button key={option.id} onClick={() => {
+            onSelect(option.id)
             setOpen(false)
           }} aria-pressed={active}
             style={{
@@ -39,7 +41,7 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
               border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
               borderRadius: 'var(--radius-sm)',
             }}>
-            {o.label}
+            {option.label}
           </button>
         )
       })}
@@ -48,6 +50,7 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
   if (variant === 'inline') {
     return (
       <div
+        className="theme-picker-inline"
         onBlur={e => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
         }}
@@ -58,7 +61,7 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
           aria-haspopup="menu"
           aria-expanded={open}
           aria-label={`Theme: ${current.label}`}
-          onClick={() => setOpen(v => !v)}
+          onClick={() => setOpen(wasOpen => !wasOpen)}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '6px 10px', fontSize: 12, whiteSpace: 'nowrap',
@@ -81,16 +84,16 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
             }}
           >
             <div style={{ display: 'grid', gap: 6 }}>
-              {options.map(o => {
-                const active = theme === o.id
+              {options.map(option => {
+                const active = theme === option.id
                 return (
                   <button
-                    key={o.id}
+                    key={option.id}
                     type="button"
                     role="menuitemradio"
                     aria-checked={active}
                     onClick={() => {
-                      onSelect(o.id)
+                      onSelect(option.id)
                       setOpen(false)
                     }}
                     style={{
@@ -102,7 +105,7 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
                       borderRadius: 'var(--radius-sm)', textAlign: 'left',
                     }}
                   >
-                    <span>{o.label}</span>
+                    <span>{option.label}</span>
                   </button>
                 )
               })}

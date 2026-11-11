@@ -1418,6 +1418,9 @@ type User struct {
 	// SecurityQuestionIds The catalogue keys of the account's chosen questions (own account only)
 	SecurityQuestionIds *[]string `json:"security_question_ids,omitempty"`
 
+	// UiRevamp The account sees the glass UI (super-admin toggled, PD-054)
+	UiRevamp bool `json:"ui_revamp"`
+
 	// Username Username as originally typed (uniqueness is case-insensitive)
 	Username string `json:"username"`
 }

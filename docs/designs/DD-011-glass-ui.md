@@ -49,7 +49,10 @@ which renders `<AppShell>` around the page for glass accounts and the page
 alone otherwise. `AppShell`: brand, search (opens the palette), nav
 (`NavLink`, so `aria-current` marks the page; Gold and Admin only when the
 account has them), **Add holding**, theme picker, account, log out; a
-bottom tab bar under 860 px; the command palette; the toaster.
+bottom tab bar under 860 px; the command palette; the toaster. A hamburger
+button folds the sidebar into a 72 px icon rail (labels hidden, every control
+keeps its name as `aria-label` and a `title` tooltip); the choice is kept per
+browser in `localStorage.pd_sidebar`, and the palette offers it too.
 
 Pages keep their headers. In the shell they become floating toolbars, and
 their copies of the shell's controls are hidden: elements marked
@@ -72,13 +75,29 @@ polite live region; toasts leave after 4.5 s. `notify()` replaces
 
 ## 6. Pages
 
-* **Dashboard**: `PortfolioHero` (glass only) above the cards, reading the
+* **Dashboard**: `PortfolioHero` (glass only; each "Today" chip carries its
+  currency's flag, India or the EU, drawn as SVG; the Unrealised chip is a
+  button that flips through `unrealisedViews` — INR → EUR → INR today, USD
+  joins the cycle once the summary reports it) above the cards, reading the
   same summary and per-currency `GroupDayChange` the cards use; a skeleton
   while the first summary loads; a page title; header copies marked
   `.shell-dup` (page links only outside act-as).
 * **Admin**: the shell hides `AdminShell`'s header; its tab row gains a
   title. Admin → Users gets **Glass UI on/off** (`aria-pressed`); switching
   your own account refreshes the session user, so the look flips at once.
+  For glass accounts, Admin → Users is a list + settings layout
+  (`AdminUserSettings`): a searchable user list (avatar, role, status dot,
+  Active / All) beside the picked user's settings in sections — Profile
+  (open portfolio, role, region dropdown), Features (gold, premium, delta,
+  glass as `role="switch"` toggles; super admin only), Access (unlock,
+  hide / reactivate), Danger zone (delete). It reuses the table's
+  `runAction` and one shared `toggleFeature`, so the permission rules and
+  confirm messages are identical; the current UI keeps the table.
+  Admin → Admins uses the same layout over the administrators (no Active /
+  All toggle), and both pages share `useAdminActions` (runAction +
+  toggleFeature). Admin → Branding lists its setting groups (Font today) in
+  the side pane and shows the fonts as preview tiles (sample, name, a money
+  figure in that font, a tick on the chosen one), on the same save path.
 * **History, Transactions**: the filter bars become glass toolbars
   (`.page-toolbar`).
 * **Every other page**: tokens and surface rules.

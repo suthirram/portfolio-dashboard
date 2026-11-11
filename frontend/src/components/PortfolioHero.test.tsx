@@ -1,0 +1,99 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { PortfolioHero, unrealisedViews, valueSplit } from './PortfolioHero'
+import type { HoldingWithPreviousClose } from '../features/holdings/dashboardPriceMovement'
+
+const held = (currency: string, currentValue: number) =>
+  ({ id: `${currency}-${currentValue}`, currency, current_value: currentValue }) as HoldingWithPreviousClose
+
+const summary = { total_current_value: 120000, total_current_value_eur: 1320, total_cost: 100000, total_unrealized: 20000 }
+
+describe('valueSplit', () => {
+  it('shares the INR-denominated current value between currencies', () => {
+    expect(valueSplit([held('INR', 300), held('EUR', 100), held('INR', 0)])).toEqual([
+      { currency: 'INR', value: 300, share: 0.75 },
+      { currency: 'EUR', value: 100, share: 0.25 },
+    ])
+    expect(valueSplit([])).toEqual([])
+  })
+})
+
+describe('PortfolioHero', () => {
+  it('shows the value, each held currency today and the unrealised gain', () => {
+    render(<PortfolioHero summary={summary} loading={false} holdings={[held('INR', 90000), held('EUR', 30000)]}
+      dayChange={{ INR: { gain: 1500, previousValue: 100000, pct: 1.5 }, EUR: null }} />)
+    expect(screen.getByText('₹1,20,000.00')).toBeInTheDocument()
+    expect(screen.getByText('Today · INR').parentElement).toHaveTextContent('+₹1,500.00 +1.50%')
+    expect(screen.getByText('Today · EUR').parentElement).toHaveTextContent('—')
+    expect(screen.getByRole('button', { name: /^Unrealised in INR/ })).toHaveTextContent('+₹20,000.00 +20.00%')
+    expect(screen.getByRole('img', { name: 'INR 75%, EUR 25%' })).toBeInTheDocument()
+  })
+
+  it('marks each currency chip with its flag', () => {
+    render(<PortfolioHero summary={summary} loading={false} holdings={[held('INR', 90000), held('EUR', 30000)]}
+      dayChange={{ INR: { gain: 1, previousValue: 100, pct: 1 }, EUR: { gain: 1, previousValue: 100, pct: 1 } }} />)
+    expect(screen.getByText('Today · INR').querySelector('[data-flag="IN"]')).not.toBeNull()
+    expect(screen.getByText('Today · EUR').querySelector('[data-flag="EU"]')).not.toBeNull()
+  })
+
+  it('cycles the unrealised chip INR → EUR → INR on click, with each currency’s own figures', async () => {
+    const both = { ...summary, total_cost_eur: 1100, total_unrealized_eur: 220 }
+    render(<PortfolioHero summary={both} loading={false} holdings={[held('INR', 90000)]} dayChange={{}} />)
+    const chip = () => screen.getByRole('button', { name: /^Unrealised in / })
+    // The face on show; the other currencies' faces only reserve width.
+    const face = () => chip().querySelector('.hero-flip:not(.hero-flip-ghost)') as HTMLElement
+    expect(chip()).toHaveAccessibleName('Unrealised in INR: +₹20,000.00. Show in EUR')
+    expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%')
+    expect(face().querySelector('[data-flag="IN"]')).not.toBeNull()
+
+    // The whole chip turns edge-on first (the summary cards' flip); the
+    // figures swap while it is edge-on, then it turns back.
+    await userEvent.click(chip())
+    expect(chip()).toHaveClass('card-flipping-out')
+    expect(face()).toHaveTextContent('Unrealised · INR')
+    await waitFor(() => expect(face()).toHaveTextContent('Unrealised · EUR +€220.00 +20.00%'))
+    expect(face().querySelector('[data-flag="EU"]')).not.toBeNull()
+    await waitFor(() => expect(chip().className).not.toMatch(/card-flipping/))
+
+    await userEvent.click(chip())
+    await waitFor(() => expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%'))
+  })
+
+  // Every face is rendered (one visible), so the chip's width never depends
+  // on which currency is showing.
+  it('keeps every currency face in the chip and hides all but one', async () => {
+    const both = { ...summary, total_cost_eur: 1100, total_unrealized_eur: 220 }
+    render(<PortfolioHero summary={both} loading={false} holdings={[held('INR', 90000)]} dayChange={{}} />)
+    const chip = screen.getByRole('button', { name: /^Unrealised in / })
+    const faces = () => Array.from(chip.querySelectorAll('.hero-flip'))
+    expect(faces()).toHaveLength(2)
+    expect(faces().filter(face => face.getAttribute('aria-hidden') === 'true')).toHaveLength(1)
+    await userEvent.click(chip)
+    await waitFor(() => expect(chip.querySelector('.hero-flip:not(.hero-flip-ghost)')).toHaveTextContent('EUR'))
+    expect(faces()).toHaveLength(2)
+  })
+})
+
+describe('unrealisedViews', () => {
+  it('lists INR first, then each other currency the summary reports', () => {
+    expect(unrealisedViews({ total_unrealized: 50, total_cost: 200, total_unrealized_eur: -5, total_cost_eur: 0 })).toEqual([
+      { currency: 'INR', amount: 50, pct: 25 },
+      { currency: 'EUR', amount: -5, pct: null },
+    ])
+    expect(unrealisedViews({ total_unrealized: 50, total_cost: 200 }).map(view => view.currency)).toEqual(['INR'])
+  })
+
+  it('leaves out a currency that is not held', () => {
+    render(<PortfolioHero summary={summary} loading={false} holdings={[held('INR', 90000)]}
+      dayChange={{ INR: { gain: -200, previousValue: 1000, pct: -20 } }} />)
+    expect(screen.queryByText('Today · EUR')).toBeNull()
+    expect(screen.getByText('Today · INR').parentElement).toHaveClass('neg')
+    expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('shows a skeleton while the first summary loads', () => {
+    render(<PortfolioHero summary={null} loading holdings={[]} dayChange={{}} />)
+    expect(screen.getByLabelText('Loading portfolio')).toHaveAttribute('aria-busy', 'true')
+  })
+})

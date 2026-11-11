@@ -21,12 +21,14 @@ const STORAGE_KEY = 'pd_theme'
 // the premium cyber default must only apply to the latter.
 const CHOSEN_KEY = 'pd_theme_chosen'
 const THEMES: ThemeName[] = ['dark', 'light', 'cyberpunk']
+// Broadcast on every theme change so all mounted useTheme instances agree.
+const THEME_EVENT = 'pd:theme'
 
 function readStored(): ThemeName {
   if (typeof window === 'undefined') return 'dark'
   try {
-    const v = window.localStorage?.getItem(STORAGE_KEY)
-    return THEMES.includes(v as ThemeName) ? (v as ThemeName) : 'dark'
+    const stored = window.localStorage?.getItem(STORAGE_KEY)
+    return THEMES.includes(stored as ThemeName) ? (stored as ThemeName) : 'dark'
   } catch {
     // jsdom or private-mode browsers may throw — default to dark.
     return 'dark'
@@ -85,7 +87,19 @@ export function useTheme(opts: UseThemeOptions = {}): { theme: ThemeName; toggle
   useEffect(() => {
     applyTheme(theme)
     try { window.localStorage?.setItem(STORAGE_KEY, theme) } catch { /* private mode / jsdom */ }
+    window.dispatchEvent(new CustomEvent<ThemeName>(THEME_EVENT, { detail: theme }))
   }, [theme])
+
+  // Every mounted picker follows a change made by another one (the glass
+  // shell's picker and the page's own state, which charts read, PD-054).
+  useEffect(() => {
+    const follow = (e: Event) => {
+      const next = (e as CustomEvent<ThemeName>).detail
+      setTheme(current => (current === next ? current : next))
+    }
+    window.addEventListener(THEME_EVENT, follow)
+    return () => window.removeEventListener(THEME_EVENT, follow)
+  }, [])
 
   // Entitlement fallback: an explicitly non-premium account never renders
   // cyberpunk, even if it was stored while the flag was on.
@@ -102,20 +116,20 @@ export function useTheme(opts: UseThemeOptions = {}): { theme: ThemeName; toggle
     if (premium && !themeChosen() && theme !== 'cyberpunk') setTheme('cyberpunk')
   }, [premium, theme])
 
-  const cycle = premium ? THEMES : THEMES.filter(t => t !== 'cyberpunk')
+  const cycle = premium ? THEMES : THEMES.filter(option => option !== 'cyberpunk')
 
   return {
     theme,
     toggle: () => {
       markThemeChosen()
-      setTheme(t => {
-        const i = cycle.indexOf(t)
+      setTheme(current => {
+        const i = cycle.indexOf(current)
         return cycle[(i + 1) % cycle.length] ?? 'dark'
       })
     },
-    set: (t: ThemeName) => {
+    set: (next: ThemeName) => {
       markThemeChosen()
-      setTheme(t)
+      setTheme(next)
     },
   }
 }

@@ -267,10 +267,11 @@ export default function HistoryPage() {
       </header>
 
       <main className="page-main" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto' }}>
-        <section style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
+        <section className="page-toolbar" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24, flexWrap: 'wrap' }}>
           {/* From January of MIN_YEAR to the current trading month. */}
           <MonthNavigator value={{ year, month0: month }} min={{ year: MIN_YEAR, month0: 0 }} max={today}
             onChange={next => { setYear(next.year); setMonth(next.month0) }} />
+
           <span style={{ flex: 1 }} />
           {/* Active look comes from the shared .btn[aria-pressed="true"] rule. */}
           <button onClick={toggleChartsOnTop} aria-pressed={chartsOnTop} className="btn"

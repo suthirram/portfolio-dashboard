@@ -69,7 +69,7 @@ components:
 
     User:
       type: object
-      required: [id, username, name, role, region, disabled, locked, gold_enabled, premium, delta_from_history, must_change_password]
+      required: [id, username, name, role, region, disabled, locked, gold_enabled, premium, delta_from_history, ui_revamp, must_change_password]
       properties:
         id:
           type: string
@@ -100,6 +100,9 @@ components:
         delta_from_history:
           type: boolean
           description: The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052)
+        ui_revamp:
+          type: boolean
+          description: The account sees the glass UI (super-admin toggled, PD-054)
         must_change_password:
           type: boolean
           description: Forced onboarding pending (bootstrap super admin)

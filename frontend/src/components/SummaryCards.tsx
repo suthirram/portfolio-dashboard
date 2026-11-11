@@ -1,6 +1,7 @@
 import type React from 'react'
-import {useRef, useState} from 'react'
+import {useState} from 'react'
 import type {CurrencyChange, Summary} from '../types'
+import {useCardFlip} from '../lib/useCardFlip'
 import type {GroupDayChange} from '../features/holdings/dashboardPriceMovement'
 import {CoinsIcon} from './Icon'
 import {formatDate} from '../lib/formDates'
@@ -310,24 +311,7 @@ function DividendIncomeCard({inr, eur}: { inr?: number; eur?: number }) {
 // FlipCard wraps a toggleable card: rotates out (0→90°), swaps content at the
 // midpoint, then rotates in (−90→0°), giving a realistic single-axis flip.
 function FlipCard({onFlip, children}: { onFlip: () => void; children: React.ReactNode }) {
-    const [phase, setPhase] = useState<'idle' | 'out' | 'in'>('idle')
-    const busy = useRef(false)
-
-    const handleClick = () => {
-        if (busy.current) return
-        busy.current = true
-        setPhase('out')
-        setTimeout(() => {
-            onFlip()
-            setPhase('in')
-            setTimeout(() => {
-                setPhase('idle');
-                busy.current = false
-            }, 180)
-        }, 180)
-    }
-
-    const cls = phase === 'out' ? 'card-flipping-out' : phase === 'in' ? 'card-flipping-in' : ''
+    const {flipClass: cls, flip: handleClick} = useCardFlip(onFlip)
     // Match the plain-card flex sizing (flex/minWidth in cardStyle) so flip and
     // non-flip cards wrap identically. A smaller minWidth here let the row pack
     // more FlipCards than fit — the inner card (minWidth 180) then overflowed.

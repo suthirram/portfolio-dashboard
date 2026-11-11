@@ -866,6 +866,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/ui-revamp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch an account to the glass UI (super admin only)
+         * @description PD-054. On: the account sees the glass UI (app shell with sidebar,
+         *     command palette, toasts, reworked pages). Off (default): the current
+         *     UI. Super admin only; the super admin may switch their own account.
+         */
+        put: operations["adminSetUserUiRevamp"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/branding": {
         parameters: {
             query?: never;
@@ -1934,6 +1956,8 @@ export interface components {
             premium: boolean;
             /** @description The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052) */
             delta_from_history: boolean;
+            /** @description The account sees the glass UI (super-admin toggled, PD-054) */
+            ui_revamp: boolean;
             /** @description Forced onboarding pending (bootstrap super admin) */
             must_change_password: boolean;
             /** @description The catalogue keys of the account's chosen questions (own account only) */
@@ -3546,6 +3570,33 @@ export interface operations {
         };
     };
     adminSetUserDeltaFromHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserFlagToggleRequest"];
+            };
+        };
+        responses: {
+            /** @description Switch updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminSetUserUiRevamp: {
         parameters: {
             query?: never;
             header?: never;
