@@ -85,6 +85,14 @@ polite live region; toasts leave after 4.5 s. `notify()` replaces
 * **Admin**: the shell hides `AdminShell`'s header; its tab row gains a
   title. Admin → Users gets **Glass UI on/off** (`aria-pressed`); switching
   your own account refreshes the session user, so the look flips at once.
+  For glass accounts, Admin → Users is a list + settings layout
+  (`AdminUserSettings`): a searchable user list (avatar, role, status dot,
+  Active / All) beside the picked user's settings in sections — Profile
+  (open portfolio, role, region dropdown), Features (gold, premium, delta,
+  glass as `role="switch"` toggles; super admin only), Access (unlock,
+  hide / reactivate), Danger zone (delete). It reuses the table's
+  `runAction` and one shared `toggleFeature`, so the permission rules and
+  confirm messages are identical; the current UI keeps the table.
 * **History, Transactions**: the filter bars become glass toolbars
   (`.page-toolbar`).
 * **Every other page**: tokens and surface rules.

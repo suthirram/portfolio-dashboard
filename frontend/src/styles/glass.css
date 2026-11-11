@@ -591,6 +591,166 @@
   :root[data-ui="v2"] .hero-chips { justify-content: flex-start; }
 }
 
+/* --- Admin → Users: list + settings ------------------------------------------ */
+
+:root[data-ui="v2"] .admin-md {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+:root[data-ui="v2"] .admin-md-list {
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  max-height: calc(100dvh - 110px);
+}
+:root[data-ui="v2"] .admin-md-search {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+:root[data-ui="v2"] .admin-md-list .seg-group { align-self: flex-start; }
+:root[data-ui="v2"] .admin-md-items { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+:root[data-ui="v2"] .admin-md-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .admin-md-item:hover { background: var(--bg-card-hover); }
+:root[data-ui="v2"] .admin-md-item[aria-current="true"] {
+  background: linear-gradient(90deg, rgba(91, 147, 255, 0.2), rgba(139, 92, 246, 0.08));
+  border-color: rgba(120, 150, 255, 0.25);
+}
+:root[data-ui="v2"] .admin-md-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+:root[data-ui="v2"] .admin-md-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-ui="v2"] .admin-md-meta { font-size: 12px; color: var(--text-muted); }
+:root[data-ui="v2"] .admin-md-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+:root[data-ui="v2"] .admin-avatar {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+:root[data-ui="v2"] .admin-avatar-lg { width: 52px; height: 52px; font-size: 17px; }
+:root[data-ui="v2"] .admin-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; }
+:root[data-ui="v2"] .admin-dot-ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+:root[data-ui="v2"] .admin-dot-warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+:root[data-ui="v2"] .admin-dot-off { background: var(--text-muted); }
+
+:root[data-ui="v2"] .admin-md-detail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+:root[data-ui="v2"] .admin-md-head { display: flex; align-items: center; gap: 16px; padding: 18px 20px; flex-wrap: wrap; }
+:root[data-ui="v2"] .admin-md-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.02em; }
+:root[data-ui="v2"] .admin-md-placeholder { padding: 40px; text-align: center; color: var(--text-muted); }
+:root[data-ui="v2"] .admin-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 600;
+}
+:root[data-ui="v2"] .admin-status { font-weight: 600; }
+:root[data-ui="v2"] .admin-status-ok { color: var(--green); }
+:root[data-ui="v2"] .admin-status-warn { color: var(--yellow); }
+:root[data-ui="v2"] .admin-status-off { color: var(--text-muted); }
+
+:root[data-ui="v2"] .admin-section { padding: 6px 20px; }
+:root[data-ui="v2"] .admin-section-title {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+:root[data-ui="v2"] .admin-section-danger { border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+:root[data-ui="v2"] .admin-section-danger .admin-section-title { color: var(--red); }
+:root[data-ui="v2"] .admin-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+:root[data-ui="v2"] .admin-section-title + .admin-row { border-top: none; }
+:root[data-ui="v2"] .admin-row-text { flex: 1; min-width: 0; }
+:root[data-ui="v2"] .admin-row-label { font-size: 14px; font-weight: 600; }
+:root[data-ui="v2"] .admin-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+:root[data-ui="v2"] .admin-row-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+:root[data-ui="v2"] .admin-select {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* An iOS-style switch: the knob slides right and the track fills when on. */
+:root[data-ui="v2"] .admin-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .admin-switch[aria-checked="true"] {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(91, 147, 255, 0.45);
+}
+:root[data-ui="v2"] .admin-switch:disabled { opacity: 0.5; cursor: wait; }
+:root[data-ui="v2"] .admin-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform var(--speed-slow) var(--ease);
+}
+:root[data-ui="v2"] .admin-switch[aria-checked="true"] .admin-switch-knob { transform: translateX(18px); }
+
+@media (max-width: 860px) {
+  :root[data-ui="v2"] .admin-md { grid-template-columns: 1fr; }
+  :root[data-ui="v2"] .admin-md-list { position: static; max-height: 320px; }
+}
+
 /* --- Command palette ---------------------------------------------------------- */
 
 :root[data-ui="v2"] .palette-overlay {

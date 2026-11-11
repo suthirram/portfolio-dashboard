@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, type User } from '../../lib/api/client'
 import AdminUserList from './AdminUserList'
 
@@ -20,14 +20,26 @@ vi.mock('../../lib/api/client', () => ({
     getRegions: vi.fn().mockResolvedValue([{ id: 'india', label: 'India' }]),
     adminSetUserDeltaFromHistory: vi.fn().mockResolvedValue(undefined),
     adminSetUserUiRevamp: vi.fn().mockResolvedValue(undefined),
+    adminSetUserGold: vi.fn().mockResolvedValue(undefined),
+    adminSetUserRegion: vi.fn().mockResolvedValue(undefined),
+    adminPromoteUser: vi.fn().mockResolvedValue(undefined),
+    adminResetLockout: vi.fn().mockResolvedValue(undefined),
+    adminDeleteUser: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
 const refreshCaller = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+// The signed-in caller (the super admin unless a test says otherwise) and
+// whether their account has the glass UI.
+const session = vi.hoisted(() => ({ caller: null as User | null, glass: false }))
 
-vi.mock('../auth/AuthContext', () => ({
-  useAuth: () => ({ user: superAdmin, logout: vi.fn(), refresh: refreshCaller }),
-}))
+vi.mock('../auth/AuthContext', () => {
+  const auth = () => {
+    const user = { ...(session.caller ?? superAdmin), ui_revamp: session.glass }
+    return { user, loading: false, logout: vi.fn(), refresh: refreshCaller }
+  }
+  return { useAuth: auth, useAuthOptional: auth }
+})
 
 describe('AdminUserList action buttons', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -97,5 +109,95 @@ describe('AdminUserList action buttons', () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
     fireEvent.click(await screen.findByRole('button', { name: 'Glass UI on' }))
     await waitFor(() => expect(refreshCaller).toHaveBeenCalledTimes(1))
+  })
+})
+
+// PD-054: in the glass UI the page is a list of users and, for the one
+// picked, a settings page; the actions are the table's.
+describe('AdminUserList in the glass UI', () => {
+  const bob: User = { id: 'u2', username: 'bob', name: 'Bob Builder', role: 'user', region: 'india', disabled: false, locked: false } as User
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    session.glass = true
+    session.caller = null
+    vi.mocked(api.adminListUsers).mockImplementation(() => Promise.resolve([rowUser, bob]))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+  afterEach(() => {
+    session.glass = false
+    vi.restoreAllMocks()
+  })
+
+  const renderPage = () => render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+  const settings = () => screen.getByRole('region', { name: 'User settings' })
+
+  it('lists the users and shows the first one’s settings instead of the table', async () => {
+    renderPage()
+    const list = await screen.findByRole('complementary', { name: 'Users' })
+    expect(within(list).getByRole('button', { name: /Alice/ })).toHaveAttribute('aria-current', 'true')
+    expect(within(settings()).getByRole('heading', { name: 'Alice' })).toBeInTheDocument()
+    expect(within(settings()).getByRole('link', { name: 'Open portfolio' })).toHaveAttribute('href', '/admin/users/u1')
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('opens another user’s settings on click and filters the list', async () => {
+    renderPage()
+    const list = await screen.findByRole('complementary', { name: 'Users' })
+    fireEvent.click(within(list).getByRole('button', { name: /Bob Builder/ }))
+    expect(within(settings()).getByRole('heading', { name: 'Bob Builder' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Search users'), { target: { value: 'ali' } })
+    expect(within(list).queryByRole('button', { name: /Bob/ })).toBeNull()
+  })
+
+  it('flips features with switches through the shared toggle', async () => {
+    renderPage()
+    await screen.findByRole('complementary', { name: 'Users' })
+    const gold = within(settings()).getByRole('switch', { name: 'Gold tracking' })
+    expect(gold).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(gold)
+    await waitFor(() => expect(api.adminSetUserGold).toHaveBeenCalledWith('u1', { enabled: true }))
+    fireEvent.click(within(settings()).getByRole('switch', { name: 'Glass UI' }))
+    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: true }))
+  })
+
+  it('asks before turning a feature off, and keeps it on when declined', async () => {
+    vi.mocked(api.adminListUsers).mockImplementation(() => Promise.resolve([{ ...rowUser, gold_enabled: true }]))
+    vi.mocked(window.confirm).mockReturnValue(false)
+    renderPage()
+    await screen.findByRole('complementary', { name: 'Users' })
+    fireEvent.click(within(settings()).getByRole('switch', { name: 'Gold tracking' }))
+    expect(window.confirm).toHaveBeenCalledWith('Disable gold tracking for alice? Data is kept, only hidden.')
+    expect(api.adminSetUserGold).not.toHaveBeenCalled()
+  })
+
+  it('moves the region with a dropdown, unlocks, promotes and deletes', async () => {
+    renderPage()
+    await screen.findByRole('complementary', { name: 'Users' })
+    fireEvent.change(within(settings()).getByLabelText('Region'), { target: { value: 'india' } })
+    await waitFor(() => expect(api.adminSetUserRegion).toHaveBeenCalledWith('u1', { region: 'india' }))
+    fireEvent.click(within(settings()).getByRole('button', { name: 'Unlock' }))
+    await waitFor(() => expect(api.adminResetLockout).toHaveBeenCalledWith('u1'))
+    fireEvent.click(within(settings()).getByRole('button', { name: 'Promote to admin' }))
+    await waitFor(() => expect(api.adminPromoteUser).toHaveBeenCalledWith('u1'))
+    fireEvent.click(within(settings()).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(api.adminDeleteUser).toHaveBeenCalledWith('u1'))
+  })
+
+  it('shows a regional admin no feature switches and no region move', async () => {
+    session.caller = { id: 'a1', username: 'asha', name: 'Asha', role: 'admin', region: 'india' } as User
+    renderPage()
+    await screen.findByRole('complementary', { name: 'Users' })
+    expect(within(settings()).queryByRole('region', { name: 'Features' })).toBeNull()
+    expect(within(settings()).queryByLabelText('Region')).toBeNull()
+    expect(within(settings()).getByRole('region', { name: 'Access' })).toBeInTheDocument()
+  })
+
+  it('offers no hide or delete on the super admin’s own account', async () => {
+    vi.mocked(api.adminListUsers).mockImplementation(() => Promise.resolve([superAdmin]))
+    renderPage()
+    await screen.findByRole('complementary', { name: 'Users' })
+    expect(within(settings()).queryByRole('region', { name: 'Danger zone' })).toBeNull()
+    expect(within(settings()).queryByRole('button', { name: 'Hide' })).toBeNull()
   })
 })

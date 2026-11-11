@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
 import { useAuth } from '../auth/AuthContext'
 import { notify, toast } from '../../lib/toast'
+import { useUiRevamp } from '../../lib/uiMode'
 import { AdminShell } from './AdminShell'
+import { AdminUserSettings, FEATURE_SWITCHES, type FeatureSwitch } from './AdminUserSettings'
 
 type StatusFilter = 'active' | 'all'
 
@@ -18,6 +20,7 @@ export default function AdminUserList() {
   const [busy, setBusy] = useState<string | null>(null)
 
   const isSuper = caller?.role === 'superadmin'
+  const revamp = useUiRevamp()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,6 +62,27 @@ export default function AdminUserList() {
     }
   }
 
+  // One path for the four per-account switches, shared by the table's
+  // buttons and the glass settings' switches. On the caller's own account
+  // the session user is refreshed, so the delta panel and the look follow
+  // without a page reload.
+  const toggleFeature = (listedUser: User, feature: FeatureSwitch) => {
+    const enabled = !listedUser[feature.key]
+    const body = { enabled }
+    const calls: Record<FeatureSwitch['key'], () => Promise<unknown>> = {
+      gold_enabled: () => api.adminSetUserGold(listedUser.id, body),
+      premium: () => api.adminSetUserPremium(listedUser.id, body),
+      delta_from_history: () => api.adminSetUserDeltaFromHistory(listedUser.id, body),
+      ui_revamp: () => api.adminSetUserUiRevamp(listedUser.id, body),
+    }
+    return runAction(listedUser.id, async () => {
+      await calls[feature.key]()
+      if (listedUser.id === caller?.id && (feature.key === 'delta_from_history' || feature.key === 'ui_revamp')) await refreshCaller()
+      if (feature.key === 'ui_revamp') toast(`${enabled ? 'Glass UI' : 'Current UI'} on for ${listedUser.username}`, 'success')
+    }, !enabled && feature.offConfirm ? feature.offConfirm(listedUser.username) : undefined)
+  }
+  const featureNamed = (key: FeatureSwitch['key']) => FEATURE_SWITCHES.find(feature => feature.key === key)!
+
   const setRegionFor = async (listedUser: User) => {
     if (!isSuper) return
     const choice = prompt(
@@ -68,6 +92,27 @@ export default function AdminUserList() {
     if (!choice) return
     if (!regions.find(region => region.id === choice)) { alert('Unknown region'); return }
     await runAction(listedUser.id, () => api.adminSetUserRegion(listedUser.id, { region: choice }))
+  }
+
+  // The glass UI gets the list + settings layout; the same data and actions.
+  if (revamp) {
+    return (
+      <AdminShell>
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600 }}>
+            Users {isSuper ? '— all regions' : caller?.region ? `— ${regionLabel(caller.region)}` : ''}
+          </h1>
+        </div>
+        {err && <div className="alert-danger">{err}</div>}
+        {loading && users.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
+        ) : (
+          <AdminUserSettings users={users} regions={regions} caller={caller} busy={busy}
+            includeHidden={status === 'all'} onIncludeHidden={includeHidden => setStatus(includeHidden ? 'all' : 'active')}
+            runAction={runAction} onFeature={toggleFeature} />
+        )}
+      </AdminShell>
+    )
   }
 
   const th: React.CSSProperties = {
@@ -202,42 +247,29 @@ export default function AdminUserList() {
                         )}
                         {isSuper && (
                           <button className="btn btn-sm" disabled={busy === listedUser.id}
-                            onClick={() => runAction(listedUser.id, () => api.adminSetUserGold(listedUser.id, { enabled: !listedUser.gold_enabled }),
-                              listedUser.gold_enabled ? `Disable gold tracking for ${listedUser.username}? Data is kept, only hidden.` : undefined)}>
+                            onClick={() => toggleFeature(listedUser, featureNamed('gold_enabled'))}>
                             {listedUser.gold_enabled ? 'Disable gold' : 'Enable gold'}
                           </button>
                         )}
                         {isSuper && (
                           <button className="btn btn-sm" disabled={busy === listedUser.id}
-                            onClick={() => runAction(listedUser.id, () => api.adminSetUserPremium(listedUser.id, { enabled: !listedUser.premium }),
-                              listedUser.premium ? `Disable premium for ${listedUser.username}? Their theme falls back to dark.` : undefined)}>
+                            onClick={() => toggleFeature(listedUser, featureNamed('premium'))}>
                             {listedUser.premium ? 'Disable premium' : 'Enable premium'}
                           </button>
                         )}
                         {isSuper && (
                           // PD-052: the Transactions investment delta reads the ledger by
-                          // default; this switches the account back to History rows. On
-                          // the caller's own account the session user is refreshed too, so
-                          // the panel follows without a page reload.
+                          // default; this switches the account back to History rows.
                           <button className="btn btn-sm" disabled={busy === listedUser.id}
-                            onClick={() => runAction(listedUser.id, async () => {
-                              await api.adminSetUserDeltaFromHistory(listedUser.id, { enabled: !listedUser.delta_from_history })
-                              if (isSelf) await refreshCaller()
-                            })}>
+                            onClick={() => toggleFeature(listedUser, featureNamed('delta_from_history'))}>
                             {listedUser.delta_from_history ? 'Delta from ledger' : 'Delta from History'}
                           </button>
                         )}
                         {isSuper && (
-                          // PD-054: the glass UI is opt-in per account. On the
-                          // caller's own account the session user is refreshed, so
-                          // the look flips without a page reload.
+                          // PD-054: the glass UI is opt-in per account.
                           <button className="btn btn-sm" disabled={busy === listedUser.id}
                             aria-pressed={Boolean(listedUser.ui_revamp)}
-                            onClick={() => runAction(listedUser.id, async () => {
-                              await api.adminSetUserUiRevamp(listedUser.id, { enabled: !listedUser.ui_revamp })
-                              if (isSelf) await refreshCaller()
-                              toast(`${listedUser.ui_revamp ? 'Current UI' : 'Glass UI'} on for ${listedUser.username}`, 'success')
-                            })}>
+                            onClick={() => toggleFeature(listedUser, featureNamed('ui_revamp'))}>
                             {listedUser.ui_revamp ? 'Glass UI off' : 'Glass UI on'}
                           </button>
                         )}
