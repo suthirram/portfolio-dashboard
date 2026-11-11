@@ -32,10 +32,13 @@ interface Props {
   // the column is absent rather than disabled — a dead control would imply
   // the capability exists.
   onEdit?: (row: TransactionWithHolding) => void
+  // The rows that decide which optional columns show (default: rows). The
+  // page passes every filtered row, so paging never adds or drops a column.
+  columnRows?: TransactionWithHolding[]
 }
 
-export default function TransactionsAllTable({ rows, sort, onSort, onEdit }: Props) {
-  const cols = visibleColumns(rows)
+export default function TransactionsAllTable({ rows, sort, onSort, onEdit, columnRows = rows }: Props) {
+  const cols = visibleColumns(columnRows)
   const span = 3 + Number(cols.quantity) + 1 + Number(cols.impliedCost)
     + Number(cols.ratio) + Number(cols.realizedSeed) + Number(cols.openingDate)
     + Number(cols.notes) + (onEdit ? 1 : 0)
@@ -70,50 +73,50 @@ export default function TransactionsAllTable({ rows, sort, onSort, onEdit }: Pro
               </td>
             </tr>
           )}
-          {rows.map(t => {
-            const implied = impliedCostPerShare(t)
-            const tint = TYPE_TINT[t.type || ''] ?? TYPE_TINT.merger
+          {rows.map(txn => {
+            const implied = impliedCostPerShare(txn)
+            const tint = TYPE_TINT[txn.type || ''] ?? TYPE_TINT.merger
             return (
-              <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
-                <Td style={{ textAlign: 'left' }} className="mono">{formatDate(t.date)}</Td>
+              <tr key={txn.id} style={{ borderTop: '1px solid var(--border)' }}>
+                <Td style={{ textAlign: 'left' }} className="mono">{formatDate(txn.date)}</Td>
                 <Td style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 600 }}>{t.script || '—'}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.symbol}</div>
+                  <div style={{ fontWeight: 600 }}>{txn.script || '—'}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{txn.symbol}</div>
                 </Td>
                 <Td style={{ textAlign: 'left' }}>
                   <span style={{
                     display: 'inline-block', padding: '2px 8px', borderRadius: 999,
                     fontSize: 11, fontWeight: 600, background: tint.bg, color: tint.color,
-                  }}>{TYPE_LABEL[t.type || ''] || t.type}</span>
+                  }}>{TYPE_LABEL[txn.type || ''] || txn.type}</span>
                 </Td>
-                {cols.quantity && <Td className="mono">{formatQuantity(t.quantity)}</Td>}
-                <Td className="mono">{formatMoney(t.amount, t.currency)}</Td>
+                {cols.quantity && <Td className="mono">{formatQuantity(txn.quantity)}</Td>}
+                <Td className="mono">{formatMoney(txn.amount, txn.currency)}</Td>
                 {cols.impliedCost && (
-                  <Td className="mono">{implied === null ? '—' : formatMoney(implied, t.currency)}</Td>
+                  <Td className="mono">{implied === null ? '—' : formatMoney(implied, txn.currency)}</Td>
                 )}
-                {cols.ratio && <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>}
-                {cols.realizedSeed && <Td className="mono">{formatMoney(t.realized_seed, t.currency)}</Td>}
+                {cols.ratio && <Td className="mono">{txn.ratio ? `${txn.ratio}×` : '—'}</Td>}
+                {cols.realizedSeed && <Td className="mono">{formatMoney(txn.realized_seed, txn.currency)}</Td>}
                 {cols.openingDate && (
                   <Td className="mono">
-                    {t.type !== 'opening'
+                    {txn.type !== 'opening'
                       ? '—'
-                      : t.opening_date
-                        ? formatDate(t.opening_date)
+                      : txn.opening_date
+                        ? formatDate(txn.opening_date)
                         // Same state the dashboard's blocking prompt keys on.
                         : <span style={{ color: 'var(--yellow)' }}>Not set</span>}
                   </Td>
                 )}
                 {cols.notes && (
                   <Td style={{ textAlign: 'left', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'normal', maxWidth: 220 }}>
-                    {t.notes || '—'}
+                    {txn.notes || '—'}
                   </Td>
                 )}
-                <Td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>{t.currency}</Td>
+                <Td style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11 }}>{txn.currency}</Td>
                 {onEdit && (
                   <Td style={{ textAlign: 'center' }}>
-                    <button onClick={() => onEdit(t)} className="btn-row btn-row-accent"
-                      title={`Edit in ${t.script || 'holding'}'s ledger`}
-                      aria-label={`Edit in ${t.script || 'holding'}'s ledger`}>
+                    <button onClick={() => onEdit(txn)} className="btn-row btn-row-accent"
+                      title={`Edit in ${txn.script || 'holding'}'s ledger`}
+                      aria-label={`Edit in ${txn.script || 'holding'}'s ledger`}>
                       <EditIcon size={12} />
                     </button>
                   </Td>

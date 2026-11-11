@@ -87,3 +87,33 @@ describe('DividendsPage', () => {
     expect(tabFrom(null)).toBe('INR')
   })
 })
+
+describe('DividendsPage pagination', () => {
+  const many: DividendView = {
+    ...inr,
+    rows: Array.from({ length: 40 }, (_, i) => row(`m${i + 1}`, i % 2 ? 'h1' : 'h2', i % 2 ? 'TCS' : 'JIO', '2021-01-01', 10 + i, 0, 0)),
+    summary: { ...inr.summary, count: 40 },
+  }
+
+  it('shows 15 dividends per page and pages with the arrows', async () => {
+    mockApi.listDividends.mockImplementation((currency: string) => Promise.resolve(currency === 'INR' ? many : empty))
+    renderAt()
+    const pager = await screen.findByRole('navigation', { name: 'Dividends pages' })
+    expect(pager).toHaveTextContent('1–15 of 40')
+    const tables = screen.getAllByRole('table')
+    expect(within(tables[0]).getAllByRole('row').slice(1)).toHaveLength(15)
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    expect(pager).toHaveTextContent('31–40 of 40')
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
+  })
+
+  it('goes back to the first page when the search changes', async () => {
+    mockApi.listDividends.mockImplementation((currency: string) => Promise.resolve(currency === 'INR' ? many : empty))
+    renderAt()
+    await screen.findByRole('navigation', { name: 'Dividends pages' })
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'tcs' } })
+    expect(screen.getByRole('navigation', { name: 'Dividends pages' })).toHaveTextContent('1–15 of 20')
+  })
+})

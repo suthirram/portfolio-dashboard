@@ -7,6 +7,8 @@ import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
+import { Pager } from '../../components/Pager'
+import { usePagination } from '../../lib/usePagination'
 import type { DividendCurrency, DividendRow } from '../../types'
 import { useDividends } from './useDividends'
 import DividendsTable from './DividendsTable'
@@ -53,6 +55,8 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
       (!holdingId || row.holding_id === holdingId) &&
       (!query || row.script.toLowerCase().includes(query) || row.symbol.toLowerCase().includes(query)))
   }, [view.rows, holdingId, search])
+  // 15 per page; another tab, holding or search goes back to the first page.
+  const pagination = usePagination(visible, JSON.stringify([currency, holdingId, search]))
 
   return (
     <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
@@ -113,7 +117,8 @@ export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
             {visible.length !== view.rows.length && (
               <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Showing {visible.length} of {view.rows.length}</p>
             )}
-            <DividendsTable rows={visible} currency={currency} onEdit={row => setEditor({ row })} onDelete={setDeleting} />
+            <Pager pagination={pagination} label="Dividends" />
+            <DividendsTable rows={pagination.pageItems} currency={currency} onEdit={row => setEditor({ row })} onDelete={setDeleting} />
             <DividendsAnalytics view={view} currency={currency} />
           </>
         )}
