@@ -15,6 +15,7 @@ import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
 import { canonicalCurrency } from '../../lib/currency'
 import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
+import { groupByCurrency, type CurrencyCode } from '../holdings/groupByCurrency'
 import {
   ChartLineIcon, CoinsIcon, ListIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon,
   UserCheckIcon, UserIcon, SettingsIcon, LogOutIcon, ArrowLeftIcon,
@@ -72,7 +73,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // Holdings with an opening balance but no opening date set yet. Only prompt on
   // the caller's own dashboard (the admin act-as holdings endpoint isn't
   // enriched with opening status).
-  const needsOpeningDate = actAsUserId ? [] : holdings.filter(h => h.has_opening && !h.opening_date)
+  const needsOpeningDate = actAsUserId ? [] : holdings.filter(holding => holding.has_opening && !holding.opening_date)
   const showOpeningPrompt = needsOpeningDate.length > 0 && !openingPromptSkipped && !loadingHoldings
 
   useEffect(() => {
@@ -83,8 +84,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // Look up the friendly region label for the badge.
   useEffect(() => {
     if (!user?.region) { setRegionLabel(''); return }
-    void api.getRegions().then((rs: Region[]) => {
-      setRegionLabel(rs.find(r => r.id === user.region)?.label ?? user.region)
+    void api.getRegions().then((regions: Region[]) => {
+      setRegionLabel(regions.find(region => region.id === user.region)?.label ?? user.region)
     }).catch(() => setRegionLabel(user.region))
   }, [user?.region])
 
@@ -92,7 +93,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // recomputed holding after a ledger write (matched by id).
   useEffect(() => {
     if (!txnModal) return
-    const fresh = enriched.find(h => h.id === txnModal.id)
+    const fresh = enriched.find(holding => holding.id === txnModal.id)
     if (fresh && fresh !== txnModal) setTxnModal(fresh)
   }, [enriched, txnModal])
 
@@ -107,28 +108,27 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   }
 
   // Display enriched if available, else fall back to plain holdings
-  const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(h => ({
-    ...h,
-    cost_price: (h.stocks_owned ?? 0) * (h.avg_cost_price ?? 0),
+  const displayHoldings: HoldingWithPrice[] = enriched.length > 0 ? enriched : holdings.map(holding => ({
+    ...holding,
+    cost_price: (holding.stocks_owned ?? 0) * (holding.avg_cost_price ?? 0),
   }))
 
-  const filtered = displayHoldings.filter(h =>
-    !filter || h.script?.toLowerCase().includes(filter.toLowerCase()) || h.symbol?.toLowerCase().includes(filter.toLowerCase())
+  const filtered = displayHoldings.filter(holding =>
+    !filter || holding.script?.toLowerCase().includes(filter.toLowerCase()) || holding.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
 
-  // Only override when previous-close enrichment is known to have succeeded.
-  // act-as skips the history lookup (useHoldings line 44: !userId guard), and
-  // a failed history fetch leaves enriched without previous_close_price — both
-  // cases would fall back to avg_cost_price, producing lifetime P&L, not a
-  // day gain. Passing null lets SummaryCards keep the backend's change_value.
+  // The summary card's day gain per currency: the same group sum as the
+  // currency cards, over the same groups. A currency with a holding that has
+  // no previous close (act-as, a failed history fetch, a holding not yet
+  // snapshotted) gets null and shows "—"; the other currency is unaffected.
   const computedDayGainByCurrency = useMemo(() => {
-    const hasPreviousClose = !actAsUserId && enriched.some(h => h.previous_close_price != null)
-    if (!hasPreviousClose) return { INR: null, EUR: null }
-    return {
-      INR: computeGroupDayGain(enriched.filter(h => h.currency === 'INR')),
-      EUR: computeGroupDayGain(enriched.filter(h => h.currency === 'EUR')),
+    const groups = groupByCurrency(enriched)
+    const gainOf = (currency: CurrencyCode) => {
+      const group = groups.find(candidate => candidate.currency === currency)
+      return group ? computeGroupDayGain(group.holdings) : null
     }
-  }, [actAsUserId, enriched])
+    return { INR: gainOf('INR'), EUR: gainOf('EUR') }
+  }, [enriched])
   const income = useMemo(() => dividendIncome(enriched), [enriched])
 
   const TAB = (key: Tab, label: string) => (
@@ -209,7 +209,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
           <div className="dash-nav-user" style={{ position: 'relative' }}>
-            <button onClick={() => setMenuOpen(o => !o)} className="btn dash-nav-btn"
+            <button onClick={() => setMenuOpen(wasOpen => !wasOpen)} className="btn dash-nav-btn"
               style={{ padding: '6px 12px', color: 'var(--text-primary)' }}>
               <UserIcon size={14} /> <span className="dash-nav-label-sm">{user?.name || user?.username}</span>
             </button>
@@ -268,14 +268,14 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           goldCurrentInr={goldMetrics?.current ?? null}
           goldInvestedInr={goldMetrics?.invested ?? null}
           goldNettPL={goldMetrics?.nett_in_bees ?? null}
-          stocksInvestedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0), 0)}
+          stocksInvestedInr={enriched.filter(holding => holding.currency === 'INR').reduce((sum, holding) => sum + (holding.cost_price ?? 0), 0)}
           dividendsInr={income.inr}
           dividendsEur={income.eur}
-          stocksInvestedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0), 0)}
-          stocksCurrentInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.cost_price ?? 0) + (h.unrealized_pnl ?? 0), 0)}
-          stocksCurrentEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.cost_price_eur ?? 0) + (h.unrealized_pnl_eur ?? 0), 0)}
-          stocksUnrealisedInr={enriched.filter(h => h.currency === 'INR').reduce((s, h) => s + (h.unrealized_pnl ?? 0), 0)}
-          stocksUnrealisedEur={enriched.filter(h => h.currency === 'EUR').reduce((s, h) => s + (h.unrealized_pnl_eur ?? 0), 0)}
+          stocksInvestedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.cost_price_eur ?? 0), 0)}
+          stocksCurrentInr={enriched.filter(holding => holding.currency === 'INR').reduce((sum, holding) => sum + (holding.cost_price ?? 0) + (holding.unrealized_pnl ?? 0), 0)}
+          stocksCurrentEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.cost_price_eur ?? 0) + (holding.unrealized_pnl_eur ?? 0), 0)}
+          stocksUnrealisedInr={enriched.filter(holding => holding.currency === 'INR').reduce((sum, holding) => sum + (holding.unrealized_pnl ?? 0), 0)}
+          stocksUnrealisedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.unrealized_pnl_eur ?? 0), 0)}
           computedDayGainInr={computedDayGainByCurrency.INR}
           computedDayGainEur={computedDayGainByCurrency.EUR}
         />
@@ -303,11 +303,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <HoldingsByCurrency
             holdings={filtered}
             loading={loadingHoldings || loadingPrices}
-            onEdit={h => setModal(h)}
+            onEdit={holding => setModal(holding)}
             onDelete={handleDelete}
             // Transaction endpoints target the caller's own portfolio (no
             // admin act-as variant yet), so hide the ledger in act-as mode.
-            onTransactions={actAsUserId ? undefined : (h => setTxnModal(h))}
+            onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
             perCurrency={summary?.per_currency}
           />
         )}

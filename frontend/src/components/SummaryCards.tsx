@@ -4,19 +4,20 @@ import type {CurrencyChange, Summary} from '../types'
 import {CoinsIcon} from './Icon'
 import {formatDate} from '../lib/formDates'
 
-const fmt = (n: number, currency = '₹') =>
-    `${currency}${Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+const fmt = (amount: number, currency = '₹') =>
+    `${currency}${Math.abs(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
 
-const fmtEur = (n: number) =>
-    `€${Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+const fmtEur = (amount: number) =>
+    `€${Math.abs(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
 
 // ChangeRow is one native-currency line in the grouped daily-change card:
-// the move vs the previous close in that currency's own units. pct is null
-// when the previous close was zero.
+// the move vs the previous close in that currency's own units. value is null
+// when the day gain is unavailable (a holding has no previous close); pct is
+// null then too, or when the previous close was zero.
 interface ChangeRow {
     name: string
     symbol: string
-    value: number
+    value: number | null
     pct: number | null
 }
 
@@ -24,6 +25,21 @@ interface ChangeRow {
 // badge on the left, the ▲/▼ native delta and a percent chip on the right.
 // The tint (green/red) makes gainers/losers scannable at a glance.
 function ChangeLine({row}: { row: ChangeRow }) {
+    if (row.value === null) {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                padding: '5px 10px', marginTop: 6, borderRadius: 'var(--radius-sm)', minWidth: 0,
+            }}>
+                <span style={{display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0}}>
+                    <span style={{fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)'}}>{row.symbol}</span>
+                    <span style={{fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)'}}>{row.name}</span>
+                </span>
+                <span title="A holding has no previous close yet"
+                      style={{fontSize: 15, fontWeight: 700, color: 'var(--text-muted)'}}>—</span>
+            </div>
+        )
+    }
     const up = row.value >= 0
     const cls = up ? 'pos' : 'neg'
     const arrow = up ? '▲' : '▼'
@@ -149,7 +165,7 @@ function InvestedBreakdownCard({stocksInr, stocksEur, goldInvestedInr, onClick}:
     return (
         <div className="card card-highlight" style={{...cardStyle, cursor: 'pointer'}} onClick={onClick}>
             <div style={cardLabelStyle}>Total Invested</div>
-            {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r}/>)}
+            {rows.map(row => <BreakdownLine key={row.name + row.symbol} row={row}/>)}
         </div>
     )
 }
@@ -178,7 +194,7 @@ function CurrentBreakdownCard({stocksInr, stocksEur, goldCurrentInr, onClick}: {
     return (
         <div className="card card-highlight" style={{...cardStyle, cursor: 'pointer'}} onClick={onClick}>
             <div style={cardLabelStyle}>Current Value</div>
-            {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r}/>)}
+            {rows.map(row => <BreakdownLine key={row.name + row.symbol} row={row}/>)}
         </div>
     )
 }
@@ -194,7 +210,7 @@ function ChangeCard({rows, date}: { rows: ChangeRow[]; date?: string }) {
             {rows.length === 0 ? (
                 <div style={{fontSize: 15, fontWeight: 600, color: 'var(--text-muted)', marginTop: 4}}>—</div>
             ) : (
-                rows.map(r => <ChangeLine key={r.name} row={r}/>)
+                rows.map(row => <ChangeLine key={row.name} row={row}/>)
             )}
             {date && rows.length > 0 && (
                 <div style={{fontSize: 11, color: 'var(--text-muted)', marginTop: 8}}>vs {formatDate(date)} close</div>
@@ -269,7 +285,7 @@ function PnLBreakdownCard({stocksInr, stocksEur, goldNettPL, onClick}: {
     return (
         <div className="card" style={{...cardStyle, cursor: 'pointer'}} onClick={onClick}>
             <div style={cardLabelStyle}>Unrealised P/L</div>
-            {rows.map(r => <BreakdownLine key={r.name + r.symbol} row={r}/>)}
+            {rows.map(row => <BreakdownLine key={row.name + row.symbol} row={row}/>)}
         </div>
     )
 }
@@ -347,8 +363,16 @@ function changePct(gain: number, prevClose: number | undefined): number | null {
     return (gain / prevClose) * 100
 }
 
+// The backend's change_value is today's value minus the snapshot's, so it
+// counts money bought or sold since then as gain or loss. A computed day
+// gain replaces it; a computed null (no previous close for some holding)
+// shows "—" rather than falling back to it. undefined = not computed for
+// this currency (USD), which keeps the backend figure.
 function resolveChangeRow(bucket: CurrencyChange, name: string, symbol: string, override: number | null | undefined): ChangeRow {
-    if (override != null) {
+    if (override === null) {
+        return { name, symbol, value: null, pct: null }
+    }
+    if (override !== undefined) {
         return { name, symbol, value: override, pct: changePct(override, bucket.previous_close) }
     }
     return { name, symbol, value: bucket.change_value ?? 0, pct: bucket.change_pct ?? null }
@@ -455,7 +479,7 @@ export default function SummaryCards({
                 {loading && <div className="spinner" style={{width: 14, height: 14}}/>}
             </div>
             <div className="summary-grid" style={{display: 'flex', flexWrap: 'wrap', gap: 12}}>
-                <FlipCard onFlip={() => setShowInvestedBreakdown(v => !v)}>
+                <FlipCard onFlip={() => setShowInvestedBreakdown(shown => !shown)}>
                     {showInvestedBreakdown ? (
                         <InvestedBreakdownCard
                             stocksInr={stocksInvestedInr} stocksEur={stocksInvestedEur}
@@ -467,7 +491,7 @@ export default function SummaryCards({
                         <Card label="Total Invested" inr={total_cost} eur={total_cost_eur} highlight/>
                     )}
                 </FlipCard>
-                <FlipCard onFlip={() => setShowCurrentBreakdown(v => !v)}>
+                <FlipCard onFlip={() => setShowCurrentBreakdown(shown => !shown)}>
                     {showCurrentBreakdown ? (
                         <CurrentBreakdownCard
                             stocksInr={stocksCurrentInr}
@@ -482,7 +506,7 @@ export default function SummaryCards({
                     )}
                 </FlipCard>
                 <ChangeCard rows={changeRows} date={previous_close_date}/>
-                <FlipCard onFlip={() => setShowPnLBreakdown(v => !v)}>
+                <FlipCard onFlip={() => setShowPnLBreakdown(shown => !shown)}>
                     {showPnLBreakdown ? (
                         <PnLBreakdownCard
                             stocksInr={stocksUnrealisedInr} stocksEur={stocksUnrealisedEur}
