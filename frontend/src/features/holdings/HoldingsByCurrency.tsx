@@ -5,6 +5,9 @@ import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import { groupByCurrency, type CurrencyCode } from './groupByCurrency'
 import { sumTotals, nativeView, nativeSymbols } from './currencyTotals'
 import { computeGroupDayChange, type GroupDayChange, type HoldingWithPreviousClose } from './dashboardPriceMovement'
+import { xirrNote, type XirrIndex } from './stockXirr'
+import { formatRate, rateTone } from '../../lib/rate'
+import { formatDate } from '../../lib/formDates'
 
 interface Props {
   holdings: HoldingWithPreviousClose[]
@@ -12,6 +15,8 @@ interface Props {
   onEdit: (holding: HoldingWithPrice) => void
   onDelete: (id: string) => void
   onTransactions?: (holding: HoldingWithPrice) => void
+  /** Stock XIRR (PD-055); null while loading or when /xirr failed. */
+  xirr?: XirrIndex | null
 }
 
 const CURRENCY_LABEL: Record<CurrencyCode, string> = {
@@ -33,7 +38,7 @@ const fmt = (amount: number, sym: string) => {
 }
 
 
-export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions }: Props) {
+export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, xirr }: Props) {
   const [view, setView] = useState<HoldingView>('active')
 
   const counts = viewCounts(holdings)
@@ -85,6 +90,8 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         const real = nativeView(group.currency, totals.real, totals.realEur)
 
         const dayChange = computeGroupDayChange(group.holdings)
+        // OTHER groups have no XIRR bucket (the backend skips them).
+        const bucket = group.currency === 'OTHER' ? undefined : xirr?.byCurrency[group.currency]
 
         return (
           <section key={group.currency} style={{ marginBottom: 24 }}>
@@ -107,6 +114,12 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               <Stat label="Unrealised" primary={fmt(unreal.primary, nativeSym)} secondary={fmt(unreal.secondary, foreignSym)} tone={unreal.primary >= 0 ? 'pos' : 'neg'} />
               <Stat label="Realised" primary={fmt(real.primary, nativeSym)} secondary={fmt(real.secondary, foreignSym)} tone={real.primary >= 0 ? 'pos' : 'neg'} />
               {dayChange !== null && <ChangeStat dayChange={dayChange} symbol={nativeSym} />}
+              {bucket && xirr && (
+                <Stat label="XIRR" primary={formatRate(bucket.xirr)}
+                  secondary={bucket.since ? `since ${formatDate(bucket.since)}` : 'no flows'}
+                  tone={rateTone(bucket.xirr)}
+                  title={xirrNote(bucket.since, xirr.asOf, bucket.undated_openings > 0)} />
+              )}
             </div>
 
             <HoldingsTable
@@ -117,6 +130,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               onTransactions={onTransactions}
               view="all"
               nativeCurrency={group.currency === 'EUR' ? 'EUR' : 'INR'}
+              xirr={xirr}
             />
           </section>
         )
@@ -142,11 +156,11 @@ function ChangeStat({ dayChange, symbol }: { dayChange: GroupDayChange; symbol: 
   )
 }
 
-function Stat({ label, primary, secondary, tone }: {
-  label: string; primary: string; secondary: string; tone?: 'pos' | 'neg'
+function Stat({ label, primary, secondary, tone, title }: {
+  label: string; primary: string; secondary: string; tone?: ReturnType<typeof rateTone>; title?: string
 }) {
   return (
-    <div style={{ flex: '1 1 140px', minWidth: 120 }}>
+    <div style={{ flex: '1 1 140px', minWidth: 120 }} title={title || undefined}>
       <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {label}
       </div>

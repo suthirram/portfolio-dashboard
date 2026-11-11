@@ -6,6 +6,7 @@ import type {
   HoldingWithPrice,
   MarketPrice,
   PricesResponse,
+  StockXirrView,
   Summary,
   Transaction,
   TransactionInput,
@@ -27,6 +28,7 @@ import {
   pricesPath,
   summaryPath,
   transactionPath,
+  xirrPath,
   transactionsPath,
 } from '../../features/admin/actAsRouting'
 
@@ -139,6 +141,8 @@ export const api = {
     request<PricesResponse>('GET', pricesPath(userId)),
   getSummary:     (userId?: string) =>
     request<Summary>('GET', summaryPath(userId)),
+  getStockXirr:   (userId?: string) =>
+    request<StockXirrView>('GET', xirrPath(userId)),
 
   // Transactions — per-holding ledger. The holding's position is recomputed
   // server-side after every write, so callers should refresh holdings/prices.

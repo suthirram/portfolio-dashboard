@@ -7,6 +7,7 @@ const mockApi = vi.hoisted(() => ({
   listHoldings: vi.fn(),
   getPrices: vi.fn(),
   getSummary: vi.fn(),
+  getStockXirr: vi.fn(),
   listHistory: vi.fn(),
   deleteHolding: vi.fn(),
 }))
@@ -33,6 +34,11 @@ beforeEach(() => {
   mockApi.listHoldings.mockResolvedValue([])
   mockApi.getPrices.mockResolvedValue({ holdings: [liveHolding()] })
   mockApi.getSummary.mockResolvedValue({ previous_close_date: '2026-06-24' })
+  mockApi.getStockXirr.mockResolvedValue({
+    as_of: '2026-11-11',
+    currencies: [{ currency: 'INR', xirr: 0.12, since: '2024-01-01', undated_openings: 0 }],
+    holdings: [{ holding_id: '1', xirr: 0.2, since: '2024-01-01', undated_opening: false }],
+  })
   mockApi.listHistory.mockResolvedValue({
     currency: 'INR',
     rows: [{
@@ -99,5 +105,26 @@ describe('useHoldings', () => {
 
     expect(mockApi.getPrices).toHaveBeenCalledWith('user-1')
     expect(mockApi.listHistory).not.toHaveBeenCalled()
+  })
+
+  it('indexes the stock XIRR by holding and currency, act-as included', async () => {
+    const { result } = renderHook(() => useHoldings('user-1'))
+
+    await waitFor(() => {
+      expect(result.current.xirr?.byHolding['1']?.xirr).toBe(0.2)
+    })
+    expect(result.current.xirr?.byCurrency.INR?.xirr).toBe(0.12)
+    expect(mockApi.getStockXirr).toHaveBeenCalledWith('user-1')
+  })
+
+  it('still loads prices when /xirr fails, with no rates', async () => {
+    mockApi.getStockXirr.mockRejectedValue(new Error('boom'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { result } = renderHook(() => useHoldings())
+
+    await waitFor(() => {
+      expect(result.current.enriched[0]?.current_price).toBe(120)
+    })
+    expect(result.current.xirr).toBeNull()
   })
 })
