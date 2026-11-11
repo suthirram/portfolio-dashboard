@@ -49,7 +49,10 @@ which renders `<AppShell>` around the page for glass accounts and the page
 alone otherwise. `AppShell`: brand, search (opens the palette), nav
 (`NavLink`, so `aria-current` marks the page; Gold and Admin only when the
 account has them), **Add holding**, theme picker, account, log out; a
-bottom tab bar under 860 px; the command palette; the toaster.
+bottom tab bar under 860 px; the command palette; the toaster. A hamburger
+button folds the sidebar into a 72 px icon rail (labels hidden, every control
+keeps its name as `aria-label` and a `title` tooltip); the choice is kept per
+browser in `localStorage.pd_sidebar`, and the palette offers it too.
 
 Pages keep their headers. In the shell they become floating toolbars, and
 their copies of the shell's controls are hidden: elements marked
@@ -72,7 +75,8 @@ polite live region; toasts leave after 4.5 s. `notify()` replaces
 
 ## 6. Pages
 
-* **Dashboard**: `PortfolioHero` (glass only) above the cards, reading the
+* **Dashboard**: `PortfolioHero` (glass only; each "Today" chip carries its
+  currency's flag, India or the EU, drawn as SVG) above the cards, reading the
   same summary and per-currency `GroupDayChange` the cards use; a skeleton
   while the first summary loads; a page title; header copies marked
   `.shell-dup` (page links only outside act-as).

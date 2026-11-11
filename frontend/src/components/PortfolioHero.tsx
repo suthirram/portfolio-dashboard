@@ -38,6 +38,34 @@ export function valueSplit(holdings: HoldingWithPreviousClose[]): ValueSplit[] {
     .map(currency => ({ currency, value: totals[currency], share: totals[currency] / sum }))
 }
 
+// CurrencyFlag marks a currency's chip with its flag: India for INR, the
+// European Union for EUR. Drawn as SVG, since flag emoji render as plain
+// letters on Windows. Decorative: the code beside it already names it.
+export function CurrencyFlag({ currency }: { currency: 'INR' | 'EUR' }) {
+  const box = { width: 18, height: 12, borderRadius: 2, verticalAlign: '-1px', boxShadow: '0 0 0 1px rgba(0,0,0,0.15)' }
+  if (currency === 'INR') {
+    return (
+      <svg className="currency-flag" data-flag="IN" viewBox="0 0 18 12" style={box} aria-hidden="true" focusable="false">
+        <rect width="18" height="4" fill="#FF9933" />
+        <rect y="4" width="18" height="4" fill="#FFFFFF" />
+        <rect y="8" width="18" height="4" fill="#138808" />
+        <circle cx="9" cy="6" r="1.5" fill="none" stroke="#000080" strokeWidth="0.5" />
+      </svg>
+    )
+  }
+  // Twelve gold stars on a circle, on EU blue.
+  const stars = Array.from({ length: 12 }, (_, i) => {
+    const angle = (i / 12) * Math.PI * 2
+    return <circle key={i} cx={9 + Math.sin(angle) * 3.6} cy={6 - Math.cos(angle) * 3.6} r="0.55" fill="#FFCC00" />
+  })
+  return (
+    <svg className="currency-flag" data-flag="EU" viewBox="0 0 18 12" style={box} aria-hidden="true" focusable="false">
+      <rect width="18" height="12" fill="#003399" />
+      {stars}
+    </svg>
+  )
+}
+
 const signed = (amount: number, currency: string) => `${amount > 0 ? '+' : ''}${formatMoney(amount, currency)}`
 const signedPct = (pct: number) => `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`
 const tone = (amount: number) => (amount > 0 ? 'pos' : amount < 0 ? 'neg' : '')
@@ -78,7 +106,7 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
           const change = dayChange[currency]
           return (
             <div key={currency} className={`hero-chip ${change ? tone(change.gain) : ''}`}>
-              <span className="hero-chip-label">Today · {currency}</span>
+              <span className="hero-chip-label">Today · {currency} <CurrencyFlag currency={currency} /></span>
               <span className="hero-chip-value mono">
                 {change ? signed(change.gain, currency) : '—'}
                 {change && change.pct !== null && <small> {signedPct(change.pct)}</small>}

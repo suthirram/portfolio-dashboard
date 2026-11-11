@@ -29,6 +29,14 @@ describe('PortfolioHero', () => {
     expect(screen.getByRole('img', { name: 'INR 75%, EUR 25%' })).toBeInTheDocument()
   })
 
+  it('marks each currency chip with its flag', () => {
+    render(<PortfolioHero summary={summary} loading={false} holdings={[held('INR', 90000), held('EUR', 30000)]}
+      dayChange={{ INR: { gain: 1, previousValue: 100, pct: 1 }, EUR: { gain: 1, previousValue: 100, pct: 1 } }} />)
+    expect(screen.getByText('Today · INR').querySelector('[data-flag="IN"]')).not.toBeNull()
+    expect(screen.getByText('Today · EUR').querySelector('[data-flag="EU"]')).not.toBeNull()
+    expect(screen.getByText('Unrealised').querySelector('.currency-flag')).toBeNull()
+  })
+
   it('leaves out a currency that is not held', () => {
     render(<PortfolioHero summary={summary} loading={false} holdings={[held('INR', 90000)]}
       dayChange={{ INR: { gain: -200, previousValue: 1000, pct: -20 } }} />)
