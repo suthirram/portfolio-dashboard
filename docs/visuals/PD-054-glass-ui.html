@@ -1,0 +1,2354 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glass UI Spec</title>
+
+<style>
+  /* Document chrome. The prototype frames below run the shipped CSS
+     (tokens.css, base.css, components.css, index.css, glass.css) verbatim
+     inside iframes; only this chrome is local to the spec. */
+  :root {
+    --doc-bg: #f2f4f9; --doc-panel: #ffffff; --doc-ink: #141a2b; --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e; --doc-rule: #d9dfeb; --doc-accent: #2f5fd0; --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-note: #8a6a1f; --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-doc-theme="light"]) {
+      --doc-bg: #0b0e18; --doc-panel: #121624; --doc-ink: #e8ecf6; --doc-ink-soft: #a3acc6;
+      --doc-ink-faint: #6b7493; --doc-rule: #252b40; --doc-accent: #7aa2ff; --doc-accent-soft: rgba(122, 162, 255, 0.12);
+      --doc-note: #e0b85a; --doc-note-soft: rgba(224, 184, 90, 0.12);
+    }
+  }
+  :root[data-doc-theme="dark"] {
+    --doc-bg: #0b0e18; --doc-panel: #121624; --doc-ink: #e8ecf6; --doc-ink-soft: #a3acc6;
+    --doc-ink-faint: #6b7493; --doc-rule: #252b40; --doc-accent: #7aa2ff; --doc-accent-soft: rgba(122, 162, 255, 0.12);
+    --doc-note: #e0b85a; --doc-note-soft: rgba(224, 184, 90, 0.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--doc-bg); color: var(--doc-ink); font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .doc { max-width: 1480px; margin: 0 auto; padding: 32px 24px 64px; }
+  .doc h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .doc h2 { font-size: 18px; margin: 0 0 4px; }
+  .doc p, .doc li { color: var(--doc-ink-soft); max-width: 78ch; }
+  .doc-meta { color: var(--doc-ink-faint); font-size: 12px; }
+  .doc-bar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center;
+    padding: 12px 16px; margin: 18px 0 24px; background: var(--doc-panel); border: 1px solid var(--doc-rule); border-radius: 12px; }
+  .doc-group { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--doc-ink-faint); }
+  .doc-group button { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--doc-rule);
+    background: transparent; color: var(--doc-ink-soft); cursor: pointer; }
+  .doc-group button[aria-pressed="true"] { background: var(--doc-accent-soft); border-color: var(--doc-accent); color: var(--doc-accent); }
+  .frame { background: var(--doc-panel); border: 1px solid var(--doc-rule); border-radius: 14px; padding: 18px; margin-bottom: 22px; }
+  .frame-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 10px; }
+  .frame-no { font-weight: 700; color: var(--doc-accent); font-variant-numeric: tabular-nums; }
+  .stage { border: 1px solid var(--doc-rule); border-radius: 10px; overflow: hidden; background: #05070f; }
+  .stage iframe { display: block; width: 100%; height: 760px; border: 0; margin: 0 auto; transition: width .25s ease; }
+  .stage.phone iframe { width: 390px; height: 780px; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+  .note { background: var(--doc-note-soft); border-left: 3px solid var(--doc-note); padding: 8px 12px; border-radius: 6px; font-size: 12.5px; color: var(--doc-ink-soft); }
+  .note b { color: var(--doc-ink); }
+  table.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .doc-table th, .doc-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--doc-rule); vertical-align: top; }
+  .doc-table th { color: var(--doc-ink-faint); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .doc code { font-size: 12px; background: var(--doc-accent-soft); padding: 1px 5px; border-radius: 4px; }
+  .play { display: grid; grid-template-columns: minmax(240px, 360px) 1fr; gap: 16px; align-items: start; }
+  .play input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--doc-rule); background: var(--doc-bg); color: var(--doc-ink); font: inherit; }
+  .play ul { list-style: none; margin: 0; padding: 0; }
+  .play li { padding: 6px 10px; border-radius: 8px; font-size: 13px; color: var(--doc-ink-soft); }
+  .play li span { display: inline-block; min-width: 70px; font-size: 11px; text-transform: uppercase; color: var(--doc-ink-faint); }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--doc-accent-soft); color: var(--doc-accent); }
+</style>
+
+<div class="doc">
+  <h1>PD-054 · Glass UI behind a per-account switch</h1>
+  <div class="doc-meta">PRD-011 · DD-011 · Plan PD-054 · Not production markup: the frames run the shipped CSS on illustrative markup, with the demo holdings of the end-to-end run (Yahoo closes, 11 Nov 2026).</div>
+
+  <div class="doc-bar" role="toolbar" aria-label="Spec controls">
+    <div class="doc-group">Theme
+      <button data-set="theme" data-value="dark" aria-pressed="true">Dark</button>
+      <button data-set="theme" data-value="light" aria-pressed="false">Light</button>
+      <button data-set="theme" data-value="cyberpunk" aria-pressed="false">Cyber</button>
+    </div>
+    <div class="doc-group">Account switch
+      <button data-set="ui" data-value="v2" aria-pressed="true">Glass UI on</button>
+      <button data-set="ui" data-value="v1" aria-pressed="false">Glass UI off</button>
+    </div>
+    <div class="doc-group">Width
+      <button data-set="width" data-value="desktop" aria-pressed="true">Desktop</button>
+      <button data-set="width" data-value="phone" aria-pressed="false">Phone 390</button>
+    </div>
+    <div class="doc-group">Simulate
+      <button data-flag="solid" aria-pressed="false">Reduced transparency</button>
+      <button data-flag="still" aria-pressed="false">Reduced motion</button>
+      <button data-flag="noClose" aria-pressed="false">TCS has no close</button>
+    </div>
+  </div>
+
+  <section class="frame" id="frame-1">
+    <div class="frame-head"><span class="frame-no">1</span><h2>The app in the shell (live)</h2><span class="badge">click anything · ⌘K / Ctrl+K</span></div>
+    <p>Sidebar on every signed-in page, the page header as a floating toolbar, the dashboard hero above the cards. Click the nav, <b>Refresh</b> (a toast, not an alert), <b>Add holding</b>, or press ⌘K / Ctrl+K inside the frame. Flip <b>Glass UI off</b> above to see the current UI that every other account keeps.</p>
+    <div class="stage" id="stage-1"><iframe id="proto-1" title="Glass UI prototype"></iframe></div>
+    <div class="notes">
+      <div class="note"><b>Hero</b> (DD-011 §6): current value, today per currency with its % (snapshot close first, else Yahoo), unrealised, INR/EUR split. Toggle <i>TCS has no close</i>: Today · INR becomes “—”, EUR stays.</div>
+      <div class="note"><b>Header copies hidden</b> (DD-011 §4): brand, page links, theme picker, user menu are in the sidebar, so the toolbar keeps only the title and page actions.</div>
+      <div class="note"><b>Phone</b>: the sidebar folds into a bottom tab bar; “More” opens the palette.</div>
+    </div>
+  </section>
+
+  <section class="frame" id="frame-2">
+    <div class="frame-head"><span class="frame-no">2</span><h2>Admin → Users: the switch</h2></div>
+    <p>The super admin flips <b>Glass UI on / off</b> per account (<code>PUT /admin/users/{id}/ui-revamp</code>). Flipping <i>root (you)</i> changes this frame at once, like the real session refresh; others get a toast.</p>
+    <div class="stage"><iframe id="proto-2" title="Admin switch prototype"></iframe></div>
+  </section>
+
+  <section class="frame" id="frame-3">
+    <div class="frame-head"><span class="frame-no">3</span><h2>Command palette matching (playground)</h2></div>
+    <div class="play">
+      <div>
+        <input id="play-query" placeholder="Type, e.g. “go hist”, “ledger”, “theme”" aria-label="Palette query">
+        <p style="font-size:12.5px">Every word must appear in the label, group or keywords (the same <code>matchCommands</code> the frame runs). ↑/↓ move, Enter runs, Esc closes.</p>
+      </div>
+      <ul id="play-list" aria-live="polite"></ul>
+    </div>
+  </section>
+
+  <section class="frame" id="frame-4">
+    <div class="frame-head"><span class="frame-no">4</span><h2>Scoping: why the current UI cannot change</h2></div>
+    <table class="doc-table">
+      <thead><tr><th>Layer</th><th>Selector</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>Tokens</td><td><code>:root[data-ui="v2"] { --bg-card: rgba(…) }</code></td><td>The 600+ inline styles that read the tokens turn translucent</td></tr>
+        <tr><td>Surfaces</td><td><code>[style*="var(--bg-card)"]</code>, <code>.card</code>, <code>.page-toolbar</code>…</td><td>Backdrop blur; never on table rows</td></tr>
+        <tr><td>Shell</td><td><code>.shell .shell-dup</code>, <code>.shell .page-nav</code></td><td>Exists only when <code>ShellLayout</code> renders <code>AppShell</code></td></tr>
+        <tr><td>Global</td><td><code>.shell-only { display: none }</code></td><td>The only unscoped rule: hides shell-only markup in the current UI</td></tr>
+        <tr><td>Attribute</td><td><code>&lt;html data-ui="v2"&gt;</code></td><td>Set by <code>UiModeSync</code> from <code>user.ui_revamp</code>; absent for every account by default</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="frame" id="frame-5">
+    <div class="frame-head"><span class="frame-no">5</span><h2>Frames → plan tasks</h2></div>
+    <table class="doc-table">
+      <thead><tr><th>Frame</th><th>Plan task</th><th>Tests</th></tr></thead>
+      <tbody>
+        <tr><td>2 · the switch</td><td>Task 1 (backend) · Task 5 (Admin → Users)</td><td><code>TestAdminSetUserUiRevamp</code>, AdminUserList glass tests</td></tr>
+        <tr><td>1 · toasts, theme sync, mode</td><td>Task 2</td><td>uiMode, toast, useTheme tests</td></tr>
+        <tr><td>1, 3 · shell and palette</td><td>Task 3</td><td>AppShell, CommandPalette tests</td></tr>
+        <tr><td>1, 4 · glass look and fallbacks</td><td>Task 4</td><td><code>npm run build</code>; Task 6 screenshots</td></tr>
+        <tr><td>1 · hero, toolbars, header copies</td><td>Task 5</td><td>PortfolioHero, DashboardPage tests</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script type="text/plain" id="proto-src"><!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>/* Design tokens (PD-045). Every pre-existing variable name is preserved —
+ * inline style={{}} objects across the app reference them — only values
+ * change. New tokens are additive and suffixed below the legacy block. */
+
+:root {
+  --bg-primary: #0a0c16;
+  --brand-font-family: Roboto, Arial, sans-serif;
+  --bg-secondary: #121524;
+  --bg-card: #171b2e;
+  --bg-card-hover: #1d2238;
+  --bg-input: #0d101f;
+  --border: #232842;
+  --border-light: #2e3453;
+
+  --text-primary: #eef1f8;
+  --text-secondary: #939dbb;
+  --text-muted: #545d85;
+
+  --green: #00d69f;
+  --green-dim: rgba(0, 214, 159, 0.12);
+  --red: #ff5c7a;
+  --red-dim: rgba(255, 92, 122, 0.12);
+  --blue: #5b93ff;
+  --blue-dim: rgba(91, 147, 255, 0.12);
+  --yellow: #fbbf24;
+  --purple: #a78bfa;
+
+  --shadow: 0 8px 32px rgba(2, 4, 12, 0.45);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-height: 56px;
+
+  /* SummaryCards highlight panels (Total Invested, Current Value). */
+  --card-highlight-bg: linear-gradient(135deg, #1d2a4f 0%, #171b2e 60%);
+  --card-highlight-border: #33518f;
+
+  /* New tokens (PD-045) — additive. */
+  --radius-lg: 16px;
+  --shadow-sm: 0 2px 8px rgba(2, 4, 12, 0.35);
+  --shadow-lg: 0 24px 64px rgba(2, 4, 12, 0.6);
+  --ring: 0 0 0 3px rgba(91, 147, 255, 0.35);
+  --gradient-brand: linear-gradient(135deg, #5b93ff 0%, #8b6cf7 100%);
+  --bg-glass: rgba(14, 17, 31, 0.72);
+  --glow-a: rgba(59, 92, 199, 0.16);
+  --glow-b: rgba(124, 77, 232, 0.12);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --speed: 0.18s;
+  --speed-slow: 0.32s;
+
+  /* Breakdown row tints (SummaryCards) */
+  --breakdown-inr-bg: rgba(255, 153, 51, 0.13);
+  --breakdown-eur-bg: rgba(0, 102, 204, 0.12);
+  --breakdown-gold-bg: rgba(218, 165, 32, 0.15);
+}
+
+/* Cyberpunk theme — premium-only (PD-046), opt-in via
+ * <html data-theme="cyberpunk">. Neon magenta/cyan on violet-black. */
+:root[data-theme="cyberpunk"] {
+  --bg-primary: #06010f;
+  --bg-secondary: #0d0519;
+  --bg-card: #120826;
+  --bg-card-hover: #1a0c33;
+  --bg-input: #0a0416;
+  --border: #2e1354;
+  --border-light: #45207a;
+
+  --text-primary: #f2e9ff;
+  --text-secondary: #a78fd6;
+  --text-muted: #64509a;
+
+  --green: #00ffa3;
+  --green-dim: rgba(0, 255, 163, 0.12);
+  --red: #ff2e6c;
+  --red-dim: rgba(255, 46, 108, 0.14);
+  --blue: #00e5ff;
+  --blue-dim: rgba(0, 229, 255, 0.12);
+  --yellow: #ffe600;
+  --purple: #c26bff;
+
+  --shadow: 0 8px 32px rgba(90, 0, 160, 0.4);
+  --card-highlight-bg: linear-gradient(135deg, #2a0f4d 0%, #120826 60%);
+  --card-highlight-border: #7a2bd9;
+
+  --shadow-sm: 0 2px 10px rgba(90, 0, 160, 0.3);
+  --shadow-lg: 0 24px 64px rgba(40, 0, 80, 0.65);
+  --ring: 0 0 0 3px rgba(0, 229, 255, 0.4);
+  --gradient-brand: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%);
+  --bg-glass: rgba(10, 4, 22, 0.72);
+  --glow-a: rgba(255, 43, 214, 0.14);
+  --glow-b: rgba(0, 229, 255, 0.12);
+
+  /* Breakdown row tints — neon variants */
+  --breakdown-inr-bg: rgba(255, 120, 0, 0.32);
+  --breakdown-eur-bg: rgba(0, 229, 255, 0.22);
+  --breakdown-gold-bg: rgba(255, 214, 0, 0.26);
+}
+
+/* Light theme — opt-in via <html data-theme="light"> (PD-042 PR7). */
+:root[data-theme="light"] {
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f3fa;
+  --bg-input: #ffffff;
+  --border: #dfe4ef;
+  --border-light: #cbd3e4;
+
+  --text-primary: #0f1526;
+  --text-secondary: #4b5670;
+  --text-muted: #7a849e;
+
+  --green: #0b9e6c;
+  --green-dim: rgba(11, 158, 108, 0.10);
+  --red: #dc2649;
+  --red-dim: rgba(220, 38, 73, 0.10);
+  --blue: #2f6bdb;
+  --blue-dim: rgba(47, 107, 219, 0.10);
+  --yellow: #d97706;
+  --purple: #7c3aed;
+
+  --shadow: 0 8px 28px rgba(23, 32, 66, 0.10);
+
+  --card-highlight-bg: linear-gradient(135deg, #eef4ff 0%, #e3ecff 100%);
+  --card-highlight-border: #a8c3f5;
+
+  --shadow-sm: 0 2px 6px rgba(23, 32, 66, 0.07);
+  --shadow-lg: 0 24px 56px rgba(23, 32, 66, 0.16);
+  --ring: 0 0 0 3px rgba(47, 107, 219, 0.25);
+  --gradient-brand: linear-gradient(135deg, #2f6bdb 0%, #6d4de0 100%);
+  --bg-glass: rgba(255, 255, 255, 0.78);
+  --glow-a: rgba(47, 107, 219, 0.08);
+  --glow-b: rgba(109, 77, 224, 0.06);
+
+  /* Breakdown row tints */
+  --breakdown-inr-bg: rgba(200, 100, 10, 0.10);
+  --breakdown-eur-bg: rgba(30, 80, 180, 0.10);
+  --breakdown-gold-bg: rgba(160, 120, 0, 0.12);
+}
+
+/* Base layer (PD-045): reset, body backdrop, typography, focus, scrollbar. */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--brand-font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Ambient depth: two fixed radial glows behind every page. Painted on a
+ * pseudo-element so page backgrounds using var(--bg-primary) stay valid. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(48rem 32rem at 8% -8%, var(--glow-a), transparent 60%),
+    radial-gradient(44rem 30rem at 104% 112%, var(--glow-b), transparent 60%);
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  background: var(--blue-dim);
+  color: var(--text-primary);
+}
+
+/* Visible keyboard-focus ring; box-shadow is never set inline on inputs or
+ * buttons, so this applies app-wide without component edits. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; border: 2px solid var(--bg-primary); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Utility */
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.neutral { color: var(--text-secondary); }
+.mono { font-variant-numeric: tabular-nums; }
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  transition: filter var(--speed) var(--ease), transform var(--speed) var(--ease),
+    box-shadow var(--speed) var(--ease), background var(--speed) var(--ease),
+    border-color var(--speed) var(--ease), color var(--speed) var(--ease),
+    opacity var(--speed) var(--ease);
+}
+
+/* Hover/active feedback via filter + transform — properties never set by the
+ * app's inline styles, so this upgrades every button (incl. inline-styled). */
+button:hover:not(:disabled) { filter: brightness(1.12); }
+button:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.98); }
+button:disabled { cursor: default; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+}
+
+input:focus, select:focus, textarea:focus {
+  box-shadow: var(--ring);
+}
+
+a {
+  transition: color var(--speed) var(--ease), filter var(--speed) var(--ease),
+    box-shadow var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+a:hover { filter: brightness(1.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Kill UI-chrome motion only. Recharts (react-smooth) draws chart lines by
+   * setting an inline `transition` on SVG nodes; a blanket * rule with
+   * !important overrides inline styles and erases the line-draw animation
+   * entirely, so the chart subtree is exempted. */
+  *:not(.recharts-wrapper):not(.recharts-wrapper *),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* Component classes (PD-045): shared building blocks adopted incrementally.
+ * Classes only add properties the adopting components don't set inline
+ * (animations, backdrop blur, hover elevation), so inline layout styles
+ * keep working next to them. */
+
+/* --- Motion ------------------------------------------------------------ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes card-flip-out {
+  from { transform: perspective(600px) rotateY(0deg); }
+  to   { transform: perspective(600px) rotateY(90deg); }
+}
+
+@keyframes card-flip-in {
+  from { transform: perspective(600px) rotateY(-90deg); }
+  to   { transform: perspective(600px) rotateY(0deg); }
+}
+
+.card-flipping-out { animation: card-flip-out 0.18s ease-in forwards; }
+.card-flipping-in  { animation: card-flip-in  0.18s ease-out forwards; }
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* --- Icons ------------------------------------------------------------- */
+
+@keyframes icon-float {
+  50% { transform: translateY(-1px); }
+}
+
+@keyframes icon-trace {
+  from { stroke-dashoffset: 18; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes icon-spin-once {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes icon-spark {
+  50% { opacity: 0.45; transform: scale(1.22); }
+}
+
+.app-icon {
+  --icon-gold: #fbbf24;
+  --icon-gold-soft: #d97706;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+/* Strokes must scale with the icon: non-scaling-stroke would keep them at
+ * 2 physical px, merging tightly-spaced marks (ChartLineIcon bars sit 4
+ * viewBox units apart — ~2.3px at nav size) into a blob. */
+.app-icon * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.app-icon .icon-accent {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-up,
+.app-icon .icon-success {
+  color: var(--green);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-down,
+.app-icon .icon-danger {
+  color: var(--red);
+  stroke: currentColor;
+}
+
+.app-icon .icon-market-warn,
+.app-icon .icon-warning {
+  color: var(--yellow);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold {
+  color: var(--icon-gold);
+  stroke: currentColor;
+}
+
+.app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  stroke: currentColor;
+}
+
+.app-icon .icon-admin {
+  color: var(--purple);
+  stroke: currentColor;
+}
+
+.app-icon .icon-user-tone {
+  color: var(--blue);
+  stroke: currentColor;
+}
+
+.app-icon .icon-muted {
+  opacity: 0.68;
+}
+
+.app-icon .icon-trace {
+  stroke-dasharray: 18;
+}
+
+.app-icon .icon-spark {
+  opacity: 0.78;
+}
+
+button:hover .app-icon .icon-motion,
+a:hover .app-icon .icon-motion,
+.brand-tile:hover .app-icon .icon-motion {
+  animation: icon-float 0.75s var(--ease) both;
+}
+
+button:hover .app-icon .icon-trace,
+a:hover .app-icon .icon-trace,
+.brand-tile:hover .app-icon .icon-trace {
+  animation: icon-trace 0.72s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spin,
+a:hover .app-icon .icon-spin {
+  animation: icon-spin-once 0.85s var(--ease) both;
+}
+
+button:hover .app-icon .icon-spark,
+a:hover .app-icon .icon-spark,
+.brand-tile:hover .app-icon .icon-spark {
+  animation: icon-spark 0.8s var(--ease) both;
+}
+
+[data-theme="light"] .app-icon {
+  --icon-gold: #b7791f;
+  --icon-gold-soft: #d97706;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-accent {
+  color: var(--blue);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.45));
+}
+
+[data-theme="cyberpunk"] .app-icon {
+  --icon-gold: #ffe600;
+  --icon-gold-soft: #ffb800;
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-spark {
+  color: #ff2bd6;
+  filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.5));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-up,
+[data-theme="cyberpunk"] .app-icon .icon-success {
+  color: var(--green);
+  filter: drop-shadow(0 0 5px rgba(0, 255, 163, 0.4));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-down,
+[data-theme="cyberpunk"] .app-icon .icon-danger {
+  color: var(--red);
+  filter: drop-shadow(0 0 5px rgba(255, 46, 108, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-market-warn,
+[data-theme="cyberpunk"] .app-icon .icon-warning {
+  color: var(--yellow);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold {
+  color: var(--icon-gold);
+  filter: drop-shadow(0 0 5px rgba(255, 230, 0, 0.38));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-gold-soft {
+  color: var(--icon-gold-soft);
+  filter: drop-shadow(0 0 5px rgba(255, 184, 0, 0.34));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-admin {
+  color: var(--purple);
+  filter: drop-shadow(0 0 5px rgba(194, 107, 255, 0.42));
+}
+
+[data-theme="cyberpunk"] .app-icon .icon-user-tone {
+  color: var(--blue);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.38));
+}
+
+/* Inside gradient primary buttons and the brand tile, icons stay
+ * monochrome (the button's white text colour): multi-colour parts have
+ * poor contrast on the gradient. Placed last in the icon section so it
+ * out-orders the equal-specificity theme rules above. */
+.btn-primary .app-icon [class*="icon-"],
+.brand-tile .app-icon [class*="icon-"] {
+  color: inherit;
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:hover .app-icon .icon-motion,
+  a:hover .app-icon .icon-motion,
+  .brand-tile:hover .app-icon .icon-motion,
+  button:hover .app-icon .icon-trace,
+  a:hover .app-icon .icon-trace,
+  .brand-tile:hover .app-icon .icon-trace,
+  button:hover .app-icon .icon-spin,
+  a:hover .app-icon .icon-spin,
+  button:hover .app-icon .icon-spark,
+  a:hover .app-icon .icon-spark,
+  .brand-tile:hover .app-icon .icon-spark {
+    animation: none;
+  }
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
+
+/* Declarative pressed/current state for .btn toggles and nav pills: blue
+ * tint + blue text stays readable in all three themes (solid --blue behind
+ * white text fails on cyberpunk's cyan). Placed after .btn:hover so the
+ * active look survives hover. */
+.btn[aria-pressed="true"],
+.btn[aria-current="page"] {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-dim);
+  font-weight: 600;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-brand);
+  color: #fff;
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(91, 147, 255, 0.28);
+}
+.btn-primary:hover { box-shadow: 0 4px 18px rgba(91, 147, 255, 0.4); }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-ghost:hover { background: var(--bg-card); color: var(--text-primary); }
+
+/* Size / intent modifiers — compose with .btn (e.g. "btn btn-sm btn-danger").
+ * Declared after the base hover rules so the equal-specificity overrides win. */
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.btn-lg {
+  padding: 8px 18px;
+}
+
+/* Tinted danger for destructive row/table actions; the border derives from
+ * the live --red so it tracks every theme. */
+.btn-danger {
+  color: var(--red);
+  background: var(--red-dim);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
+.btn-danger:hover {
+  color: var(--red);
+  background: var(--red-dim);
+  border-color: var(--red);
+}
+
+/* Solid high-emphasis danger for the point-of-no-return confirm step. */
+.btn-danger-solid {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+.btn-danger-solid:hover {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+/* One "active pill" idiom for toggles and nav links carrying .btn: tinted
+ * blue-dim surface + blue text keeps AA contrast in every theme (solid
+ * --blue behind white text fails on cyberpunk's cyan). NavLink sets
+ * aria-current="page"; toggle buttons set aria-pressed. */
+.btn[aria-current="page"],
+.btn[aria-pressed="true"] {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
+  font-weight: 600;
+}
+.btn[aria-current="page"]:hover,
+.btn[aria-pressed="true"]:hover {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+/* --- Alerts ------------------------------------------------------------- */
+
+.alert-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid color-mix(in srgb, var(--red) 55%, transparent);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* Segmented control: bordered pill group; the active segment is a tinted
+ * blue pill (state carried on aria-pressed). The tint — rather than a
+ * bg-card pill or solid blue — stays visible in light mode (where bg-card
+ * on bg-secondary is white-on-white) and keeps text contrast on cyberpunk
+ * (where solid --blue is cyan behind white text). */
+.seg-group {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.seg-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: calc(var(--radius-sm) - 2px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.seg-btn[aria-pressed="true"] {
+  background: var(--blue-dim);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* Row-level icon actions in tables. Tinted accent/danger surfaces whose
+ * borders track the theme's --blue/--red instead of hardcoded rgba values. */
+.btn-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-row-accent {
+  background: var(--blue-dim);
+  color: var(--blue);
+  border-color: color-mix(in srgb, var(--blue) 25%, transparent);
+}
+.btn-row-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 25%, transparent);
+}
+
+/* Square icon-only button (back links, toolbar icons). */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  text-decoration: none;
+}
+.btn-icon:hover { color: var(--text-primary); border-color: var(--border-light); background: var(--bg-card-hover); }
+
+/* --- Page header bar ------------------------------------------------------ */
+
+/* One sticky header layout for every page shell; pages combine it with
+ * .nav-glass and only supply their content. Owning the layout here (rather
+ * than inline per page) keeps height/stickiness/gutter in one place. */
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: var(--nav-height);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+/* Page content container: owns the app-standard gutter so pages don't
+ * re-specify it inline (page width limits stay per-page). */
+.page-main {
+  padding: 24px 28px;
+}
+
+/* --- Brand tile (nav + auth logo mark) ---------------------------------- */
+
+.brand-tile {
+  background: var(--gradient-brand);
+  color: #fff;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(91, 147, 255, 0.35);
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease),
+    border-color var(--speed) var(--ease);
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-light);
+}
+
+.card-highlight {
+  background: var(--card-highlight-bg);
+  border-color: var(--card-highlight-border);
+}
+.card-highlight:hover { border-color: var(--card-highlight-border); }
+
+.card-elevated {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Glass nav ------------------------------------------------------------ */
+
+.nav-glass {
+  background: var(--bg-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- Dropdown menu --------------------------------------------------------- */
+
+.menu-pop {
+  animation: pop-in var(--speed) var(--ease);
+  transform-origin: top right;
+  overflow: hidden;
+}
+.menu-pop a:hover,
+.menu-pop button:hover {
+  background: var(--bg-card-hover) !important;
+  filter: none;
+}
+/* The theme picker marks the current theme with a blue-dim tint (inline);
+ * without this, the generic hover grey above erases the selected indicator
+ * the moment the pointer is over it. */
+.menu-pop button[aria-pressed="true"]:hover {
+  background: var(--blue-dim) !important;
+}
+
+/* --- Modals ----------------------------------------------------------------- */
+
+.modal-overlay {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: fade-in var(--speed) var(--ease);
+}
+
+.modal-card {
+  animation: scale-in var(--speed-slow) var(--ease);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Tables -------------------------------------------------------------------- */
+
+.holdings-table-wrap tbody tr {
+  transition: background var(--speed) var(--ease);
+}
+.holdings-table-wrap tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+/* Column hover highlight — .col-hl is toggled in JS onto every cell sharing
+ * the hovered cell's column index (see HoldingsTable). Cells are transparent
+ * over the row background, so tinting them shows the crosshair. */
+.holdings-table-wrap .col-hl {
+  background: var(--bg-card-hover);
+}
+
+/* --- Cyberpunk flair (premium theme, PD-046) --------------------------------- */
+
+[data-theme="cyberpunk"] .brand-tile {
+  box-shadow: 0 0 16px rgba(255, 43, 214, 0.55);
+}
+[data-theme="cyberpunk"] .btn-primary {
+  box-shadow: 0 2px 16px rgba(0, 229, 255, 0.35);
+}
+[data-theme="cyberpunk"] .btn-primary:hover {
+  box-shadow: 0 4px 22px rgba(255, 43, 214, 0.45);
+}
+[data-theme="cyberpunk"] .card:hover {
+  box-shadow: 0 0 18px rgba(122, 43, 217, 0.4);
+}
+[data-theme="cyberpunk"] .nav-glass {
+  box-shadow: 0 1px 18px rgba(255, 43, 214, 0.15);
+}
+[data-theme="cyberpunk"] .modal-card {
+  box-shadow: var(--shadow-lg), 0 0 24px rgba(0, 229, 255, 0.15);
+}
+
+/* --- Theme page art ---------------------------------------------------------- */
+
+.page-art {
+  --page-art-image: var(--page-art-night-image);
+  --page-art-secondary: var(--page-art-night-secondary);
+  --page-art-position: right -72px top 72px;
+  --page-art-secondary-position: left -260px bottom -220px;
+  --page-art-size: min(94vw, 1180px) auto;
+  --page-art-secondary-size: min(58vw, 720px) auto;
+  --page-art-opacity: 0.24;
+  --page-art-secondary-opacity: 0.12;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.08);
+  --page-art-glow-a: rgba(91, 147, 255, 0.10);
+  --page-art-glow-b: rgba(167, 139, 250, 0.08);
+  /* Optional full-bleed photo layer + readability veils. --page-art-veil is
+   * a 0/1 switch multiplied into the veil alphas; --page-art-veil-rgb tracks
+   * the theme background so light mode gets light veils, not black smears. */
+  --page-art-photo: none;
+  --page-art-veil: 0;
+  --page-art-veil-rgb: 10, 12, 22;
+  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+.page-art::before,
+.page-art::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--page-art-opacity);
+  transition: opacity var(--speed-slow) var(--ease);
+}
+
+.page-art::before {
+  background-image:
+    var(--page-art-image),
+    radial-gradient(44rem 28rem at 78% 12%, var(--page-art-glow-a), transparent 62%),
+    radial-gradient(38rem 26rem at 18% 88%, var(--page-art-glow-b), transparent 62%),
+    linear-gradient(90deg,
+      rgba(var(--page-art-veil-rgb), calc(0.66 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.24 * var(--page-art-veil))) 60%,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil)))),
+    linear-gradient(180deg,
+      rgba(var(--page-art-veil-rgb), calc(0.64 * var(--page-art-veil))),
+      rgba(var(--page-art-veil-rgb), calc(0.14 * var(--page-art-veil))) 52%,
+      rgba(var(--page-art-veil-rgb), calc(0.78 * var(--page-art-veil)))),
+    var(--page-art-photo);
+  background-repeat: no-repeat;
+  background-position:
+    var(--page-art-position),
+    right top,
+    left bottom,
+    center,
+    center,
+    center;
+  background-size:
+    var(--page-art-size),
+    auto,
+    auto,
+    auto,
+    auto,
+    cover;
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
+}
+
+.page-art::after {
+  background-image: var(--page-art-secondary);
+  background-repeat: no-repeat;
+  background-position: var(--page-art-secondary-position);
+  background-size: var(--page-art-secondary-size);
+  mix-blend-mode: var(--page-art-blend);
+  filter: var(--page-art-filter);
+  opacity: var(--page-art-secondary-opacity);
+}
+
+.page-art > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* .page-nav declares position: sticky and z-index: 50, but the child-lifting
+ * rule above is later in the file and would flatten both (position: relative,
+ * z-index: 1) — the header stops sticking and its dropdowns (theme picker,
+ * user menu) drop behind the page content. Re-assert at higher specificity. */
+.page-art > .page-nav {
+  position: sticky;
+  z-index: 50;
+}
+
+[data-theme="light"] .page-art {
+  --page-art-image: var(--page-art-day-image);
+  --page-art-secondary: var(--page-art-day-secondary);
+  --page-art-opacity: 0.78;
+  --page-art-secondary-opacity: 0.1;
+  --page-art-blend: multiply;
+  --page-art-filter: saturate(1.02);
+  --page-art-glow-a: rgba(47, 107, 219, 0.08);
+  --page-art-glow-b: rgba(124, 58, 237, 0.06);
+  --page-art-veil-rgb: 245, 247, 251;
+}
+
+[data-theme="cyberpunk"] .page-art {
+  --page-art-image: var(--page-art-neon-image);
+  --page-art-secondary: var(--page-art-neon-secondary);
+  --page-art-opacity: 0.42;
+  --page-art-secondary-opacity: 0.22;
+  --page-art-blend: screen;
+  --page-art-filter: saturate(1.15);
+  --page-art-glow-a: rgba(0, 229, 255, 0.12);
+  --page-art-glow-b: rgba(255, 43, 214, 0.10);
+  --page-art-veil-rgb: 6, 1, 15;
+}
+
+.page-art-dashboard {
+  --page-art-day-image: url('../assets/day-market-dashboard.svg');
+  --page-art-day-secondary: url('../assets/day-candles.svg');
+  --page-art-night-image: url('../assets/night-market-dashboard.svg');
+  --page-art-night-secondary: url('../assets/night-candles.svg');
+  --page-art-neon-image: url('../assets/neon-market-dashboard.svg');
+  --page-art-neon-secondary: url('../assets/neon-candles.svg');
+  --page-art-position: right -120px top 82px;
+  --page-art-secondary-position: left 18px bottom -120px;
+  --page-art-size: min(96vw, 1220px) auto;
+  --page-art-secondary-size: min(44vw, 540px) auto;
+  --page-art-secondary-opacity: 0.16;
+  --page-art-photo: url('../assets/market-bull-bear.webp');
+  --page-art-veil: 1;
+}
+
+.page-art-history {
+  --page-art-day-image: url('../assets/day-history-timeline.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-history-timeline.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-history-timeline.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -90px top 84px;
+  --page-art-secondary-position: left -380px bottom -270px;
+  --page-art-size: min(92vw, 1120px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-photo: url('../assets/bse-building.webp');
+  --page-art-veil: 1;
+}
+
+.page-art-admin,
+.page-art-users {
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -92px top 72px;
+  --page-art-secondary-position: left -370px bottom -260px;
+  --page-art-size: min(88vw, 1060px) auto;
+  --page-art-secondary-size: min(62vw, 760px) auto;
+}
+
+/* Single source for the gold page art. An earlier duplicate block used to
+ * shadow parts of this one (opacity/veil/secondary-size lived there); the
+ * surviving values are merged here so the effective style is readable in
+ * one place. */
+.page-art-gold {
+  --page-art-day-image: url('../assets/day-gold-vault.svg');
+  --page-art-day-secondary: url('../assets/day-market-dashboard.svg');
+  --page-art-night-image: url('../assets/night-gold-vault.svg');
+  --page-art-night-secondary: url('../assets/night-market-dashboard.svg');
+  --page-art-neon-image: url('../assets/neon-gold-vault.svg');
+  --page-art-neon-secondary: url('../assets/neon-market-dashboard.svg');
+  --page-art-position: right -64px top 76px;
+  --page-art-secondary-position: left -360px bottom -260px;
+  --page-art-size: min(90vw, 1060px) auto;
+  --page-art-secondary-size: min(64vw, 780px) auto;
+  --page-art-photo: url('../assets/gold-vault.webp');
+  --page-art-veil: 1;
+  --page-art-opacity: 0.168;
+}
+
+.page-art-profile {
+  --page-art-day-image: url('../assets/day-users-network.svg');
+  --page-art-day-secondary: url('../assets/day-history-timeline.svg');
+  --page-art-night-image: url('../assets/night-users-network.svg');
+  --page-art-night-secondary: url('../assets/night-history-timeline.svg');
+  --page-art-neon-image: url('../assets/neon-users-network.svg');
+  --page-art-neon-secondary: url('../assets/neon-history-timeline.svg');
+  --page-art-position: right -110px top 42px;
+  --page-art-secondary-position: left -340px bottom -260px;
+  --page-art-size: min(84vw, 980px) auto;
+}
+
+[data-theme="light"] .page-art-dashboard {
+  --page-art-opacity: 0.68;
+  --page-art-secondary-opacity: 0.26;
+}
+
+[data-theme="cyberpunk"] .page-art-dashboard {
+  --page-art-secondary-opacity: 0.28;
+}
+
+@media (max-width: 768px) {
+  .page-art {
+    --page-art-position: right -280px top 84px;
+    --page-art-secondary-position: left -360px bottom -260px;
+    --page-art-size: 820px auto;
+    --page-art-secondary-size: 620px auto;
+    --page-art-opacity: 0.28;
+    --page-art-secondary-opacity: 0.16;
+  }
+
+  .page-art-dashboard {
+    --page-art-position: right -430px top 104px;
+    --page-art-secondary-position: left -260px bottom -130px;
+    --page-art-secondary-size: 640px auto;
+  }
+}
+
+/* --- Currency sprinkle (background glyph scatter) ----------------------------- */
+
+.currency-sprinkle {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.currency-sprinkle span {
+  position: absolute;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: normal;
+}
+
+/* Neon boost under cyberpunk: glyphs glow in their own colour. */
+[data-theme="cyberpunk"] .currency-sprinkle span {
+  text-shadow: 0 0 14px currentColor;
+}
+
+/* Dashboard entrance: each glyph rains down from above the viewport to its
+ * resting spot and stops. `translate` is a standalone property, so the
+ * keyframe composes with each glyph's inline rotate() transform; `backwards`
+ * keeps a glyph parked off-screen until its randomised delay fires. Covered
+ * by the global reduced-motion guard in base.css. */
+@keyframes sprinkle-rain {
+  0% {
+    translate: 0 -110vh;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  /* 100% is implicit: the glyph's resting spot and its faint inline opacity —
+   * the drop falls fully visible, then fades back as it settles. */
+}
+
+/* Cyberpunk-only: the rain entrance is part of the premium theme's motion
+ * language; dark/light render the sprinkle statically. */
+[data-theme="cyberpunk"] .sprinkle-animate span {
+  /* Accelerating fall, soft landing. animation-delay comes inline per glyph. */
+  animation: sprinkle-rain 0.9s cubic-bezier(0.45, 0, 0.6, 1) backwards;
+}
+
+/* --- Skeleton (loading shimmer) ---------------------------------------------- */
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+/* --- Focus visibility ---------------------------------------------------- */
+
+/* Button classes that set their own box-shadow (or whose theme overrides
+ * do) would otherwise bury the global :focus-visible ring from base.css —
+ * equal specificity, later stylesheet. Declared last so keyboard focus
+ * always wins. */
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-icon:focus-visible,
+.btn-row:focus-visible,
+.seg-btn:focus-visible {
+  box-shadow: var(--ring);
+}
+
+
+
+/* Shared page chrome. .page-nav is the sticky glass header every page shell
+ * uses (pair with .nav-glass); .page-main is the content container. The
+ * layout lives here once — pages only add page-specific bits (maxWidth)
+ * inline. */
+.page-nav {
+  padding: 0 28px;
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.page-main {
+  padding: 24px 28px;
+  margin: 0 auto;
+}
+
+/* Dashboard top nav: prevent button labels from wrapping mid-word and let the
+ * whole bar reflow on narrow viewports instead of overflowing horizontally. */
+.dash-nav-btn { white-space: nowrap; flex-shrink: 0; }
+
+/* The dashboard nav is one flat flex row; the spacer splits it into the
+ * brand/links group (left) and the actions group (right) on desktop. */
+.dash-nav { gap: 10px; }
+.dash-nav-spacer { flex: 1; }
+
+/* Wide tables scroll sideways inside their card instead of squishing or
+ * clipping columns (the wrapper keeps the rounded border). */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* With the page links sharing the left cluster with the brand and badges,
+ * the bar gets tight on mid-size viewports before the 768px wrap kicks in —
+ * collapse the link labels to icons early. */
+@media (max-width: 1150px) {
+  .dash-nav-label-sm { display: none; }
+}
+
+@media (max-width: 768px) {
+  /* All page headers carry .page-nav, whose base layout lives in
+   * components.css — this later stylesheet wins at equal specificity, so
+   * no !important is needed. */
+  .page-nav { height: auto; flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; }
+  /* On narrow screens the spacer collapses so the nav buttons pack into one
+   * wrapping row with no dead space; the user-menu button is pushed to the
+   * right edge so its right-anchored popup always opens within the viewport. */
+  .dash-nav-spacer { display: none; }
+  .dash-nav-user { margin-left: auto; }
+  .dash-nav-hide-sm { display: none !important; }
+  .back-btn-label { display: none; }
+  .page-main { padding: 16px 14px; }
+  /* Summary cards: one card per row on phones. Two-up left each card ~195px,
+   * too narrow for the large ₹ totals (28px) which then overflowed the card
+   * on ~430px-wide screens (iPhone Pro Max). Full-width dodges it entirely.
+   * !important overrides the inline flex sizing on FlipCard/plain cards. */
+  .summary-grid > * { flex: 1 1 100% !important; min-width: 0 !important; }
+
+  /* Hide low-priority columns (avg-cost, realised) on narrow screens. */
+  .col-hide-sm { display: none !important; }
+  /* The table scrolls both ways inside a height-capped wrapper: horizontally
+   * for the narrow viewport, vertically within max-height so the sticky
+   * header can pin to the wrapper's top edge as rows scroll. (On desktop the
+   * header sticks to the page under the nav; a scroll container both ways is
+   * needed on mobile because overflow-x:auto forces overflow-y:auto anyway.) */
+  .holdings-table-wrap { overflow: auto; max-height: 78vh; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .holdings-table-wrap table { min-width: 560px; }
+  /* Pin the header to the wrapper's top (not the page nav offset it uses on
+   * desktop), so it stays visible while scrolling the rows below. */
+  .holdings-table-wrap th { top: 0 !important; }
+}
+
+/* History page: the synthetic "today" row built from live prices (not yet
+ * snapshotted). The pulse rides on an inset box-shadow rather than
+ * background-color: animating the background would outrank the per-currency
+ * group tint and the day-over-day tints that the cells set inline, wiping
+ * them for most of every cycle. */
+@keyframes history-tentative-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 9999px transparent; }
+  50% { box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--yellow) 22%, transparent); }
+}
+.history-row-tentative > td {
+  animation: history-tentative-pulse 1.8s ease-in-out infinite;
+}
+/* WCAG 2.2.2: an indefinite blink must be escapable. Keep the row marked,
+ * just static. */
+@media (prefers-reduced-motion: reduce) {
+  .history-row-tentative > td {
+    animation: none;
+    box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--yellow) 14%, transparent);
+  }
+}
+
+/* Glass UI (PD-054). Every rule below is scoped under :root[data-ui="v2"]
+ * (set by lib/uiMode for accounts with ui_revamp), so the current UI is
+ * untouched for everyone else. The one global rule is .shell-only, markup
+ * that exists for the glass shell and must stay hidden without it.
+ *
+ * How it reaches 600+ inline style={{}} objects without rewriting them:
+ *  1. Tokens — the inline styles read var(--bg-card), var(--border),
+ *     var(--radius)…; v2 redefines those as translucent glass values.
+ *  2. Surfaces — anything painted with --bg-card / --bg-secondary (matched
+ *     on the inline style text) also gets the backdrop blur, except table
+ *     parts, which would blur once per row.
+ *  3. Shell — pages render inside .shell (AppShell); their headers become
+ *     floating page toolbars and their copies of the shell's controls
+ *     (.shell-dup, the header theme picker, back-to-dashboard) are hidden. */
+
+.shell-only { display: none; }
+
+/* --- 1. Tokens ------------------------------------------------------------ */
+
+:root[data-ui="v2"] {
+  --bg-primary: #05070f;
+  --bg-secondary: rgba(20, 24, 46, 0.52);
+  --bg-card: rgba(26, 31, 58, 0.46);
+  --bg-card-hover: rgba(44, 51, 92, 0.58);
+  --bg-input: rgba(8, 10, 24, 0.55);
+  --bg-glass: rgba(14, 17, 34, 0.55);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.16);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 26px;
+
+  --glass-blur: 20px;
+  --glass-saturate: 170%;
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-sm: var(--glass-edge), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+  --shadow: var(--glass-edge), 0 18px 48px -16px rgba(0, 0, 0, 0.65);
+  --shadow-lg: var(--glass-edge), 0 40px 90px -24px rgba(0, 0, 0, 0.75);
+  --glow-pos: 0 0 18px rgba(0, 214, 159, 0.45);
+  --glow-neg: 0 0 18px rgba(255, 92, 122, 0.45);
+  --ring: 0 0 0 3px rgba(120, 150, 255, 0.45);
+
+  --mesh-1: rgba(79, 124, 255, 0.34);
+  --mesh-2: rgba(139, 92, 246, 0.30);
+  --mesh-3: rgba(20, 184, 166, 0.22);
+  --mesh-4: rgba(236, 72, 153, 0.18);
+
+  --card-highlight-bg: linear-gradient(135deg, rgba(79, 124, 255, 0.22) 0%, rgba(139, 92, 246, 0.12) 60%, rgba(26, 31, 58, 0.4) 100%);
+  --card-highlight-border: rgba(120, 150, 255, 0.4);
+  --sidebar-width: 252px;
+}
+
+:root[data-ui="v2"][data-theme="light"] {
+  --bg-primary: #eef1fa;
+  --bg-secondary: rgba(255, 255, 255, 0.55);
+  --bg-card: rgba(255, 255, 255, 0.58);
+  --bg-card-hover: rgba(255, 255, 255, 0.82);
+  --bg-input: rgba(255, 255, 255, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.6);
+  --border: rgba(15, 21, 38, 0.08);
+  --border-light: rgba(15, 21, 38, 0.16);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-sm: var(--glass-edge), 0 6px 18px -10px rgba(23, 32, 66, 0.25);
+  --shadow: var(--glass-edge), 0 18px 44px -18px rgba(23, 32, 66, 0.3);
+  --shadow-lg: var(--glass-edge), 0 40px 80px -28px rgba(23, 32, 66, 0.38);
+  --glow-pos: 0 0 14px rgba(11, 158, 108, 0.25);
+  --glow-neg: 0 0 14px rgba(220, 38, 73, 0.25);
+  --mesh-1: rgba(79, 124, 255, 0.28);
+  --mesh-2: rgba(168, 132, 255, 0.24);
+  --mesh-3: rgba(45, 212, 191, 0.20);
+  --mesh-4: rgba(251, 146, 189, 0.20);
+  --card-highlight-bg: linear-gradient(135deg, rgba(79, 124, 255, 0.16) 0%, rgba(255, 255, 255, 0.6) 70%);
+  --card-highlight-border: rgba(47, 107, 219, 0.3);
+}
+
+:root[data-ui="v2"][data-theme="cyberpunk"] {
+  --bg-primary: #04000b;
+  --bg-secondary: rgba(30, 8, 58, 0.5);
+  --bg-card: rgba(36, 10, 70, 0.44);
+  --bg-card-hover: rgba(58, 16, 108, 0.56);
+  --bg-input: rgba(10, 2, 24, 0.6);
+  --bg-glass: rgba(16, 4, 34, 0.55);
+  --border: rgba(194, 107, 255, 0.18);
+  --border-light: rgba(0, 229, 255, 0.3);
+  --glow-pos: 0 0 20px rgba(0, 255, 163, 0.6);
+  --glow-neg: 0 0 20px rgba(255, 46, 108, 0.6);
+  --mesh-1: rgba(255, 43, 214, 0.3);
+  --mesh-2: rgba(0, 229, 255, 0.24);
+  --mesh-3: rgba(122, 43, 217, 0.32);
+  --mesh-4: rgba(255, 230, 0, 0.1);
+  --card-highlight-bg: linear-gradient(135deg, rgba(255, 43, 214, 0.22) 0%, rgba(0, 229, 255, 0.1) 70%);
+  --card-highlight-border: rgba(0, 229, 255, 0.45);
+}
+
+/* --- Backdrop: a slow-drifting gradient mesh behind everything ------------ */
+
+:root[data-ui="v2"] body {
+  background: var(--bg-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="v2"] body::before {
+  inset: -20%;
+  background:
+    radial-gradient(38% 42% at 18% 20%, var(--mesh-1), transparent 70%),
+    radial-gradient(34% 40% at 82% 16%, var(--mesh-2), transparent 70%),
+    radial-gradient(40% 44% at 72% 86%, var(--mesh-3), transparent 70%),
+    radial-gradient(30% 36% at 12% 88%, var(--mesh-4), transparent 70%);
+  filter: blur(40px);
+  animation: glass-drift 38s ease-in-out infinite alternate;
+}
+
+@keyframes glass-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(3%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 3%, 0) scale(1.02); }
+}
+
+/* The per-page art (PD-046) gives way to the mesh. */
+:root[data-ui="v2"] .page-art::before,
+:root[data-ui="v2"] .page-art::after { display: none; }
+:root[data-ui="v2"] .page-art { background: transparent; }
+
+/* --- 2. Surfaces ---------------------------------------------------------- */
+
+:root[data-ui="v2"] .card,
+:root[data-ui="v2"] .card-elevated,
+:root[data-ui="v2"] .modal-card,
+:root[data-ui="v2"] .menu-pop,
+:root[data-ui="v2"] .glass-panel,
+:root[data-ui="v2"] :is(div, section, aside, header, form)[style*="var(--bg-card)"],
+:root[data-ui="v2"] :is(div, section, aside, header, form)[style*="var(--bg-secondary)"] {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-ui="v2"] .glass-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+:root[data-ui="v2"] .card {
+  transition: transform var(--speed-slow) var(--ease), box-shadow var(--speed-slow) var(--ease),
+    border-color var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: var(--border-light);
+}
+
+:root[data-ui="v2"] .card-elevated {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Gains and losses glow; the sign and the ▲/▼ glyph still carry the meaning. */
+:root[data-ui="v2"] .pos { text-shadow: var(--glow-pos); }
+:root[data-ui="v2"] .neg { text-shadow: var(--glow-neg); }
+
+/* --- Controls ------------------------------------------------------------- */
+
+:root[data-ui="v2"] .btn,
+:root[data-ui="v2"] .btn-ghost {
+  background: var(--bg-card);
+  border-color: var(--border);
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: background var(--speed) var(--ease), border-color var(--speed) var(--ease),
+    transform var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+:root[data-ui="v2"] .btn:active { transform: translateY(0) scale(0.98); }
+
+:root[data-ui="v2"] .btn-primary {
+  border-radius: 999px;
+  box-shadow: 0 8px 24px -8px rgba(91, 147, 255, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+:root[data-ui="v2"] .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px -8px rgba(91, 147, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+:root[data-ui="v2"] .btn-icon { border-radius: 999px; }
+
+:root[data-ui="v2"] .seg-group {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+:root[data-ui="v2"] .seg-btn { border-radius: 999px; }
+:root[data-ui="v2"] .seg-btn[aria-pressed="true"] {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-ui="v2"] input:not([type="checkbox"]):not([type="radio"]),
+:root[data-ui="v2"] select,
+:root[data-ui="v2"] textarea {
+  transition: border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+}
+:root[data-ui="v2"] input:not([type="checkbox"]):not([type="radio"]):focus,
+:root[data-ui="v2"] select:focus,
+:root[data-ui="v2"] textarea:focus {
+  border-color: var(--blue) !important;
+  box-shadow: var(--ring);
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+:root[data-ui="v2"] .holdings-table-wrap {
+  background: var(--bg-card);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm);
+}
+:root[data-ui="v2"] table tbody tr { background: transparent !important; }
+:root[data-ui="v2"] table tbody tr:hover {
+  background: var(--bg-card-hover) !important;
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+:root[data-ui="v2"] table td { border-bottom-color: var(--border) !important; }
+
+/* --- Modals and menus ----------------------------------------------------- */
+
+:root[data-ui="v2"] .modal-overlay {
+  background: rgba(3, 5, 12, 0.55) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+:root[data-ui="v2"][data-theme="light"] .modal-overlay { background: rgba(220, 226, 240, 0.5) !important; }
+:root[data-ui="v2"] .modal-card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border-light) !important;
+  box-shadow: var(--shadow-lg);
+  animation: glass-pop var(--speed-slow) var(--ease);
+}
+
+@keyframes glass-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- 3. Shell ------------------------------------------------------------- */
+
+:root[data-ui="v2"] .shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+:root[data-ui="v2"] .shell-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 14px;
+  background: var(--bg-glass);
+  border-right: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+  z-index: 60;
+}
+
+:root[data-ui="v2"] .shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+:root[data-ui="v2"] .shell-brand .brand-tile { border-radius: 11px; box-shadow: 0 6px 20px -6px rgba(91, 147, 255, 0.8); }
+
+:root[data-ui="v2"] .shell-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+:root[data-ui="v2"] .shell-search:hover { border-color: var(--border-light); color: var(--text-secondary); }
+:root[data-ui="v2"] .shell-search span { flex: 1; text-align: left; }
+
+:root[data-ui="v2"] kbd {
+  font-family: inherit;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+
+:root[data-ui="v2"] .shell-nav { display: flex; flex-direction: column; gap: 2px; }
+
+:root[data-ui="v2"] .shell-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease), color var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .shell-nav-link:hover { background: var(--bg-card); color: var(--text-primary); }
+:root[data-ui="v2"] .shell-nav-link[aria-current="page"] {
+  background: linear-gradient(90deg, rgba(91, 147, 255, 0.2), rgba(139, 92, 246, 0.08));
+  border-color: rgba(120, 150, 255, 0.25);
+  color: var(--text-primary);
+}
+:root[data-ui="v2"] .shell-nav-link[aria-current="page"]::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--gradient-brand);
+  box-shadow: 0 0 12px rgba(91, 147, 255, 0.9);
+}
+
+:root[data-ui="v2"] .shell-cta { justify-content: center; }
+
+:root[data-ui="v2"] .shell-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+:root[data-ui="v2"] .shell-foot > div:first-child { border-top: none !important; padding: 4px 4px 8px !important; }
+:root[data-ui="v2"] .shell-logout:hover { color: var(--red); }
+
+:root[data-ui="v2"] .shell-content { min-width: 0; padding-bottom: 32px; }
+:root[data-ui="v2"] .shell-content > * { animation: glass-rise 0.45s var(--ease) both; }
+
+@keyframes glass-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Page headers become floating page toolbars. */
+:root[data-ui="v2"] .shell .page-nav {
+  position: sticky;
+  top: 12px;
+  margin: 12px 20px 0;
+  padding: 0 18px;
+  height: 60px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-glass);
+  box-shadow: var(--shadow);
+}
+:root[data-ui="v2"] .shell .nav-glass:not(.page-nav) { background: transparent; border-bottom: none; }
+:root[data-ui="v2"] .shell .shell-dup,
+:root[data-ui="v2"] .shell .page-nav .theme-picker-inline,
+:root[data-ui="v2"] .shell .page-nav a.btn-icon[href="/"] { display: none !important; }
+:root[data-ui="v2"] .shell .shell-only { display: block; }
+:root[data-ui="v2"] .shell .page-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 8px 0 0;
+  white-space: nowrap;
+}
+:root[data-ui="v2"] .shell .admin-tabs > div { padding-top: 20px !important; }
+:root[data-ui="v2"] .shell .page-main { padding: 22px 20px; }
+
+:root[data-ui="v2"] .page-toolbar {
+  padding: 12px 14px;
+  border-radius: var(--radius-lg) !important;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Mobile: the sidebar folds into a bottom tab bar. */
+:root[data-ui="v2"] .shell-tabbar { display: none; }
+
+@media (max-width: 860px) {
+  :root[data-ui="v2"] .shell { grid-template-columns: minmax(0, 1fr); }
+  :root[data-ui="v2"] .shell-sidebar { display: none; }
+  :root[data-ui="v2"] .shell-content { padding-bottom: 88px; }
+  :root[data-ui="v2"] .shell .page-nav { margin: 8px 10px 0; top: 8px; padding: 0 12px; }
+  :root[data-ui="v2"] .shell .page-main { padding: 16px 10px; }
+  :root[data-ui="v2"] .shell-tabbar {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding: 6px;
+    border-radius: 22px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-light);
+    -webkit-backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+    backdrop-filter: blur(24px) saturate(var(--glass-saturate));
+    box-shadow: var(--shadow-lg);
+  }
+  :root[data-ui="v2"] .shell-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 16px;
+    color: var(--text-muted);
+    font-size: 10px;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+  }
+  :root[data-ui="v2"] .shell-tab[aria-current="page"] { color: var(--text-primary); background: var(--bg-card-hover); }
+}
+
+/* --- Dashboard hero --------------------------------------------------------- */
+
+:root[data-ui="v2"] .hero {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  gap: 18px 28px;
+  align-items: center;
+  padding: 24px 28px;
+  margin-bottom: 18px;
+  background: var(--card-highlight-bg), var(--bg-card);
+  border-color: var(--card-highlight-border);
+}
+:root[data-ui="v2"] .hero-label,
+:root[data-ui="v2"] .hero-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+:root[data-ui="v2"] .hero-value {
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-top: 6px;
+  background: linear-gradient(180deg, var(--text-primary), color-mix(in srgb, var(--text-primary) 70%, transparent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+:root[data-ui="v2"] .hero-sub { color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+:root[data-ui="v2"] .hero-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+:root[data-ui="v2"] .hero-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+}
+:root[data-ui="v2"] .hero-chip.pos { border-color: color-mix(in srgb, var(--green) 40%, transparent); box-shadow: var(--glow-pos); text-shadow: none; }
+:root[data-ui="v2"] .hero-chip.neg { border-color: color-mix(in srgb, var(--red) 40%, transparent); box-shadow: var(--glow-neg); text-shadow: none; }
+:root[data-ui="v2"] .hero-chip.pos .hero-chip-value { color: var(--green); }
+:root[data-ui="v2"] .hero-chip.neg .hero-chip-value { color: var(--red); }
+:root[data-ui="v2"] .hero-chip-value { font-size: 17px; font-weight: 700; }
+:root[data-ui="v2"] .hero-chip-value small { font-size: 12px; font-weight: 600; opacity: 0.85; }
+:root[data-ui="v2"] .hero-split { grid-column: 1 / -1; }
+:root[data-ui="v2"] .hero-split-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 3px;
+  background: var(--bg-input);
+}
+:root[data-ui="v2"] .hero-split-bar span { border-radius: 999px; }
+:root[data-ui="v2"] .hero-split-inr { background: linear-gradient(90deg, #ff9933, #ffb366); }
+:root[data-ui="v2"] .hero-split-eur { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+:root[data-ui="v2"] .hero-split-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+:root[data-ui="v2"] .hero-split-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+@media (max-width: 860px) {
+  :root[data-ui="v2"] .hero { grid-template-columns: 1fr; padding: 18px; }
+  :root[data-ui="v2"] .hero-chips { justify-content: flex-start; }
+}
+
+/* --- Command palette ---------------------------------------------------------- */
+
+:root[data-ui="v2"] .palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  background: rgba(3, 5, 12, 0.5);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: fade-in var(--speed) var(--ease);
+}
+:root[data-ui="v2"][data-theme="light"] .palette-overlay { background: rgba(220, 226, 240, 0.5); }
+:root[data-ui="v2"] .palette {
+  width: min(620px, 100%);
+  border-radius: var(--radius-lg);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: glass-pop var(--speed-slow) var(--ease);
+}
+:root[data-ui="v2"] .palette-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+:root[data-ui="v2"] .palette-input {
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+:root[data-ui="v2"] .palette-list { list-style: none; max-height: 52vh; overflow-y: auto; padding: 6px; }
+:root[data-ui="v2"] .palette-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+:root[data-ui="v2"] .palette-option[aria-selected="true"] { background: var(--bg-card-hover); color: var(--text-primary); }
+:root[data-ui="v2"] .palette-group { min-width: 64px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+:root[data-ui="v2"] .palette-label { flex: 1; font-size: 14px; }
+:root[data-ui="v2"] .palette-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+/* --- Toasts ------------------------------------------------------------------- */
+
+:root[data-ui="v2"] .toaster {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 36px));
+}
+:root[data-ui="v2"] .toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  animation: glass-pop var(--speed-slow) var(--ease);
+}
+:root[data-ui="v2"] .toast-success .toast-icon { color: var(--green); }
+:root[data-ui="v2"] .toast-error .toast-icon { color: var(--red); }
+:root[data-ui="v2"] .toast-info .toast-icon { color: var(--blue); }
+:root[data-ui="v2"] .toast-message { flex: 1; }
+:root[data-ui="v2"] .toast-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; line-height: 1; }
+
+@media (max-width: 860px) {
+  :root[data-ui="v2"] .toaster { left: 18px; right: 18px; bottom: 96px; width: auto; }
+}
+
+/* --- Skeletons ---------------------------------------------------------------- */
+
+:root[data-ui="v2"] .skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 20%, var(--bg-card-hover) 50%, var(--bg-card) 80%);
+  background-size: 200% 100%;
+  border-radius: 999px;
+}
+
+/* --- Accessibility and fallbacks ---------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui="v2"] body::before,
+  :root[data-ui="v2"] .shell-content > *,
+  :root[data-ui="v2"] .modal-card,
+  :root[data-ui="v2"] .palette,
+  :root[data-ui="v2"] .toast { animation: none; }
+  :root[data-ui="v2"] .card:hover,
+  :root[data-ui="v2"] .btn:hover { transform: none; }
+}
+
+/* No backdrop blur, or the user asks for less transparency: solid surfaces. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-ui="v2"] { --bg-card: #171b2e; --bg-secondary: #121524; --bg-glass: #0e1122; }
+  :root[data-ui="v2"][data-theme="light"] { --bg-card: #ffffff; --bg-secondary: #ffffff; --bg-glass: #ffffff; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-ui="v2"] { --bg-card: #171b2e; --bg-secondary: #121524; --bg-glass: #0e1122; --bg-input: #0d101f; }
+  :root[data-ui="v2"][data-theme="light"] { --bg-card: #ffffff; --bg-secondary: #ffffff; --bg-glass: #ffffff; --bg-input: #ffffff; }
+}
+
+
+:root.sim-still[data-ui="v2"] body::before, :root.sim-still[data-ui="v2"] .shell-content > * { animation: none; }
+:root.sim-solid[data-ui="v2"] { --bg-card: #171b2e; --bg-secondary: #121524; --bg-glass: #0e1122; --bg-input: #0d101f; }
+:root.sim-solid[data-ui="v2"][data-theme="light"] { --bg-card: #ffffff; --bg-secondary: #ffffff; --bg-glass: #ffffff; --bg-input: #ffffff; }
+body { margin: 0; }
+<\/style><div id="app"><\/div><script>// PD-054 visual spec prototype. Not production markup: an illustration of
+// the shell, pages and switch using the shipped class names and CSS, driven
+// by the demo holdings from the end-to-end run (Yahoo closes of 2026-11-11).
+(function () {
+  var holdings = [
+    { script: 'INFY', symbol: 'INFY.NS', currency: 'INR', shares: 30, avg: 1450, price: 1155, close: 1154.1 },
+    { script: 'Reliance', symbol: 'RELIANCE.NS', currency: 'INR', shares: 20, avg: 2650, price: 1335.4, close: 1324.4 },
+    { script: 'TCS', symbol: 'TCS.NS', currency: 'INR', shares: 12, avg: 3100, price: 2472.1, close: 2475.4 },
+    { script: 'SAP', symbol: 'SAP.DE', currency: 'EUR', shares: 8, avg: 180, price: 209.05, close: 209.95 },
+  ]
+  var EUR_INR = 104.4
+  var state = {
+    ui: 'v2', theme: 'dark', page: '/', palette: false, query: '', active: 0, toasts: [], nextToast: 1,
+    users: [
+      { name: 'Root', username: 'root', role: 'superadmin', self: true, glass: true },
+      { name: 'Glass Demo', username: 'glassdemo', role: 'user', glass: true },
+      { name: 'Alice', username: 'alice', role: 'user', glass: false },
+    ],
+    noClose: false,
+  }
+
+  function money(amount, currency) {
+    if (!amount) return '—'
+    var symbol = currency === 'EUR' ? '€' : '₹'
+    return (amount < 0 ? '-' : '') + symbol + Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+  function signed(amount, currency) { return (amount > 0 ? '+' : '') + money(amount, currency) }
+  function pct(value) { return (value > 0 ? '+' : '') + value.toFixed(2) + '%' }
+  function tone(amount) { return amount > 0 ? 'pos' : amount < 0 ? 'neg' : '' }
+  function escapeHtml(text) { return String(text).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch] }) }
+
+  // The same group sum as computeGroupDayChange: null when a held row has no close.
+  function dayChange(currency) {
+    var rows = holdings.filter(function (holding) { return holding.currency === currency })
+    if (!rows.length) return undefined
+    var gain = 0, previous = 0
+    for (var i = 0; i < rows.length; i++) {
+      var close = state.noClose && rows[i].script === 'TCS' ? null : rows[i].close
+      if (close === null) return null
+      gain += (rows[i].price - close) * rows[i].shares
+      previous += close * rows[i].shares
+    }
+    return { gain: gain, pct: previous > 0 ? gain / previous * 100 : null }
+  }
+  function valueInr(holding) { return holding.price * holding.shares * (holding.currency === 'EUR' ? EUR_INR : 1) }
+  function costInr(holding) { return holding.avg * holding.shares * (holding.currency === 'EUR' ? EUR_INR : 1) }
+
+  var NAV = [
+    { to: '/', label: 'Dashboard', keywords: 'home holdings portfolio' },
+    { to: '/history', label: 'History', keywords: 'snapshots charts month' },
+    { to: '/transactions', label: 'Transactions', keywords: 'ledger trades buys sells import' },
+    { to: '/dividends', label: 'Dividends', keywords: 'income payouts' },
+    { to: '/admin', label: 'Admin', keywords: 'users panel switches' },
+  ]
+  var TITLES = { '/': 'Portfolio', '/history': 'Historical data', '/transactions': 'All transactions', '/dividends': 'Dividends', '/admin': 'Admin' }
+
+  function commands() {
+    var list = NAV.map(function (item) { return { id: 'go' + item.to, group: 'Go to', label: item.label, keywords: item.keywords, run: function () { go(item.to) } } })
+    list.push({ id: 'add', group: 'Action', label: 'Add holding', keywords: 'new stock buy', run: function () { go('/'); toast('Add holding dialog opens on the dashboard', 'info') } })
+    ;['dark', 'light', 'cyberpunk'].forEach(function (theme) {
+      list.push({ id: 'theme-' + theme, group: 'Theme', label: (theme === 'cyberpunk' ? 'Cyber' : theme[0].toUpperCase() + theme.slice(1)) + ' theme', keywords: 'appearance colour color', run: function () { setTheme(theme) } })
+    })
+    list.push({ id: 'logout', group: 'Account', label: 'Log out', keywords: 'sign out exit', run: function () { toast('Logged out (simulated)', 'info') } })
+    return list
+  }
+  // Port of CommandPalette.matchCommands: every word must match.
+  function matchCommands(list, query) {
+    var words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return list
+    return list.filter(function (command) {
+      var haystack = (command.label + ' ' + command.group + ' ' + (command.keywords || '')).toLowerCase()
+      return words.every(function (word) { return haystack.indexOf(word) >= 0 })
+    })
+  }
+  window.matchCommands = matchCommands
+
+  function toast(message, kind) {
+    var id = state.nextToast++
+    state.toasts.push({ id: id, message: message, tone: kind || 'info' })
+    render()
+    setTimeout(function () { dismiss(id) }, 4500)
+  }
+  function dismiss(id) { state.toasts = state.toasts.filter(function (queued) { return queued.id !== id }); render() }
+  function go(path) { state.page = path; state.palette = false; render() }
+  function setTheme(theme) { state.theme = theme; render(); parent.postMessage({ type: 'pd054-theme', theme: theme }, '*') }
+
+  function heroHtml() {
+    var value = holdings.reduce(function (sum, holding) { return sum + valueInr(holding) }, 0)
+    var cost = holdings.reduce(function (sum, holding) { return sum + costInr(holding) }, 0)
+    var inr = holdings.filter(function (holding) { return holding.currency === 'INR' }).reduce(function (sum, holding) { return sum + valueInr(holding) }, 0)
+    var chips = ['INR', 'EUR'].map(function (currency) {
+      var change = dayChange(currency)
+      return '<div class="hero-chip ' + (change ? tone(change.gain) : '') + '"><span class="hero-chip-label">Today · ' + currency + '<\/span>' +
+        '<span class="hero-chip-value mono">' + (change ? signed(change.gain, currency) + (change.pct !== null ? ' <small>' + pct(change.pct) + '<\/small>' : '') : '—') + '<\/span><\/div>'
+    }).join('')
+    var unrealised = value - cost
+    chips += '<div class="hero-chip ' + tone(unrealised) + '"><span class="hero-chip-label">Unrealised<\/span><span class="hero-chip-value mono">' + signed(unrealised, 'INR') + ' <small>' + pct(unrealised / cost * 100) + '<\/small><\/span><\/div>'
+    var inrShare = Math.round(inr / value * 100)
+    return '<section class="hero glass-panel" aria-label="Portfolio overview"><div class="hero-main"><div class="hero-label">Current value<\/div>' +
+      '<div class="hero-value mono">' + money(value, 'INR') + '<\/div><div class="hero-sub mono">' + money(value / EUR_INR, 'EUR') + '<\/div><\/div>' +
+      '<div class="hero-chips">' + chips + '<\/div>' +
+      '<div class="hero-split"><div class="hero-split-bar" role="img" aria-label="INR ' + inrShare + '%, EUR ' + (100 - inrShare) + '%"><span class="hero-split-inr" style="width:' + inrShare + '%"><\/span><span class="hero-split-eur" style="width:' + (100 - inrShare) + '%"><\/span><\/div>' +
+      '<div class="hero-split-legend"><span><i class="hero-split-dot hero-split-inr"><\/i>INR ' + inrShare + '%<\/span><span><i class="hero-split-dot hero-split-eur"><\/i>EUR ' + (100 - inrShare) + '%<\/span><\/div><\/div><\/section>'
+  }
+
+  function tableHtml(currency) {
+    var rows = holdings.filter(function (holding) { return holding.currency === currency })
+    var body = rows.map(function (holding) {
+      var close = state.noClose && holding.script === 'TCS' ? null : holding.close
+      var gain = close === null ? null : (holding.price - close) * holding.shares
+      var unreal = (holding.price - holding.avg) * holding.shares
+      return '<tr style="background: var(--bg-card)"><td style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)"><div style="font-weight:600">' + holding.script + '<\/div><div style="font-size:10px;color:var(--text-muted)">' + holding.symbol + '<\/div><\/td>' +
+        '<td class="mono" style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--border)">' + holding.shares + '<\/td>' +
+        '<td class="mono" style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--border)">' + money(holding.price, currency) + '<\/td>' +
+        '<td class="mono ' + (gain === null ? '' : tone(gain)) + '" style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--border)">' + (gain === null ? '—' : signed(gain, currency)) + '<\/td>' +
+        '<td class="mono ' + tone(unreal) + '" style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--border)">' + signed(unreal, currency) + '<\/td><\/tr>'
+    }).join('')
+    var head = ['Script', 'Shares', 'Share price', 'Day gain', 'Unrealised'].map(function (label, i) {
+      return '<th style="padding:10px 12px;text-align:' + (i ? 'right' : 'left') + ';font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;background:var(--bg-secondary)">' + label + '<\/th>'
+    }).join('')
+    return '<div class="holdings-table-wrap" style="border-radius:var(--radius);border:1px solid var(--border);margin-bottom:18px"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>' + head + '<\/tr><\/thead><tbody>' + body + '<\/tbody><\/table><\/div>'
+  }
+
+  function pageHtml() {
+    var title = TITLES[state.page]
+    var toolbarActions = state.page === '/'
+      ? '<span style="flex:1"><\/span><button class="btn" data-action="refresh">↻ Refresh<\/button><button class="btn-primary" data-action="add">+ Add Holding<\/button>'
+      : '<span style="flex:1"><\/span>'
+    var header = '<header class="nav-glass page-nav"><div style="display:flex;align-items:center;gap:12px"><h1 class="page-title">' + title + '<\/h1>' + (state.page === '/' ? '<span style="font-size:11px;color:var(--blue);background:var(--blue-dim);padding:3px 8px;border-radius:var(--radius-sm)">User<\/span>' : '') + '<\/div><div style="display:flex;gap:10px;align-items:center">' + toolbarActions + '<\/div><\/header>'
+    var main = ''
+    if (state.page === '/') {
+      main = heroHtml() + '<h3 style="margin:18px 0 10px">₹ Indian Rupee<\/h3>' + tableHtml('INR') + '<h3 style="margin:18px 0 10px">€ Euro<\/h3>' + tableHtml('EUR')
+    } else if (state.page === '/history' || state.page === '/transactions') {
+      main = '<section class="page-toolbar" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;background:var(--bg-secondary);border:1px solid var(--border)">' +
+        '<label style="font-size:12px;display:flex;flex-direction:column">Search<input placeholder="Script, symbol or notes" style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text-primary)"><\/label>' +
+        '<label style="font-size:12px;display:flex;flex-direction:column">Month<select style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text-primary)"><option>Nov 2026<\/option><\/select><\/label><\/section>' + tableHtml('INR')
+    } else if (state.page === '/dividends') {
+      main = '<div class="glass-panel" style="padding:28px;text-align:center;color:var(--text-muted)">No dividends recorded yet — the page keeps its layout; tokens and surfaces turn it to glass.<\/div>'
+    } else {
+      main = '<div class="holdings-table-wrap" style="border-radius:var(--radius);border:1px solid var(--border)"><table style="width:100%;border-collapse:collapse;font-size:13px"><tbody>' +
+        state.users.map(function (user, index) {
+          return '<tr style="background:var(--bg-card)"><td style="padding:12px;border-bottom:1px solid var(--border)"><b>' + user.name + '<\/b> <span style="color:var(--text-muted);font-size:11px">@' + user.username + (user.self ? ' · you' : '') + '<\/span><\/td>' +
+            '<td style="padding:12px;text-align:right;border-bottom:1px solid var(--border)"><button class="btn btn-sm" aria-pressed="' + user.glass + '" data-toggle="' + index + '">' + (user.glass ? 'Glass UI off' : 'Glass UI on') + '<\/button><\/td><\/tr>'
+        }).join('') + '<\/tbody><\/table><\/div>'
+    }
+    return header + '<main class="page-main">' + main + '<\/main>'
+  }
+
+  function shellHtml(inner) {
+    var nav = NAV.map(function (item) {
+      return '<a href="#" class="shell-nav-link" data-go="' + item.to + '"' + (state.page === item.to ? ' aria-current="page"' : '') + '>' + item.label + '<\/a>'
+    }).join('')
+    var tabs = NAV.slice(0, 4).map(function (item) {
+      return '<a href="#" class="shell-tab" data-go="' + item.to + '"' + (state.page === item.to ? ' aria-current="page"' : '') + '>' + item.label + '<\/a>'
+    }).join('') + '<button class="shell-tab" data-action="palette">More<\/button>'
+    return '<div class="shell"><aside class="shell-sidebar" aria-label="Main navigation">' +
+      '<a href="#" class="shell-brand" data-go="/"><span class="brand-tile" style="width:34px;height:34px">◆<\/span><span>Portfolio<\/span><\/a>' +
+      '<button class="shell-search" data-action="palette">⌕ <span>Search<\/span> <kbd>⌘K<\/kbd><\/button>' +
+      '<nav class="shell-nav">' + nav + '<\/nav><button class="btn-primary shell-cta" data-action="add">+ Add holding<\/button>' +
+      '<div class="shell-foot"><div style="display:flex;gap:6px">' + ['light', 'dark'].map(function (theme) {
+        return '<button class="btn btn-sm" aria-pressed="' + (state.theme === theme) + '" data-theme-pick="' + theme + '">' + (theme === 'light' ? '☀ Light' : '🌙 Dark') + '<\/button>'
+      }).join('') + '<\/div><a href="#" class="shell-nav-link">Root<\/a><button class="shell-nav-link shell-logout" data-action="logout">Log out<\/button><\/div><\/aside>' +
+      '<div class="shell-content">' + inner + '<\/div><nav class="shell-tabbar" aria-label="Quick navigation">' + tabs + '<\/nav><\/div>'
+  }
+
+  function currentUiHtml() {
+    var links = NAV.slice(1).map(function (item) { return '<a href="#" class="btn" data-go="' + item.to + '">' + item.label + '<\/a>' }).join('')
+    return '<header class="nav-glass page-nav dash-nav" style="gap:10px"><b style="margin-right:10px">Portfolio Dashboard<\/b>' + links +
+      '<span style="flex:1"><\/span><button class="btn" data-action="refresh">Refresh<\/button><button class="btn-primary" data-action="add">Add Holding<\/button><\/header>' +
+      '<main class="page-main"><p style="color:var(--text-secondary);margin-bottom:14px">The current UI: no shell, no hero, browser alerts. Unchanged for accounts without the switch.<\/p>' + tableHtml('INR') + '<\/main>'
+  }
+
+  function paletteHtml() {
+    if (!state.palette) return ''
+    var matches = matchCommands(commands(), state.query)
+    var items = matches.length ? matches.map(function (command, index) {
+      return '<li class="palette-option" role="option" aria-selected="' + (index === state.active) + '" data-run="' + index + '"><span class="palette-group">' + command.group + '<\/span><span class="palette-label">' + command.label + '<\/span><\/li>'
+    }).join('') : '<li class="palette-empty">No matching command<\/li>'
+    return '<div class="palette-overlay" data-action="close-palette"><div class="palette" role="dialog" aria-label="Command palette"><div class="palette-search">⌕<input class="palette-input" id="palette-input" placeholder="Jump to a page or run a command…" value="' + escapeHtml(state.query) + '"><kbd>esc<\/kbd><\/div><ul class="palette-list" role="listbox">' + items + '<\/ul><\/div><\/div>'
+  }
+
+  function toasterHtml() {
+    if (state.ui !== 'v2') return ''
+    return '<div class="toaster" role="status" aria-live="polite">' + state.toasts.map(function (queued) {
+      return '<div class="toast toast-' + queued.tone + '"><span class="toast-icon">' + (queued.tone === 'error' ? '⚠' : '✓') + '<\/span><span class="toast-message">' + escapeHtml(queued.message) + '<\/span><button class="toast-close" data-dismiss="' + queued.id + '">×<\/button><\/div>'
+    }).join('') + '<\/div>'
+  }
+
+  function render() {
+    var root = document.documentElement
+    root.dataset.theme = state.theme
+    if (state.ui === 'v2') root.dataset.ui = 'v2'
+    else delete root.dataset.ui
+    var app = document.getElementById('app')
+    var focusPalette = state.palette && document.activeElement && document.activeElement.id === 'palette-input'
+    app.innerHTML = (state.ui === 'v2' ? shellHtml(pageHtml()) : currentUiHtml()) + paletteHtml() + toasterHtml()
+    if (state.palette) {
+      var input = document.getElementById('palette-input')
+      input.focus()
+      if (focusPalette) input.setSelectionRange(input.value.length, input.value.length)
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var target = e.target.closest('[data-go],[data-action],[data-toggle],[data-theme-pick],[data-run],[data-dismiss]')
+    if (!target) return
+    e.preventDefault()
+    if (target.dataset.go) return go(target.dataset.go)
+    if (target.dataset.themePick) return setTheme(target.dataset.themePick)
+    if (target.dataset.dismiss) return dismiss(Number(target.dataset.dismiss))
+    if (target.dataset.run) {
+      var command = matchCommands(commands(), state.query)[Number(target.dataset.run)]
+      state.palette = false
+      return command && command.run()
+    }
+    if (target.dataset.toggle) {
+      var user = state.users[Number(target.dataset.toggle)]
+      user.glass = !user.glass
+      if (user.self) {
+        state.ui = user.glass ? 'v2' : 'v1'
+        parent.postMessage({ type: 'pd054-ui', ui: state.ui }, '*')
+      }
+      return toast((user.glass ? 'Glass UI' : 'Current UI') + ' on for ' + user.username, 'success')
+    }
+    var action = target.dataset.action
+    if (action === 'palette') { state.palette = true; state.query = ''; state.active = 0; return render() }
+    if (action === 'close-palette' && e.target === target) { state.palette = false; return render() }
+    if (action === 'refresh') return state.ui === 'v2' ? toast('Prices refreshed', 'success') : window.alert('(current UI) prices refreshed')
+    if (action === 'add') return toast('Add holding dialog opens', 'info')
+    if (action === 'logout') return toast('Logged out (simulated)', 'info')
+  })
+  document.addEventListener('input', function (e) {
+    if (e.target.id !== 'palette-input') return
+    state.query = e.target.value
+    state.active = 0
+    render()
+  })
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && state.ui === 'v2') {
+      e.preventDefault(); state.palette = !state.palette; state.query = ''; state.active = 0; return render()
+    }
+    if (!state.palette) return
+    var matches = matchCommands(commands(), state.query)
+    if (e.key === 'Escape') { state.palette = false; render() }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); state.active = Math.min(state.active + 1, matches.length - 1); render() }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); state.active = Math.max(state.active - 1, 0); render() }
+    else if (e.key === 'Enter') { e.preventDefault(); var command = matches[state.active]; state.palette = false; if (command) command.run(); else render() }
+  })
+  window.addEventListener('message', function (e) {
+    var data = e.data || {}
+    if (data.type === 'pd054-set') {
+      if (data.theme) state.theme = data.theme
+      if (data.ui) state.ui = data.ui
+      if (data.page) state.page = data.page
+      if (typeof data.noClose === 'boolean') state.noClose = data.noClose
+      if (data.palette) { state.palette = true; state.query = data.query || '' }
+      document.documentElement.classList.toggle('sim-solid', Boolean(data.solid))
+      document.documentElement.classList.toggle('sim-still', Boolean(data.still))
+      render()
+    }
+  })
+  render()
+})()
+<\/script></script>
+<script>
+(function () {
+  var source = document.getElementById('proto-src').textContent.replace(/<\\\//g, '</')
+  var frames = [document.getElementById('proto-1'), document.getElementById('proto-2')]
+  var settings = { theme: 'dark', ui: 'v2', solid: false, still: false, noClose: false }
+  function push(frame, extra) {
+    if (!frame.contentWindow) return
+    var message = { type: 'pd054-set', theme: settings.theme, ui: settings.ui, solid: settings.solid, still: settings.still, noClose: settings.noClose }
+    for (var key in extra || {}) message[key] = extra[key]
+    frame.contentWindow.postMessage(message, '*')
+  }
+  frames.forEach(function (frame, index) {
+    frame.addEventListener('load', function () { push(frame, index === 1 ? { page: '/admin' } : {}) })
+    frame.srcdoc = source
+  })
+  function pressed(attr, value) {
+    document.querySelectorAll('[data-set="' + attr + '"]').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.value === value)) })
+  }
+  document.querySelector('.doc-bar').addEventListener('click', function (e) {
+    var button = e.target.closest('button')
+    if (!button) return
+    if (button.dataset.set === 'width') {
+      document.getElementById('stage-1').classList.toggle('phone', button.dataset.value === 'phone')
+      pressed('width', button.dataset.value)
+      return
+    }
+    if (button.dataset.set) { settings[button.dataset.set] = button.dataset.value; pressed(button.dataset.set, button.dataset.value) }
+    if (button.dataset.flag) { settings[button.dataset.flag] = !settings[button.dataset.flag]; button.setAttribute('aria-pressed', String(settings[button.dataset.flag])) }
+    if (button.dataset.set === 'theme') document.documentElement.dataset.docTheme = button.dataset.value === 'light' ? 'light' : 'dark'
+    frames.forEach(function (frame) { push(frame) })
+  })
+  window.addEventListener('message', function (e) {
+    var data = e.data || {}
+    if (data.type === 'pd054-ui') { settings.ui = data.ui; pressed('ui', data.ui); push(frames[0]) }
+    if (data.type === 'pd054-theme') { settings.theme = data.theme; pressed('theme', data.theme); frames.forEach(function (frame) { push(frame) }) }
+  })
+
+  // Frame 3: the palette's matching rule, ported from CommandPalette.matchCommands.
+  var COMMANDS = [
+    ['Go to', 'Dashboard', 'home holdings portfolio'], ['Go to', 'History', 'snapshots charts month'],
+    ['Go to', 'Transactions', 'ledger trades buys sells import'], ['Go to', 'Dividends', 'income payouts'],
+    ['Go to', 'Gold', 'physical jeweler'], ['Go to', 'Admin', 'users panel switches'],
+    ['Go to', 'Account settings', 'profile password security'], ['Action', 'Add holding', 'new stock buy'],
+    ['Theme', 'Dark theme', 'appearance colour color'], ['Theme', 'Light theme', 'appearance colour color'],
+    ['Account', 'Log out', 'sign out exit'],
+  ].map(function (row) { return { group: row[0], label: row[1], keywords: row[2] } })
+  function matchCommands(list, query) {
+    var words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return list
+    return list.filter(function (command) {
+      var haystack = (command.label + ' ' + command.group + ' ' + command.keywords).toLowerCase()
+      return words.every(function (word) { return haystack.indexOf(word) >= 0 })
+    })
+  }
+  var input = document.getElementById('play-query')
+  var list = document.getElementById('play-list')
+  function renderPlay() {
+    var matches = matchCommands(COMMANDS, input.value)
+    list.innerHTML = matches.length
+      ? matches.map(function (command) { return '<li><span>' + command.group + '</span>' + command.label + '</li>' }).join('')
+      : '<li>No matching command</li>'
+  }
+  input.addEventListener('input', renderPlay)
+  renderPlay()
+  window.__pd054 = { matchCommands: matchCommands, COMMANDS: COMMANDS, settings: settings }
+})()
+</script>
