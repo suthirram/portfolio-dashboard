@@ -117,6 +117,17 @@ describe('useHoldings', () => {
     expect(mockApi.getStockXirr).toHaveBeenCalledWith('user-1')
   })
 
+  it('publishes prices without waiting for a slow /xirr', async () => {
+    mockApi.getStockXirr.mockReturnValue(new Promise(() => {}))
+    const { result } = renderHook(() => useHoldings())
+
+    await waitFor(() => {
+      expect(result.current.enriched[0]?.current_price).toBe(120)
+    })
+    expect(result.current.loadingPrices).toBe(false)
+    expect(result.current.xirr).toBeNull()
+  })
+
   it('still loads prices when /xirr fails, with no rates', async () => {
     mockApi.getStockXirr.mockRejectedValue(new Error('boom'))
     vi.spyOn(console, 'error').mockImplementation(() => {})

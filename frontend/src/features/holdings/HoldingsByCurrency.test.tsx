@@ -408,6 +408,28 @@ describe('HoldingsByCurrency', () => {
     expect(within(eurRow).getByText('-4.32%*')).toHaveAttribute('title', expect.stringMatching(/less than a year/))
   })
 
+  it('never shows the INR rate on the OTHER group', () => {
+    const xirr = indexXirr({
+      as_of: '2026-11-11',
+      currencies: [{ currency: 'INR', xirr: 0.1234, since: '2023-04-01', undated_openings: 0 }],
+      holdings: [{ holding_id: '1', xirr: 0.1234, since: '2023-04-01', undated_opening: false }],
+    })
+    render(<HoldingsByCurrency
+      holdings={[
+        testHolding({ id: '1', script: 'TCS', currency: 'INR' }),
+        testHolding({ id: '2', script: 'AAPL', currency: undefined }), // no currency → OTHER
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      xirr={xirr}
+    />)
+
+    const sections = Array.from(document.querySelectorAll('section')) as HTMLElement[]
+    const other = sections.find(section => within(section).queryByText('AAPL')) as HTMLElement
+    expect(within(other).queryByText('12.34%')).not.toBeInTheDocument()
+  })
+
   it('renders dashes for XIRR while the rates are unavailable', () => {
     render(<HoldingsByCurrency
       holdings={[testHolding({ id: '1', script: 'TCS', currency: 'INR' })]}

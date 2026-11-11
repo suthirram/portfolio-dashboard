@@ -130,7 +130,9 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               onTransactions={onTransactions}
               view="all"
               nativeCurrency={group.currency === 'EUR' ? 'EUR' : 'INR'}
-              xirr={xirr}
+              // OTHER holdings are outside every XIRR bucket; without this
+              // the table's INR fallback would show the INR rate in TOTAL.
+              xirr={group.currency === 'OTHER' ? null : xirr}
             />
           </section>
         )

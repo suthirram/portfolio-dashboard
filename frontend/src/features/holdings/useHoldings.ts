@@ -32,20 +32,22 @@ export function useHoldings(userId?: string) {
 
   const fetchPrices = useCallback(async () => {
     setLoadingPrices(true)
+    // /xirr is optional (PRD-012 §5) and settles on its own: neither its
+    // failure nor its latency may hold back prices and totals.
+    void api.getStockXirr(userId)
+      .then(view => setXirr(indexXirr(view)))
+      .catch(e => {
+        console.error('getStockXirr:', e)
+        setXirr(null)
+      })
     try {
       // Two reads in flight: /prices feeds the per-row table; /summary is
       // the authoritative totals + daily-change vs previous close. The
       // summary is fetched here (not synthesised from the rows) so the
       // change_value / per_currency fields the backend computes survive.
-      // /xirr rides along but is optional: its failure only hides the rates.
-      const xirrRequest = api.getStockXirr(userId).catch(e => {
-        console.error('getStockXirr:', e)
-        return null
-      })
-      const [prices, summary, xirrView] = await Promise.all([
+      const [prices, summary] = await Promise.all([
         api.getPrices(userId),
         api.getSummary(userId),
-        xirrRequest,
       ])
       let enrichedHoldings: HoldingWithPreviousClose[] = prices.holdings || []
 
@@ -61,7 +63,6 @@ export function useHoldings(userId?: string) {
 
       setEnriched(enrichedHoldings)
       setSummary(summary)
-      setXirr(indexXirr(xirrView))
       setLastRefresh(new Date())
     } catch (e) {
       console.error('fetchPrices:', e)
