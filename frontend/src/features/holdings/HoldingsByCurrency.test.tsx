@@ -6,7 +6,7 @@ import type { HoldingWithPrice } from '../../types'
 const noop = () => {}
 type TestHolding = HoldingWithPrice & { previous_close_price?: number }
 
-const h = (overrides: Partial<TestHolding>): TestHolding => ({
+const testHolding = (overrides: Partial<TestHolding>): TestHolding => ({
   id: overrides.id ?? Math.random().toString(),
   script: 'TEST',
   symbol: 'TEST',
@@ -31,8 +31,8 @@ describe('HoldingsByCurrency', () => {
   it('renders one section per distinct currency, INR before EUR', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'TCS.NS', currency: 'INR' }),
-        h({ id: '2', script: 'SAP.DE', currency: 'EUR' }),
+        testHolding({ id: '1', script: 'TCS.NS', currency: 'INR' }),
+        testHolding({ id: '2', script: 'SAP.DE', currency: 'EUR' }),
       ]}
       loading={false}
       onEdit={noop}
@@ -48,8 +48,8 @@ describe('HoldingsByCurrency', () => {
   it('renders each table in its native currency only — no conversion columns', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', currency: 'INR' }),
-        h({ id: '2', currency: 'EUR' }),
+        testHolding({ id: '1', currency: 'INR' }),
+        testHolding({ id: '2', currency: 'EUR' }),
       ]}
       loading={false}
       onEdit={noop}
@@ -77,7 +77,7 @@ describe('HoldingsByCurrency', () => {
     // different, wrong number and this test catches it.
     render(<HoldingsByCurrency
       holdings={[
-        h({
+        testHolding({
           id: '1', currency: 'EUR',
           cost_price: 91000, cost_price_eur: 1000,
           current_value: 118300, current_value_eur: 1300,
@@ -113,7 +113,7 @@ describe('HoldingsByCurrency', () => {
 
   it('shows a per-section totals card with both currencies for each section', () => {
     render(<HoldingsByCurrency
-      holdings={[h({ id: '1', currency: 'INR', cost_price: 1000, cost_price_eur: 11 })]}
+      holdings={[testHolding({ id: '1', currency: 'INR', cost_price: 1000, cost_price_eur: 11 })]}
       loading={false}
       onEdit={noop}
       onDelete={noop}
@@ -129,7 +129,7 @@ describe('HoldingsByCurrency', () => {
 
   it('uses EUR primary in the EUR section card', () => {
     render(<HoldingsByCurrency
-      holdings={[h({ id: '2', currency: 'EUR', cost_price: 1000, cost_price_eur: 11 })]}
+      holdings={[testHolding({ id: '2', currency: 'EUR', cost_price: 1000, cost_price_eur: 11 })]}
       loading={false}
       onEdit={noop}
       onDelete={noop}
@@ -147,8 +147,8 @@ describe('HoldingsByCurrency', () => {
     // EUR: 10 shares × (60 − 62)     = −€20;   pct = -20 / 620   = -3.23%
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', currency: 'INR', script: 'TCS.NS', stocks_owned: 10, current_price: 3500, previous_close_price: 3000 }),
-        h({ id: '2', currency: 'EUR', script: 'SAP.DE', stocks_owned: 10, current_price: 60, previous_close_price: 62 }),
+        testHolding({ id: '1', currency: 'INR', script: 'TCS.NS', stocks_owned: 10, current_price: 3500, previous_close_price: 3000 }),
+        testHolding({ id: '2', currency: 'EUR', script: 'SAP.DE', stocks_owned: 10, current_price: 60, previous_close_price: 62 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -173,7 +173,7 @@ describe('HoldingsByCurrency', () => {
 
   it('omits the Today stat when no per-currency change is provided', () => {
     render(<HoldingsByCurrency
-      holdings={[h({ id: '1', currency: 'INR' })]}
+      holdings={[testHolding({ id: '1', currency: 'INR' })]}
       loading={false}
       onEdit={noop}
       onDelete={noop}
@@ -183,12 +183,12 @@ describe('HoldingsByCurrency', () => {
 
   it('Today stat excludes intraday buy cost — shows only price movement not invested amount', () => {
     // Existing holding: previous_close 100, current 120 → +₹200 (10 shares)
-    // New holding bought today at 130, current 130 → 0 movement (avg cost = current)
-    // Backend change_value would be 200 + 1300 = 1500 (wrong); correct is 200.
+    // Holding bought today with a previous close of 125, current 130 → +₹50.
+    // Backend change_value would be 1500 (counts the purchase); correct is 250.
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'OLD.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
-        h({ id: '2', script: 'NEW.NS', stocks_owned: 10, current_price: 130, avg_cost_price: 130 }),
+        testHolding({ id: '1', script: 'OLD.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        testHolding({ id: '2', script: 'NEW.NS', stocks_owned: 10, current_price: 130, avg_cost_price: 130, previous_close_price: 125 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -198,15 +198,53 @@ describe('HoldingsByCurrency', () => {
       ]}
     />)
 
-    // Should show ₹200 (only OLD.NS movement), not ₹1,500 (backend's inflated value).
-    expect(screen.getByText(/▲ ₹200/)).toBeInTheDocument()
+    expect(screen.getByText(/▲ ₹250/)).toBeInTheDocument()
+  })
+
+  it('omits Today stat for a new holding with no previous close instead of counting its lifetime gain', () => {
+    // NEW.NS has no snapshot and no Yahoo close: current − avg cost (₹200) is
+    // its lifetime gain, so the group has no day gain at all.
+    render(<HoldingsByCurrency
+      holdings={[
+        testHolding({ id: '1', script: 'OLD.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        testHolding({ id: '2', script: 'NEW.NS', stocks_owned: 10, current_price: 130, avg_cost_price: 110 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      perCurrency={[
+        { currency: 'INR', current: 2500, previous_close: 1000, change_value: 1500, change_pct: 150 },
+      ]}
+    />)
+
+    expect(screen.queryByText('Today')).toBeNull()
+  })
+
+  it('a missing previous close hides only its own currency group Today stat', () => {
+    render(<HoldingsByCurrency
+      holdings={[
+        testHolding({ id: '1', currency: 'INR', script: 'TCS.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        testHolding({ id: '2', currency: 'EUR', script: 'SAP.DE', stocks_owned: 10, current_price: 60, avg_cost_price: 50 }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      perCurrency={[
+        { currency: 'INR', current: 1200, previous_close: 1000, change_value: 200, change_pct: 20 },
+        { currency: 'EUR', current: 600, previous_close: 500, change_value: 100, change_pct: 20 },
+      ]}
+    />)
+
+    const [inr, eur] = Array.from(document.querySelectorAll('section')) as HTMLElement[]
+    expect(within(inr).getByText(/▲ ₹200/)).toBeInTheDocument()
+    expect(within(eur).queryByText('Today')).toBeNull()
   })
 
   it('omits Today stat when any holding with shares has no usable baseline', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'A.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
-        h({ id: '2', script: 'B.NS', stocks_owned: 10, current_price: 110, avg_cost_price: undefined as unknown as number }),
+        testHolding({ id: '1', script: 'A.NS', stocks_owned: 10, current_price: 120, previous_close_price: 100 }),
+        testHolding({ id: '2', script: 'B.NS', stocks_owned: 10, current_price: 110, avg_cost_price: undefined as unknown as number }),
       ]}
       loading={false}
       onEdit={noop}
@@ -222,9 +260,9 @@ describe('HoldingsByCurrency', () => {
   it('colors live share prices against the previous close and leaves unchanged prices default', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'UP.NS', current_price: 121, previous_close_price: 120 }),
-        h({ id: '2', script: 'DOWN.NS', current_price: 119, previous_close_price: 120 }),
-        h({ id: '3', script: 'FLAT.NS', current_price: 120, previous_close_price: 120 }),
+        testHolding({ id: '1', script: 'UP.NS', current_price: 121, previous_close_price: 120 }),
+        testHolding({ id: '2', script: 'DOWN.NS', current_price: 119, previous_close_price: 120 }),
+        testHolding({ id: '3', script: 'FLAT.NS', current_price: 120, previous_close_price: 120 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -254,26 +292,31 @@ describe('HoldingsByCurrency', () => {
     expect(within(dayGainCell('DOWN.NS')).getByText('-0.83%')).toBeInTheDocument()
   })
 
-  it('Day Gain row falls back to avg_cost_price when previous_close_price is absent', () => {
+  it('Day Gain row shows — when previous_close_price is absent, never the gain over avg cost', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'NEW.NS', current_price: 110, avg_cost_price: 100, stocks_owned: 5 }),
+        testHolding({ id: '1', script: 'NEW.NS', current_price: 110, avg_cost_price: 100, stocks_owned: 5 }),
       ]}
       loading={false}
       onEdit={noop}
       onDelete={noop}
     />)
 
-    const dayGainCell = screen.getByText('NEW.NS').closest('tr')!.querySelectorAll('td')[6] as HTMLTableCellElement
-    expect(dayGainCell).toHaveClass('pos')
-    expect(within(dayGainCell).getByText('+₹50.00')).toBeInTheDocument()
+    const row = screen.getByText('NEW.NS').closest('tr')!
+    const dayGainCell = row.querySelectorAll('td')[6] as HTMLTableCellElement
+    expect(dayGainCell.textContent).toBe('—')
+    expect(dayGainCell).not.toHaveClass('pos')
+    // The share price is not tinted against the purchase cost either.
+    expect(row.querySelectorAll('td')[4]).not.toHaveClass('pos')
+    const tfoot = document.querySelector('tfoot') as HTMLElement
+    expect((tfoot.querySelectorAll('td')[6] as HTMLTableCellElement).textContent).toBe('—')
   })
 
-  it('Day Gain total shows sum when all rows have a baseline (via fallback)', () => {
+  it('Day Gain total sums the rows when every row has a previous close', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'A.NS', current_price: 110, avg_cost_price: 100, stocks_owned: 5 }),
-        h({ id: '2', script: 'B.NS', current_price: 90, avg_cost_price: 100, stocks_owned: 5 }),
+        testHolding({ id: '1', script: 'A.NS', current_price: 110, avg_cost_price: 50, previous_close_price: 100, stocks_owned: 5 }),
+        testHolding({ id: '2', script: 'B.NS', current_price: 90, avg_cost_price: 50, previous_close_price: 100, stocks_owned: 5 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -289,9 +332,9 @@ describe('HoldingsByCurrency', () => {
   it('Day Gain total shows — when any row with shares has no usable baseline', () => {
     render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', script: 'A.NS', current_price: 110, previous_close_price: 100, stocks_owned: 5 }),
+        testHolding({ id: '1', script: 'A.NS', current_price: 110, previous_close_price: 100, stocks_owned: 5 }),
         // no previous_close_price and no avg_cost_price → movement stays null
-        h({ id: '2', script: 'NOPRICE.NS', current_price: 110, avg_cost_price: undefined as unknown as number, stocks_owned: 5 }),
+        testHolding({ id: '2', script: 'NOPRICE.NS', current_price: 110, avg_cost_price: undefined as unknown as number, stocks_owned: 5 }),
       ]}
       loading={false}
       onEdit={noop}
@@ -307,8 +350,8 @@ describe('HoldingsByCurrency', () => {
     const user = vi.fn()
     const { rerender } = render(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
-        h({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
+        testHolding({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
+        testHolding({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
       ]}
       loading={false}
       onEdit={user}
@@ -321,8 +364,8 @@ describe('HoldingsByCurrency', () => {
     screen.getByRole('button', { name: /Nil/ }).click()
     rerender(<HoldingsByCurrency
       holdings={[
-        h({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
-        h({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
+        testHolding({ id: '1', currency: 'INR', stocks_owned: 10, script: 'ACTIVE.NS' }),
+        testHolding({ id: '2', currency: 'INR', stocks_owned: 0, script: 'EXITED.NS' }),
       ]}
       loading={false}
       onEdit={user}

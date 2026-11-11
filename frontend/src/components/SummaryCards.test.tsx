@@ -103,18 +103,22 @@ describe('SummaryCards grouped change card', () => {
     expect(screen.queryByText('▲ ₹5,000.00')).toBeNull()
   })
 
-  it('falls back to backend change_value when computed gain is null (act-as / history failed)', () => {
+  it('shows — for a currency whose computed gain is null, never the backend change_value', () => {
     const summary: Summary = {
       ...base,
       previous_close_date: '2026-06-16',
       per_currency: [
         { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
+        { currency: 'EUR', current: 600, previous_close: 620, change_value: -20, change_pct: -3.23 },
       ],
     }
-    // null = history enrichment did not run (act-as or fetch error)
-    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={null} />)
-    expect(screen.getByText('▲ ₹5,000.00')).toBeInTheDocument()
-    expect(screen.getByText('+16.67%')).toBeInTheDocument()
+    // null = a holding in INR has no previous close (act-as, history failed, new holding)
+    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={null} computedDayGainEur={-15} />)
+    expect(screen.queryByText('▲ ₹5,000.00')).toBeNull()
+    expect(screen.queryByText('+16.67%')).toBeNull()
+    expect(screen.getByTitle('A holding has no previous close yet')).toHaveTextContent('—')
+    // EUR has complete data and keeps its own computed figure.
+    expect(screen.getByText('▼ €15.00')).toBeInTheDocument()
   })
 })
 

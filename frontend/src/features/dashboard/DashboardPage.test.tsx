@@ -4,9 +4,15 @@ import { describe, expect, it, vi } from 'vitest'
 import DashboardPage, { dividendIncome } from './DashboardPage'
 import type { HoldingWithPrice } from '../../types'
 
+// The holdings the mocked hook returns, and the props SummaryCards got.
+const dashboard = vi.hoisted(() => ({
+  enriched: [] as unknown[],
+  summaryProps: null as null | { computedDayGainInr?: number | null; computedDayGainEur?: number | null },
+}))
+
 vi.mock('../holdings/useHoldings', () => ({
   useHoldings: () => ({
-    holdings: [], enriched: [], summary: null,
+    holdings: [], enriched: dashboard.enriched, summary: null,
     loadingHoldings: false, loadingPrices: false, lastRefresh: null,
     refresh: vi.fn(), fetchPrices: vi.fn(), remove: vi.fn(),
   }),
@@ -29,7 +35,9 @@ vi.mock('../../lib/api/client', () => ({
   },
 }))
 
-vi.mock('../../components/SummaryCards', () => ({ default: () => <div /> }))
+vi.mock('../../components/SummaryCards', () => ({
+  default: (props: typeof dashboard.summaryProps) => { dashboard.summaryProps = props; return <div /> },
+}))
 vi.mock('../holdings/HoldingsByCurrency', () => ({ default: () => <div /> }))
 vi.mock('../../components/Charts', () => ({ default: () => <div /> }))
 
@@ -52,7 +60,7 @@ describe('DashboardPage nav grouping', () => {
     }
     // No stray links among the actions after the spacer.
     const links = Array.from(header.querySelectorAll('a'))
-    expect(links.every(a => spacer.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_PRECEDING)).toBe(true)
+    expect(links.every(link => spacer.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_PRECEDING)).toBe(true)
   })
 
   it('renders the Holdings/Charts switch as one segmented control', () => {
@@ -64,6 +72,33 @@ describe('DashboardPage nav grouping', () => {
     expect(holdings.getAttribute('aria-pressed')).toBe('true')
     expect(charts.getAttribute('aria-pressed')).toBe('false')
     expect(holdings.closest('.seg-group')).not.toBeNull()
+  })
+})
+
+describe('DashboardPage summary day gain', () => {
+  const held = (currency: string, current: number, previousClose?: number) => ({
+    id: `${currency}-${current}`, script: currency, symbol: currency, currency,
+    stocks_owned: 2, avg_cost_price: 10, current_price: current,
+    ...(previousClose === undefined ? {} : { previous_close_price: previousClose }),
+  })
+
+  it('passes each currency its own group sum; a missing close nulls only that currency', () => {
+    dashboard.enriched = [held('INR', 120, 100), held('EUR', 60), held('EUR', 50, 40)]
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    expect(dashboard.summaryProps?.computedDayGainInr).toBe(40)
+    expect(dashboard.summaryProps?.computedDayGainEur).toBeNull()
+  })
+
+  it('computes the day gain in act-as views from the closes the holdings carry', () => {
+    dashboard.enriched = [held('INR', 120, 100)]
+    render(<MemoryRouter><DashboardPage actAsUserId="u2" actAsLabel="bob" /></MemoryRouter>)
+    expect(dashboard.summaryProps?.computedDayGainInr).toBe(40)
+  })
+
+  it('passes null, not the gain over average cost, when no holding has a previous close', () => {
+    dashboard.enriched = [held('INR', 120)]
+    render(<MemoryRouter><DashboardPage actAsUserId="u2" actAsLabel="bob" /></MemoryRouter>)
+    expect(dashboard.summaryProps?.computedDayGainInr).toBeNull()
   })
 })
 
