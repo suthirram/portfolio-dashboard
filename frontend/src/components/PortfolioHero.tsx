@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Summary } from '../types'
 import type { GroupDayChange, HoldingWithPreviousClose } from '../features/holdings/dashboardPriceMovement'
 import { formatMoney } from '../lib/currency'
@@ -41,7 +42,9 @@ export function valueSplit(holdings: HoldingWithPreviousClose[]): ValueSplit[] {
 // CurrencyFlag marks a currency's chip with its flag: India for INR, the
 // European Union for EUR. Drawn as SVG, since flag emoji render as plain
 // letters on Windows. Decorative: the code beside it already names it.
-export function CurrencyFlag({ currency }: { currency: 'INR' | 'EUR' }) {
+export type HeroCurrency = 'INR' | 'EUR'
+
+export function CurrencyFlag({ currency }: { currency: HeroCurrency }) {
   const box = { width: 18, height: 12, borderRadius: 2, verticalAlign: '-1px', boxShadow: '0 0 0 1px rgba(0,0,0,0.15)' }
   if (currency === 'INR') {
     return (
@@ -66,6 +69,25 @@ export function CurrencyFlag({ currency }: { currency: 'INR' | 'EUR' }) {
   )
 }
 
+export interface UnrealisedView {
+  currency: HeroCurrency
+  amount: number
+  pct: number | null
+}
+
+// unrealisedViews is the unrealised gain in each currency the summary
+// reports, in the order the chip cycles through them. INR is the base and
+// always present; USD joins here once the summary carries its totals.
+export function unrealisedViews(summary: Summary): UnrealisedView[] {
+  const view = (currency: HeroCurrency, amount: number, cost: number): UnrealisedView =>
+    ({ currency, amount, pct: cost > 0 ? (amount / cost) * 100 : null })
+  const views = [view('INR', summary.total_unrealized ?? 0, summary.total_cost ?? 0)]
+  if (summary.total_unrealized_eur !== undefined) {
+    views.push(view('EUR', summary.total_unrealized_eur, summary.total_cost_eur ?? 0))
+  }
+  return views
+}
+
 const signed = (amount: number, currency: string) => `${amount > 0 ? '+' : ''}${formatMoney(amount, currency)}`
 const signedPct = (pct: number) => `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`
 const tone = (amount: number) => (amount > 0 ? 'pos' : amount < 0 ? 'neg' : '')
@@ -76,6 +98,8 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
   holdings: HoldingWithPreviousClose[]
   dayChange: HeroDayChange
 }) {
+  // Which of unrealisedViews the Unrealised chip shows; each click moves on.
+  const [unrealisedIndex, setUnrealisedIndex] = useState(0)
   if (!summary) {
     if (!loading) return null
     return (
@@ -87,9 +111,9 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
     )
   }
 
-  const cost = summary.total_cost ?? 0
-  const unrealised = summary.total_unrealized ?? 0
-  const unrealisedPct = cost > 0 ? (unrealised / cost) * 100 : null
+  const views = unrealisedViews(summary)
+  const view = views[unrealisedIndex % views.length]
+  const nextView = views[(unrealisedIndex + 1) % views.length]
   const split = valueSplit(holdings)
   const chips = (['INR', 'EUR'] as const).filter(currency => dayChange[currency] !== undefined)
 
@@ -114,13 +138,22 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
             </div>
           )
         })}
-        <div className={`hero-chip ${tone(unrealised)}`}>
-          <span className="hero-chip-label">Unrealised</span>
-          <span className="hero-chip-value mono">
-            {signed(unrealised, 'INR')}
-            {unrealisedPct !== null && <small> {signedPct(unrealisedPct)}</small>}
+        {/* A click flips the chip to the next currency, round the cycle. */}
+        <button type="button" className={`hero-chip hero-chip-cycle ${tone(view.amount)}`}
+          aria-label={`Unrealised in ${view.currency}: ${signed(view.amount, view.currency)}. Show in ${nextView.currency}`}
+          title={`Show in ${nextView.currency}`}
+          onClick={() => setUnrealisedIndex(index => (index + 1) % views.length)}>
+          <span key={view.currency} className="hero-flip">
+            <span className="hero-chip-label">
+              Unrealised · {view.currency} <CurrencyFlag currency={view.currency} />
+              <span className="hero-cycle-hint" aria-hidden>⇄</span>
+            </span>
+            <span className="hero-chip-value mono">
+              {signed(view.amount, view.currency)}
+              {view.pct !== null && <small> {signedPct(view.pct)}</small>}
+            </span>
           </span>
-        </div>
+        </button>
       </div>
 
       {split.length > 1 && (

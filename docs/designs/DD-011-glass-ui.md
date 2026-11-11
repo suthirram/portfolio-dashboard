@@ -76,7 +76,9 @@ polite live region; toasts leave after 4.5 s. `notify()` replaces
 ## 6. Pages
 
 * **Dashboard**: `PortfolioHero` (glass only; each "Today" chip carries its
-  currency's flag, India or the EU, drawn as SVG) above the cards, reading the
+  currency's flag, India or the EU, drawn as SVG; the Unrealised chip is a
+  button that flips through `unrealisedViews` — INR → EUR → INR today, USD
+  joins the cycle once the summary reports it) above the cards, reading the
   same summary and per-currency `GroupDayChange` the cards use; a skeleton
   while the first summary loads; a page title; header copies marked
   `.shell-dup` (page links only outside act-as).

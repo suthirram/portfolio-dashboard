@@ -536,6 +536,31 @@
 :root[data-ui="v2"] .hero-chip.neg .hero-chip-value { color: var(--red); }
 :root[data-ui="v2"] .hero-chip-value { font-size: 17px; font-weight: 700; }
 :root[data-ui="v2"] .hero-chip-value small { font-size: 12px; font-weight: 600; opacity: 0.85; }
+
+/* The Unrealised chip is a button that flips to the next currency. */
+:root[data-ui="v2"] .hero-chip-cycle {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  perspective: 600px;
+  transition: transform var(--speed) var(--ease), border-color var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .hero-chip-cycle:hover { transform: translateY(-2px); border-color: var(--border-light); }
+:root[data-ui="v2"] .hero-flip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform-origin: center;
+  animation: glass-flip 0.42s var(--ease);
+}
+:root[data-ui="v2"] .hero-cycle-hint { margin-left: 6px; opacity: 0.5; font-size: 11px; }
+:root[data-ui="v2"] .hero-chip-cycle:hover .hero-cycle-hint { opacity: 0.9; }
+
+@keyframes glass-flip {
+  from { transform: rotateX(-90deg); opacity: 0; }
+  to { transform: rotateX(0deg); opacity: 1; }
+}
 :root[data-ui="v2"] .hero-split { grid-column: 1 / -1; }
 :root[data-ui="v2"] .hero-split-bar {
   display: flex;
@@ -666,6 +691,7 @@
   :root[data-ui="v2"] .shell-content > *,
   :root[data-ui="v2"] .modal-card,
   :root[data-ui="v2"] .palette,
+  :root[data-ui="v2"] .hero-flip,
   :root[data-ui="v2"] .toast { animation: none; }
   :root[data-ui="v2"] .card:hover,
   :root[data-ui="v2"] .btn:hover { transform: none; }

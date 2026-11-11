@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { PortfolioHero, valueSplit } from './PortfolioHero'
+import userEvent from '@testing-library/user-event'
+import { PortfolioHero, unrealisedViews, valueSplit } from './PortfolioHero'
 import type { HoldingWithPreviousClose } from '../features/holdings/dashboardPriceMovement'
 
 const held = (currency: string, currentValue: number) =>
@@ -25,7 +26,7 @@ describe('PortfolioHero', () => {
     expect(screen.getByText('₹1,20,000.00')).toBeInTheDocument()
     expect(screen.getByText('Today · INR').parentElement).toHaveTextContent('+₹1,500.00 +1.50%')
     expect(screen.getByText('Today · EUR').parentElement).toHaveTextContent('—')
-    expect(screen.getByText('Unrealised').parentElement).toHaveTextContent('+₹20,000.00 +20.00%')
+    expect(screen.getByRole('button', { name: /^Unrealised in INR/ })).toHaveTextContent('+₹20,000.00 +20.00%')
     expect(screen.getByRole('img', { name: 'INR 75%, EUR 25%' })).toBeInTheDocument()
   })
 
@@ -34,7 +35,32 @@ describe('PortfolioHero', () => {
       dayChange={{ INR: { gain: 1, previousValue: 100, pct: 1 }, EUR: { gain: 1, previousValue: 100, pct: 1 } }} />)
     expect(screen.getByText('Today · INR').querySelector('[data-flag="IN"]')).not.toBeNull()
     expect(screen.getByText('Today · EUR').querySelector('[data-flag="EU"]')).not.toBeNull()
-    expect(screen.getByText('Unrealised').querySelector('.currency-flag')).toBeNull()
+  })
+
+  it('cycles the unrealised chip INR → EUR → INR on click, with each currency’s own figures', async () => {
+    const both = { ...summary, total_cost_eur: 1100, total_unrealized_eur: 220 }
+    render(<PortfolioHero summary={both} loading={false} holdings={[held('INR', 90000)]} dayChange={{}} />)
+    const chip = () => screen.getByRole('button', { name: /^Unrealised in / })
+    expect(chip()).toHaveAccessibleName('Unrealised in INR: +₹20,000.00. Show in EUR')
+    expect(chip().querySelector('[data-flag="IN"]')).not.toBeNull()
+
+    await userEvent.click(chip())
+    expect(chip()).toHaveTextContent('Unrealised · EUR')
+    expect(chip()).toHaveTextContent('+€220.00 +20.00%')
+    expect(chip().querySelector('[data-flag="EU"]')).not.toBeNull()
+
+    await userEvent.click(chip())
+    expect(chip()).toHaveTextContent('+₹20,000.00 +20.00%')
+  })
+})
+
+describe('unrealisedViews', () => {
+  it('lists INR first, then each other currency the summary reports', () => {
+    expect(unrealisedViews({ total_unrealized: 50, total_cost: 200, total_unrealized_eur: -5, total_cost_eur: 0 })).toEqual([
+      { currency: 'INR', amount: 50, pct: 25 },
+      { currency: 'EUR', amount: -5, pct: null },
+    ])
+    expect(unrealisedViews({ total_unrealized: 50, total_cost: 200 }).map(view => view.currency)).toEqual(['INR'])
   })
 
   it('leaves out a currency that is not held', () => {
