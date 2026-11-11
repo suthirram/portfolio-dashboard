@@ -20,6 +20,7 @@ const baseUser = (over: Partial<User> = {}): User => ({
   gold_enabled: false,
   premium: false,
   delta_from_history: false,
+  ui_revamp: false,
   ...(over as object),
 })
 

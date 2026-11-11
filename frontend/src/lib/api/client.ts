@@ -201,6 +201,8 @@ export const api = {
   adminSetUserPremium:  (id: string, body: PremiumToggleRequest) => request<void>('PUT', `/admin/users/${id}/premium`, body),
   adminSetUserDeltaFromHistory: (id: string, body: UserFlagToggleRequest) =>
     request<void>('PUT', `/admin/users/${id}/delta-from-history`, body),
+  adminSetUserUiRevamp: (id: string, body: UserFlagToggleRequest) =>
+    request<void>('PUT', `/admin/users/${id}/ui-revamp`, body),
   adminUpdateBranding:  (body: BrandingUpdateRequest) => request<BrandingSettings>('PUT', '/admin/branding', body),
 
   listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),
