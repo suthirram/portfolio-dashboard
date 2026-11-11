@@ -92,14 +92,14 @@ func TestBuildStockXirr_HeldPosition(t *testing.T) {
 	if holding.UndatedOpening {
 		t.Error("undated_opening = true for a dated opening")
 	}
-	if holding.Since == nil || !holding.Since.Time.Equal(calendarDay(2025, 1, 1)) {
+	if holding.Since == nil || !holding.Since.Equal(calendarDay(2025, 1, 1)) {
 		t.Errorf("since = %v, want 2025-01-01", holding.Since)
 	}
 	if len(view.Currencies) != 1 || view.Currencies[0].Currency != "INR" {
 		t.Fatalf("currencies = %+v, want one INR bucket", view.Currencies)
 	}
 	assertRate(t, "INR", view.Currencies[0].Xirr, 0.10)
-	if !view.AsOf.Time.Equal(calendarDay(2026, 1, 1)) {
+	if !view.AsOf.Equal(calendarDay(2026, 1, 1)) {
 		t.Errorf("as_of = %s, want 2026-01-01", view.AsOf)
 	}
 }
