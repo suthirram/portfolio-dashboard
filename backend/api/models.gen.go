@@ -273,6 +273,24 @@ func (e InvestmentDeltaColumnColumn) Valid() bool {
 	}
 }
 
+// Defines values for StockXirrCurrencyCurrency.
+const (
+	StockXirrCurrencyCurrencyEUR StockXirrCurrencyCurrency = "EUR"
+	StockXirrCurrencyCurrencyINR StockXirrCurrencyCurrency = "INR"
+)
+
+// Valid indicates whether the value is a known member of the StockXirrCurrencyCurrency enum.
+func (e StockXirrCurrencyCurrency) Valid() bool {
+	switch e {
+	case StockXirrCurrencyCurrencyEUR:
+		return true
+	case StockXirrCurrencyCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TradeImportRowExchange.
 const (
 	TradeImportRowExchangeBSE TradeImportRowExchange = "BSE"
@@ -431,16 +449,16 @@ func (e UserRole) Valid() bool {
 
 // Defines values for DividendCurrency.
 const (
-	DividendCurrencyEUR DividendCurrency = "EUR"
-	DividendCurrencyINR DividendCurrency = "INR"
+	EUR DividendCurrency = "EUR"
+	INR DividendCurrency = "INR"
 )
 
 // Valid indicates whether the value is a known member of the DividendCurrency enum.
 func (e DividendCurrency) Valid() bool {
 	switch e {
-	case DividendCurrencyEUR:
+	case EUR:
 		return true
-	case DividendCurrencyINR:
+	case INR:
 		return true
 	default:
 		return false
@@ -1178,6 +1196,45 @@ type SignupRequest struct {
 
 	// Username Allowed characters: A–Z a–z 0–9 _ -
 	Username string `json:"username"`
+}
+
+// StockXirrCurrency XIRR of every stock flow in one currency (PRD-012).
+type StockXirrCurrency struct {
+	Currency StockXirrCurrencyCurrency `json:"currency"`
+
+	// Since Date of the earliest flow; a rate over less than a year swings widely
+	Since *openapi_types.Date `json:"since,omitempty"`
+
+	// UndatedOpenings Opening balances with no user-set date; their flow falls on the ledger's ordering date
+	UndatedOpenings int `json:"undated_openings"`
+
+	// Xirr Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+	Xirr *float64 `json:"xirr"`
+}
+
+// StockXirrCurrencyCurrency defines model for StockXirrCurrency.Currency.
+type StockXirrCurrencyCurrency string
+
+// StockXirrHolding XIRR of one holding's flows (PRD-012).
+type StockXirrHolding struct {
+	HoldingId string `json:"holding_id"`
+
+	// Since Date of the holding's earliest flow
+	Since *openapi_types.Date `json:"since,omitempty"`
+
+	// UndatedOpening The holding's opening balance has no user-set date
+	UndatedOpening bool `json:"undated_opening"`
+
+	// Xirr Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+	Xirr *float64 `json:"xirr"`
+}
+
+// StockXirrView defines model for StockXirrView.
+type StockXirrView struct {
+	// AsOf IST day the terminal market value is taken on
+	AsOf       openapi_types.Date  `json:"as_of"`
+	Currencies []StockXirrCurrency `json:"currencies"`
+	Holdings   []StockXirrHolding  `json:"holdings"`
 }
 
 // Summary defines model for Summary.

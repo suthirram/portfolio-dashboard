@@ -378,6 +378,52 @@ components:
           nullable: true
           description: Annualized rate as a fraction (0.12 = 12%); null when non-convergent
 
+    StockXirrCurrency:
+      type: object
+      description: XIRR of every stock flow in one currency (PRD-012).
+      required: [currency, xirr, undated_openings]
+      properties:
+        currency: { type: string, enum: [INR, EUR] }
+        xirr:
+          type: number
+          format: double
+          nullable: true
+          description: Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+        since:
+          type: string
+          format: date
+          nullable: true
+          description: Date of the earliest flow; a rate over less than a year swings widely
+        undated_openings:
+          type: integer
+          description: Opening balances with no user-set date; their flow falls on the ledger's ordering date
+    StockXirrHolding:
+      type: object
+      description: XIRR of one holding's flows (PRD-012).
+      required: [holding_id, xirr, undated_opening]
+      properties:
+        holding_id: { type: string }
+        xirr:
+          type: number
+          format: double
+          nullable: true
+          description: Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+        since:
+          type: string
+          format: date
+          nullable: true
+          description: Date of the holding's earliest flow
+        undated_opening:
+          type: boolean
+          description: The holding's opening balance has no user-set date
+    StockXirrView:
+      type: object
+      required: [as_of, currencies, holdings]
+      properties:
+        as_of: { type: string, format: date, description: IST day the terminal market value is taken on }
+        currencies: { type: array, items: { $ref: "#/components/schemas/StockXirrCurrency" } }
+        holdings: { type: array, items: { $ref: "#/components/schemas/StockXirrHolding" } }
+
     GoldHistoryOverlay:
       type: object
       description: |
