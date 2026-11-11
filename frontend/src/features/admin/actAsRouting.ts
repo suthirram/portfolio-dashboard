@@ -32,6 +32,12 @@ export function summaryPath(userId?: string): string {
   return id ? `/admin/users/${id}/summary` : '/summary'
 }
 
+/** Stock XIRR per currency and holding (PD-055); read-only in act-as. */
+export function xirrPath(userId?: string): string {
+  const id = actingAs(userId)
+  return id ? `/admin/users/${id}/xirr` : '/xirr'
+}
+
 /** Portfolio-wide ledger listing (PD-047); read-only in act-as. */
 export function transactionsPath(userId?: string): string {
   const id = actingAs(userId)

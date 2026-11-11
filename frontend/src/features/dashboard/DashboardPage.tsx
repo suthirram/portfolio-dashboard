@@ -56,6 +56,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     holdings,
     enriched,
     summary,
+    xirr,
     loadingHoldings,
     loadingPrices,
     lastRefresh,
@@ -336,6 +337,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             // Transaction endpoints target the caller's own portfolio (no
             // admin act-as variant yet), so hide the ledger in act-as mode.
             onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
+            xirr={xirr}
           />
         )}
         {tab === 'charts' && <Charts holdings={enriched} />}

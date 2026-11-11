@@ -10,6 +10,8 @@ import {
   type HoldingWithPreviousClose,
 } from './dashboardPriceMovement'
 import { currencySymbol } from '../../lib/currency'
+import { formatRate, rateTone } from '../../lib/rate'
+import { xirrNote, type XirrIndex } from './stockXirr'
 
 const INR = (amount?: number | null) => {
   if (amount === undefined || amount === null || isNaN(amount)) return '—'
@@ -79,9 +81,21 @@ interface HoldingsTableProps {
   view?: HoldingView
   /** Currency the TOTAL row is formatted in; rows format per-holding. */
   nativeCurrency?: 'INR' | 'EUR'
+  /** Stock XIRR (PD-055); null while loading or when /xirr failed. */
+  xirr?: XirrIndex | null
 }
 
-export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onTransactions, view: viewProp, nativeCurrency }: HoldingsTableProps) {
+// XirrCell shows a rate with an asterisk when it carries a caveat, the
+// caveat itself on hover.
+function XirrCell({ rate, note, className }: { rate: number | null | undefined; note: string; className?: string }) {
+  return (
+    <TD className={`mono ${rateTone(rate)}${className ? ` ${className}` : ''}`}>
+      <span title={note || undefined}>{formatRate(rate)}{note && rate != null ? '*' : ''}</span>
+    </TD>
+  )
+}
+
+export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onTransactions, view: viewProp, nativeCurrency, xirr }: HoldingsTableProps) {
   const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
   const [sortDir, setSortDir] = useState(1)
   const [confirm, setConfirm] = useState<string | null>(null)
@@ -138,6 +152,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
   // has no previous close.
   const totalDayGain = computeGroupDayGain(sorted)
   const TOTAL_MONEY = nativeCurrency === 'EUR' ? EUR : INR
+  const currencyXirr = xirr?.byCurrency[nativeCurrency ?? 'INR']
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
 
@@ -190,6 +205,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH>Unrealised Gain</TH>
             <TH className="col-hide-sm">Realised Gain</TH>
             <TH className="col-hide-sm">Dividends</TH>
+            <TH>XIRR</TH>
             <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
           </tr>
         </thead>
@@ -197,7 +213,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
         <tbody>
           {sorted.length === 0 && !loading && (
             <tr>
-              <td colSpan={10} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
+              <td colSpan={12} style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
                 {counts.all === 0
                   ? 'No holdings yet. Click "Add Holding" to get started.'
                   : view === 'nil'
@@ -219,6 +235,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             const unrealCls = !hasPrice ? '' : unrealized > 0 ? 'pos' : unrealized < 0 ? 'neg' : 'neutral'
             const realCls = realized > 0 ? 'pos' : realized < 0 ? 'neg' : 'neutral'
             const MONEY = holding.currency === 'EUR' ? EUR : INR
+            const holdingXirr = holding.id ? xirr?.byHolding[holding.id] : undefined
 
             return (
               <tr key={holding.id} style={{ background: 'var(--bg-card)' }}
@@ -301,6 +318,10 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                   {(holding.total_dividends ?? 0) > 0 ? MONEY(holding.total_dividends) : '—'}
                 </TD>
 
+                {/* XIRR — money-weighted annual return from the ledger (PD-055) */}
+                <XirrCell rate={holdingXirr?.xirr}
+                  note={holdingXirr && xirr ? xirrNote(holdingXirr.since, xirr.asOf, holdingXirr.undated_opening) : ''} />
+
                 {/* Actions */}
                 <TD style={{ textAlign: 'center' }}>
                   {holding.id && confirm === holding.id ? (
@@ -352,6 +373,8 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
               <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.unreal)}</TD>
               <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.real)}</TD>
               <TD className={`mono col-hide-sm ${totals.dividends > 0 ? 'pos' : 'neutral'}`}>{TOTAL_MONEY(totals.dividends)}</TD>
+              <XirrCell rate={currencyXirr?.xirr}
+                note={currencyXirr && xirr ? xirrNote(currencyXirr.since, xirr.asOf, currencyXirr.undated_openings > 0) : ''} />
               <td style={{ borderBottom: '1px solid var(--border)' }} />
             </tr>
           </tfoot>

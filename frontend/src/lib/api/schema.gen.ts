@@ -104,6 +104,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/xirr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** XIRR of the stock ledger, per currency and per holding */
+        get: operations["getStockXirr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/holdings/{id}/transactions": {
         parameters: {
             query?: never;
@@ -1124,6 +1141,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/xirr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A user's stock XIRR, per currency and per holding (act-as) */
+        get: operations["adminGetUserStockXirr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/transactions": {
         parameters: {
             query?: never;
@@ -1461,6 +1495,48 @@ export interface components {
             change_pct?: number | null;
             /** @description Per-currency change vs previous close, in native amounts (no FX conversion), so currency moves don't muddy the price move. */
             per_currency?: components["schemas"]["CurrencyChange"][];
+        };
+        /** @description XIRR of every stock flow in one currency (PRD-012). */
+        StockXirrCurrency: {
+            /** @enum {string} */
+            currency: "INR" | "EUR";
+            /**
+             * Format: double
+             * @description Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+             */
+            xirr: number | null;
+            /**
+             * Format: date
+             * @description Date of the earliest flow; a rate over less than a year swings widely
+             */
+            since?: string | null;
+            /** @description Opening balances with no user-set date; their flow falls on the ledger's ordering date */
+            undated_openings: number;
+        };
+        /** @description XIRR of one holding's flows (PRD-012). */
+        StockXirrHolding: {
+            holding_id: string;
+            /**
+             * Format: double
+             * @description Annualized rate as a fraction (0.12 = 12%); null when no rate exists
+             */
+            xirr: number | null;
+            /**
+             * Format: date
+             * @description Date of the holding's earliest flow
+             */
+            since?: string | null;
+            /** @description The holding's opening balance has no user-set date */
+            undated_opening: boolean;
+        };
+        StockXirrView: {
+            /**
+             * Format: date
+             * @description IST day the terminal market value is taken on
+             */
+            as_of: string;
+            currencies: components["schemas"]["StockXirrCurrency"][];
+            holdings: components["schemas"]["StockXirrHolding"][];
         };
         Transaction: {
             /** @description MongoDB ObjectID */
@@ -2451,6 +2527,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Summary"];
+                };
+            };
+        };
+    };
+    getStockXirr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annualized money-weighted returns (PRD-012) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockXirrView"];
                 };
             };
         };
@@ -4122,6 +4218,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Summary"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    adminGetUserStockXirr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annualized money-weighted returns (PRD-012) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StockXirrView"];
                 };
             };
             404: components["responses"]["NotFound"];

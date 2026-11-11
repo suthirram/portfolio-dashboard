@@ -5,6 +5,7 @@ import {
   attachPreviousClosePrices,
   type HoldingWithPreviousClose,
 } from './dashboardPriceMovement'
+import { indexXirr, type XirrIndex } from './stockXirr'
 
 // When userId is set, the hook targets the admin act-as endpoints
 // (/api/admin/users/:id/...) instead of the caller's own portfolio.
@@ -12,6 +13,7 @@ export function useHoldings(userId?: string) {
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [enriched, setEnriched] = useState<HoldingWithPreviousClose[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [xirr, setXirr] = useState<XirrIndex | null>(null)
   const [loadingHoldings, setLoadingHoldings] = useState(false)
   const [loadingPrices, setLoadingPrices] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
@@ -35,16 +37,22 @@ export function useHoldings(userId?: string) {
       // the authoritative totals + daily-change vs previous close. The
       // summary is fetched here (not synthesised from the rows) so the
       // change_value / per_currency fields the backend computes survive.
-      const [prices, summary] = await Promise.all([
+      // /xirr rides along but is optional: its failure only hides the rates.
+      const xirrRequest = api.getStockXirr(userId).catch(e => {
+        console.error('getStockXirr:', e)
+        return null
+      })
+      const [prices, summary, xirrView] = await Promise.all([
         api.getPrices(userId),
         api.getSummary(userId),
+        xirrRequest,
       ])
       let enrichedHoldings: HoldingWithPreviousClose[] = prices.holdings || []
 
       if (!userId && summary.previous_close_date) {
         try {
           const history = await api.listHistory(summary.previous_close_date, summary.previous_close_date)
-          const previousRow = history.rows.find(r => r.date === summary.previous_close_date) ?? history.rows[0]
+          const previousRow = history.rows.find(row => row.date === summary.previous_close_date) ?? history.rows[0]
           enrichedHoldings = attachPreviousClosePrices(enrichedHoldings, previousRow?.holdings)
         } catch (e) {
           console.error('previousCloseHistory:', e)
@@ -53,6 +61,7 @@ export function useHoldings(userId?: string) {
 
       setEnriched(enrichedHoldings)
       setSummary(summary)
+      setXirr(indexXirr(xirrView))
       setLastRefresh(new Date())
     } catch (e) {
       console.error('fetchPrices:', e)
@@ -81,6 +90,7 @@ export function useHoldings(userId?: string) {
     holdings,
     enriched,
     summary,
+    xirr,
     loadingHoldings,
     loadingPrices,
     lastRefresh,

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import HoldingsByCurrency from './HoldingsByCurrency'
 import type { HoldingWithPrice } from '../../types'
+import { indexXirr } from './stockXirr'
 
 const noop = () => {}
 type TestHolding = HoldingWithPrice & { previous_close_price?: number }
@@ -370,5 +371,54 @@ describe('HoldingsByCurrency', () => {
     />)
     expect(screen.queryByText('ACTIVE.NS')).toBeNull()
     expect(screen.getByText('EXITED.NS')).toBeInTheDocument()
+  })
+
+  it('shows each currency XIRR in its card and TOTAL row, and each holding XIRR in its row', () => {
+    const xirr = indexXirr({
+      as_of: '2026-11-11',
+      currencies: [
+        { currency: 'INR', xirr: 0.1234, since: '2023-04-01', undated_openings: 0 },
+        { currency: 'EUR', xirr: -0.0432, since: '2026-10-01', undated_openings: 0 },
+      ],
+      holdings: [
+        { holding_id: '1', xirr: 0.2, since: '2023-04-01', undated_opening: false },
+        { holding_id: '2', xirr: -0.0432, since: '2026-10-01', undated_opening: false },
+      ],
+    })
+    render(<HoldingsByCurrency
+      holdings={[
+        testHolding({ id: '1', script: 'TCS', currency: 'INR' }),
+        testHolding({ id: '2', script: 'SAP', currency: 'EUR' }),
+      ]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      xirr={xirr}
+    />)
+
+    const [inr, eur] = Array.from(document.querySelectorAll('section')) as HTMLElement[]
+    expect(within(inr).getByText('XIRR', { selector: 'div' })).toBeInTheDocument()
+    expect(within(inr).getByText('(since 01-04-2023)')).toBeInTheDocument()
+    // The card and the TOTAL row both carry the INR bucket's rate.
+    expect(within(inr).getAllByText('12.34%')).toHaveLength(2)
+    const inrRow = within(inr).getByText('TCS').closest('tr') as HTMLElement
+    expect(within(inrRow).getByText('20%').closest('td')).toHaveClass('pos')
+    // Under a year: starred, with the caveat on hover.
+    const eurRow = within(eur).getByText('SAP').closest('tr') as HTMLElement
+    expect(within(eurRow).getByText('-4.32%*')).toHaveAttribute('title', expect.stringMatching(/less than a year/))
+  })
+
+  it('renders dashes for XIRR while the rates are unavailable', () => {
+    render(<HoldingsByCurrency
+      holdings={[testHolding({ id: '1', script: 'TCS', currency: 'INR' })]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+      xirr={null}
+    />)
+    const section = document.querySelector('section') as HTMLElement
+    expect(within(section).queryByText('XIRR', { selector: 'div' })).not.toBeInTheDocument()
+    const row = within(section).getByText('TCS').closest('tr') as HTMLElement
+    expect(within(row).getAllByText('—').length).toBeGreaterThan(0)
   })
 })

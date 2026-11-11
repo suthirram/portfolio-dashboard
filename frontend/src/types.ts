@@ -26,6 +26,9 @@ export type TradeImportRow = Schemas['TradeImportRow']
 export type TradeImportInput = Schemas['TradeImportInput']
 export type TradeImportPreview = Schemas['TradeImportPreview']
 export type TradeImportResult = Schemas['TradeImportResult']
+export type StockXirrView = Schemas['StockXirrView']
+export type StockXirrHolding = Schemas['StockXirrHolding']
+export type StockXirrCurrency = Schemas['StockXirrCurrency']
 
 export type Exchange = NonNullable<Holding['exchange']>
 export type HoldingType = NonNullable<Holding['type']>

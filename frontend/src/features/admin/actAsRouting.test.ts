@@ -9,6 +9,7 @@ import {
   summaryPath,
   transactionPath,
   transactionsPath,
+  xirrPath,
 } from './actAsRouting'
 
 describe('act-as path helpers', () => {
@@ -18,6 +19,7 @@ describe('act-as path helpers', () => {
     expect(pricesPath()).toBe('/prices')
     expect(summaryPath()).toBe('/summary')
     expect(transactionsPath()).toBe('/transactions')
+    expect(xirrPath()).toBe('/xirr')
   })
 
   it('rewrite to /admin/users/:id/... when acting as another user', () => {
@@ -26,6 +28,7 @@ describe('act-as path helpers', () => {
     expect(pricesPath('u9')).toBe('/admin/users/u9/prices')
     expect(summaryPath('u9')).toBe('/admin/users/u9/summary')
     expect(transactionsPath('u9')).toBe('/admin/users/u9/transactions')
+    expect(xirrPath('u9')).toBe('/admin/users/u9/xirr')
   })
 
   it('treats empty / whitespace-only userId as no act-as', () => {
