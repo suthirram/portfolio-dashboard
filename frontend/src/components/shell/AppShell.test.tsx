@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { navItems, ShellLayout } from './AppShell'
 
 const session = vi.hoisted(() => ({
@@ -75,5 +75,51 @@ describe('ShellLayout', () => {
     renderShell()
     await userEvent.click(screen.getByRole('button', { name: 'Log out' }))
     expect(session.logout).toHaveBeenCalled()
+  })
+})
+
+describe('collapsible sidebar', () => {
+  // jsdom here runs without a storage file, so window.localStorage is absent.
+  beforeEach(() => {
+    const values = new Map<string, string>()
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => { values.set(key, value) },
+        removeItem: (key: string) => { values.delete(key) },
+      },
+    })
+  })
+  const shell = (container: HTMLElement) => container.querySelector('.shell')!
+
+  it('folds into an icon rail with the hamburger and back', async () => {
+    const { container } = renderShell()
+    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(toggle)
+    expect(shell(container)).toHaveClass('shell-collapsed')
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-expanded', 'false')
+    // Labels are hidden in the rail; the controls keep their names.
+    const sidebar = screen.getByRole('complementary', { name: 'Main navigation' })
+    expect(within(sidebar).getByRole('link', { name: 'History' })).toHaveAttribute('title', 'History')
+    expect(within(sidebar).getByRole('button', { name: 'Add holding' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(shell(container)).not.toHaveClass('shell-collapsed')
+  })
+
+  it('remembers the choice in this browser', async () => {
+    const first = renderShell()
+    await userEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    first.unmount()
+    const { container } = renderShell()
+    expect(shell(container)).toHaveClass('shell-collapsed')
+  })
+
+  it('collapses from the command palette too', async () => {
+    const { container } = renderShell()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    await userEvent.type(screen.getByRole('combobox', { name: 'Search commands' }), 'collapse{Enter}')
+    expect(shell(container)).toHaveClass('shell-collapsed')
   })
 })

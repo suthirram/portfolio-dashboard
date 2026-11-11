@@ -172,7 +172,15 @@ export const ArrowLeftIcon = (props: IconProps) => (
   </Svg>
 )
 
-// PD-054 glass shell: command palette search, sidebar home, glass switch.
+// PD-054 glass shell: sidebar toggle, command palette search, sidebar home, glass switch.
+export const MenuIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path className="icon-muted" d="M4 6h16" />
+    <path className="icon-accent icon-motion" d="M4 12h16" />
+    <path className="icon-muted" d="M4 18h16" />
+  </Svg>
+)
+
 export const SearchIcon = (props: IconProps) => (
   <Svg {...props}>
     <circle className="icon-accent" cx="11" cy="11" r="7" />
