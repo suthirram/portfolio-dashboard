@@ -746,6 +746,47 @@
 }
 :root[data-ui="v2"] .admin-switch[aria-checked="true"] .admin-switch-knob { transform: translateX(18px); }
 
+/* Branding: each font as a preview tile, the chosen one ringed and ticked. */
+:root[data-ui="v2"] .font-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding-bottom: 16px; }
+:root[data-ui="v2"] .font-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--speed) var(--ease), border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
+}
+:root[data-ui="v2"] .font-tile:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--border-light); }
+:root[data-ui="v2"] .font-tile[aria-checked="true"] {
+  border-color: var(--blue);
+  background: linear-gradient(135deg, rgba(91, 147, 255, 0.18), rgba(139, 92, 246, 0.08)), var(--bg-input);
+  box-shadow: 0 0 0 1px var(--blue), 0 10px 30px -12px rgba(91, 147, 255, 0.7);
+}
+:root[data-ui="v2"] .font-tile-sample { font-size: 34px; font-weight: 700; line-height: 1.1; }
+:root[data-ui="v2"] .font-tile-name { font-size: 14px; font-weight: 600; }
+:root[data-ui="v2"] .font-tile-text { font-size: 12px; color: var(--text-muted); }
+:root[data-ui="v2"] .font-tile-mark {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 @media (max-width: 860px) {
   :root[data-ui="v2"] .admin-md { grid-template-columns: 1fr; }
   :root[data-ui="v2"] .admin-md-list { position: static; max-height: 320px; }

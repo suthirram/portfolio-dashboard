@@ -1,25 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
-import { useAuth } from '../auth/AuthContext'
-import { notify, toast } from '../../lib/toast'
 import { useUiRevamp } from '../../lib/uiMode'
 import { AdminShell } from './AdminShell'
 import { AdminUserSettings, FEATURE_SWITCHES, type FeatureSwitch } from './AdminUserSettings'
+import { useAdminActions } from './useAdminActions'
 
 type StatusFilter = 'active' | 'all'
 
 export default function AdminUserList() {
-  const { user: caller, refresh: refreshCaller } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [regions, setRegions] = useState<Region[]>([])
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState<StatusFilter>('active')
   const [filter, setFilter] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
 
-  const isSuper = caller?.role === 'superadmin'
   const revamp = useUiRevamp()
 
   const load = useCallback(async () => {
@@ -49,38 +45,8 @@ export default function AdminUserList() {
     })
   }, [users, filter])
 
-  const runAction = async (id: string, fn: () => Promise<unknown>, confirmMsg?: string) => {
-    if (confirmMsg && !confirm(confirmMsg)) return
-    setBusy(id)
-    try {
-      await fn()
-      await load()
-    } catch (e) {
-      notify(e instanceof ApiError ? e.message : 'Action failed')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  // One path for the four per-account switches, shared by the table's
-  // buttons and the glass settings' switches. On the caller's own account
-  // the session user is refreshed, so the delta panel and the look follow
-  // without a page reload.
-  const toggleFeature = (listedUser: User, feature: FeatureSwitch) => {
-    const enabled = !listedUser[feature.key]
-    const body = { enabled }
-    const calls: Record<FeatureSwitch['key'], () => Promise<unknown>> = {
-      gold_enabled: () => api.adminSetUserGold(listedUser.id, body),
-      premium: () => api.adminSetUserPremium(listedUser.id, body),
-      delta_from_history: () => api.adminSetUserDeltaFromHistory(listedUser.id, body),
-      ui_revamp: () => api.adminSetUserUiRevamp(listedUser.id, body),
-    }
-    return runAction(listedUser.id, async () => {
-      await calls[feature.key]()
-      if (listedUser.id === caller?.id && (feature.key === 'delta_from_history' || feature.key === 'ui_revamp')) await refreshCaller()
-      if (feature.key === 'ui_revamp') toast(`${enabled ? 'Glass UI' : 'Current UI'} on for ${listedUser.username}`, 'success')
-    }, !enabled && feature.offConfirm ? feature.offConfirm(listedUser.username) : undefined)
-  }
+  const { caller, busy, runAction, toggleFeature } = useAdminActions(load)
+  const isSuper = caller?.role === 'superadmin'
   const featureNamed = (key: FeatureSwitch['key']) => FEATURE_SWITCHES.find(feature => feature.key === key)!
 
   const setRegionFor = async (listedUser: User) => {

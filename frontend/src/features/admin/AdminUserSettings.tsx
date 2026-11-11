@@ -42,16 +42,18 @@ function statusOf(listedUser: User): { label: string; tone: 'ok' | 'warn' | 'off
 }
 
 export function AdminUserSettings({
-  users, regions, caller, busy, includeHidden, onIncludeHidden, runAction, onFeature,
+  users, regions, caller, busy, includeHidden = false, onIncludeHidden, runAction, onFeature, listLabel = 'Users',
 }: {
   users: User[]
   regions: Region[]
   caller: User | null
   busy: string | null
-  includeHidden: boolean
-  onIncludeHidden: (includeHidden: boolean) => void
+  // The Active / All toggle; left out where nobody is hidden (Admins).
+  includeHidden?: boolean
+  onIncludeHidden?: (includeHidden: boolean) => void
   runAction: RunAction
   onFeature: (listedUser: User, feature: FeatureSwitch) => Promise<void>
+  listLabel?: string
 }) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -68,13 +70,15 @@ export function AdminUserSettings({
 
   return (
     <div className="admin-md">
-      <aside className="admin-md-list glass-panel" aria-label="Users">
-        <input className="admin-md-search" value={query} placeholder="Search users…" aria-label="Search users"
+      <aside className="admin-md-list glass-panel" aria-label={listLabel}>
+        <input className="admin-md-search" value={query} placeholder={`Search ${listLabel.toLowerCase()}…`} aria-label={`Search ${listLabel.toLowerCase()}`}
           onChange={e => setQuery(e.target.value)} />
-        <div className="seg-group" role="group" aria-label="Which users">
-          <button type="button" className="seg-btn" aria-pressed={!includeHidden} onClick={() => onIncludeHidden(false)}>Active</button>
-          <button type="button" className="seg-btn" aria-pressed={includeHidden} onClick={() => onIncludeHidden(true)}>All</button>
-        </div>
+        {onIncludeHidden && (
+          <div className="seg-group" role="group" aria-label="Which users">
+            <button type="button" className="seg-btn" aria-pressed={!includeHidden} onClick={() => onIncludeHidden(false)}>Active</button>
+            <button type="button" className="seg-btn" aria-pressed={includeHidden} onClick={() => onIncludeHidden(true)}>All</button>
+          </div>
+        )}
         <ul className="admin-md-items">
           {listed.length === 0 && <li className="admin-md-empty">No users found.</li>}
           {listed.map(listedUser => {

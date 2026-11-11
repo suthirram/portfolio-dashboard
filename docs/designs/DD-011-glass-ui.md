@@ -93,6 +93,11 @@ polite live region; toasts leave after 4.5 s. `notify()` replaces
   hide / reactivate), Danger zone (delete). It reuses the table's
   `runAction` and one shared `toggleFeature`, so the permission rules and
   confirm messages are identical; the current UI keeps the table.
+  Admin → Admins uses the same layout over the administrators (no Active /
+  All toggle), and both pages share `useAdminActions` (runAction +
+  toggleFeature). Admin → Branding lists its setting groups (Font today) in
+  the side pane and shows the fonts as preview tiles (sample, name, a money
+  figure in that font, a tick on the chosen one), on the same save path.
 * **History, Transactions**: the filter bars become glass toolbars
   (`.page-toolbar`).
 * **Every other page**: tokens and surface rules.
