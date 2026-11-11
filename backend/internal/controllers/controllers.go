@@ -26,6 +26,7 @@ type Controller struct {
 	holdings     *services.HoldingsService
 	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
+	stockXirr    *services.StockXirrService
 	history      *services.HistoryService
 	dividends    *services.DividendsService
 	tradeImport  *services.TradeImportService
@@ -64,6 +65,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, l
 		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, logger),
 		transactions: services.NewTransactionsService(store.Transactions, store.Holdings, recomputer, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
+		stockXirr:    services.NewStockXirrService(store.Holdings, store.Transactions, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
 		dividends:    services.NewDividendsService(store.Transactions, store.Holdings, store, logger),
 		tradeImport:  services.NewTradeImportService(store.Transactions, store.Holdings, store, recomputer, logger),

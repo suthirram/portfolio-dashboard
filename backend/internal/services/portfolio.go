@@ -55,7 +55,13 @@ func (s *PortfolioService) log(ctx context.Context) *zap.Logger {
 // instead of paying one Yahoo round-trip per symbol. Errors are ignored
 // here — the enrichment loops re-fetch and surface them per holding.
 func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain.Holding) {
-	ctx, span := tracer.Start(ctx, "PortfolioService.prefetchPrices")
+	prefetchPrices(ctx, s.priceService, holdings)
+}
+
+// prefetchPrices is the shared cache warm-up behind PortfolioService and
+// StockXirrService: up to 8 concurrent fetches, one per unique symbol.
+func prefetchPrices(ctx context.Context, fetcher PriceFetcher, holdings []domain.Holding) {
+	ctx, span := tracer.Start(ctx, "prefetchPrices")
 	defer span.End()
 	seen := make(map[string]struct{}, len(holdings))
 	g, gctx := errgroup.WithContext(ctx)
@@ -70,7 +76,7 @@ func (s *PortfolioService) prefetchPrices(ctx context.Context, holdings []domain
 		}
 		seen[symbol] = struct{}{}
 		g.Go(func() error {
-			_, _, _ = s.priceService.GetPrice(gctx, symbol)
+			_, _, _ = fetcher.GetPrice(gctx, symbol)
 			return nil
 		})
 	}

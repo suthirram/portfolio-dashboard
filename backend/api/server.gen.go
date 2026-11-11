@@ -381,6 +381,9 @@ type ServerInterface interface {
 	// Switch an account to the glass UI (super admin only)
 	// (PUT /admin/users/{id}/ui-revamp)
 	AdminSetUserUiRevamp(ctx echo.Context, id UserID) error
+	// A user's stock XIRR, per currency and per holding (act-as)
+	// (GET /admin/users/{id}/xirr)
+	AdminGetUserStockXirr(ctx echo.Context, id UserID) error
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx echo.Context) error
@@ -522,6 +525,9 @@ type ServerInterface interface {
 	// Update a transaction
 	// (PUT /transactions/{id})
 	UpdateTransaction(ctx echo.Context, id string) error
+	// XIRR of the stock ledger, per currency and per holding
+	// (GET /xirr)
+	GetStockXirr(ctx echo.Context) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1156,6 +1162,24 @@ func (w *ServerInterfaceWrapper) AdminSetUserUiRevamp(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminSetUserUiRevamp(ctx, id)
+	return err
+}
+
+// AdminGetUserStockXirr converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminGetUserStockXirr(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminGetUserStockXirr(ctx, id)
 	return err
 }
 
@@ -1830,6 +1854,17 @@ func (w *ServerInterfaceWrapper) UpdateTransaction(ctx echo.Context) error {
 	return err
 }
 
+// GetStockXirr converts echo context to params.
+func (w *ServerInterfaceWrapper) GetStockXirr(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetStockXirr(ctx)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1909,6 +1944,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminDeleteUserTransaction, options.OperationMiddlewares["adminDeleteUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminUpdateUserTransaction, options.OperationMiddlewares["adminUpdateUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/ui-revamp", wrapper.AdminSetUserUiRevamp, options.OperationMiddlewares["adminSetUserUiRevamp"]...)
+	router.GET(options.BaseURL+"/admin/users/:id/xirr", wrapper.AdminGetUserStockXirr, options.OperationMiddlewares["adminGetUserStockXirr"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
 	router.GET(options.BaseURL+"/auth/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
@@ -1956,6 +1992,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.GET(options.BaseURL+"/transactions/investment-delta", wrapper.GetInvestmentDelta, options.OperationMiddlewares["getInvestmentDelta"]...)
 	router.DELETE(options.BaseURL+"/transactions/:id", wrapper.DeleteTransaction, options.OperationMiddlewares["deleteTransaction"]...)
 	router.PUT(options.BaseURL+"/transactions/:id", wrapper.UpdateTransaction, options.OperationMiddlewares["updateTransaction"]...)
+	router.GET(options.BaseURL+"/xirr", wrapper.GetStockXirr, options.OperationMiddlewares["getStockXirr"]...)
 
 }
 
@@ -3428,6 +3465,42 @@ func (response AdminSetUserUiRevamp403JSONResponse) VisitAdminSetUserUiRevampRes
 type AdminSetUserUiRevamp404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminSetUserUiRevamp404JSONResponse) VisitAdminSetUserUiRevampResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetUserStockXirrRequestObject struct {
+	Id UserID `json:"id"`
+}
+
+type AdminGetUserStockXirrResponseObject interface {
+	VisitAdminGetUserStockXirrResponse(w http.ResponseWriter) error
+}
+
+type AdminGetUserStockXirr200JSONResponse StockXirrView
+
+func (response AdminGetUserStockXirr200JSONResponse) VisitAdminGetUserStockXirrResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminGetUserStockXirr404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminGetUserStockXirr404JSONResponse) VisitAdminGetUserStockXirrResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -5490,6 +5563,27 @@ func (response UpdateTransaction404JSONResponse) VisitUpdateTransactionResponse(
 	return err
 }
 
+type GetStockXirrRequestObject struct {
+}
+
+type GetStockXirrResponseObject interface {
+	VisitGetStockXirrResponse(w http.ResponseWriter) error
+}
+
+type GetStockXirr200JSONResponse StockXirrView
+
+func (response GetStockXirr200JSONResponse) VisitGetStockXirrResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List admins and the super admin (super admin only)
@@ -5588,6 +5682,9 @@ type StrictServerInterface interface {
 	// Switch an account to the glass UI (super admin only)
 	// (PUT /admin/users/{id}/ui-revamp)
 	AdminSetUserUiRevamp(ctx context.Context, request AdminSetUserUiRevampRequestObject) (AdminSetUserUiRevampResponseObject, error)
+	// A user's stock XIRR, per currency and per holding (act-as)
+	// (GET /admin/users/{id}/xirr)
+	AdminGetUserStockXirr(ctx context.Context, request AdminGetUserStockXirrRequestObject) (AdminGetUserStockXirrResponseObject, error)
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -5729,6 +5826,9 @@ type StrictServerInterface interface {
 	// Update a transaction
 	// (PUT /transactions/{id})
 	UpdateTransaction(ctx context.Context, request UpdateTransactionRequestObject) (UpdateTransactionResponseObject, error)
+	// XIRR of the stock ledger, per currency and per holding
+	// (GET /xirr)
+	GetStockXirr(ctx context.Context, request GetStockXirrRequestObject) (GetStockXirrResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx echo.Context, request any) (any, error)
@@ -6625,6 +6725,31 @@ func (sh *strictHandler) AdminSetUserUiRevamp(ctx echo.Context, id UserID) error
 		return err
 	} else if validResponse, ok := response.(AdminSetUserUiRevampResponseObject); ok {
 		return validResponse.VisitAdminSetUserUiRevampResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminGetUserStockXirr operation middleware
+func (sh *strictHandler) AdminGetUserStockXirr(ctx echo.Context, id UserID) error {
+	var request AdminGetUserStockXirrRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminGetUserStockXirr(ctx.Request().Context(), request.(AdminGetUserStockXirrRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminGetUserStockXirr")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminGetUserStockXirrResponseObject); ok {
+		return validResponse.VisitAdminGetUserStockXirrResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -7874,6 +7999,29 @@ func (sh *strictHandler) UpdateTransaction(ctx echo.Context, id string) error {
 		return err
 	} else if validResponse, ok := response.(UpdateTransactionResponseObject); ok {
 		return validResponse.VisitUpdateTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetStockXirr operation middleware
+func (sh *strictHandler) GetStockXirr(ctx echo.Context) error {
+	var request GetStockXirrRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStockXirr(ctx.Request().Context(), request.(GetStockXirrRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStockXirr")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetStockXirrResponseObject); ok {
+		return validResponse.VisitGetStockXirrResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

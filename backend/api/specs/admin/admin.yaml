@@ -451,6 +451,23 @@ users_id_summary:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_xirr:
+  get:
+    tags: [Admin]
+    summary: A user's stock XIRR, per currency and per holding (act-as)
+    operationId: adminGetUserStockXirr
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    responses:
+      "200":
+        description: Annualized money-weighted returns (PRD-012)
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/StockXirrView"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_dividends:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"

@@ -52,6 +52,8 @@ paths:
     $ref: "./holdings/holdings.yaml#/prices"
   /summary:
     $ref: "./holdings/holdings.yaml#/summary"
+  /xirr:
+    $ref: "./holdings/holdings.yaml#/xirr"
 
   /holdings/{id}/transactions:
     $ref: "./transactions/transactions.yaml#/holdings_id_transactions"
@@ -161,6 +163,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_prices"
   /admin/users/{id}/summary:
     $ref: "./admin/admin.yaml#/users_id_summary"
+  /admin/users/{id}/xirr:
+    $ref: "./admin/admin.yaml#/users_id_xirr"
   /admin/users/{id}/transactions:
     $ref: "./admin/admin.yaml#/users_id_transactions"
   /admin/users/{id}/transactions/import/preview:

@@ -123,3 +123,16 @@ summary:
           application/json:
             schema:
               $ref: "../portfolio-api.yaml#/components/schemas/Summary"
+
+xirr:
+  get:
+    tags: [Holdings]
+    summary: XIRR of the stock ledger, per currency and per holding
+    operationId: getStockXirr
+    responses:
+      "200":
+        description: Annualized money-weighted returns (PRD-012)
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/StockXirrView"
