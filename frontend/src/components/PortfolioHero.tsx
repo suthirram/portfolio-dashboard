@@ -143,15 +143,23 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
           aria-label={`Unrealised in ${view.currency}: ${signed(view.amount, view.currency)}. Show in ${nextView.currency}`}
           title={`Show in ${nextView.currency}`}
           onClick={() => setUnrealisedIndex(index => (index + 1) % views.length)}>
-          <span key={view.currency} className="hero-flip">
-            <span className="hero-chip-label">
-              Unrealised · {view.currency} <CurrencyFlag currency={view.currency} />
-              <span className="hero-cycle-hint" aria-hidden>⇄</span>
-            </span>
-            <span className="hero-chip-value mono">
-              {signed(view.amount, view.currency)}
-              {view.pct !== null && <small> {signedPct(view.pct)}</small>}
-            </span>
+          {/* Every currency's face sits in the same grid cell; only the
+              current one is visible, so the chip is always as wide as the
+              widest face and the row never shifts on a flip. */}
+          <span className="hero-flip-stack">
+            {views.map(option => (
+              <span key={option.currency === view.currency ? `${option.currency}-${unrealisedIndex}` : option.currency}
+                className={option.currency === view.currency ? 'hero-flip' : 'hero-flip hero-flip-ghost'}
+                aria-hidden={option.currency === view.currency ? undefined : true}>
+                <span className="hero-chip-label">
+                  Unrealised · {option.currency} <CurrencyFlag currency={option.currency} />
+                </span>
+                <span className="hero-chip-value mono">
+                  {signed(option.amount, option.currency)}
+                  {option.pct !== null && <small> {signedPct(option.pct)}</small>}
+                </span>
+              </span>
+            ))}
           </span>
         </button>
       </div>

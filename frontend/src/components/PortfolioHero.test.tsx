@@ -41,16 +41,32 @@ describe('PortfolioHero', () => {
     const both = { ...summary, total_cost_eur: 1100, total_unrealized_eur: 220 }
     render(<PortfolioHero summary={both} loading={false} holdings={[held('INR', 90000)]} dayChange={{}} />)
     const chip = () => screen.getByRole('button', { name: /^Unrealised in / })
+    // The face on show; the other currencies' faces only reserve width.
+    const face = () => chip().querySelector('.hero-flip:not(.hero-flip-ghost)') as HTMLElement
     expect(chip()).toHaveAccessibleName('Unrealised in INR: +₹20,000.00. Show in EUR')
-    expect(chip().querySelector('[data-flag="IN"]')).not.toBeNull()
+    expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%')
+    expect(face().querySelector('[data-flag="IN"]')).not.toBeNull()
 
     await userEvent.click(chip())
-    expect(chip()).toHaveTextContent('Unrealised · EUR')
-    expect(chip()).toHaveTextContent('+€220.00 +20.00%')
-    expect(chip().querySelector('[data-flag="EU"]')).not.toBeNull()
+    expect(face()).toHaveTextContent('Unrealised · EUR +€220.00 +20.00%')
+    expect(face().querySelector('[data-flag="EU"]')).not.toBeNull()
 
     await userEvent.click(chip())
-    expect(chip()).toHaveTextContent('+₹20,000.00 +20.00%')
+    expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%')
+  })
+
+  // Every face is rendered (one visible), so the chip's width never depends
+  // on which currency is showing.
+  it('keeps every currency face in the chip and hides all but one', async () => {
+    const both = { ...summary, total_cost_eur: 1100, total_unrealized_eur: 220 }
+    render(<PortfolioHero summary={both} loading={false} holdings={[held('INR', 90000)]} dayChange={{}} />)
+    const chip = screen.getByRole('button', { name: /^Unrealised in / })
+    const faces = () => Array.from(chip.querySelectorAll('.hero-flip'))
+    expect(faces()).toHaveLength(2)
+    expect(faces().filter(face => face.getAttribute('aria-hidden') === 'true')).toHaveLength(1)
+    await userEvent.click(chip)
+    expect(faces()).toHaveLength(2)
+    expect(chip.querySelector('.hero-flip:not(.hero-flip-ghost)')).toHaveTextContent('EUR')
   })
 })
 
