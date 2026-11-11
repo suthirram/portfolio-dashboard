@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Summary } from '../types'
 import type { GroupDayChange, HoldingWithPreviousClose } from '../features/holdings/dashboardPriceMovement'
 import { formatMoney } from '../lib/currency'
+import { useCardFlip } from '../lib/useCardFlip'
 
 // The glass dashboard's hero panel (PD-054): the portfolio's current value
 // in large type, today's move per currency as glowing chips, the unrealised
@@ -98,8 +99,10 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
   holdings: HoldingWithPreviousClose[]
   dayChange: HeroDayChange
 }) {
-  // Which of unrealisedViews the Unrealised chip shows; each click moves on.
+  // Which of unrealisedViews the Unrealised chip shows; each click turns the
+  // chip over like the summary cards below and moves on while it is edge-on.
   const [unrealisedIndex, setUnrealisedIndex] = useState(0)
+  const { flipClass, flip } = useCardFlip(() => setUnrealisedIndex(index => index + 1))
   if (!summary) {
     if (!loading) return null
     return (
@@ -139,16 +142,16 @@ export function PortfolioHero({ summary, loading, holdings, dayChange }: {
           )
         })}
         {/* A click flips the chip to the next currency, round the cycle. */}
-        <button type="button" className={`hero-chip hero-chip-cycle ${tone(view.amount)}`}
+        <button type="button" className={`hero-chip hero-chip-cycle ${tone(view.amount)} ${flipClass}`}
           aria-label={`Unrealised in ${view.currency}: ${signed(view.amount, view.currency)}. Show in ${nextView.currency}`}
           title={`Show in ${nextView.currency}`}
-          onClick={() => setUnrealisedIndex(index => (index + 1) % views.length)}>
+          onClick={flip}>
           {/* Every currency's face sits in the same grid cell; only the
               current one is visible, so the chip is always as wide as the
               widest face and the row never shifts on a flip. */}
           <span className="hero-flip-stack">
             {views.map(option => (
-              <span key={option.currency === view.currency ? `${option.currency}-${unrealisedIndex}` : option.currency}
+              <span key={option.currency}
                 className={option.currency === view.currency ? 'hero-flip' : 'hero-flip hero-flip-ghost'}
                 aria-hidden={option.currency === view.currency ? undefined : true}>
                 <span className="hero-chip-label">

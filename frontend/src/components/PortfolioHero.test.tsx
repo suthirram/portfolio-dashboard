@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { PortfolioHero, unrealisedViews, valueSplit } from './PortfolioHero'
@@ -47,12 +47,17 @@ describe('PortfolioHero', () => {
     expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%')
     expect(face().querySelector('[data-flag="IN"]')).not.toBeNull()
 
+    // The whole chip turns edge-on first (the summary cards' flip); the
+    // figures swap while it is edge-on, then it turns back.
     await userEvent.click(chip())
-    expect(face()).toHaveTextContent('Unrealised · EUR +€220.00 +20.00%')
+    expect(chip()).toHaveClass('card-flipping-out')
+    expect(face()).toHaveTextContent('Unrealised · INR')
+    await waitFor(() => expect(face()).toHaveTextContent('Unrealised · EUR +€220.00 +20.00%'))
     expect(face().querySelector('[data-flag="EU"]')).not.toBeNull()
+    await waitFor(() => expect(chip().className).not.toMatch(/card-flipping/))
 
     await userEvent.click(chip())
-    expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%')
+    await waitFor(() => expect(face()).toHaveTextContent('Unrealised · INR +₹20,000.00 +20.00%'))
   })
 
   // Every face is rendered (one visible), so the chip's width never depends
@@ -65,8 +70,8 @@ describe('PortfolioHero', () => {
     expect(faces()).toHaveLength(2)
     expect(faces().filter(face => face.getAttribute('aria-hidden') === 'true')).toHaveLength(1)
     await userEvent.click(chip)
+    await waitFor(() => expect(chip.querySelector('.hero-flip:not(.hero-flip-ghost)')).toHaveTextContent('EUR'))
     expect(faces()).toHaveLength(2)
-    expect(chip.querySelector('.hero-flip:not(.hero-flip-ghost)')).toHaveTextContent('EUR')
   })
 })
 

@@ -530,8 +530,22 @@
   background: var(--bg-input);
   border: 1px solid var(--border);
 }
-:root[data-ui="v2"] .hero-chip.pos { border-color: color-mix(in srgb, var(--green) 40%, transparent); box-shadow: var(--glow-pos); text-shadow: none; }
-:root[data-ui="v2"] .hero-chip.neg { border-color: color-mix(in srgb, var(--red) 40%, transparent); box-shadow: var(--glow-neg); text-shadow: none; }
+/* A gain fills the chip green, a loss red (the sign on the figure still
+   carries the meaning); an unchanged or missing figure keeps the plain chip. */
+:root[data-ui="v2"] .hero-chip.pos {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--green) 26%, transparent), color-mix(in srgb, var(--green) 10%, transparent)), var(--bg-input);
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  box-shadow: var(--glow-pos);
+  text-shadow: none;
+}
+:root[data-ui="v2"] .hero-chip.neg {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--red) 26%, transparent), color-mix(in srgb, var(--red) 10%, transparent)), var(--bg-input);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  box-shadow: var(--glow-neg);
+  text-shadow: none;
+}
+:root[data-ui="v2"] .hero-chip.pos .hero-chip-label,
+:root[data-ui="v2"] .hero-chip.neg .hero-chip-label { color: var(--text-secondary); }
 :root[data-ui="v2"] .hero-chip.pos .hero-chip-value { color: var(--green); }
 :root[data-ui="v2"] .hero-chip.neg .hero-chip-value { color: var(--red); }
 :root[data-ui="v2"] .hero-chip-value { font-size: 17px; font-weight: 700; }
@@ -543,27 +557,20 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  perspective: 600px;
   transition: transform var(--speed) var(--ease), border-color var(--speed) var(--ease);
 }
 :root[data-ui="v2"] .hero-chip-cycle:hover { transform: translateY(-2px); border-color: var(--border-light); }
+/* The whole chip turns over with the summary cards' flip (card-flipping-out
+   / -in from components.css); the faces only swap while it is edge-on. */
 :root[data-ui="v2"] .hero-flip-stack { display: grid; }
 :root[data-ui="v2"] .hero-flip {
   grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transform-origin: center;
-  animation: glass-flip 0.45s var(--ease);
 }
 /* The other currencies' faces only reserve their width. */
-:root[data-ui="v2"] .hero-flip-ghost { visibility: hidden; animation: none; }
-
-/* A horizontal spin: the face turns about the vertical axis. */
-@keyframes glass-flip {
-  from { transform: rotateY(-90deg); opacity: 0; }
-  to { transform: rotateY(0deg); opacity: 1; }
-}
+:root[data-ui="v2"] .hero-flip-ghost { visibility: hidden; }
 :root[data-ui="v2"] .hero-split { grid-column: 1 / -1; }
 :root[data-ui="v2"] .hero-split-bar {
   display: flex;
@@ -694,7 +701,6 @@
   :root[data-ui="v2"] .shell-content > *,
   :root[data-ui="v2"] .modal-card,
   :root[data-ui="v2"] .palette,
-  :root[data-ui="v2"] .hero-flip,
   :root[data-ui="v2"] .toast { animation: none; }
   :root[data-ui="v2"] .card:hover,
   :root[data-ui="v2"] .btn:hover { transform: none; }
