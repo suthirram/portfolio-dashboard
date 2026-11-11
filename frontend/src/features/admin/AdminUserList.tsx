@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
 import { useAuth } from '../auth/AuthContext'
+import { notify, toast } from '../../lib/toast'
 import { AdminShell } from './AdminShell'
 
 type StatusFilter = 'active' | 'all'
@@ -52,7 +53,7 @@ export default function AdminUserList() {
       await fn()
       await load()
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Action failed')
+      notify(e instanceof ApiError ? e.message : 'Action failed')
     } finally {
       setBusy(null)
     }
@@ -224,6 +225,20 @@ export default function AdminUserList() {
                               if (isSelf) await refreshCaller()
                             })}>
                             {listedUser.delta_from_history ? 'Delta from ledger' : 'Delta from History'}
+                          </button>
+                        )}
+                        {isSuper && (
+                          // PD-054: the glass UI is opt-in per account. On the
+                          // caller's own account the session user is refreshed, so
+                          // the look flips without a page reload.
+                          <button className="btn btn-sm" disabled={busy === listedUser.id}
+                            aria-pressed={Boolean(listedUser.ui_revamp)}
+                            onClick={() => runAction(listedUser.id, async () => {
+                              await api.adminSetUserUiRevamp(listedUser.id, { enabled: !listedUser.ui_revamp })
+                              if (isSelf) await refreshCaller()
+                              toast(`${listedUser.ui_revamp ? 'Current UI' : 'Glass UI'} on for ${listedUser.username}`, 'success')
+                            })}>
+                            {listedUser.ui_revamp ? 'Glass UI off' : 'Glass UI on'}
                           </button>
                         )}
                         {!isRowSuper && !isSelf && (

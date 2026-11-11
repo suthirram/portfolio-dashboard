@@ -19,6 +19,7 @@ vi.mock('../../lib/api/client', () => ({
     adminListUsers: vi.fn().mockImplementation(() => Promise.resolve([rowUser])),
     getRegions: vi.fn().mockResolvedValue([{ id: 'india', label: 'India' }]),
     adminSetUserDeltaFromHistory: vi.fn().mockResolvedValue(undefined),
+    adminSetUserUiRevamp: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -35,7 +36,7 @@ describe('AdminUserList action buttons', () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
 
     // All plain actions share the same class set (uniform size/colour).
-    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium', 'Delta from History']) {
+    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium', 'Delta from History', 'Glass UI on']) {
       const el = await screen.findByRole('button', { name })
       expect(el, `${name} button`).toHaveClass('btn', 'btn-sm')
     }
@@ -72,5 +73,29 @@ describe('AdminUserList action buttons', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delta from History' }))
     await waitFor(() => expect(refreshCaller).toHaveBeenCalledTimes(1))
     expect(api.adminSetUserDeltaFromHistory).toHaveBeenCalledWith('sa1', { enabled: true })
+  })
+
+  // PD-054: the glass UI is opt-in per account.
+  it('switches an account to the glass UI and back', async () => {
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    const on = await screen.findByRole('button', { name: 'Glass UI on' })
+    expect(on).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(on)
+    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: true }))
+    expect(refreshCaller).not.toHaveBeenCalled()
+  })
+
+  it('turns the glass UI off for an account that has it', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_revamp: true }])
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Glass UI off' }))
+    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: false }))
+  })
+
+  it('refreshes the signed-in user after switching their own look', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...superAdmin, ui_revamp: false }])
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Glass UI on' }))
+    await waitFor(() => expect(refreshCaller).toHaveBeenCalledTimes(1))
   })
 })

@@ -12,7 +12,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="page-art page-art-admin page-art-users" style={{ minHeight: '100vh' }}>
-      <header className="nav-glass page-nav">
+      {/* The glass shell (PD-054) already has the brand, account, theme and
+          log out, so it hides this header (.shell-dup) and keeps the tabs. */}
+      <header className="nav-glass page-nav shell-dup">
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 12, textDecoration: 'none', color: 'inherit' }}>
@@ -29,11 +31,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="nav-glass">
+      <div className="nav-glass admin-tabs">
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '12px 28px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link to="/" className="btn-icon" aria-label="My portfolio" title="My portfolio">
+          <Link to="/" className="btn-icon shell-dup" aria-label="My portfolio" title="My portfolio">
             <ArrowLeftIcon size={14} />
           </Link>
+          <h1 className="shell-only page-title">Admin</h1>
           {/* NavLink stamps aria-current="page" when active; the shared
               .btn[aria-current="page"] rule paints the pill. */}
           <NavLink to="/admin" end className="btn">

@@ -115,7 +115,7 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
         </p>
 
         {/* Filters */}
-        <section style={{
+        <section className="page-toolbar" style={{
           background: 'var(--bg-secondary)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius)', padding: '13px 14px',
           display: 'flex', flexWrap: 'wrap', gap: '10px 14px', alignItems: 'flex-end',
