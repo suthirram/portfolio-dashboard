@@ -1,0 +1,319 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock XIRR Spec</title>
+
+<style>
+  /* Document chrome tokens: bare :root is light, redefined for a dark OS
+     (unless the viewer chose light) and again for an explicit dark choice. */
+  :root {
+    --doc-bg: #f2f4f9;
+    --doc-panel: #ffffff;
+    --doc-ink: #141a2b;
+    --doc-ink-soft: #4b5670;
+    --doc-ink-faint: #7a849e;
+    --doc-rule: #d9dfeb;
+    --doc-accent: #2f5fd0;
+    --doc-accent-soft: rgba(47, 95, 208, 0.10);
+    --doc-canvas: #e4e8f1;
+    --doc-note: #8a6a1f;
+    --doc-note-soft: rgba(176, 134, 32, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --doc-bg: #080a12;
+      --doc-panel: #111523;
+      --doc-ink: #e9edf7;
+      --doc-ink-soft: #9aa3bd;
+      --doc-ink-faint: #656e8c;
+      --doc-rule: #232a41;
+      --doc-accent: #7ba6ff;
+      --doc-accent-soft: rgba(123, 166, 255, 0.14);
+      --doc-canvas: #05070d;
+      --doc-note: #e5bd5c;
+      --doc-note-soft: rgba(229, 189, 92, 0.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --doc-bg: #080a12;
+    --doc-panel: #111523;
+    --doc-ink: #e9edf7;
+    --doc-ink-soft: #9aa3bd;
+    --doc-ink-faint: #656e8c;
+    --doc-rule: #232a41;
+    --doc-accent: #7ba6ff;
+    --doc-accent-soft: rgba(123, 166, 255, 0.14);
+    --doc-canvas: #05070d;
+    --doc-note: #e5bd5c;
+    --doc-note-soft: rgba(229, 189, 92, 0.12);
+  }
+
+  /* App palettes copied from frontend/src/styles/tokens.css. */
+  .app {
+    --bg-primary: #0a0c16; --bg-secondary: #121524; --bg-card: #171b2e;
+    --border: #232842; --text-primary: #eef1f8; --text-secondary: #939dbb;
+    --text-muted: #545d85; --green: #00d69f; --red: #ff5c7a; --blue: #5b93ff;
+    --radius: 12px;
+  }
+  .app[data-app-theme="light"] {
+    --bg-primary: #f5f7fb; --bg-secondary: #ffffff; --bg-card: #ffffff;
+    --border: #dfe4ef; --text-primary: #0f1526; --text-secondary: #4b5670;
+    --text-muted: #7a849e; --green: #0b9e6c; --red: #dc2649; --blue: #2f6bdb;
+  }
+  .app[data-app-theme="cyberpunk"] {
+    --bg-primary: #06010f; --bg-secondary: #0d0519; --bg-card: #120826;
+    --border: #2e1354; --text-primary: #f2e9ff; --text-secondary: #a78fd6;
+    --text-muted: #64509a; --green: #00ffa3; --red: #ff2e6c; --blue: #00e5ff;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--doc-bg); color: var(--doc-ink);
+    font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 40px 0 8px; }
+  p { margin: 6px 0; color: var(--doc-ink-soft); max-width: 72ch; }
+  code { font-size: 12.5px; background: var(--doc-accent-soft); padding: 1px 5px; border-radius: 4px; }
+  .lede { font-size: 15px; }
+
+  .switcher { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
+  .switcher button {
+    font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--doc-rule); background: var(--doc-panel); color: var(--doc-ink-soft);
+  }
+  .switcher button[aria-pressed="true"] { background: var(--doc-accent); border-color: var(--doc-accent); color: #fff; }
+
+  .frame { background: var(--doc-canvas); border: 1px solid var(--doc-rule); border-radius: 14px; padding: 16px; margin-top: 12px; }
+  .frame-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--doc-ink-faint); margin-bottom: 8px; }
+  .app { background: var(--bg-primary); color: var(--text-primary); border-radius: 10px; padding: 16px; overflow-x: auto; }
+
+  .ann { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--doc-note); color: var(--doc-panel); font-size: 11px; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+  .notes { margin: 10px 0 0; padding-left: 0; list-style: none; }
+  .notes li { margin: 4px 0; color: var(--doc-ink-soft); }
+  .notes li .ann { margin: 0 6px 0 0; }
+
+  /* App components, styled as the shipped HoldingsByCurrency / HoldingsTable. */
+  .group-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+  .group-head b { font-size: 14px; }
+  .group-head span { font-size: 12px; color: var(--text-muted); }
+  .stats { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+  .stat { flex: 1 1 140px; min-width: 120px; }
+  .stat .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat .primary { font: 600 18px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 2px; white-space: nowrap; }
+  .stat .secondary { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted); margin-top: 2px; }
+  .stat.new { outline: 2px dashed var(--doc-note); outline-offset: 4px; border-radius: 4px; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .muted { color: var(--text-muted); }
+
+  table.holdings { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px;
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .holdings th { padding: 10px 12px; text-align: right; font-weight: 500; font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+  .holdings td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); background: var(--bg-card);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .holdings td:first-child, .holdings th:first-child { text-align: left; font-family: inherit; }
+  .holdings tfoot td { background: var(--bg-secondary); font-weight: 700; }
+  .holdings .new { box-shadow: inset 2px 0 0 var(--doc-note), inset -2px 0 0 var(--doc-note); }
+  .holdings .sub { font-size: 10px; color: var(--text-muted); font-family: inherit; }
+  [title] { cursor: help; }
+
+  /* Playground. */
+  .play { background: var(--doc-panel); border: 1px solid var(--doc-rule); border-radius: 12px; padding: 16px; margin-top: 12px; }
+  .play-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .play label { display: block; font-size: 12px; color: var(--doc-ink-soft); margin-top: 10px; }
+  .play input[type="range"] { width: 100%; }
+  .flows { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .flows td { padding: 4px 6px; border-bottom: 1px solid var(--doc-rule); }
+  .flows td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .result { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .result-pos { color: #0b9e6c; }
+  .result-neg { color: #dc2649; }
+  .callout { background: var(--doc-note-soft); border-left: 3px solid var(--doc-note); padding: 10px 12px; border-radius: 6px; margin-top: 12px; color: var(--doc-ink-soft); }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--doc-panel); border-radius: 10px; overflow: hidden; }
+  .spec th, .spec td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--doc-rule); vertical-align: top; }
+  .spec th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--doc-ink-faint); }
+  .spec-wrap { overflow-x: auto; margin-top: 12px; }
+</style>
+
+<main>
+  <h1>Stock XIRR</h1>
+  <p class="lede">PD-055 · PRD-012 · DD-012. The money-weighted annual return of the stock ledger,
+    shown once per currency (in its summary strip and the table's TOTAL row) and once per holding
+    (a new XIRR column). The gold page already shows XIRR for physical gold; this brings the same
+    figure to stocks.</p>
+
+  <div class="switcher" role="group" aria-label="App theme">
+    <button type="button" data-set-theme="dark" aria-pressed="true">Dark</button>
+    <button type="button" data-set-theme="light" aria-pressed="false">Light</button>
+    <button type="button" data-set-theme="cyberpunk" aria-pressed="false">Cyberpunk</button>
+  </div>
+
+  <h2>1 · Dashboard, India group</h2>
+  <p>Dashed outlines mark what is new; everything else is the shipped group card and table, reused.</p>
+  <div class="frame">
+    <div class="frame-label">Dashboard → Table tab → 🇮🇳 Indian Rupee</div>
+    <div class="app" data-app-theme="dark">
+      <div class="group-head"><b>₹ Indian Rupee</b><span>4 holdings</span></div>
+      <div class="stats">
+        <div class="stat"><div class="label">Cost (INR)</div><div class="primary">₹8,40,000</div><div class="secondary">(€8,232)</div></div>
+        <div class="stat"><div class="label">Current value (INR)</div><div class="primary">₹11,10,480</div><div class="secondary">(€10,883)</div></div>
+        <div class="stat"><div class="label">Unrealised</div><div class="primary pos">₹2,70,480</div><div class="secondary">(€2,651)</div></div>
+        <div class="stat"><div class="label">Realised</div><div class="primary pos">₹18,200</div><div class="secondary">(€178)</div></div>
+        <div class="stat new" title="An opening balance has no date set; it is counted from when it was recorded.">
+          <div class="label">XIRR <span class="ann">1</span></div>
+          <div class="primary pos">14.62%</div>
+          <div class="secondary">(since 01-04-2021)</div>
+        </div>
+      </div>
+      <table class="holdings">
+        <thead><tr>
+          <th>Script</th><th>Shares</th><th>Current Value</th><th>Unrealised Gain</th><th>Dividends</th>
+          <th class="new">XIRR <span class="ann">2</span></th><th>Actions</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>TCS</b><div class="sub">TCS.NS · NSE · STOCK</div></td><td>40</td><td>₹1,64,800.00</td><td class="pos">₹42,800.00</td><td class="pos">₹6,920.00</td>
+            <td class="new pos">17.08%</td><td class="muted">⋯</td></tr>
+          <tr><td><b>HDFCBANK</b><div class="sub">HDFCBANK.NS · NSE · STOCK</div></td><td>120</td><td>₹2,04,600.00</td><td class="neg">-₹9,400.00</td><td class="pos">₹2,280.00</td>
+            <td class="new neg">-2.41%</td><td class="muted">⋯</td></tr>
+          <tr><td><b>NIFTYBEES</b><div class="sub">NIFTYBEES.NS · NSE · ETF</div></td><td>900</td><td>₹2,61,000.00</td><td class="pos">₹21,000.00</td><td class="muted">—</td>
+            <td class="new pos"><span title="Measured over less than a year — the annualised rate swings widely.">48.9%*</span> <span class="ann">3</span></td><td class="muted">⋯</td></tr>
+          <tr><td><b>ITC</b><div class="sub">ITC.NS · NSE · STOCK</div></td><td>1,000</td><td>₹4,80,080.00</td><td class="pos">₹2,16,080.00</td><td class="pos">₹31,500.00</td>
+            <td class="new pos"><span title="An opening balance has no date set; it is counted from when it was recorded.">21.3%*</span> <span class="ann">4</span></td><td class="muted">⋯</td></tr>
+        </tbody>
+        <tfoot><tr><td>TOTAL</td><td></td><td>₹11,10,480.00</td><td class="pos">₹2,70,480.00</td><td class="pos">₹40,700.00</td>
+          <td class="new pos"><span title="An opening balance has no date set; it is counted from when it was recorded.">14.62%*</span> <span class="ann">5</span></td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <ul class="notes">
+      <li><span class="ann">1</span>One rate for every INR flow pooled: buys and openings out, sells and dividends in, today's value of what is still held last. "since" is the earliest flow. A caveat sits on hover for the whole card.</li>
+      <li><span class="ann">2</span>Per-holding rate from that holding's own ledger. Green above zero, red below, like the gain columns.</li>
+      <li><span class="ann">3</span>Held under a year: the rate is real but annualising a short window magnifies it, so it is starred and the reason shows on hover.</li>
+      <li><span class="ann">4</span>Opening balance without a user-set date: counted from when it was recorded (the dashboard already prompts for the date). Starred.</li>
+      <li><span class="ann">5</span>The TOTAL row repeats the currency rate from ①, next to the column it summarises.</li>
+    </ul>
+  </div>
+
+  <h2>2 · States</h2>
+  <div class="frame">
+    <div class="frame-label">Edge states, same table</div>
+    <div class="app" data-app-theme="dark">
+      <table class="holdings">
+        <thead><tr><th>Case</th><th>XIRR cell</th><th>Group card</th></tr></thead>
+        <tbody>
+          <tr><td>Sold out (0 shares), bought ₹1,000, sold ₹1,210 two years later</td><td class="pos">10%</td><td class="muted">counted in the currency rate</td></tr>
+          <tr><td>New holding, no buys yet</td><td class="muted">—</td><td class="muted">unchanged</td></tr>
+          <tr><td>Quote down for a held symbol</td><td class="muted">— (no money back yet)</td><td class="muted">its cost still counts, valued at 0 as Current Value is</td></tr>
+          <tr><td>Loading, or <code>/xirr</code> failed</td><td class="muted">—</td><td class="muted">XIRR stat hidden; prices unaffected</td></tr>
+          <tr><td>Admin act-as</td><td class="pos">target's rate</td><td class="muted">reads <code>/admin/users/:id/xirr</code></td></tr>
+          <tr><td>USD/other-currency holding</td><td class="muted">—</td><td class="muted">no bucket, as in History</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2>3 · Why XIRR answers "did I time it well?"</h2>
+  <p>XIRR weighs each amount by how long it was invested. Move the second purchase and watch the
+    rate change even though the price path is identical. This runs a port of the backend's
+    <code>xirr()</code> (Newton–Raphson, ACT/365).</p>
+  <div class="play">
+    <div class="play-grid">
+      <div>
+        <strong>Price path</strong>
+        <p>₹100 a share on 1 Jan 2025, ₹200 from 1 Jul 2025 to today (1 Jan 2026).</p>
+        <label for="month">Second ₹1,000 purchase month: <b id="monthLabel">Feb 2025</b></label>
+        <input id="month" type="range" min="1" max="11" value="1">
+        <table class="flows" id="flows" aria-label="Cash flows"></table>
+      </div>
+      <div>
+        <strong>XIRR</strong>
+        <div class="result" id="rate">—</div>
+        <p id="explain"></p>
+        <div class="callout">The first ₹1,000 is fixed on 1 Jan 2025. A second buy before July
+          catches the doubling, one after it does not: the dashboard's P/L % treats both the same,
+          XIRR does not.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>4 · Flow mapping</h2>
+  <div class="spec-wrap">
+    <table class="spec">
+      <thead><tr><th>Ledger event</th><th>Cash flow</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr><td>opening</td><td>− amount (cost)</td><td>opening_date, else the event's date (flagged)</td></tr>
+        <tr><td>buy</td><td>− amount</td><td>trade date</td></tr>
+        <tr><td>sell</td><td>+ amount</td><td>trade date</td></tr>
+        <tr><td>dividend</td><td>+ amount</td><td>ex/pay date as recorded</td></tr>
+        <tr><td>split · bonus · merger</td><td>none</td><td>—</td></tr>
+        <tr><td>still held</td><td>+ shares × live price</td><td>today (IST)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  // Theme switcher for the app frames only.
+  const buttons = document.querySelectorAll('[data-set-theme]')
+  buttons.forEach(button => button.addEventListener('click', () => {
+    buttons.forEach(other => other.setAttribute('aria-pressed', String(other === button)))
+    document.querySelectorAll('.app').forEach(frame => { frame.dataset.appTheme = button.dataset.setTheme })
+  }))
+
+  // Port of backend/internal/services/xirr.go (Newton step + bisection fallback).
+  function xirr(flows) {
+    const start = flows[0].date
+    const years = flows.map(flow => (flow.date - start) / 86400000 / 365)
+    const npv = rate => flows.reduce((sum, flow, index) => sum + flow.amount / Math.pow(1 + rate, years[index]), 0)
+    const dnpv = rate => flows.reduce((sum, flow, index) => sum - years[index] * flow.amount / Math.pow(1 + rate, years[index] + 1), 0)
+    let rate = 0.1
+    for (let step = 0; step < 100; step++) {
+      const value = npv(rate)
+      if (Math.abs(value) < 1e-9) return rate
+      const next = rate - value / dnpv(rate)
+      if (!isFinite(next) || next <= -1) break
+      if (Math.abs(next - rate) < 1e-9) return next
+      rate = next
+    }
+    let lower = -1 + 1e-9, upper = 1000
+    for (let step = 0; step < 200; step++) {
+      const mid = (lower + upper) / 2
+      if (npv(mid) * npv(lower) < 0) upper = mid; else lower = mid
+    }
+    return (lower + upper) / 2
+  }
+
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const rupees = amount => (amount < 0 ? '−₹' : '+₹') + Math.abs(amount).toLocaleString('en-IN')
+  const slider = document.getElementById('month')
+
+  function render() {
+    const month = Number(slider.value)
+    const secondDate = new Date(Date.UTC(2025, month, 1))
+    const price = month >= 6 ? 200 : 100
+    const shares = 10 + 1000 / price
+    const terminal = shares * 200
+    const flows = [
+      { label: '1 Jan 2025 · buy at ₹100', date: Date.UTC(2025, 0, 1), amount: -1000 },
+      { label: `1 ${MONTHS[month]} 2025 · buy at ₹${price}`, date: secondDate.getTime(), amount: -1000 },
+      { label: `1 Jan 2026 · ${shares} shares × ₹200`, date: Date.UTC(2026, 0, 1), amount: terminal },
+    ]
+    document.getElementById('monthLabel').textContent = `${MONTHS[month]} 2025`
+    document.getElementById('flows').innerHTML = flows
+      .map(flow => `<tr><td>${flow.label}</td><td>${rupees(flow.amount)}</td></tr>`).join('')
+    const rate = xirr(flows)
+    const result = document.getElementById('rate')
+    result.textContent = `${(rate * 100).toFixed(2)}%`
+    result.className = `result ${rate >= 0 ? 'result-pos' : 'result-neg'}`
+    const pnl = ((terminal - 2000) / 2000 * 100).toFixed(1)
+    document.getElementById('explain').textContent =
+      `₹2,000 in, worth ₹${terminal.toLocaleString('en-IN')} today: P/L ${pnl}%.`
+  }
+  slider.addEventListener('input', render)
+  render()
+</script>
