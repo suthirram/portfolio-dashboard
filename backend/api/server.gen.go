@@ -214,6 +214,9 @@ type AdminPreviewUserTradeImportJSONRequestBody = TradeImportInput
 // AdminUpdateUserTransactionJSONRequestBody defines body for AdminUpdateUserTransaction for application/json ContentType.
 type AdminUpdateUserTransactionJSONRequestBody = TransactionInput
 
+// AdminSetUserUiRevampJSONRequestBody defines body for AdminSetUserUiRevamp for application/json ContentType.
+type AdminSetUserUiRevampJSONRequestBody = UserFlagToggleRequest
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -375,6 +378,9 @@ type ServerInterface interface {
 	// Edit a user's ledger event (act-as)
 	// (PUT /admin/users/{id}/transactions/{transactionId})
 	AdminUpdateUserTransaction(ctx echo.Context, id UserID, transactionId string) error
+	// Switch an account to the glass UI (super admin only)
+	// (PUT /admin/users/{id}/ui-revamp)
+	AdminSetUserUiRevamp(ctx echo.Context, id UserID) error
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx echo.Context) error
@@ -1135,6 +1141,24 @@ func (w *ServerInterfaceWrapper) AdminUpdateUserTransaction(ctx echo.Context) er
 	return err
 }
 
+// AdminSetUserUiRevamp converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminSetUserUiRevamp(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminSetUserUiRevamp(ctx, id)
+	return err
+}
+
 // Login converts echo context to params.
 func (w *ServerInterfaceWrapper) Login(ctx echo.Context) error {
 	var err error
@@ -1884,6 +1908,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/transactions/import/preview", wrapper.AdminPreviewUserTradeImport, options.OperationMiddlewares["adminPreviewUserTradeImport"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminDeleteUserTransaction, options.OperationMiddlewares["adminDeleteUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/transactions/:transactionId", wrapper.AdminUpdateUserTransaction, options.OperationMiddlewares["adminUpdateUserTransaction"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/ui-revamp", wrapper.AdminSetUserUiRevamp, options.OperationMiddlewares["adminSetUserUiRevamp"]...)
 	router.POST(options.BaseURL+"/auth/login", wrapper.Login, options.OperationMiddlewares["login"]...)
 	router.POST(options.BaseURL+"/auth/logout", wrapper.Logout, options.OperationMiddlewares["logout"]...)
 	router.GET(options.BaseURL+"/auth/me", wrapper.GetMe, options.OperationMiddlewares["getMe"]...)
@@ -3358,6 +3383,51 @@ func (response AdminUpdateUserTransaction400JSONResponse) VisitAdminUpdateUserTr
 type AdminUpdateUserTransaction404JSONResponse struct{ NotFoundJSONResponse }
 
 func (response AdminUpdateUserTransaction404JSONResponse) VisitAdminUpdateUserTransactionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserUiRevampRequestObject struct {
+	Id   UserID `json:"id"`
+	Body *AdminSetUserUiRevampJSONRequestBody
+}
+
+type AdminSetUserUiRevampResponseObject interface {
+	VisitAdminSetUserUiRevampResponse(w http.ResponseWriter) error
+}
+
+type AdminSetUserUiRevamp204Response struct {
+}
+
+func (response AdminSetUserUiRevamp204Response) VisitAdminSetUserUiRevampResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AdminSetUserUiRevamp403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AdminSetUserUiRevamp403JSONResponse) VisitAdminSetUserUiRevampResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminSetUserUiRevamp404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminSetUserUiRevamp404JSONResponse) VisitAdminSetUserUiRevampResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -5515,6 +5585,9 @@ type StrictServerInterface interface {
 	// Edit a user's ledger event (act-as)
 	// (PUT /admin/users/{id}/transactions/{transactionId})
 	AdminUpdateUserTransaction(ctx context.Context, request AdminUpdateUserTransactionRequestObject) (AdminUpdateUserTransactionResponseObject, error)
+	// Switch an account to the glass UI (super admin only)
+	// (PUT /admin/users/{id}/ui-revamp)
+	AdminSetUserUiRevamp(ctx context.Context, request AdminSetUserUiRevampRequestObject) (AdminSetUserUiRevampResponseObject, error)
 	// Log in with username and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -6521,6 +6594,37 @@ func (sh *strictHandler) AdminUpdateUserTransaction(ctx echo.Context, id UserID,
 		return err
 	} else if validResponse, ok := response.(AdminUpdateUserTransactionResponseObject); ok {
 		return validResponse.VisitAdminUpdateUserTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminSetUserUiRevamp operation middleware
+func (sh *strictHandler) AdminSetUserUiRevamp(ctx echo.Context, id UserID) error {
+	var request AdminSetUserUiRevampRequestObject
+
+	request.Id = id
+
+	var body AdminSetUserUiRevampJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminSetUserUiRevamp(ctx.Request().Context(), request.(AdminSetUserUiRevampRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminSetUserUiRevamp")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminSetUserUiRevampResponseObject); ok {
+		return validResponse.VisitAdminSetUserUiRevampResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

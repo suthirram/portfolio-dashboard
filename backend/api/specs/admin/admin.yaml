@@ -283,6 +283,31 @@ users_id_delta_from_history:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_ui_revamp:
+  put:
+    tags: [Admin]
+    summary: Switch an account to the glass UI (super admin only)
+    description: |
+      PD-054. On: the account sees the glass UI (app shell with sidebar,
+      command palette, toasts, reworked pages). Off (default): the current
+      UI. Super admin only; the super admin may switch their own account.
+    operationId: adminSetUserUiRevamp
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/UserFlagToggleRequest"
+    responses:
+      "204":
+        description: Switch updated
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_holdings:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
