@@ -14,7 +14,7 @@ import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import type { HoldingWithPrice } from '../../types'
 import { canonicalCurrency } from '../../lib/currency'
-import { computeGroupDayGain } from '../holdings/dashboardPriceMovement'
+import { computeGroupDayChange } from '../holdings/dashboardPriceMovement'
 import { groupByCurrency, type CurrencyCode } from '../holdings/groupByCurrency'
 import {
   ChartLineIcon, CoinsIcon, ListIcon, ShieldIcon, PinIcon, RefreshIcon, PlusIcon,
@@ -117,17 +117,19 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     !filter || holding.script?.toLowerCase().includes(filter.toLowerCase()) || holding.symbol?.toLowerCase().includes(filter.toLowerCase())
   )
 
-  // The summary card's day gain per currency: the same group sum as the
-  // currency cards, over the same groups. A currency with a holding that has
-  // no previous close (act-as, a failed history fetch, a holding not yet
-  // snapshotted) gets null and shows "—"; the other currency is unaffected.
-  const computedDayGainByCurrency = useMemo(() => {
+  // The summary card's day change per currency: the same group sum as the
+  // currency cards, over the same groups. Each holding's close is its
+  // snapshot's, else Yahoo's (act-as always reads Yahoo's: the owner's
+  // History is not loaded there). A currency with a holding that has neither
+  // gets null and shows "—"; one with no shares held gets no line.
+  const computedDayChangeByCurrency = useMemo(() => {
     const groups = groupByCurrency(enriched)
-    const gainOf = (currency: CurrencyCode) => {
+    const changeOf = (currency: CurrencyCode) => {
       const group = groups.find(candidate => candidate.currency === currency)
-      return group ? computeGroupDayGain(group.holdings) : null
+      if (!group?.holdings.some(holding => (holding.stocks_owned ?? 0) > 0)) return undefined
+      return computeGroupDayChange(group.holdings)
     }
-    return { INR: gainOf('INR'), EUR: gainOf('EUR') }
+    return { INR: changeOf('INR'), EUR: changeOf('EUR') }
   }, [enriched])
   const income = useMemo(() => dividendIncome(enriched), [enriched])
 
@@ -276,8 +278,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksCurrentEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.cost_price_eur ?? 0) + (holding.unrealized_pnl_eur ?? 0), 0)}
           stocksUnrealisedInr={enriched.filter(holding => holding.currency === 'INR').reduce((sum, holding) => sum + (holding.unrealized_pnl ?? 0), 0)}
           stocksUnrealisedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.unrealized_pnl_eur ?? 0), 0)}
-          computedDayGainInr={computedDayGainByCurrency.INR}
-          computedDayGainEur={computedDayGainByCurrency.EUR}
+          computedDayChangeInr={computedDayChangeByCurrency.INR}
+          computedDayChangeEur={computedDayChangeByCurrency.EUR}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
@@ -308,7 +310,6 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             // Transaction endpoints target the caller's own portfolio (no
             // admin act-as variant yet), so hide the ledger in act-as mode.
             onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
-            perCurrency={summary?.per_currency}
           />
         )}
         {tab === 'charts' && <Charts holdings={enriched} />}

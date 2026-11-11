@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   attachPreviousClosePrices,
+  computeGroupDayChange,
   computeGroupDayGain,
   holdingDayGain,
   holdingMovement,
@@ -91,6 +92,14 @@ describe('dashboard price movement helpers', () => {
 
     // TCS: 2 × (120 − 100 snapshot) = 40; INFY: 3 × (50 − 60 response) = −30.
     expect(computeGroupDayGain([fromSnapshot, fromResponse])).toBe(10)
+  })
+
+  it('gives a group its percentage against the held shares previous value', () => {
+    // 2 × (120 − 100) + 3 × (50 − 60) = 10 over 2 × 100 + 3 × 60 = 380.
+    expect(computeGroupDayChange([
+      { ...holding({ id: '1', stocks_owned: 2, current_price: 120 }), previous_close_price: 100 },
+      { ...holding({ id: '2', stocks_owned: 3, current_price: 50 }), previous_close_price: 60 },
+    ])).toEqual({ gain: 10, previousValue: 380, pct: (10 / 380) * 100 })
   })
 
   it('returns null for a group when any active holding has no previous close', () => {

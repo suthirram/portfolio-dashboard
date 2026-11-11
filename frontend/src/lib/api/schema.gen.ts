@@ -1343,6 +1343,11 @@ export interface components {
             current_price?: number;
             /**
              * Format: double
+             * @description Optional Yahoo previous session close in the holding's native price currency. Historical closes take priority in the dashboard.
+             */
+            previous_close_price?: number;
+            /**
+             * Format: double
              * @description stocks_owned × avg_cost_price
              */
             cost_price?: number;

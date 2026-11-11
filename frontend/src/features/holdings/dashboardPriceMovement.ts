@@ -79,16 +79,36 @@ export function holdingDayGain(holding: HoldingWithPreviousClose): number | null
   return movement === null ? null : movement.change * (holding.stocks_owned ?? 0)
 }
 
-// Sum of the day gains of a group of holdings (one currency). Returns null
-// when any active holding has no day gain (partial = unreliable total) or
-// the group holds nothing, so the caller shows no figure rather than a wrong one.
-export function computeGroupDayGain(holdings: HoldingWithPreviousClose[]): number | null {
-  let sum: number | null = null
+// A group's day change: the gain, the value of today's shares at their
+// previous closes, and the percentage between them. The percentage needs no
+// History row, so a portfolio priced only by Yahoo closes gets one too.
+export interface GroupDayChange {
+  gain: number
+  previousValue: number
+  pct: number | null
+}
+
+// The day change of a group of holdings (one currency). Returns null when
+// any active holding has no day gain (partial = unreliable total) or the
+// group holds nothing, so the caller shows no figure rather than a wrong one.
+export function computeGroupDayChange(holdings: HoldingWithPreviousClose[]): GroupDayChange | null {
+  let held = false
+  let gain = 0
+  let previousValue = 0
   for (const holding of holdings) {
-    if ((holding.stocks_owned ?? 0) <= 0) continue
-    const gain = holdingDayGain(holding)
-    if (gain === null) return null
-    sum = (sum ?? 0) + gain
+    const shares = holding.stocks_owned ?? 0
+    if (shares <= 0) continue
+    const holdingGain = holdingDayGain(holding)
+    if (holdingGain === null) return null
+    held = true
+    gain += holdingGain
+    previousValue += (holding.previous_close_price ?? 0) * shares
   }
-  return sum
+  if (!held) return null
+  return { gain, previousValue, pct: previousValue > 0 ? (gain / previousValue) * 100 : null }
+}
+
+// The gain alone of computeGroupDayChange.
+export function computeGroupDayGain(holdings: HoldingWithPreviousClose[]): number | null {
+  return computeGroupDayChange(holdings)?.gain ?? null
 }
