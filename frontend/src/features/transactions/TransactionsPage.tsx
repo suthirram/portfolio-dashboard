@@ -11,6 +11,8 @@ import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
+import { Pager } from '../../components/Pager'
+import { usePagination } from '../../lib/usePagination'
 import { formatMoney } from '../../lib/currency'
 import {
   applyFilters,
@@ -76,6 +78,8 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
     [transactions, filters, sort],
   )
   const subtotals = useMemo(() => currencySubtotals(visible), [visible])
+  // 15 per page; a new filter or sort goes back to the first page.
+  const pagination = usePagination(visible, JSON.stringify([filters, sort]))
 
   const filtered = visible.length !== transactions.length
   const holdingsById = useMemo(
@@ -231,13 +235,17 @@ export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
             </span>
           </div>
         ) : (
-          <TransactionsAllTable
-            rows={visible}
-            sort={sort}
-            onSort={(key: SortKey) => setSort(current => toggleSort(current, key))}
-            // No editing in act-as: there is no act-as ledger write path.
-            onEdit={openEditor}
-          />
+          <>
+            <Pager pagination={pagination} label="Transactions" />
+            <TransactionsAllTable
+              rows={pagination.pageItems}
+              columnRows={visible}
+              sort={sort}
+              onSort={(key: SortKey) => setSort(current => toggleSort(current, key))}
+              // No editing in act-as: there is no act-as ledger write path.
+              onEdit={openEditor}
+            />
+          </>
         )}
       </main>
 
