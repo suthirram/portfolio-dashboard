@@ -94,11 +94,13 @@ describe('SummaryCards grouped change card', () => {
         { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
       ],
     }
-    // Frontend computed a smaller gain (e.g. excludes intraday buys).
-    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={1000} />)
+    // Frontend computed a smaller gain (e.g. excludes intraday buys); its
+    // pct is against the held shares' previous closes, not the bucket.
+    render(<SummaryCards summary={summary} loading={false}
+      computedDayChangeInr={{ gain: 1000, previousValue: 20000, pct: 5 }} />)
     expect(screen.getByText('▲ ₹1,000.00')).toBeInTheDocument()
-    // pct recomputed: 1000 / 30000 * 100 = 3.33%
-    expect(screen.getByText('+3.33%')).toBeInTheDocument()
+    expect(screen.getByText('+5.00%')).toBeInTheDocument()
+    expect(screen.queryByText('+16.67%')).toBeNull()
     // backend value must not appear
     expect(screen.queryByText('▲ ₹5,000.00')).toBeNull()
   })
@@ -113,12 +115,31 @@ describe('SummaryCards grouped change card', () => {
       ],
     }
     // null = a holding in INR has no previous close (act-as, history failed, new holding)
-    render(<SummaryCards summary={summary} loading={false} computedDayGainInr={null} computedDayGainEur={-15} />)
+    render(<SummaryCards summary={summary} loading={false} computedDayChangeInr={null}
+      computedDayChangeEur={{ gain: -15, previousValue: 600, pct: -2.5 }} />)
     expect(screen.queryByText('▲ ₹5,000.00')).toBeNull()
     expect(screen.queryByText('+16.67%')).toBeNull()
     expect(screen.getByTitle('A holding has no previous close yet')).toHaveTextContent('—')
     // EUR has complete data and keeps its own computed figure.
     expect(screen.getByText('▼ €15.00')).toBeInTheDocument()
+  })
+})
+
+describe('SummaryCards day change without a snapshot', () => {
+  it('shows a computed line for a held currency the backend has no bucket for', () => {
+    // No History row yet (day 1, or act-as on a new user): the holdings'
+    // Yahoo closes still give a day change.
+    render(<SummaryCards summary={base} loading={false}
+      computedDayChangeInr={{ gain: 250, previousValue: 10000, pct: 2.5 }} />)
+    expect(screen.getByText('INR')).toBeInTheDocument()
+    expect(screen.getByText('▲ ₹250.00')).toBeInTheDocument()
+    expect(screen.getByText('+2.50%')).toBeInTheDocument()
+    expect(screen.queryByText(/vs .* close/)).toBeNull()
+  })
+
+  it('shows — for a held currency with a missing close even without a bucket', () => {
+    render(<SummaryCards summary={base} loading={false} computedDayChangeInr={null} />)
+    expect(screen.getByTitle('A holding has no previous close yet')).toHaveTextContent('—')
   })
 })
 

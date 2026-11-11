@@ -61,6 +61,35 @@ describe('useHoldings', () => {
     expect(mockApi.listHistory).toHaveBeenCalledWith('2026-06-24', '2026-06-24')
   })
 
+  it('keeps the Yahoo close when the snapshot has the holding too, the snapshot winning', async () => {
+    mockApi.getPrices.mockResolvedValue({ holdings: [liveHolding({ previous_close_price: 90 })] })
+    const { result } = renderHook(() => useHoldings())
+
+    await waitFor(() => {
+      expect(result.current.enriched[0]?.previous_close_price).toBe(100)
+    })
+  })
+
+  it('keeps the Yahoo close when there is no snapshot yet', async () => {
+    mockApi.getPrices.mockResolvedValue({ holdings: [liveHolding({ previous_close_price: 90 })] })
+    mockApi.getSummary.mockResolvedValue({})
+    const { result } = renderHook(() => useHoldings())
+
+    await waitFor(() => {
+      expect(result.current.enriched[0]?.previous_close_price).toBe(90)
+    })
+    expect(mockApi.listHistory).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Yahoo close in admin act-as mode', async () => {
+    mockApi.getPrices.mockResolvedValue({ holdings: [liveHolding({ previous_close_price: 90 })] })
+    const { result } = renderHook(() => useHoldings('user-1'))
+
+    await waitFor(() => {
+      expect(result.current.enriched[0]?.previous_close_price).toBe(90)
+    })
+  })
+
   it('does not fetch own-history snapshots in admin act-as mode', async () => {
     const { result } = renderHook(() => useHoldings('user-1'))
 

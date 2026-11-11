@@ -153,10 +153,6 @@ describe('HoldingsByCurrency', () => {
       loading={false}
       onEdit={noop}
       onDelete={noop}
-      perCurrency={[
-        { currency: 'INR', current: 35000, previous_close: 30000, change_value: 5000, change_pct: 16.67 },
-        { currency: 'EUR', current: 600, previous_close: 620, change_value: -20, change_pct: -3.23 },
-      ]}
     />)
 
     const sections = document.querySelectorAll('section')
@@ -171,7 +167,7 @@ describe('HoldingsByCurrency', () => {
     expect(within(eur).getByText('(-3.23%)')).toBeInTheDocument()
   })
 
-  it('omits the Today stat when no per-currency change is provided', () => {
+  it('omits the Today stat when the holdings carry no previous close', () => {
     render(<HoldingsByCurrency
       holdings={[testHolding({ id: '1', currency: 'INR' })]}
       loading={false}
@@ -179,6 +175,20 @@ describe('HoldingsByCurrency', () => {
       onDelete={noop}
     />)
     expect(screen.queryByText('Today')).toBeNull()
+  })
+
+  it('shows the Today stat from the holdings closes alone, with no History row', () => {
+    // Day 1 or act-as: no snapshot, but Yahoo closes on every holding.
+    // 10 × (120 − 100) = ₹200 against a previous value of ₹1,000 → +20.00%.
+    render(<HoldingsByCurrency
+      holdings={[testHolding({ id: '1', currency: 'INR', stocks_owned: 10, current_price: 120, previous_close_price: 100 })]}
+      loading={false}
+      onEdit={noop}
+      onDelete={noop}
+    />)
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.getByText(/▲ ₹200/)).toBeInTheDocument()
+    expect(screen.getByText('(+20.00%)')).toBeInTheDocument()
   })
 
   it('Today stat excludes intraday buy cost — shows only price movement not invested amount', () => {
@@ -193,9 +203,6 @@ describe('HoldingsByCurrency', () => {
       loading={false}
       onEdit={noop}
       onDelete={noop}
-      perCurrency={[
-        { currency: 'INR', current: 2500, previous_close: 1000, change_value: 1500, change_pct: 150 },
-      ]}
     />)
 
     expect(screen.getByText(/▲ ₹250/)).toBeInTheDocument()
@@ -212,9 +219,6 @@ describe('HoldingsByCurrency', () => {
       loading={false}
       onEdit={noop}
       onDelete={noop}
-      perCurrency={[
-        { currency: 'INR', current: 2500, previous_close: 1000, change_value: 1500, change_pct: 150 },
-      ]}
     />)
 
     expect(screen.queryByText('Today')).toBeNull()
@@ -229,10 +233,6 @@ describe('HoldingsByCurrency', () => {
       loading={false}
       onEdit={noop}
       onDelete={noop}
-      perCurrency={[
-        { currency: 'INR', current: 1200, previous_close: 1000, change_value: 200, change_pct: 20 },
-        { currency: 'EUR', current: 600, previous_close: 500, change_value: 100, change_pct: 20 },
-      ]}
     />)
 
     const [inr, eur] = Array.from(document.querySelectorAll('section')) as HTMLElement[]
@@ -249,9 +249,6 @@ describe('HoldingsByCurrency', () => {
       loading={false}
       onEdit={noop}
       onDelete={noop}
-      perCurrency={[
-        { currency: 'INR', current: 2300, previous_close: 1000, change_value: 1300, change_pct: 130 },
-      ]}
     />)
 
     expect(screen.queryByText('Today')).toBeNull()

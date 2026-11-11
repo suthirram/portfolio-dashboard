@@ -3,11 +3,12 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import DashboardPage, { dividendIncome } from './DashboardPage'
 import type { HoldingWithPrice } from '../../types'
+import type { GroupDayChange } from '../holdings/dashboardPriceMovement'
 
 // The holdings the mocked hook returns, and the props SummaryCards got.
 const dashboard = vi.hoisted(() => ({
   enriched: [] as unknown[],
-  summaryProps: null as null | { computedDayGainInr?: number | null; computedDayGainEur?: number | null },
+  summaryProps: null as null | { computedDayChangeInr?: GroupDayChange | null; computedDayChangeEur?: GroupDayChange | null },
 }))
 
 vi.mock('../holdings/useHoldings', () => ({
@@ -85,20 +86,27 @@ describe('DashboardPage summary day gain', () => {
   it('passes each currency its own group sum; a missing close nulls only that currency', () => {
     dashboard.enriched = [held('INR', 120, 100), held('EUR', 60), held('EUR', 50, 40)]
     render(<MemoryRouter><DashboardPage /></MemoryRouter>)
-    expect(dashboard.summaryProps?.computedDayGainInr).toBe(40)
-    expect(dashboard.summaryProps?.computedDayGainEur).toBeNull()
+    // INR: 2 × (120 − 100) = 40 against a previous value of 200 → 20%.
+    expect(dashboard.summaryProps?.computedDayChangeInr).toEqual({ gain: 40, previousValue: 200, pct: 20 })
+    expect(dashboard.summaryProps?.computedDayChangeEur).toBeNull()
   })
 
-  it('computes the day gain in act-as views from the closes the holdings carry', () => {
+  it('computes the day change in act-as views from the closes the holdings carry', () => {
     dashboard.enriched = [held('INR', 120, 100)]
     render(<MemoryRouter><DashboardPage actAsUserId="u2" actAsLabel="bob" /></MemoryRouter>)
-    expect(dashboard.summaryProps?.computedDayGainInr).toBe(40)
+    expect(dashboard.summaryProps?.computedDayChangeInr?.gain).toBe(40)
   })
 
   it('passes null, not the gain over average cost, when no holding has a previous close', () => {
     dashboard.enriched = [held('INR', 120)]
     render(<MemoryRouter><DashboardPage actAsUserId="u2" actAsLabel="bob" /></MemoryRouter>)
-    expect(dashboard.summaryProps?.computedDayGainInr).toBeNull()
+    expect(dashboard.summaryProps?.computedDayChangeInr).toBeNull()
+  })
+
+  it('passes nothing for a currency with no shares held, so it gets no line', () => {
+    dashboard.enriched = [held('INR', 120, 100)]
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    expect(dashboard.summaryProps?.computedDayChangeEur).toBeUndefined()
   })
 })
 

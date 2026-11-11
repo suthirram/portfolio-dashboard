@@ -1,6 +1,7 @@
 import type React from 'react'
 import {useRef, useState} from 'react'
 import type {CurrencyChange, Summary} from '../types'
+import type {GroupDayChange} from '../features/holdings/dashboardPriceMovement'
 import {CoinsIcon} from './Icon'
 import {formatDate} from '../lib/formDates'
 
@@ -356,26 +357,22 @@ const cardLabelStyle: React.CSSProperties = {
     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8,
 }
 
-function changePct(gain: number, prevClose: number | undefined): number | null {
-    if (!prevClose || prevClose <= 0) {
-        return null
+// One currency's line. The backend's change_value is today's value minus the
+// snapshot's, so it counts money bought or sold since then as gain or loss.
+// A computed day change replaces it, and needs no snapshot: a currency held
+// today gets a line from its holdings' previous closes (snapshot first, else
+// Yahoo); a computed null (no previous close for some holding) shows "—"
+// rather than falling back to the backend. undefined = not held / not
+// computed (USD), which keeps the backend bucket when there is one.
+function resolveChangeRow(bucket: CurrencyChange | undefined, name: string, symbol: string, computed: GroupDayChange | null | undefined): ChangeRow[] {
+    if (computed === null) {
+        return [{ name, symbol, value: null, pct: null }]
     }
-    return (gain / prevClose) * 100
-}
-
-// The backend's change_value is today's value minus the snapshot's, so it
-// counts money bought or sold since then as gain or loss. A computed day
-// gain replaces it; a computed null (no previous close for some holding)
-// shows "—" rather than falling back to it. undefined = not computed for
-// this currency (USD), which keeps the backend figure.
-function resolveChangeRow(bucket: CurrencyChange, name: string, symbol: string, override: number | null | undefined): ChangeRow {
-    if (override === null) {
-        return { name, symbol, value: null, pct: null }
+    if (computed !== undefined) {
+        return [{ name, symbol, value: computed.gain, pct: computed.pct }]
     }
-    if (override !== undefined) {
-        return { name, symbol, value: override, pct: changePct(override, bucket.previous_close) }
-    }
-    return { name, symbol, value: bucket.change_value ?? 0, pct: bucket.change_pct ?? null }
+    if (!bucket) return []
+    return [{ name, symbol, value: bucket.change_value ?? 0, pct: bucket.change_pct ?? null }]
 }
 
 interface SummaryCardsProps {
@@ -390,10 +387,11 @@ interface SummaryCardsProps {
     stocksCurrentEur?: number
     stocksUnrealisedInr?: number
     stocksUnrealisedEur?: number
-    // Frontend-computed day gain per currency (sum of per-holding movements),
-    // matching the ChangeStat values shown in each currency group card.
-    computedDayGainInr?: number | null
-    computedDayGainEur?: number | null
+    // Frontend-computed day change per currency (sum of per-holding
+    // movements), matching the ChangeStat shown in each currency group card.
+    // undefined = the currency is not held; null = a holding has no close.
+    computedDayChangeInr?: GroupDayChange | null
+    computedDayChangeEur?: GroupDayChange | null
     // Ledger-derived dividend income per native currency (PRD-005 §9).
     dividendsInr?: number
     dividendsEur?: number
@@ -411,8 +409,8 @@ export default function SummaryCards({
                                          stocksCurrentEur,
                                          stocksUnrealisedInr,
                                          stocksUnrealisedEur,
-                                         computedDayGainInr,
-                                         computedDayGainEur,
+                                         computedDayChangeInr,
+                                         computedDayChangeEur,
                                          dividendsInr,
                                          dividendsEur
                                      }: SummaryCardsProps) {
@@ -439,24 +437,20 @@ export default function SummaryCards({
     const totalPnLEur = total_unrealized_eur + total_realized_eur
 
     // Daily change vs previous close, grouped into one card with one native
-    // line per currency the user holds — India ₹, EUR €, USD $. A line is
-    // built only when that currency has a per-currency entry (i.e. a prior
-    // snapshot with value in it), so single-currency users see just one line.
+    // line per currency the user holds — India ₹, EUR €, USD $ — so
+    // single-currency users see just one line (resolveChangeRow).
     const CCY_META: { code: string; name: string; symbol: string }[] = [
         {code: 'INR', name: 'INR', symbol: '₹'},
         {code: 'EUR', name: 'EUR', symbol: '€'},
         {code: 'USD', name: 'USD', symbol: '$'},
     ]
-    const computedGainOverrides: Partial<Record<string, number | null>> = {
-        INR: computedDayGainInr,
-        EUR: computedDayGainEur,
+    const computedChanges: Partial<Record<string, GroupDayChange | null>> = {
+        INR: computedDayChangeInr,
+        EUR: computedDayChangeEur,
     }
 
-    const changeRows: ChangeRow[] = CCY_META.flatMap(({ code, name, symbol }) => {
-        const bucket = per_currency?.find(entry => entry.currency === code)
-        if (!bucket) return []
-        return [resolveChangeRow(bucket, name, symbol, computedGainOverrides[code])]
-    })
+    const changeRows: ChangeRow[] = CCY_META.flatMap(({ code, name, symbol }) =>
+        resolveChangeRow(per_currency?.find(entry => entry.currency === code), name, symbol, computedChanges[code]))
 
     return (
         <div>
