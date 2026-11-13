@@ -584,14 +584,9 @@ components:
           nullable: true
           maxLength: 60
           description: >
-            Sector label to show. There is no fixed sector set (DD-013 §1); this
-            is Yahoo's text until the owner renames it. Always null for funds.
-          example: Technology
-        provider_sector:
-          type: string
-          nullable: true
-          maxLength: 60
-          description: Yahoo's sector text as given; null when Yahoo gave none
+            Yahoo's sector text as given (normalised whitespace). There is no
+            fixed sector set (DD-013 §1), and the preview is provider-only: an
+            owner's rename lives on their holding. Always null for funds.
           example: Technology
         industry:
           type: string

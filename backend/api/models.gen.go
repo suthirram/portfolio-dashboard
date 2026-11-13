@@ -1186,10 +1186,7 @@ type ProfileLookup struct {
 	// LookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
 	LookupStatus ProfileLookupLookupStatus `json:"lookup_status"`
 
-	// ProviderSector Yahoo's sector text as given; null when Yahoo gave none
-	ProviderSector *string `json:"provider_sector,omitempty"`
-
-	// Sector Sector label to show. There is no fixed sector set (DD-013 §1); this is Yahoo's text until the owner renames it. Always null for funds.
+	// Sector Yahoo's sector text as given (normalised whitespace). There is no fixed sector set (DD-013 §1), and the preview is provider-only: an owner's rename lives on their holding. Always null for funds.
 	Sector *string `json:"sector,omitempty"`
 
 	// SuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently

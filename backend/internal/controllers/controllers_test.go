@@ -174,8 +174,8 @@ func TestGetMarketProfile_ReturnsProfileAndCatalogue(t *testing.T) {
 	if got.Symbol != "TCS.NS" || got.LookupStatus != api.ProfileLookupStatusFound {
 		t.Errorf("symbol/status = %q/%q, want TCS.NS/found", got.Symbol, got.LookupStatus)
 	}
-	if got.Sector == nil || *got.Sector != "Technology" || got.ProviderSector == nil || *got.ProviderSector != "Technology" {
-		t.Errorf("Sector/ProviderSector = %v/%v, want Yahoo's text Technology", got.Sector, got.ProviderSector)
+	if got.Sector == nil || *got.Sector != "Technology" {
+		t.Errorf("Sector = %v, want Yahoo's text Technology", got.Sector)
 	}
 	if got.Industry == nil || *got.Industry != "Information Technology Services" {
 		t.Errorf("Industry = %v", got.Industry)
@@ -198,7 +198,7 @@ func TestGetMarketProfile_UnavailableStillAnswers200(t *testing.T) {
 	if got.LookupStatus != api.ProfileLookupStatusUnavailable {
 		t.Errorf("LookupStatus = %q, want unavailable", got.LookupStatus)
 	}
-	if got.Sector != nil || got.ProviderSector != nil || got.Industry != nil || got.SuggestedType != nil {
+	if got.Sector != nil || got.Industry != nil || got.SuggestedType != nil {
 		t.Errorf("unavailable lookup carried classification: %+v", got)
 	}
 }
