@@ -53,7 +53,13 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 // SameSite=Lax (local dev). Sourced from Config.CookieSecure; do not derive
 // from the request scheme.
 func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller {
-	return newWithDeps(persistence.New(db), services.NewPriceService(logger), services.NewCompanyProfileService(logger), logger, cookieSecure)
+	return NewWithProfiles(db, logger, cookieSecure, services.NewCompanyProfileService(logger))
+}
+
+// NewWithProfiles is New with the profile fetcher supplied. HTTP-level tests
+// pass nil so they never contact Yahoo; holdings are then saved unclassified.
+func NewWithProfiles(db *mongo.Database, logger *zap.Logger, cookieSecure bool, profiles services.ProfileFetcher) *Controller {
+	return newWithDeps(persistence.New(db), services.NewPriceService(logger), profiles, logger, cookieSecure)
 }
 
 // newWithDeps assembles the per-domain services around a pre-built store,
