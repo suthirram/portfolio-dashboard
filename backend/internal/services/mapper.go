@@ -94,9 +94,41 @@ func HoldingToAPI(h domain.Holding) api.Holding {
 		TotalDividends: &h.TotalDividends,
 		Currency:       &currency,
 		Notes:          &h.Notes,
+		Classification: ClassificationToAPI(h),
 		CreatedAt:      &h.CreatedAt,
 		UpdatedAt:      &h.UpdatedAt,
 	}
+}
+
+// ClassificationToAPI maps a holding's classification to its DTO. A missing
+// classification, or one made for an earlier symbol, reads as needs_review
+// with no stale details (DD-013 §1). Empty strings stay absent.
+func ClassificationToAPI(holding domain.Holding) *api.HoldingClassification {
+	classification := holding.Classification
+	if !classification.CurrentFor(holding.Symbol) {
+		return &api.HoldingClassification{Status: api.ClassificationStatusNeedsReview}
+	}
+	out := &api.HoldingClassification{
+		Symbol:    &classification.Symbol,
+		Status:    api.HoldingClassificationStatus(classification.Status),
+		CheckedAt: &classification.CheckedAt,
+	}
+	if classification.Source != "" {
+		out.Source = new(api.HoldingClassificationSource(classification.Source))
+	}
+	if classification.Sector != "" {
+		out.Sector = &classification.Sector
+	}
+	if classification.ProviderSector != "" {
+		out.ProviderSector = &classification.ProviderSector
+	}
+	if classification.Industry != "" {
+		out.Industry = &classification.Industry
+	}
+	if classification.SuggestedType != "" {
+		out.SuggestedType = new(api.SuggestedHoldingType(classification.SuggestedType))
+	}
+	return out
 }
 
 // HoldingWithPriceToAPI enriches a DBO with live price data and maps to a DTO.
@@ -136,6 +168,7 @@ func HoldingWithPriceToAPI(ctx context.Context, holding domain.Holding, ps Price
 		TotalDividends: &holding.TotalDividends,
 		Currency:       &currency,
 		Notes:          &holding.Notes,
+		Classification: ClassificationToAPI(holding),
 		CreatedAt:      &holding.CreatedAt,
 		UpdatedAt:      &holding.UpdatedAt,
 		CostPrice:      &costPrice,
@@ -320,4 +353,24 @@ func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumu
 		Cumulative:        cumulative,
 		HoldingCumulative: holdingCumulative,
 	}
+}
+
+// ProfileToAPI maps a profile lookup to its DTO. The preview is provider-only:
+// the sector is Yahoo's text, never an owner's rename. Empty text fields stay
+// absent, not "".
+func ProfileToAPI(profile CompanyProfile) api.ProfileLookup {
+	lookup := api.ProfileLookup{
+		Symbol:       profile.Symbol,
+		LookupStatus: api.ProfileLookupLookupStatus(profile.Status),
+	}
+	if profile.Sector != "" {
+		lookup.Sector = &profile.Sector
+	}
+	if profile.Industry != "" {
+		lookup.Industry = &profile.Industry
+	}
+	if profile.SuggestedType != "" {
+		lookup.SuggestedType = new(api.SuggestedHoldingType(profile.SuggestedType))
+	}
+	return lookup
 }

@@ -22,6 +22,10 @@ export function holdingPath(holdingId: string, userId?: string): string {
   return id ? `/admin/users/${id}/holdings/${holdingId}` : `/holdings/${holdingId}`
 }
 
+export function classificationPath(holdingId: string, userId?: string): string {
+  return `${holdingPath(holdingId, userId)}/classification`
+}
+
 export function pricesPath(userId?: string): string {
   const id = actingAs(userId)
   return id ? `/admin/users/${id}/prices` : '/prices'

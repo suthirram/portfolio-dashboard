@@ -65,8 +65,8 @@ describe('AddEditModal numeric input', () => {
   // PD-045 design-system contract: modals carry the shared chrome classes so
   // the stylesheet supplies backdrop blur and the enter animation.
   it('renders the modal-overlay / modal-card chrome classes', () => {
-    const { container } = render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
-    const overlay = container.querySelector('.modal-overlay')
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    const overlay = screen.getByRole('dialog', { name: 'Add Holding' }).closest('.modal-overlay')
     expect(overlay).not.toBeNull()
     expect(overlay!.querySelector('.modal-card')).not.toBeNull()
   })

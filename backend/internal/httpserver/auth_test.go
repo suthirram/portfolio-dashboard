@@ -33,7 +33,7 @@ func fakeSessionID(seed string) string {
 
 func newTestServer(mt *mtest.T) http.Handler {
 	logger := zap.NewNop()
-	h := controllers.New(mt.DB, logger, false)
+	h := controllers.NewWithProfiles(mt.DB, logger, false, nil) // never contact Yahoo
 	return New(config.Default(), logger, mt.DB, h)
 }
 
@@ -124,7 +124,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 
 	mt.Run("anonymous requests get 401", func(mt *mtest.T) {
 		srv := newTestServer(mt)
-		for _, path := range []string{"/api/holdings", "/api/prices", "/api/summary", "/api/auth/me", "/api/admin/users", "/api/market/price?symbol=TCS.NS"} {
+		for _, path := range []string{"/api/holdings", "/api/prices", "/api/summary", "/api/auth/me", "/api/admin/users", "/api/market/price?symbol=TCS.NS", "/api/market/profile?symbol=TCS.NS"} {
 			rec := doRequest(t, srv, http.MethodGet, path, nil)
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("GET %s = %d, want 401; body=%s", path, rec.Code, rec.Body.String())
@@ -292,6 +292,18 @@ func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 		rec := doRequest(t, srv, http.MethodPost, "/api/auth/login", nil)
 		if rec.Code != http.StatusForbidden {
 			t.Fatalf("POST without X-Requested-With = %d, want 403", rec.Code)
+		}
+	})
+
+	mt.Run("classification confirmations without header are refused", func(mt *mtest.T) {
+		srv := newTestServer(mt)
+		for _, path := range []string{
+			"/api/holdings/" + primitive.NewObjectID().Hex() + "/classification",
+			"/api/admin/users/" + primitive.NewObjectID().Hex() + "/holdings/" + primitive.NewObjectID().Hex() + "/classification",
+		} {
+			if rec := doRequest(t, srv, http.MethodPut, path, nil); rec.Code != http.StatusForbidden {
+				t.Errorf("PUT %s without X-Requested-With = %d, want 403", path, rec.Code)
+			}
 		}
 	})
 

@@ -121,6 +121,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/holdings/{id}/classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Confirm or rename a holding's type and sector
+         * @description Saves the owner's classification on this holding only (DD-013 §1–§2): source `user`, status `resolved`. Also sets the holding's type. Yahoo's text stays in provider_sector so a rename stays visible.
+         */
+        put: operations["confirmHoldingClassification"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/holdings/{id}/transactions": {
         parameters: {
             query?: never;
@@ -426,6 +449,26 @@ export interface paths {
         };
         /** Get forex exchange rate */
         get: operations["getForexRate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Look up a symbol's company sector and suggested holding type
+         * @description Direct Yahoo profile lookup (DD-013 §2). Provider failure is a 200 with lookup_status `unavailable`, so the caller can still classify by hand. There is no fixed sector set: the sector is Yahoo's text.
+         */
+        get: operations["getMarketProfile"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1061,6 +1104,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/holdings/{holdingId}/classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the holding */
+                holdingId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Confirm or rename a holding's type and sector in a user's portfolio
+         * @description Act-as twin of PUT /holdings/{id}/classification. Region-scoped like the other act-as routes: an out-of-region or non-user target reads as 404.
+         */
+        put: operations["adminConfirmUserHoldingClassification"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{id}/holdings/{holdingId}/transactions": {
         parameters: {
             query?: never;
@@ -1305,6 +1373,44 @@ export interface components {
             /** @description Fonts the super admin may choose from. */
             allowed_fonts: components["schemas"]["BrandingFontOption"][];
         };
+        /**
+         * @description Yahoo's quote type as a holding type; a suggestion, never applied silently
+         * @enum {string}
+         */
+        SuggestedHoldingType: "stock" | "etf" | "mutual_fund";
+        /** @description A holding's sector/type metadata (DD-013 §1). There is no fixed sector set; the sector is a label on this holding. A holding with no classification, or one made for a different symbol, reads as needs_review with no other fields. */
+        HoldingClassification: {
+            /**
+             * @description Canonical (trimmed, upper-case) symbol this classification belongs to
+             * @example TCS.NS
+             */
+            symbol?: string;
+            /** @enum {string} */
+            status: "resolved" | "needs_review";
+            /**
+             * @description Absent when the lookup failed without metadata
+             * @enum {string|null}
+             */
+            source?: "yahoo" | "user" | null;
+            /**
+             * @description Sector label shown for this holding; stocks only
+             * @example Technology
+             */
+            sector?: string | null;
+            /**
+             * @description Yahoo's sector text as given; differs from sector when the owner renamed this holding
+             * @example Technology
+             */
+            provider_sector?: string | null;
+            /** @description Provider industry text (length-limited; render as text) */
+            industry?: string | null;
+            suggested_type?: components["schemas"]["SuggestedHoldingType"] | null;
+            /**
+             * Format: date-time
+             * @description When the lookup ran or the owner decided
+             */
+            checked_at?: string | null;
+        };
         Holding: {
             /** @description MongoDB ObjectID */
             id?: string;
@@ -1315,7 +1421,7 @@ export interface components {
             /** @enum {string} */
             exchange?: "NSE" | "BSE" | "NYSE" | "NASDAQ" | "OTHER";
             /** @enum {string} */
-            type?: "stock" | "etf";
+            type?: "stock" | "etf" | "mutual_fund";
             /**
              * Format: double
              * @description Current quantity held
@@ -1350,6 +1456,7 @@ export interface components {
              * @description User-set effective date of the opening balance; null when not yet set
              */
             opening_date?: string | null;
+            classification?: components["schemas"]["HoldingClassification"];
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -1361,7 +1468,7 @@ export interface components {
             /** @enum {string} */
             exchange: "NSE" | "BSE" | "NYSE" | "NASDAQ" | "OTHER";
             /** @enum {string} */
-            type: "stock" | "etf";
+            type: "stock" | "etf" | "mutual_fund";
             /**
              * Format: double
              * @default 0
@@ -1537,6 +1644,16 @@ export interface components {
             as_of: string;
             currencies: components["schemas"]["StockXirrCurrency"][];
             holdings: components["schemas"]["StockXirrHolding"][];
+        };
+        /** @description The owner's classification of a holding (DD-013 §2). Saved with source `user` on this holding only. A stock takes any sector label, or null for an unclassified stock; a fund (etf, mutual_fund) must have a null sector. */
+        HoldingClassificationInput: {
+            /** @enum {string} */
+            type: "stock" | "etf" | "mutual_fund";
+            /**
+             * @description Sector label; trimmed, whitespace collapsed, and matched case-insensitively against the owner's existing labels
+             * @example FMCG
+             */
+            sector?: string | null;
         };
         Transaction: {
             /** @description MongoDB ObjectID */
@@ -1986,6 +2103,26 @@ export interface components {
             conflicts: components["schemas"]["HistoryDateConflict"][];
             rejected: components["schemas"]["RejectedPasteRow"][];
         };
+        ProfileLookup: {
+            /**
+             * @description Normalised (trimmed, upper-case) symbol that was looked up
+             * @example TCS.NS
+             */
+            symbol: string;
+            /**
+             * @description found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+             * @enum {string}
+             */
+            lookup_status: "found" | "missing" | "unavailable";
+            /**
+             * @description Yahoo's sector text as given (normalised whitespace). There is no fixed sector set (DD-013 §1), and the preview is provider-only: an owner's rename lives on their holding. Always null for funds.
+             * @example Technology
+             */
+            sector?: string | null;
+            /** @description Provider industry text (length-limited; render as text) */
+            industry?: string | null;
+            suggested_type?: components["schemas"]["SuggestedHoldingType"] | null;
+        };
         Region: {
             /** @description Stable region key (india, europe, us) */
             id: string;
@@ -2289,8 +2426,8 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Username already taken */
-        Conflict: {
+        /** @description Not logged in, or credentials/answers rejected */
+        Unauthorized: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2298,8 +2435,8 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
-        /** @description Not logged in, or credentials/answers rejected */
-        Unauthorized: {
+        /** @description Username already taken */
+        Conflict: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2547,6 +2684,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StockXirrView"];
+                };
+            };
+        };
+    };
+    confirmHoldingClassification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldingClassificationInput"];
+            };
+        };
+        responses: {
+            /** @description Holding with its confirmed classification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Holding"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description The holding's symbol changed while confirming; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -3083,6 +3258,34 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    getMarketProfile: {
+        parameters: {
+            query: {
+                /**
+                 * @description Yahoo Finance ticker (1–64 of letters, digits and . - ^ = _)
+                 * @example TCS.NS
+                 */
+                symbol: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profile lookup result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileLookup"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     getRegions: {
@@ -4056,6 +4259,46 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    adminConfirmUserHoldingClassification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description MongoDB ObjectID of the target user */
+                id: components["parameters"]["UserID"];
+                /** @description MongoDB ObjectID of the holding */
+                holdingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldingClassificationInput"];
+            };
+        };
+        responses: {
+            /** @description Holding with its confirmed classification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Holding"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            /** @description The holding's symbol changed while confirming; reload and retry */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     adminListUserHoldingTransactions: {
