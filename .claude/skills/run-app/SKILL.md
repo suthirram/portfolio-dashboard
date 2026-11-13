@@ -1,6 +1,6 @@
 ---
 name: run-app
-description: Launch and drive the Portfolio Dashboard (Go backend + Vite frontend + MongoDB) as a real user, including the auth + snapshot-seed flow needed to verify data-driven UI (History charts). Use when asked to run the app, screenshot a page, or confirm a frontend change works against the live stack.
+description: Launch, verify, and troubleshoot the Portfolio Dashboard development stack, including auth and snapshot seeding for UI verification. Use when asked to run the app, screenshot a page, verify a frontend change against the live stack, or diagnose local startup and runtime failures. Record troubleshooting in the repository cookbook.
 ---
 
 # Running the Portfolio Dashboard
@@ -10,6 +10,26 @@ Full stack: MongoDB (docker) → Go backend on `:8080` → Vite frontend on
 session cookie; every data-driven page (History charts, dashboard) needs
 rows in Mongo. This skill captures the verified launch + auth + seed flow —
 don't rediscover it.
+
+## Troubleshooting and recording fixes
+
+When diagnosing a development-stack failure, first search the
+[cookbook](../../../docs/cookbook/README.md) for matching symptoms. Use the
+relevant diagnostic steps to confirm the cause before applying a repair;
+check the actual container, network, volume, or port rather than assuming
+the example's names match this environment.
+
+Before handing off any troubleshooting work, add or update a cookbook entry
+using its template. Include the trigger, reproduction steps or diagnostic
+commands, redacted error/log evidence, confirmed cause (or a labelled
+hypothesis), repair commands, and verification results. If unresolved, record
+the blocker and next diagnostic step. An issued start command alone does not
+prove recovery: check readiness and the affected behavior. Link the entry in
+the handoff. Keep secrets and personal data out of the record, and preserve
+the repository's existing approval requirements for destructive operations.
+
+For `make dev-trace` network and Tempo volume-permission failures, see
+[Docker tracing recovery](../../../docs/cookbook/docker-tracing-startup.md).
 
 ## 1. Bring the stack up
 
@@ -26,6 +46,12 @@ cd frontend && npm run dev > /tmp/pd-frontend.log 2>&1 &
 
 Confirm backend: `curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/specs/openapi.yaml` → `200`.
 Read `/tmp/pd-frontend.log` for the actual Vite URL (`:3000` or `:3001`).
+
+For tracing, use `make backend-trace` from the repository root in place of
+the database/backend launch commands above. It starts the dev containers and
+runs the backend in the foreground with local Tempo export enabled. Grafana
+uses `:3001`, so check the frontend's actual port. Ctrl-C stops the backend;
+the containers stay running.
 
 **Gotcha:** launching `go run . serve` when a backend is already bound to
 `:8080` logs `bind: address already in use` and that process exits — the

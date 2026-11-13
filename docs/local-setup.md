@@ -6,6 +6,9 @@
 * [Go 1.25+](https://go.dev/dl/)
 * [Node.js 20+](https://nodejs.org)
 
+For startup failures, consult the [troubleshooting cookbook](cookbook/README.md),
+including [Docker tracing recovery](cookbook/docker-tracing-startup.md).
+
 ## Quick start (local dev)
 
 ### 1. Start the databases
@@ -32,6 +35,13 @@ go mod tidy          # first time only
 go run . serve
 # API runs on http://localhost:8080
 ```
+
+For local tracing, run `make backend-trace` from the repository root instead.
+It starts MongoDB, Postgres, Tempo, and Grafana, then runs the backend in the
+foreground with tracing enabled against local Tempo. Open Grafana at
+<http://localhost:3001>. Stop the backend with Ctrl-C; containers stay running.
+This command overrides inherited OTLP endpoints and clears OTLP authentication
+headers for the local exporter. `make dev-trace` starts only the containers.
 
 ### 3. Start the frontend
 

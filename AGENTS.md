@@ -151,6 +151,20 @@ reviews; propose a doc revision instead.
 * Never take actions that change billing or plan tiers to keep working;
   stop cleanly at the current atomic unit and report where you stopped.
 
+## Troubleshooting cookbook
+
+* For every troubleshooting task, search the
+  [cookbook](docs/cookbook/README.md) for an existing entry before diagnosing.
+* Before handing off, add or update an entry with the problem and trigger,
+  reproduction steps or diagnostic commands, relevant redacted errors/logs,
+  evidence for the cause, the solution, and verification commands/results.
+  Follow the cookbook template; distinguish observed facts from hypotheses.
+* Document unresolved investigations too: state what was tried, the current
+  blocker, and the next diagnostic step. Never describe an unverified fix as
+  successful. Update an existing entry rather than duplicating it.
+* Keep credentials, cookies, tokens, and personal portfolio data out of entries.
+  Documentation does not authorize destructive actions or production changes.
+
 ## Environments and data safety
 
 * Dev stack (PD-044): adding the `dev` label to a PR deploys its head
