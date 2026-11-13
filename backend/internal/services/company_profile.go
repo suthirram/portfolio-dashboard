@@ -475,6 +475,13 @@ func (s *CompanyProfileService) checkRedirect(req *http.Request, via []*http.Req
 	return s.checkURL(req.URL)
 }
 
+// RateLimited reports whether Yahoo's 429 pause is in force. The sector
+// backfill stops its batch on it rather than recording needs-review for every
+// remaining holding (DD-013 §1).
+func (s *CompanyProfileService) RateLimited() bool {
+	return s.paused()
+}
+
 func (s *CompanyProfileService) paused() bool {
 	s.pauseMu.Lock()
 	defer s.pauseMu.Unlock()

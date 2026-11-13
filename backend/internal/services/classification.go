@@ -62,24 +62,37 @@ func (s *HoldingsService) classify(ctx context.Context, userId primitive.ObjectI
 	}
 	ctx, span := tracer.Start(ctx, "HoldingsService.classify")
 	defer endSpan(span, &retErr)
-	checkedAt := time.Now()
-	profile, err := s.profiles.LookupProfile(ctx, symbol)
-	if errors.Is(err, ErrInvalidSymbol) {
-		return &domain.Classification{Symbol: domain.CanonicalSymbol(symbol), Status: domain.ClassificationNeedsReview, CheckedAt: checkedAt.UTC()}, nil
+	ownerSectors := func() ([]string, error) {
+		holdings, err := s.store.ListByUser(ctx, userId)
+		return SectorLabels(holdings), err
 	}
+	classification, err := lookupClassification(ctx, s.profiles, symbol, holdingType, ownerSectors, time.Now())
 	if err != nil {
 		return nil, err
 	}
-	var ownerSectors []string
-	if profile.Sector != "" {
-		holdings, err := s.store.ListByUser(ctx, userId)
-		if err != nil {
-			return nil, err
-		}
-		ownerSectors = SectorLabels(holdings)
-	}
-	classification := ClassifyFromProfile(holdingType, profile, ownerSectors, checkedAt)
 	return &classification, nil
+}
+
+// lookupClassification looks up symbol and derives the classification for a
+// holding of holdingType. An invalid symbol is a needs-review classification,
+// not an error. ownerSectors is called only when Yahoo gives a sector, so the
+// owner's labels are read only when label reuse can apply. Shared by holding
+// saves and the sector backfill.
+func lookupClassification(ctx context.Context, profiles ProfileFetcher, symbol, holdingType string, ownerSectors func() ([]string, error), checkedAt time.Time) (domain.Classification, error) {
+	profile, err := profiles.LookupProfile(ctx, symbol)
+	if errors.Is(err, ErrInvalidSymbol) {
+		return domain.Classification{Symbol: domain.CanonicalSymbol(symbol), Status: domain.ClassificationNeedsReview, CheckedAt: checkedAt.UTC()}, nil
+	}
+	if err != nil {
+		return domain.Classification{}, err
+	}
+	var labels []string
+	if profile.Sector != "" {
+		if labels, err = ownerSectors(); err != nil {
+			return domain.Classification{}, err
+		}
+	}
+	return ClassifyFromProfile(holdingType, profile, labels, checkedAt), nil
 }
 
 // ErrInvalidClassification rejects a confirmation whose type or sector is not
