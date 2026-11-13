@@ -10,6 +10,7 @@ entry or update the relevant one before handoff, including unresolved work.
 * [Local preview server and missing Playwright browser](local-preview-access.md)
 * [Local Go and GitHub checks fail inside the sandbox](local-tooling-sandbox.md)
 * [Yahoo company profile lookups always unavailable (crumb 406)](yahoo-profile-session.md)
+* [Backend build fails on duplicate classification declarations](duplicate-classification-declarations.md)
 
 ## Writing an entry
 
