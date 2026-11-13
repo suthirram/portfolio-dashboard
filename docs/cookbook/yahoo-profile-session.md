@@ -32,29 +32,41 @@ print the crumb or cookie values:
 
 ```bash
 UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-curl -s -o /dev/null -w 'fc=%{http_code}\n' -A "$UA" -c /tmp/yahoo.jar https://fc.yahoo.com/
-awk '!/^#/ && NF {print $6}' /tmp/yahoo.jar      # cookie names only
-curl -s -o /dev/null -w 'crumb=%{http_code}\n' -A "$UA" -b /tmp/yahoo.jar https://query1.finance.yahoo.com/v1/test/getcrumb
+# Session cookie: print the Set-Cookie header, value redacted.
+curl -s -D - -o /dev/null -A "$UA" -c /tmp/yahoo.jar https://fc.yahoo.com/ \
+  | grep -iE '^HTTP|^set-cookie' | sed -E 's/(=)[^;]{6,}/\1<redacted>/'
+sleep 3
+# Crumb, once per Accept header; space the requests to avoid a 429.
+curl -s -o /dev/null -w 'crumb json=%{http_code}\n' -A "$UA" -H 'Accept: application/json' -b /tmp/yahoo.jar https://query1.finance.yahoo.com/v1/test/getcrumb
+sleep 3
+curl -s -o /dev/null -w 'crumb any=%{http_code}\n' -A "$UA" -H 'Accept: */*' -b /tmp/yahoo.jar https://query1.finance.yahoo.com/v1/test/getcrumb
 rm -f /tmp/yahoo.jar
 ```
 
-Observed on 2026-11-13: `fc=404` with an **empty cookie jar** on every attempt.
-The crumb endpoint answered 406 to the backend and 429 to curl; both minutes
-later and earlier in the day, every Yahoo endpoint, including chart,
-answered 429 for a while.
+Do not list cookies with `awk '!/^#/'` over the jar: curl writes HttpOnly
+cookies as `#HttpOnly_…` lines, so that filter hides them. An earlier version
+of this entry made exactly that mistake and wrongly reported no cookie.
+
+Observed on 2026-11-13:
+
+* `fc.yahoo.com` answers 404 **and sets the `A3` session cookie**
+  (`Domain=.yahoo.com; Secure; HttpOnly`), as the protocol expects.
+* The crumb endpoint answered **406** to the backend on every lookup. At
+  the same time, curl (default `Accept: */*`) got 429.
+* For stretches of the day every Yahoo endpoint, chart included, answered
+  429 to this IP, including both crumb variants above.
 
 ## Cause and evidence
 
 Not confirmed. Evidence so far:
 
-* `fc.yahoo.com` does not set the session cookie for this network, so the
-  crumb request carries no session.
-* Hypothesis A (unverified): from European networks, Yahoo puts a consent
-  flow (`guce.yahoo.com`) in front of the session cookie, and `fc.yahoo.com`
-  no longer hands it out. DD-013 §3 says to stop this path, rather than run
-  a consent page or provider JavaScript, if that is the requirement.
-* Hypothesis B (unverified): the 406 comes from the backend's
-  `Accept: application/json` header on the plain-text crumb request.
+* The session cookie is issued, so the bootstrap step works. (The earlier
+  European-consent hypothesis came from the faulty jar check above and has
+  no evidence behind it.)
+* Hypothesis (unverified, leading): the 406 comes from the backend sending
+  `Accept: application/json` to the crumb endpoint, which serves plain text.
+  The backend and curl differ mainly in that header, and 406 means Not
+  Acceptable.
 * The 429s show that repeated probes throttle this IP, so diagnosis needs
   spaced-out single requests.
 
@@ -74,6 +86,7 @@ and `crumb=200`, and a `--limit 5` dry run reports resolved holdings.
 
 Blocker: Yahoo throttling (429) on this IP. Next step, once unthrottled:
 
-1. Check the response headers of `fc.yahoo.com` and the crumb endpoint once each.
-2. Retry the crumb request with `Accept: */*` to test hypothesis B.
-3. Run the same probe from the deployed dev runtime (a non-EU egress) to test hypothesis A.
+1. Run the two crumb probes above when the chart endpoint answers 200.
+   `crumb json=406` with `crumb any=200` confirms the Accept hypothesis.
+2. If confirmed, send `Accept: application/json` only on the quoteSummary
+   request (the crumb gets `*/*`), then repeat a `--limit 5` dry run.
