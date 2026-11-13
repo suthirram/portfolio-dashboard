@@ -53,7 +53,7 @@ interface CellProps {
 
 const TH = ({ children, style, className }: CellProps) => (
   <th className={className} style={{
-    padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
+    padding: '10px 8px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
     position: 'sticky', top: 'var(--nav-height)', zIndex: 1,
@@ -65,7 +65,7 @@ const TH = ({ children, style, className }: CellProps) => (
   </th>
 )
 const TD = ({ children, style, className }: CellProps) => (
-  <td style={{ padding: '10px 12px', textAlign: 'right', borderBottom: '1px solid var(--border)', ...style }} className={className}>
+  <td style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)', ...style }} className={className}>
     {children}
   </td>
 )
@@ -212,7 +212,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH className="col-hide-sm">Realised Gain</TH>
             <TH className="col-hide-sm">Dividends</TH>
             <TH>XIRR</TH>
-            <TH style={{ textAlign: 'center', width: 116 }}>Actions</TH>
+            <TH style={{ textAlign: 'center', width: 104 }}>Actions</TH>
           </tr>
         </thead>
 
