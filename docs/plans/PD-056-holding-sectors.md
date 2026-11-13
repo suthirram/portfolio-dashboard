@@ -262,7 +262,9 @@ DashboardPage, and tests listed in §3.
   Save and review classification. Unit and Chrome fixture checks passed for
   own/act-as, owner-only labels, post-save fund confirmation, keyboard focus
   trapping/restoration, all themes, and 1440/390/320 px. Typecheck, ESLint,
-  564 frontend tests and build pass. Live dev verification remains pending.
+  566 frontend tests and build pass, including reopening an explicitly
+  unclassified stock without restoring Yahoo's sector. Live dev verification
+  remains pending.
 * [x] Owner reviewed the local preview and approved tighter column spacing and
   a right-aligned By holding / By sector switch (2026-11-13).
 * [x] Add text sector badges and By holding / By sector layouts, with separate

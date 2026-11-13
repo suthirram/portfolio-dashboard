@@ -35,6 +35,17 @@ describe('profile preview', () => {
 })
 
 describe('classification review', () => {
+  it.each([null, undefined])('preserves an explicitly unclassified stock when reopened (sector %s)', async sector => {
+    const unclassified: Holding = { ...pending, type: 'stock', classification: {
+      symbol: 'FUND', status: 'resolved', source: 'user', sector, provider_sector: 'Technology',
+    } }
+    vi.mocked(api.confirmClassification).mockResolvedValue(unclassified)
+    render(<ClassificationReview holding={unclassified} ownerHoldings={[]} onClose={vi.fn()} onConfirmed={vi.fn()} />)
+    expect(screen.getByLabelText('Sector')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm classification' }))
+    await waitFor(() => expect(api.confirmClassification).toHaveBeenCalledWith('holding-1', { type: 'stock', sector: null }, undefined))
+  })
+
   it('requires an explicit fund confirmation and routes it to the act-as owner', async () => {
     const onConfirmed = vi.fn()
     vi.mocked(api.confirmClassification).mockResolvedValue({ ...pending, classification: { symbol: 'FUND', source: 'user', status: 'resolved' } })

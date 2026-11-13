@@ -16,7 +16,8 @@ interface Props {
 
 export default function ClassificationReview({ holding, ownerHoldings, userId, onClose, onConfirmed, restoreFocusTo }: Props) {
   const [type, setType] = useState<HoldingType>(holding.type ?? 'stock')
-  const [sector, setSector] = useState(holding.classification?.sector ?? holding.classification?.provider_sector ?? '')
+  const [sector, setSector] = useState(holding.classification?.sector ??
+    (holding.classification?.status === 'resolved' ? '' : holding.classification?.provider_sector ?? ''))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const root = useRef<HTMLDivElement>(null)
