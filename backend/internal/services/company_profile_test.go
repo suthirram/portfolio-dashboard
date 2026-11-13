@@ -25,6 +25,8 @@ type fakeYahoo struct {
 	cookieStatus   int
 	crumbStatus    int
 	crumbDelay     time.Duration
+	crumbAccept    string // Accept header of the last crumb request
+	summaryAccept  string // Accept header of the last quoteSummary request
 	retryAfter     string
 	body           string
 	delay          time.Duration
@@ -47,6 +49,12 @@ func (f *fakeYahoo) handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	case r.URL.Path == "/crumb":
 		f.crumbCalls++
+		f.crumbAccept = r.Header.Get("Accept")
+		// Like Yahoo, the plain-text crumb is refused when only JSON is acceptable.
+		if f.crumbAccept == "application/json" {
+			w.WriteHeader(http.StatusNotAcceptable)
+			return
+		}
 		if f.crumbDelay > 0 {
 			f.mu.Unlock()
 			time.Sleep(f.crumbDelay)
@@ -65,6 +73,7 @@ func (f *fakeYahoo) handler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(strings.Replace(cookie.Value, "session", "crumb", 1))) //nolint:gosec // fake provider crumb, plain text
 	case strings.HasPrefix(r.URL.Path, "/summary/"):
 		f.summaryCalls++
+		f.summaryAccept = r.Header.Get("Accept")
 		if f.redirectTarget != "" {
 			http.Redirect(w, r, f.redirectTarget, http.StatusFound)
 			return
@@ -234,6 +243,27 @@ func assertProfile(t *testing.T, got, want CompanyProfile) {
 	t.Helper()
 	if got != want {
 		t.Errorf("profile = %+v, want %+v", got, want)
+	}
+}
+
+// The crumb is plain text: asking for it as JSON only gets a 406 from Yahoo
+// and every lookup turns unavailable (cookbook: yahoo-profile-session).
+func TestLookupProfile_AcceptHeaderPerRequest(t *testing.T) {
+	t.Parallel()
+	fake := &fakeYahoo{body: summaryBody("EQUITY", "Technology", "")}
+	service, _ := newFakeProfileService(t, fake)
+
+	got, _ := service.LookupProfile(context.Background(), "TCS.NS")
+	if got.Status != ProfileFound {
+		t.Fatalf("status = %q, want found", got.Status)
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if fake.crumbAccept != "*/*" {
+		t.Errorf("crumb Accept = %q, want */*", fake.crumbAccept)
+	}
+	if fake.summaryAccept != "application/json" {
+		t.Errorf("quoteSummary Accept = %q, want application/json", fake.summaryAccept)
 	}
 }
 
