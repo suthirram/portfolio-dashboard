@@ -16,9 +16,9 @@ fixtures:
   response queues, handlers, request contexts, users, and cookie recorders.
 * `internal/services/{ledger,xirr,stock_xirr}_test.go`: in-memory inputs built
   by each test; no shared mutable fixtures, external APIs, or databases.
-* `internal/services/classification_test.go`, `internal/domain/classification_test.go`
-  and `internal/persistence/holdings_classification_test.go`: pure inputs and
-  per-test Mongo mock clients and profile stubs.
+* `internal/{services,domain,controllers}/classification_test.go` and
+  `internal/persistence/holdings_classification_test.go`: pure inputs and
+  per-test Mongo mock clients, handlers and profile stubs.
 * `internal/services/company_profile_test.go`: each test owns its fake Yahoo TLS
   server, profile service and fake clock. The timeout and caller-cancellation
   tests stay serial because they assert wall-clock bounds.

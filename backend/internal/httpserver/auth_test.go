@@ -295,6 +295,18 @@ func TestCSRFHeaderRequiredOnStateChanges(t *testing.T) {
 		}
 	})
 
+	mt.Run("classification confirmations without header are refused", func(mt *mtest.T) {
+		srv := newTestServer(mt)
+		for _, path := range []string{
+			"/api/holdings/" + primitive.NewObjectID().Hex() + "/classification",
+			"/api/admin/users/" + primitive.NewObjectID().Hex() + "/holdings/" + primitive.NewObjectID().Hex() + "/classification",
+		} {
+			if rec := doRequest(t, srv, http.MethodPut, path, nil); rec.Code != http.StatusForbidden {
+				t.Errorf("PUT %s without X-Requested-With = %d, want 403", path, rec.Code)
+			}
+		}
+	})
+
 	mt.Run("GET needs no header", func(mt *mtest.T) {
 		srv := newTestServer(mt)
 		rec := doRequest(t, srv, http.MethodGet, "/api/regions", nil)

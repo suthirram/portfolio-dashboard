@@ -652,6 +652,24 @@ components:
           nullable: true
           description: When the lookup ran or the owner decided
 
+    HoldingClassificationInput:
+      type: object
+      required: [type]
+      description: >
+        The owner's classification of a holding (DD-013 §2). Saved with source
+        `user` on this holding only. A stock takes any sector label, or null for
+        an unclassified stock; a fund (etf, mutual_fund) must have a null sector.
+      properties:
+        type:
+          type: string
+          enum: [stock, etf, mutual_fund]
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Sector label; trimmed, whitespace collapsed, and matched case-insensitively against the owner's existing labels
+          example: FMCG
+
     Holding:
       type: object
       properties:

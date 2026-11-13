@@ -58,6 +58,11 @@ const (
 	HoldingTypeMutualFund = "mutual_fund"
 )
 
+// ValidHoldingType reports whether holdingType is stock, etf or mutual_fund.
+func ValidHoldingType(holdingType string) bool {
+	return holdingType == HoldingTypeStock || holdingType == HoldingTypeETF || holdingType == HoldingTypeMutualFund
+}
+
 // SectorLabelLimit caps a sector label in characters (DD-013 §1).
 const SectorLabelLimit = 60
 
