@@ -70,8 +70,12 @@ manual records. Dry-run may contact Yahoo but makes no DB writes. A configurable
 `--limit` caps holdings per invocation. Default limit: 100; explicitly selecting
 `--limit 0` processes all candidates. Print aggregate counts: eligible, resolved,
 needs-review, skipped, conflicts, and errors. Continue after per-symbol provider
-failure, but stop the batch after a rate-limit response and report incomplete
-work with a nonzero exit. Reruns resume by skipping processed records.
+failure, but stop the batch after a rate-limit response or an unavailable Yahoo
+session and report incomplete work with a nonzero exit. Neither stop writes the
+failed holding; reruns resume by skipping processed records. Session bootstrap
+errors and repeated session rejection are internal provider outcomes, never
+persisted or exposed in the API. Ordinary holding saves still succeed with
+needs-review during a session failure (owner decision, 2026-11-13).
 
 ## 2. Backend layout and API
 
@@ -125,6 +129,11 @@ Use Yahoo-hosted HTTPS endpoints only:
 * Session token: `https://query1.finance.yahoo.com/v1/test/getcrumb`.
 * Company metadata: `https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}`
   with `modules=assetProfile,quoteType` and a matching crumb.
+
+Set `Accept` per request: cookie bootstrap and crumb requests use `*/*`;
+quoteSummary uses `application/json`. The crumb is plain text: asking only for
+JSON causes Yahoo to return 406. This rule is implemented in PR #289 and covered
+by an offline provider test; see the [session cookbook](../cookbook/yahoo-profile-session.md).
 
 This describes an unofficial protocol, not a guaranteed public contract. The
 [quote implementation](https://github.com/ranaroussi/yfinance/blob/main/yfinance/scrapers/quote.py)

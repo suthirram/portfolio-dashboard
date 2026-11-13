@@ -76,8 +76,8 @@ func (s *HoldingsService) classify(ctx context.Context, userId primitive.ObjectI
 // lookupClassification looks up symbol and derives the classification for a
 // holding of holdingType. An invalid symbol is a needs-review classification,
 // not an error. ownerSectors is called only when Yahoo gives a sector, so the
-// owner's labels are read only when label reuse can apply. Shared by holding
-// saves and the sector backfill.
+// owner's labels are read only when label reuse can apply. Backfill calls
+// ClassifyFromProfile after checking the provider's batch-stop outcomes.
 func lookupClassification(ctx context.Context, profiles ProfileFetcher, symbol, holdingType string, ownerSectors func() ([]string, error), checkedAt time.Time) (domain.Classification, error) {
 	profile, err := profiles.LookupProfile(ctx, symbol)
 	if errors.Is(err, ErrInvalidSymbol) {

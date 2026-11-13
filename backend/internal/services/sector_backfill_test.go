@@ -231,6 +231,63 @@ func TestSectorBackfill_RateLimitStopsWithoutRecordingIt(t *testing.T) {
 	}
 }
 
+func TestSectorBackfill_SessionFailureStopsAndRerunResumes(t *testing.T) {
+	t.Parallel()
+	for _, apply := range []bool{false, true} {
+		name := "dry run"
+		if apply {
+			name = "apply"
+		}
+		t.Run(name, func(t *testing.T) {
+			owner := primitive.NewObjectID()
+			holdings := &memoryHoldings{byOwner: map[primitive.ObjectID][]domain.Holding{owner: {
+				stockHolding("TCS.NS", nil), stockHolding("INFY.NS", nil), stockHolding("ITC.NS", nil),
+			}}}
+			profiles := &scriptedProfiles{profiles: map[string]CompanyProfile{
+				"TCS.NS":  backfillProfiles["TCS.NS"],
+				"INFY.NS": {Status: ProfileUnavailable, SessionUnavailable: true},
+			}}
+			backfill, _ := newTestBackfill(holdings, profiles)
+			options := SectorBackfillOptions{UserIds: []primitive.ObjectID{owner}, Apply: apply}
+			report, err := backfill.Run(context.Background(), options)
+			if !errors.Is(err, errSessionUnavailable) || report.Errors != 1 || report.Resolved != 1 || report.NeedsReview != 0 || report.Eligible != 1 {
+				t.Fatalf("Run = %+v, %v; want session stop after one resolved holding", report, err)
+			}
+			wantWrites := 0
+			if apply {
+				wantWrites = 1
+			}
+			if holdings.writes != wantWrites || len(profiles.lookups) != 2 || holdings.byOwner[owner][1].Classification != nil || holdings.byOwner[owner][2].Classification != nil {
+				t.Fatalf("writes = %d, lookups = %v; failed and later holdings must stay untouched", holdings.writes, profiles.lookups)
+			}
+			profiles.profiles = backfillProfiles
+			profiles.lookups = nil
+			report, err = backfill.Run(context.Background(), options)
+			wantResolved := 3 - wantWrites
+			if err != nil || report.Resolved != wantResolved || report.Skipped != wantWrites || len(profiles.lookups) != wantResolved {
+				t.Fatalf("rerun = %+v, %v, lookups = %v; want remaining holdings retried without --retry-unresolved", report, err, profiles.lookups)
+			}
+		})
+	}
+}
+
+func TestSectorBackfill_PerSymbolFailureStillAllowsLaterHoldings(t *testing.T) {
+	t.Parallel()
+	owner := primitive.NewObjectID()
+	holdings := &memoryHoldings{byOwner: map[primitive.ObjectID][]domain.Holding{owner: {
+		stockHolding("UNKNOWN.NS", nil), stockHolding("TCS.NS", nil),
+	}}}
+	profiles := &scriptedProfiles{profiles: map[string]CompanyProfile{
+		"UNKNOWN.NS": {Status: ProfileUnavailable},
+		"TCS.NS":     backfillProfiles["TCS.NS"],
+	}}
+	backfill, _ := newTestBackfill(holdings, profiles)
+	report, err := backfill.Run(context.Background(), SectorBackfillOptions{UserIds: []primitive.ObjectID{owner}, Apply: true})
+	if err != nil || report.NeedsReview != 1 || report.Resolved != 1 || holdings.writes != 2 {
+		t.Errorf("Run = %+v, %v, writes = %d; want per-symbol review and later resolution", report, err, holdings.writes)
+	}
+}
+
 func TestSectorBackfill_ConcurrentEditIsAConflict(t *testing.T) {
 	t.Parallel()
 	owner := primitive.NewObjectID()

@@ -87,6 +87,21 @@ The same PR stopped the httpserver tests calling live Yahoo: they built the
 server with the real profile service (via `controllers.New`), so CI made live
 lookups. They now use `controllers.NewWithProfiles(…, nil)`.
 
+Backend follow-up (2026-11-13): migration now distinguishes session bootstrap
+failure or repeated session rejection from an isolated symbol failure. It stops
+with a nonzero exit before writing the failed holding, retaining earlier
+progress. Rerunning after Yahoo recovers retries that holding without
+`--retry-unresolved`. Normal holding creation still saves needs-review.
+
+Test audit: the HTTP fixtures still construct `PriceService`, but current
+price, summary, and market-price requests in `auth_test.go` have no session and
+return 401 before fetching. Authenticated HTTP journeys create/list holdings;
+they do not request prices. `price_test.go` uses `httptest` servers (the test
+named `TestGetPrice_ReturnsLivePriceAndCurrency` is also local), and controller
+and portfolio tests inject price stubs. No live price call was found in these
+paths. Add an injected price fetcher before introducing authenticated HTTP
+price journeys.
+
 ## Verification
 
 From `backend/`, with the fix:
@@ -98,6 +113,20 @@ go run . migrate sectors --all-users --limit 3
 Observed: `"eligible":3,"resolved":3,"needs_review":0,"errors":0`; three
 lookups logged `"outcome":"found"`; nothing written (dry run). The backend
 test suite passes, and 24 profile tests fail without the fix.
+
+Follow-up offline verification (2026-11-13):
+
+```bash
+cd backend
+go test -race -shuffle=on -parallel=4 ./...
+go run . migrate sectors --help
+```
+
+Observed: all backend packages passed. New tests exercise crumb 406/503,
+cached failure and recovery, dry-run/apply session stop and rerun resume, and
+continuation after an isolated symbol failure. CLI help documents both stop
+conditions. No live Yahoo probe, migration apply, or deployed-dev verification
+was performed during this follow-up.
 
 ## Follow-up
 

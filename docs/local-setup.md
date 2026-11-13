@@ -74,6 +74,67 @@ Prereqs: `brew install mongodb-database-tools libpq` (for `mongodump`/`mongorest
 
 Restores into `mongodb://localhost:27017/portfolio` and the local Postgres by default — same stack `docker compose -f docker-compose.dev.yml up -d` starts. Override target/source with more flags (`--local-mongo-uri`, `--local-postgres-uri`, `--db-name`, `--dump-dir`) or run `--help` for the full list. The script refuses to restore anywhere that isn't `localhost`/`127.0.0.1`, so it can't accidentally overwrite prod.
 
+### 6. Backfill holding sectors (PD-056)
+
+Use the backend's existing `MONGODB_URI` and `MONGO_DB` configuration for the
+intended local/dev database. Verify the target without printing secrets. This
+command contacts Yahoo; it writes only holding classification metadata, never
+positions, transactions, or snapshots. See [PD-056](plans/PD-056-holding-sectors.md)
+for rollout and production approval requirements.
+
+1. Inspect help and preview one owner's small batch. Substitute the owner's
+   Mongo ObjectId; a username is not accepted.
+
+   ```bash
+   cd backend
+   go run . migrate sectors --help
+   go run . migrate sectors --user '<owner-object-id>' --limit 10
+   ```
+
+2. Inspect the final `sector backfill finished` report: `applied` must be false.
+   Check `eligible`, `resolved`, `needs_review`, `skipped`, `conflicts`, `errors`,
+   `remaining`, and `rate_limited`. `remaining` counts candidates beyond the
+   limit on a completed scan; an early stop does not count unscanned holdings.
+   ETF/MF matches remain needs-review until explicitly confirmed by the user.
+
+3. For the approved local/dev target, apply the same bounded scope, inspect the
+   report, and repeat until no candidates remain.
+
+   ```bash
+   go run . migrate sectors --user '<owner-object-id>' --limit 10 --apply
+   ```
+
+   Dry run is the default; only `--apply` writes. Require exactly one of
+   `--user` and `--all-users`. The default limit is 100 holdings across the
+   selected owners; `--limit 0` explicitly removes that cap. To preview all users:
+
+   ```bash
+   go run . migrate sectors --all-users --limit 100
+   ```
+
+4. If Yahoo rate-limits lookups or cannot establish a session, the command exits
+   nonzero before writing the failed holding. Completed writes remain. Wait for
+   recovery and rerun the same command; no retry flag is needed for untouched
+   holdings. Ctrl-C also stops before the next write. An isolated symbol failure
+   can still be recorded as needs-review while the batch continues.
+
+5. Previously attempted needs-review records are skipped by default. After
+   diagnosing the provider problem, deliberately preview a retry before applying:
+
+   ```bash
+   go run . migrate sectors --user '<owner-object-id>' --limit 10 --retry-unresolved
+   go run . migrate sectors --user '<owner-object-id>' --limit 10 --retry-unresolved --apply
+   ```
+
+   Resolved records, including user confirmations, are always skipped. A holding
+   edited or confirmed concurrently is counted as a conflict and left untouched.
+   Repeating a dry run previews the same candidates because it saves nothing.
+   Repeating an apply skips completed attempts. See the
+   [Yahoo session cookbook](cookbook/yahoo-profile-session.md) for diagnostics.
+
+Production requires a backup and explicit owner approval before backfill writes;
+these local/dev instructions do not authorize a production apply.
+
 ## Full stack (Docker)
 
 Builds and runs everything (MongoDB + Postgres + backend + frontend) in Docker:
