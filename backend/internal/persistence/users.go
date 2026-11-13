@@ -114,6 +114,12 @@ func (s *UserStore) List(ctx context.Context, filter bson.M, sort bson.D) ([]dom
 	return users, nil
 }
 
+// ListAllByID returns every user, disabled ones included, sorted by _id so a
+// batch job that resumes walks them in the same order.
+func (s *UserStore) ListAllByID(ctx context.Context) ([]domain.User, error) {
+	return s.List(ctx, bson.M{}, bson.D{{Key: "_id", Value: 1}})
+}
+
 // Delete permanently removes a user.
 func (s *UserStore) Delete(ctx context.Context, id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
