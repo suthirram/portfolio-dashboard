@@ -76,8 +76,12 @@ do not relabel proposed defaults as accepted without that review.
 * [x] Updated visual spec and contract to retain the existing 12-column table,
   currency summary and controls. jsdom checks passed for group/row counts,
   subtotal alignment, overall money sums, XIRR scope, and layout switching.
-* [ ] Complete rendered desktop/narrow-screen verification after owner confirms
-  the adapted preview and grants headless browser access. No browser was launched.
+* [x] After owner review and browser authorization, verify table geometry in
+  Chrome at 1440 px and 390 px for both layouts. All action buttons stay inside
+  their cells, clear of XIRR; no page overflow or script errors. Screenshots
+  inspected. [Diagnosis and fix](../cookbook/holding-table-actions-overflow.md).
+* [ ] Finish rendered chart/review-dialog interaction verification; table
+  geometry checks do not establish those interactions.
 * [x] Run Markdown checks. Expected: no errors in these new Markdown files.
 
   The check is limited to the new feature documents so unrelated local drafts

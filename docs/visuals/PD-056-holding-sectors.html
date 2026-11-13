@@ -41,17 +41,18 @@
     .dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--muted); margin-right: 7px; }
     .technology { background: var(--tech); } .financial_services { background: var(--finance); } .etf { background: var(--fund); } .needs_review { background: var(--amber); }
     .table-wrap { overflow: auto; }
-    table { width: 100%; min-width: 1700px; table-layout: fixed; border-collapse: collapse; text-align: right; white-space: nowrap; }
+    table { width: 100%; min-width: 1860px; table-layout: fixed; border-collapse: collapse; text-align: right; white-space: nowrap; }
     .currency-summary { display: flex; flex-wrap: wrap; gap: 24px; padding: 18px 22px; margin: 16px 0 24px; }
     .currency-summary > div { flex: 1 1 120px; }
     .currency-summary strong { display: block; font-size: 17px; font-weight: 550; margin-top: 5px; }
     .currency-summary small { display: block; color: var(--muted); margin-top: 3px; }
-    .row-actions { display: flex; justify-content: flex-end; gap: 4px; }
-    .row-actions button { padding: 5px 7px; font-size: 11px; }
+    .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .row-actions button { flex: 0 0 auto; padding: 5px 7px; font-size: 11px; white-space: nowrap; }
     .movement { display: block; font-size: 10px; margin-top: 3px; color: var(--green); }
     .search { color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); width: 235px; }
     th { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 500; padding: 16px 22px; border-bottom: 1px solid var(--line); }
     td { padding: 16px 22px; border-bottom: 1px solid #2c395170; font-variant-numeric: tabular-nums; }
+    th:last-child, td:last-child { padding-left: 12px; padding-right: 12px; text-align: center; border-left: 1px solid #2c395170; white-space: normal; }
     tbody tr:last-child td { border-bottom: 0; }
     tfoot { background: #9bafff08; }
     tfoot th, tfoot td { border-top: 1px solid var(--line); border-bottom: 0; padding: 17px 22px; font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 550; color: var(--ink); }
@@ -120,7 +121,7 @@
       </div>
       <div id="sector-groups"></div>
       <div class="card" id="flat-holdings" hidden>
-        <div class="table-wrap"><table><colgroup><col style="width:15%"><col style="width:5%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:9%"><col style="width:8%"><col style="width:10%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:8%"></colgroup><thead><tr><th>Script</th><th>Shares</th><th>Cost Price</th><th>Avg Cost/Sh</th><th>Share Price</th><th>Current Value</th><th>Day Gain</th><th>Unrealised Gain</th><th>Realised Gain</th><th>Dividends</th><th>XIRR</th><th>Actions</th></tr></thead>
+        <div class="table-wrap"><table><colgroup><col style="width:220px"><col style="width:80px"><col style="width:130px"><col style="width:130px"><col style="width:150px"><col style="width:150px"><col style="width:130px"><col style="width:160px"><col style="width:140px"><col style="width:130px"><col style="width:110px"><col style="width:230px"></colgroup><thead><tr><th>Script</th><th>Shares</th><th>Cost Price</th><th>Avg Cost/Sh</th><th>Share Price</th><th>Current Value</th><th>Day Gain</th><th>Unrealised Gain</th><th>Realised Gain</th><th>Dividends</th><th>XIRR</th><th>Actions</th></tr></thead>
           <tbody id="rows">
             <tr data-category="technology" data-value="300000" data-invested="260000"><td><strong>TCS</strong><span class="symbol">TCS.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>75</td><td>₹2,60,000</td><td>₹3,00,000</td><td class="positive">+₹40,000</td><td><button aria-label="Edit TCS">Edit</button></td></tr>
             <tr data-category="technology" data-value="120000" data-invested="100000"><td><strong>Infosys</strong><span class="symbol">INFY.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>80</td><td>₹1,00,000</td><td>₹1,20,000</td><td class="positive">+₹20,000</td><td><button aria-label="Edit Infosys">Edit</button></td></tr>
