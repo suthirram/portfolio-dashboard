@@ -46,7 +46,7 @@ end. Backend and UI sub-tasks stay in separate PRs.
 | 3c | `fix/PD-056-crumb-accept` | Per-request Accept headers and offline profile-test wiring (merged, #289) | Existing price client unchanged | Yahoo session succeeds | Provider header regression test |
 | 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply (merged, #288) | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
 | 4b | `fix/PD-056-backend-followup` | Session stop, runbook, decisions, test audit (merged, #290) | Holding saves remain available | Resume interrupted batches | Session recovery and backfill tests |
-| 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
+| 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls (merged, #291) | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
 | 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
 | 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
 | 8 | `feat/PD-056-sector-ui-chart` | Sector allocation, legend and navigation; visual verification | Existing charts retained | Inspect concentration and jump to a sector | Allocation/denominator/navigation tests and browser checks |
@@ -107,8 +107,10 @@ do not relabel proposed defaults as accepted without that review.
   Chrome at 1440 px and 390 px for both layouts. All action buttons stay inside
   their cells, clear of XIRR; no page overflow or script errors. Screenshots
   inspected. [Diagnosis and fix](../cookbook/holding-table-actions-overflow.md).
-* [ ] Finish rendered chart/review-dialog interaction verification; table
-  geometry checks do not establish those interactions.
+* [x] Finish reference visual chart/review-dialog interaction verification:
+  Chrome checks passed for chart navigation/focus, Review later, fund
+  confirmation, narrow dialog and Escape; desktop/narrow screenshots inspected.
+  Implemented app review/chart verification remains part of the UI slices.
 * [x] Verify pinned Script identity/header/footer at start/middle/end of scroll
   in both layouts at 1440 px, 390 px, and 320 px. Keep actions reachable and
   opaque pinned surfaces readable; inspect mobile screenshot.
@@ -255,7 +257,7 @@ DashboardPage, and tests listed in §3.
   Preview state handling ships in the review slice.
 * [ ] Implement the accessible confirmation/review flow with an explicit
   Review later path, no duplicate creation, and act-as target routing.
-* [ ] Add text sector badges and By holding / By sector layouts, with separate
+* [x] Add text sector badges and By holding / By sector layouts, with separate
   sector headings and rounded tables based on the owner's reference. Retain
   existing active/all/nil navigation and clearly labelled currency/group totals.
   Add invested/current/unrealised sector subtotal rows, keeping the flat table's
@@ -263,16 +265,20 @@ DashboardPage, and tests listed in §3.
   sector. Reuse existing summation. Verify group sums
   reconcile, layout switching preserves totals, percentages use aggregate cost,
   and zero invested shows no invalid return.
-* [ ] Adapt the existing dashboard rather than replacing it: retain all 12
+* [x] Adapt the existing dashboard rather than replacing it: retain all 12
   holdings columns, table interactions, price/day movement, realised gain,
   dividends, row XIRR/caveats, existing actions/guards, search, refresh, hero,
   summary cards and native/converted currency stats. Keep currency XIRR on the
   overall total only; sector XIRR stays unavailable. Add regression tests for
   monetary/day-gain sums and correctly aligned footer cells in both layouts.
-* [ ] Pin the Script header, body identities, and total labels during horizontal
+* [x] Pin the Script header, body identities, and total labels during horizontal
   scrolling in both layouts, on desktop and mobile. Use opaque theme surfaces,
   readable wrapping and a divider. Verify start/middle/end positions and that
   the remaining viewport still supports readable values and reachable actions.
+  Chrome fixture checks passed in legacy/glass, dark/light/cyberpunk, at
+  1440/390/320 px, at start/middle/end scroll, with opaque identity surfaces and
+  reachable actions. Screenshots inspected; pinned header stacking corrected.
+  Typecheck, 556 frontend tests, ESLint and build passed for the table slice.
 * [ ] Implement native-currency sector allocation with explicit fund, pending,
   and unclassified buckets, priced-value denominator, unpriced count, empty
   state, and category-to-group scrolling/focus. Render only after Sectors selection.

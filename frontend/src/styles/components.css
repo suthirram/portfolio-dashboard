@@ -546,6 +546,32 @@ a:hover .app-icon .icon-spark,
 
 /* --- Tables -------------------------------------------------------------------- */
 
+.holdings-table-wrap { overflow: auto; max-width: 100%; }
+.holdings-table-wrap table { min-width: 1640px !important; table-layout: fixed; }
+.holdings-table-wrap th:first-child { width: 190px; }
+.holdings-table-wrap th:first-child,
+.holdings-table-wrap td:first-child {
+  position: sticky; left: 0; z-index: 2;
+  background: var(--bg-primary) !important;
+  box-shadow: 1px 0 0 var(--border);
+  overflow-wrap: anywhere;
+}
+.holdings-table-wrap thead th:first-child { z-index: 3 !important; }
+.holdings-table-wrap th { top: 0 !important; }
+.sector-badge { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+.sector-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+.sector-provider { color: var(--text-muted); }
+.sector-group { margin-top: 24px; }
+.sector-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; margin-bottom: 10px; scroll-margin-top: 100px; }
+.sector-group-meta { font-weight: 400; color: var(--text-secondary); font-size: 12px; }
+@media (max-width: 650px) {
+  .holdings-table-wrap th:first-child { width: 144px; }
+  .holdings-table-wrap table { min-width: 1500px !important; }
+}
+@media (max-width: 360px) {
+  .holdings-table-wrap th:first-child { width: 120px; }
+}
+
 .holdings-table-wrap tbody tr {
   transition: background var(--speed) var(--ease);
 }
