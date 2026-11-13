@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holding sectors · design preview</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0c1120; --panel: #151e30; --line: #2c3951; --ink: #edf3ff; --muted: #adbad0; --accent: #9bafff; --green: #70dfc1; --amber: #ffd58a; --tech: #a698ff; --finance: #6ed4c6; --fund: #85b9ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(ellipse at 80% 0%, #233454 0, transparent 48%), var(--bg); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; min-height: 100vh; }
+    button, select { font: inherit; cursor: pointer; }
+    button { color: inherit; border: 1px solid var(--line); background: transparent; border-radius: 10px; padding: 9px 15px; }
+    button:hover { background: #26334b; }
+    button:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    button[aria-pressed="true"], .primary { background: #d4ddff; color: #192444; border-color: transparent; }
+    .wrap { max-width: 1120px; padding: 38px 28px 80px; margin: auto; }
+    .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 560; letter-spacing: -.04em; margin: 8px 0; }
+    h2 { font-size: 19px; letter-spacing: -.02em; margin: 0; }
+    p { color: var(--muted); }
+    .head, .toolbar, .review, .title-row, .legend-row, .actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .head { margin-bottom: 28px; }
+    .card { border: 1px solid var(--line); background: linear-gradient(130deg, #1e2b4199, #151e30dd); border-radius: 20px; box-shadow: 0 16px 44px #03071130; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
+    .stat { padding: 22px; }
+    .stat strong { display: block; font-size: 26px; font-weight: 550; font-variant-numeric: tabular-nums; margin-top: 8px; }
+    .small { font-size: 12px; color: var(--muted); }
+    .positive { color: var(--green); }
+    .review { padding: 15px 20px; border: 1px solid #8e75484d; border-radius: 14px; background: #ffd58a09; margin-bottom: 24px; }
+    .review strong { color: var(--amber); font-weight: 550; }
+    .toolbar { flex-wrap: wrap; margin: 22px 0 16px; }
+    .seg { display: flex; gap: 4px; padding: 4px; background: #070d1899; border: 1px solid var(--line); border-radius: 13px; width: fit-content; }
+    .seg button { border-color: transparent; }
+    .sector-group { margin: 28px 0 34px; scroll-margin-top: 24px; }
+    .sector-group:focus { outline: 2px solid var(--accent); outline-offset: 8px; border-radius: 12px; }
+    .group-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+    .group-heading h3 { font-size: 15px; font-weight: 560; margin: 0; }
+    .group-heading .count { color: var(--muted); font-size: 11px; margin-left: 8px; font-weight: 400; }
+    .group-heading .group-value { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .sector-group .card { box-shadow: none; border-radius: 16px; background: #151e3070; }
+    .dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--muted); margin-right: 7px; }
+    .technology { background: var(--tech); } .financial_services { background: var(--finance); } .etf { background: var(--fund); } .needs_review { background: var(--amber); }
+    .table-wrap { overflow: auto; }
+    table { width: 100%; min-width: 1860px; table-layout: fixed; border-collapse: collapse; text-align: right; white-space: nowrap; }
+    .currency-summary { display: flex; flex-wrap: wrap; gap: 24px; padding: 18px 22px; margin: 16px 0 24px; }
+    .currency-summary > div { flex: 1 1 120px; }
+    .currency-summary strong { display: block; font-size: 17px; font-weight: 550; margin-top: 5px; }
+    .currency-summary small { display: block; color: var(--muted); margin-top: 3px; }
+    .row-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    .row-actions button { flex: 0 0 auto; padding: 5px 7px; font-size: 11px; white-space: nowrap; }
+    .movement { display: block; font-size: 10px; margin-top: 3px; color: var(--green); }
+    .search { color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); width: 235px; }
+    th { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 500; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+    td { padding: 16px 22px; border-bottom: 1px solid #2c395170; font-variant-numeric: tabular-nums; }
+    th:last-child, td:last-child { padding-left: 12px; padding-right: 12px; text-align: center; border-left: 1px solid #2c395170; white-space: normal; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tfoot { background: #9bafff08; }
+    tfoot th, tfoot td { border-top: 1px solid var(--line); border-bottom: 0; padding: 17px 22px; font-size: 13px; letter-spacing: 0; text-transform: none; font-weight: 550; color: var(--ink); }
+    tfoot .return { display: block; font-size: 11px; font-weight: 400; margin-top: 4px; }
+    th:first-child, td:first-child { text-align: left; }
+    .table-wrap th:first-child, .table-wrap td:first-child { position: sticky; left: 0; z-index: 2; background: #151e30; box-shadow: 1px 0 0 var(--line), 8px 0 12px #050a1429; white-space: normal; overflow-wrap: anywhere; }
+    .table-wrap thead th:first-child { z-index: 3; background: #1c293d; }
+    .table-wrap tfoot th:first-child { z-index: 3; background: #1d2940; }
+    @media (max-width: 650px) {
+      .table-wrap table { min-width: 1718px; }
+      .table-wrap col:first-child { width: 160px !important; }
+      .table-wrap col:last-child { width: 148px !important; }
+      .table-wrap th:first-child, .table-wrap td:first-child { padding-left: 12px; padding-right: 12px; }
+      .table-wrap .symbol { display: block; margin-left: 0; }
+    }
+    @media (max-width: 360px) {
+      .table-wrap table { min-width: 1686px; }
+      .table-wrap col:first-child { width: 128px !important; }
+    }
+    td strong { font-weight: 550; }
+    .classification { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); }
+    .symbol { font-size: 10px; color: var(--muted); margin-left: 7px; }
+    .foot { display: flex; justify-content: space-between; gap: 12px; padding: 15px 22px; color: var(--muted); font-size: 11px; }
+    .chart-card { padding: 26px; }
+    .chart-layout { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 45px; padding: 30px 0; }
+    .donut { width: 248px; height: 248px; border-radius: 50%; margin: auto; position: relative; background: conic-gradient(var(--tech) 0 42%, var(--finance) 42% 70%, var(--fund) 70% 90%, var(--amber) 90% 100%); }
+    .donut::before { content: ''; position: absolute; inset: 24px; border-radius: 50%; background: #172136; }
+    .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .center strong { font-size: 28px; font-weight: 550; }
+    .legend-row { width: 100%; border: 0; border-radius: 0; padding: 16px 0; border-bottom: 1px solid var(--line); text-align: left; }
+    .legend-row span:last-child { text-align: right; }
+    .legend-row strong { font-weight: 550; }
+    .title-row { align-items: start; flex-wrap: wrap; }
+    .note { border-top: 1px solid var(--line); padding-top: 15px; font-size: 12px; color: var(--muted); }
+    select { background: #101a2c; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; color: var(--ink); }
+    dialog { color: var(--ink); background: #172136; border: 1px solid var(--line); border-radius: 22px; padding: 28px; width: min(500px, calc(100% - 32px)); }
+    dialog::backdrop { background: #020611bb; backdrop-filter: blur(6px); }
+    dialog h2 { font-size: 24px; margin: 10px 0 6px; }
+    .holding-tile { border: 1px solid var(--line); background: #0c142480; border-radius: 12px; padding: 15px; margin: 22px 0; }
+    .types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 8px 0 22px; }
+    .types button { padding: 14px 6px; }
+    label { display: block; margin: 16px 0 7px; font-size: 12px; }
+    dialog select { width: 100%; }
+    .actions { justify-content: flex-end; margin-top: 25px; }
+    .notice { margin-top: 30px; font-size: 11px; color: var(--muted); }
+    [hidden] { display: none !important; }
+    @media (max-width: 650px) { .wrap { padding: 25px 16px; } .head { align-items: start; } .stats { grid-template-columns: 1fr; gap: 8px; } .stat { padding: 16px; display: flex; align-items: center; justify-content: space-between; } .stat strong { margin: 0; font-size: 23px; } .review { align-items: start; } .chart-layout { grid-template-columns: 1fr; gap: 20px; } .chart-card { padding: 20px; } .seg button { padding: 8px 10px; } .foot { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="eyebrow">PD-056 · interactive design preview · fictional data</div>
+    <header class="head">
+      <div><h1>A clearer view of your portfolio.</h1><span class="small">Your holdings, organized by what they do.</span></div>
+      <button id="add" class="primary">+ Add holding</button>
+    </header>
+    <section class="stats" aria-label="Portfolio overview">
+      <div class="card stat"><span class="small">Current value · INR</span><strong>₹10,00,000</strong></div>
+      <div class="card stat"><span class="small">Invested · INR</span><strong>₹8,65,000</strong></div>
+      <div class="card stat"><span class="small">Unrealised return</span><strong class="positive">+15.6%</strong></div>
+    </section>
+    <aside class="review"><div><strong id="review-label">1 holding needs a closer look</strong><div class="small">Confirm its type so your allocation stays clear.</div></div><button id="review">Review</button></aside>
+    <div class="toolbar">
+      <div class="seg" aria-label="Dashboard view"><button id="holdings-tab" aria-pressed="true">Holdings</button><button id="charts-tab" aria-pressed="false">Charts</button></div>
+      <input class="search" placeholder="Filter by script or symbol…" aria-label="Filter holdings (visual reference)">
+    </div>
+    <section id="holdings-panel" aria-label="Holdings">
+      <div class="toolbar">
+        <div class="seg" aria-label="Position view"><button aria-pressed="true">Holdings <span class="small">5</span></button><button aria-pressed="false">All <span class="small">5</span></button><button aria-pressed="false">Nil <span class="small">0</span></button></div>
+        <div class="seg" aria-label="Group holdings"><button id="by-holding" aria-pressed="false">By holding</button><button id="by-sector" aria-pressed="true">By sector</button></div>
+      </div>
+      <div class="small">Indian Rupee · INR <span style="margin:0 8px">/</span> <span id="group-description" aria-live="polite">5 holdings across 4 groups</span></div>
+      <div class="card currency-summary" aria-label="Existing currency summary (illustrative values)">
+        <div><span class="eyebrow">Cost (INR)</span><strong>₹8,65,000</strong><small>(€8,650)</small></div>
+        <div><span class="eyebrow">Current value (INR)</span><strong>₹10,00,000</strong><small>(€10,000)</small></div>
+        <div><span class="eyebrow">Unrealised</span><strong class="positive">+₹1,35,000</strong><small>(+€1,350)</small></div>
+        <div><span class="eyebrow">Realised</span><strong class="positive">+₹13,000</strong><small>(+€130)</small></div>
+        <div><span class="eyebrow">Today</span><strong class="positive">+₹4,000</strong><small>+0.40%</small></div>
+        <div><span class="eyebrow">XIRR</span><strong class="positive">12.4%*</strong><small>Illustrative · caveat tooltip retained</small></div>
+      </div>
+      <div id="sector-groups"></div>
+      <div class="card" id="flat-holdings" hidden>
+        <div class="table-wrap"><table><colgroup><col style="width:220px"><col style="width:80px"><col style="width:130px"><col style="width:130px"><col style="width:150px"><col style="width:150px"><col style="width:130px"><col style="width:160px"><col style="width:140px"><col style="width:130px"><col style="width:110px"><col style="width:230px"></colgroup><thead><tr><th>Script</th><th>Shares</th><th>Cost Price</th><th>Avg Cost/Sh</th><th>Share Price</th><th>Current Value</th><th>Day Gain</th><th>Unrealised Gain</th><th>Realised Gain</th><th>Dividends</th><th>XIRR</th><th>Actions</th></tr></thead>
+          <tbody id="rows">
+            <tr data-category="technology" data-value="300000" data-invested="260000"><td><strong>TCS</strong><span class="symbol">TCS.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>75</td><td>₹2,60,000</td><td>₹3,00,000</td><td class="positive">+₹40,000</td><td><button aria-label="Edit TCS">Edit</button></td></tr>
+            <tr data-category="technology" data-value="120000" data-invested="100000"><td><strong>Infosys</strong><span class="symbol">INFY.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>80</td><td>₹1,00,000</td><td>₹1,20,000</td><td class="positive">+₹20,000</td><td><button aria-label="Edit Infosys">Edit</button></td></tr>
+            <tr data-category="financial_services" data-value="280000" data-invested="245000"><td><strong>HDFC Bank</strong><span class="symbol">HDFCBANK.NS</span><span class="classification"><i class="dot financial_services"></i>Financial Services</span></td><td>160</td><td>₹2,45,000</td><td>₹2,80,000</td><td class="positive">+₹35,000</td><td><button aria-label="Edit HDFC Bank">Edit</button></td></tr>
+            <tr data-category="etf" data-value="200000" data-invested="170000"><td><strong>Nifty ETF</strong><span class="symbol">EXAMPLE-ETF</span><span class="classification"><i class="dot etf"></i>ETF · Confirmed</span></td><td>800</td><td>₹1,70,000</td><td>₹2,00,000</td><td class="positive">+₹30,000</td><td><button aria-label="Edit Nifty ETF">Edit</button></td></tr>
+            <tr data-category="needs_review" data-value="100000" data-invested="90000" id="pending-row"><td><strong>Example holding</strong><span class="symbol">EXAMPLE</span><span class="classification" id="pending-badge"><i class="dot needs_review"></i>Needs review</span></td><td>400</td><td>₹90,000</td><td>₹1,00,000</td><td class="positive">+₹10,000</td><td><button id="row-review">Review</button></td></tr>
+          </tbody></table></div>
+        <div class="foot"><span>5 holdings shown</span><span>Portfolio totals above include all sectors.</span></div>
+      </div>
+    </section>
+    <section id="charts-panel" hidden aria-label="Charts">
+      <div class="toolbar"><div class="seg" aria-label="Chart view"><button aria-pressed="false">Allocation</button><button aria-pressed="false">P&amp;L</button><button aria-pressed="false">By Exchange</button><button aria-pressed="true">Sectors</button></div></div>
+      <div class="card chart-card">
+        <div class="title-row"><div><div class="eyebrow">Portfolio composition</div><h2>Where your money is invested</h2><span class="small">Current market value · active holdings</span></div><label style="margin:0">Currency <select aria-label="Chart currency"><option>INR · Indian Rupee</option></select></label></div>
+        <div class="chart-layout"><div class="donut" role="img" aria-label="Sector allocation; exact values in the adjacent legend"><div class="center"><span class="small">Priced holdings</span><strong>₹10.0L</strong><span class="small">5 holdings</span></div></div>
+          <div aria-label="Allocation values">
+            <button class="legend-row" data-target="technology"><span><i class="dot technology"></i>Technology<br><span class="small">2 holdings</span></span><span><strong>42.0%</strong><br><span class="small">₹4,20,000</span></span></button>
+            <button class="legend-row" data-target="financial_services"><span><i class="dot financial_services"></i>Financial Services<br><span class="small">1 holding</span></span><span><strong>28.0%</strong><br><span class="small">₹2,80,000</span></span></button>
+            <button class="legend-row" data-target="etf"><span><i class="dot etf"></i>ETFs<br><span class="small">1 holding · underlying sectors not included</span></span><span><strong>20.0%</strong><br><span class="small">₹2,00,000</span></span></button>
+            <button class="legend-row" data-target="needs_review"><span><i class="dot needs_review"></i>Needs review<br><span class="small">1 holding</span></span><span><strong>10.0%</strong><br><span class="small">₹1,00,000</span></span></button>
+          </div>
+        </div>
+        <div class="note">Funds are grouped by asset type. This view does not split a fund into its underlying company sectors. Select a category to explore its holdings.</div>
+      </div>
+    </section>
+    <p class="notice">This is an additive layout reference for the existing dashboard, not its replacement. Production retains all existing hero/cards, refresh, themes, search, sorting, price warnings, actions and responsive behavior. Preview interactions: switch layout, open Charts, select a category, or review a holding. Search, row actions, position-view and other chart controls are visual references only. All amounts, FX (₹100/€), and XIRRs are fictional; scroll tables horizontally for all existing columns.</p>
+  </main>
+  <dialog id="review-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <form method="dialog" id="confirm-form">
+      <div class="eyebrow">Complete your portfolio picture</div>
+      <h2 id="dialog-title">What kind of holding is this?</h2>
+      <p id="dialog-description">A sector wasn't available. Confirm the type, or leave it for later.</p>
+      <div class="holding-tile"><strong>Example holding</strong><br><span class="small">EXAMPLE · No sector found</span></div>
+      <label>Holding type</label>
+      <div class="types" aria-label="Holding type"><button type="button" data-type="stock" aria-pressed="true">Stock</button><button type="button" data-type="etf" aria-pressed="false">ETF</button><button type="button" data-type="mutual_fund" aria-pressed="false">Mutual fund</button></div>
+      <div id="sector-field"><label for="sector">Sector</label><select id="sector"><option value="unclassified">Unclassified stock</option><option value="technology">Technology</option><option value="financial_services">Financial Services</option></select></div>
+      <p class="small" id="confirmation-note">Your confirmation is saved with the holding and kept during future lookups.</p>
+      <div class="actions"><button value="later">Review later</button><button class="primary" value="confirm">Confirm classification</button></div>
+    </form>
+  </dialog>
+  <script>
+    const byId = id => document.getElementById(id)
+    let selectedType = 'stock'
+    function showView(view) {
+      byId('holdings-panel').hidden = view !== 'holdings'
+      byId('charts-panel').hidden = view !== 'charts'
+      byId('holdings-tab').setAttribute('aria-pressed', String(view === 'holdings'))
+      byId('charts-tab').setAttribute('aria-pressed', String(view === 'charts'))
+    }
+    const holdingRows = Array.from(document.querySelectorAll('#rows tr'))
+    const categoryLabels = { technology: 'Technology', financial_services: 'Financial Services', etf: 'ETFs', needs_review: 'Needs review' }
+    const money = amount => (amount < 0 ? '−' : '') + '₹' + Math.abs(amount).toLocaleString('en-IN')
+    const sampleMetrics = [
+      { day: 1500, real: 6000, dividends: 3000, xirr: '13.2%*', exchange: 'NSE', type: 'STOCK' },
+      { day: 500, real: 2000, dividends: 1500, xirr: '15.6%*', exchange: 'NSE', type: 'STOCK' },
+      { day: 1200, real: 4000, dividends: 2000, xirr: '9.8%*', exchange: 'NSE', type: 'STOCK' },
+      { day: 500, real: 1000, dividends: 1000, xirr: '11.5%*', exchange: 'NSE', type: 'ETF' },
+      { day: 300, real: 0, dividends: 500, xirr: '—', exchange: 'OTHER', type: 'STOCK' },
+    ]
+    holdingRows.forEach((row, index) => {
+      const metric = sampleMetrics[index]
+      Object.assign(row.dataset, { day: metric.day, real: metric.real, dividends: metric.dividends })
+      const cells = Array.from(row.children)
+      const shares = Number(cells[1].textContent)
+      const unitMoney = value => '₹' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      const newCell = (text, positive = false) => {
+        const cell = document.createElement('td')
+        cell.textContent = text
+        if (positive) cell.className = 'positive'
+        return cell
+      }
+      const identity = document.createElement('span')
+      identity.className = 'classification'
+      identity.textContent = metric.exchange + ' · ' + metric.type
+      cells[0].insertBefore(identity, cells[0].querySelector('.classification'))
+      row.insertBefore(newCell(unitMoney(Number(row.dataset.invested) / shares)), cells[3])
+      const sharePrice = newCell(unitMoney(Number(row.dataset.value) / shares), true)
+      const movement = document.createElement('span')
+      movement.className = 'movement'
+      movement.textContent = '+' + unitMoney(metric.day / shares) + ' / +' + (metric.day / (Number(row.dataset.value) - metric.day) * 100).toFixed(2) + '%'
+      sharePrice.append(movement)
+      row.insertBefore(sharePrice, cells[3])
+      row.insertBefore(newCell('+' + money(metric.day), true), cells[4])
+      for (const text of [metric.real ? '+' + money(metric.real) : '—', money(metric.dividends), metric.xirr]) row.insertBefore(newCell(text, text !== '—'), cells[5])
+      const edit = cells[5].querySelector('button')
+      const actions = document.createElement('div')
+      actions.className = 'row-actions'
+      actions.append(edit)
+      for (const label of ['Ledger', 'Delete']) {
+        const button = document.createElement('button')
+        button.textContent = label
+        button.setAttribute('aria-label', label + ' ' + cells[0].querySelector('strong').textContent)
+        actions.append(button)
+      }
+      cells[5].append(actions)
+    })
+    function sumHoldings(rows) {
+      const totals = rows.reduce((sum, row) => ({ invested: sum.invested + Number(row.dataset.invested), current: sum.current + Number(row.dataset.value), day: sum.day + Number(row.dataset.day), real: sum.real + Number(row.dataset.real), dividends: sum.dividends + Number(row.dataset.dividends) }), { invested: 0, current: 0, day: 0, real: 0, dividends: 0 })
+      totals.pnl = totals.current - totals.invested
+      totals.rate = totals.invested > 0 ? totals.pnl / totals.invested * 100 : null
+      return totals
+    }
+    function totalsFooter(rows, label) {
+      const totals = sumHoldings(rows)
+      const footer = document.createElement('tfoot')
+      const row = document.createElement('tr')
+      const heading = document.createElement('th')
+      heading.scope = 'row'
+      heading.textContent = label
+      row.append(heading)
+      for (const text of ['—', money(totals.invested), '—', '—', money(totals.current), '+' + money(totals.day), (totals.pnl > 0 ? '+' : '') + money(totals.pnl), '+' + money(totals.real), money(totals.dividends), rows.length === holdingRows.length ? '12.4%*' : '—', '']) {
+        const cell = document.createElement('td')
+        cell.textContent = text
+        row.append(cell)
+      }
+      const pnlCell = row.children[7]
+      if (totals.pnl >= 0) pnlCell.classList.add('positive')
+      const rate = document.createElement('span')
+      rate.className = 'return'
+      rate.textContent = totals.rate === null ? '—' : (totals.rate > 0 ? '+' : '') + totals.rate.toFixed(1) + '% on invested'
+      pnlCell.append(rate)
+      footer.append(row)
+      return footer
+    }
+    byId('flat-holdings').querySelector('table').append(totalsFooter(holdingRows, 'Overall total'))
+    function setGrouping(grouped) {
+      // Move the same rows between layouts so review controls retain their state.
+      holdingRows.forEach(row => byId('rows').append(row))
+      byId('sector-groups').replaceChildren()
+      if (grouped) {
+        for (const [category, label] of Object.entries(categoryLabels)) {
+          const rows = holdingRows.filter(row => row.dataset.category === category)
+          if (!rows.length) continue
+          const section = document.createElement('section')
+          section.className = 'sector-group'
+          section.id = 'group-' + category
+          section.tabIndex = -1
+          section.setAttribute('aria-labelledby', 'heading-' + category)
+          const heading = document.createElement('div')
+          heading.className = 'group-heading'
+          const title = document.createElement('h3')
+          title.id = 'heading-' + category
+          const dot = document.createElement('i')
+          dot.className = 'dot ' + category
+          const count = document.createElement('span')
+          count.className = 'count'
+          count.textContent = rows.length + (rows.length === 1 ? ' holding' : ' holdings')
+          title.append(dot, document.createTextNode(label), count)
+          const value = document.createElement('span')
+          value.className = 'group-value'
+          value.textContent = money(sumHoldings(rows).current) + ' current value'
+          heading.append(title, value)
+          const card = document.createElement('div')
+          card.className = 'card table-wrap'
+          const table = document.createElement('table')
+          table.setAttribute('aria-label', label + ' holdings')
+          table.append(byId('flat-holdings').querySelector('colgroup').cloneNode(true), byId('flat-holdings').querySelector('thead').cloneNode(true))
+          const body = document.createElement('tbody')
+          rows.forEach(row => body.append(row))
+          table.append(body, totalsFooter(rows, 'Sector subtotal'))
+          card.append(table)
+          section.append(heading, card)
+          byId('sector-groups').append(section)
+        }
+      }
+      byId('flat-holdings').hidden = grouped
+      byId('sector-groups').hidden = !grouped
+      byId('by-holding').setAttribute('aria-pressed', String(!grouped))
+      byId('by-sector').setAttribute('aria-pressed', String(grouped))
+      byId('group-description').textContent = grouped ? '5 holdings across 4 groups' : '5 holdings'
+    }
+    byId('holdings-tab').onclick = () => showView('holdings')
+    byId('charts-tab').onclick = () => showView('charts')
+    byId('by-holding').onclick = () => setGrouping(false)
+    byId('by-sector').onclick = () => setGrouping(true)
+    document.querySelectorAll('[data-target]').forEach(button => button.onclick = () => {
+      showView('holdings')
+      setGrouping(true)
+      const group = byId('group-' + button.dataset.target)
+      group.focus({ preventScroll: true })
+      group.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
+    })
+    ;['review', 'row-review', 'add'].forEach(id => byId(id).onclick = () => byId('review-dialog').showModal())
+    document.querySelectorAll('[data-type]').forEach(button => button.onclick = () => {
+      selectedType = button.dataset.type
+      document.querySelectorAll('[data-type]').forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate === button)))
+      byId('sector-field').hidden = selectedType !== 'stock'
+    })
+    byId('confirm-form').onsubmit = event => {
+      if (event.submitter.value !== 'confirm') return
+      const labels = { stock: byId('sector').selectedOptions[0].text, etf: 'ETF', mutual_fund: 'Mutual fund' }
+      byId('confirmation-note').textContent = 'Preview confirmation: ' + labels[selectedType]
+    }
+    setGrouping(true)
+  </script>
+</body>
+</html>
