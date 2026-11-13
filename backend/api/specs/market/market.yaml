@@ -63,3 +63,32 @@ forex:
                   type: number
                   format: double
                   description: 1 unit of `from` in `to`
+
+profile:
+  get:
+    tags: [Market]
+    summary: Look up a symbol's company sector and suggested holding type
+    description: >
+      Direct Yahoo profile lookup (DD-013 §2). Provider failure is a 200 with
+      lookup_status `unavailable`, so the caller can still classify by hand.
+      Returns the sector catalogue so the UI never invents accepted values.
+    operationId: getMarketProfile
+    parameters:
+      - name: symbol
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Yahoo Finance ticker (1–64 of letters, digits and . - ^ = _)
+        example: TCS.NS
+    responses:
+      "200":
+        description: Profile lookup result
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/ProfileLookup"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "401":
+        $ref: "../portfolio-api.yaml#/components/responses/Unauthorized"

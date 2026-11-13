@@ -321,3 +321,33 @@ func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumu
 		HoldingCumulative: holdingCumulative,
 	}
 }
+
+// SectorCatalogueToAPI maps the domain sector catalogue to its DTO, in
+// display order.
+func SectorCatalogueToAPI() []api.SectorOption {
+	options := make([]api.SectorOption, 0, len(domain.SectorCatalogue))
+	for _, sector := range domain.SectorCatalogue {
+		options = append(options, api.SectorOption{Key: api.SectorKey(sector.Key), Label: sector.Label})
+	}
+	return options
+}
+
+// ProfileToAPI maps a profile lookup to its DTO, attaching the catalogue.
+// Empty industry and suggested type stay absent rather than "".
+func ProfileToAPI(profile CompanyProfile) api.ProfileLookup {
+	lookup := api.ProfileLookup{
+		Symbol:       profile.Symbol,
+		LookupStatus: api.ProfileLookupLookupStatus(profile.Status),
+		Sectors:      SectorCatalogueToAPI(),
+	}
+	if profile.Sector != nil {
+		lookup.Sector = new(api.SectorKey(*profile.Sector))
+	}
+	if profile.Industry != "" {
+		lookup.Industry = &profile.Industry
+	}
+	if profile.SuggestedType != "" {
+		lookup.SuggestedType = new(api.ProfileLookupSuggestedType(profile.SuggestedType))
+	}
+	return lookup
+}

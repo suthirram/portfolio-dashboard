@@ -236,16 +236,16 @@ func (e HoldingWithPriceExchange) Valid() bool {
 
 // Defines values for HoldingWithPriceType.
 const (
-	Etf   HoldingWithPriceType = "etf"
-	Stock HoldingWithPriceType = "stock"
+	HoldingWithPriceTypeEtf   HoldingWithPriceType = "etf"
+	HoldingWithPriceTypeStock HoldingWithPriceType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceType enum.
 func (e HoldingWithPriceType) Valid() bool {
 	switch e {
-	case Etf:
+	case HoldingWithPriceTypeEtf:
 		return true
-	case Stock:
+	case HoldingWithPriceTypeStock:
 		return true
 	default:
 		return false
@@ -267,6 +267,93 @@ func (e InvestmentDeltaColumnColumn) Valid() bool {
 	case InvestmentDeltaColumnColumnGOLD:
 		return true
 	case InvestmentDeltaColumnColumnINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProfileLookupLookupStatus.
+const (
+	ProfileLookupStatusFound       ProfileLookupLookupStatus = "found"
+	ProfileLookupStatusMissing     ProfileLookupLookupStatus = "missing"
+	ProfileLookupStatusUnavailable ProfileLookupLookupStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProfileLookupLookupStatus enum.
+func (e ProfileLookupLookupStatus) Valid() bool {
+	switch e {
+	case ProfileLookupStatusFound:
+		return true
+	case ProfileLookupStatusMissing:
+		return true
+	case ProfileLookupStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProfileLookupSuggestedType.
+const (
+	ProfileLookupSuggestedTypeEtf        ProfileLookupSuggestedType = "etf"
+	ProfileLookupSuggestedTypeMutualFund ProfileLookupSuggestedType = "mutual_fund"
+	ProfileLookupSuggestedTypeStock      ProfileLookupSuggestedType = "stock"
+)
+
+// Valid indicates whether the value is a known member of the ProfileLookupSuggestedType enum.
+func (e ProfileLookupSuggestedType) Valid() bool {
+	switch e {
+	case ProfileLookupSuggestedTypeEtf:
+		return true
+	case ProfileLookupSuggestedTypeMutualFund:
+		return true
+	case ProfileLookupSuggestedTypeStock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SectorKey.
+const (
+	SectorKeyBasicMaterials        SectorKey = "basic_materials"
+	SectorKeyCommunicationServices SectorKey = "communication_services"
+	SectorKeyConsumerCyclical      SectorKey = "consumer_cyclical"
+	SectorKeyConsumerDefensive     SectorKey = "consumer_defensive"
+	SectorKeyEnergy                SectorKey = "energy"
+	SectorKeyFinancialServices     SectorKey = "financial_services"
+	SectorKeyHealthcare            SectorKey = "healthcare"
+	SectorKeyIndustrials           SectorKey = "industrials"
+	SectorKeyRealEstate            SectorKey = "real_estate"
+	SectorKeyTechnology            SectorKey = "technology"
+	SectorKeyUtilities             SectorKey = "utilities"
+)
+
+// Valid indicates whether the value is a known member of the SectorKey enum.
+func (e SectorKey) Valid() bool {
+	switch e {
+	case SectorKeyBasicMaterials:
+		return true
+	case SectorKeyCommunicationServices:
+		return true
+	case SectorKeyConsumerCyclical:
+		return true
+	case SectorKeyConsumerDefensive:
+		return true
+	case SectorKeyEnergy:
+		return true
+	case SectorKeyFinancialServices:
+		return true
+	case SectorKeyHealthcare:
+		return true
+	case SectorKeyIndustrials:
+		return true
+	case SectorKeyRealEstate:
+		return true
+	case SectorKeyTechnology:
+		return true
+	case SectorKeyUtilities:
 		return true
 	default:
 		return false
@@ -1136,6 +1223,33 @@ type PricesResponse struct {
 	Holdings *[]HoldingWithPrice `json:"holdings,omitempty"`
 }
 
+// ProfileLookup defines model for ProfileLookup.
+type ProfileLookup struct {
+	// Industry Provider industry text (length-limited; render as text)
+	Industry *string `json:"industry,omitempty"`
+
+	// LookupStatus found — a catalogue sector or a fund type was recognised; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+	LookupStatus ProfileLookupLookupStatus `json:"lookup_status"`
+
+	// Sector Recognised company sector; always null for funds
+	Sector *SectorKey `json:"sector,omitempty"`
+
+	// Sectors The accepted sector catalogue, in display order
+	Sectors []SectorOption `json:"sectors"`
+
+	// SuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
+	SuggestedType *ProfileLookupSuggestedType `json:"suggested_type,omitempty"`
+
+	// Symbol Normalised (trimmed, upper-case) symbol that was looked up
+	Symbol string `json:"symbol"`
+}
+
+// ProfileLookupLookupStatus found — a catalogue sector or a fund type was recognised; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+type ProfileLookupLookupStatus string
+
+// ProfileLookupSuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
+type ProfileLookupSuggestedType string
+
 // RecoverQuestionsRequest defines model for RecoverQuestionsRequest.
 type RecoverQuestionsRequest struct {
 	Username string `json:"username"`
@@ -1167,6 +1281,16 @@ type RegionUpdateRequest struct {
 type RejectedPasteRow struct {
 	Date   string `json:"date"`
 	Reason string `json:"reason"`
+}
+
+// SectorKey Canonical company sector (DD-013 §1); the taxonomy is closed
+type SectorKey string
+
+// SectorOption defines model for SectorOption.
+type SectorOption struct {
+	// Key Canonical company sector (DD-013 §1); the taxonomy is closed
+	Key   SectorKey `json:"key"`
+	Label string    `json:"label"`
 }
 
 // SecurityAnswerInput defines model for SecurityAnswerInput.

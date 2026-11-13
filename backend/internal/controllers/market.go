@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/services"
 )
 
 func (h *Controller) GetPrices(ctx context.Context, _ api.GetPricesRequestObject) (api.GetPricesResponseObject, error) {
@@ -26,6 +28,20 @@ func (h *Controller) GetMarketPrice(ctx context.Context, request api.GetMarketPr
 		return api.GetMarketPrice502JSONResponse{BadGatewayJSONResponse: api.BadGatewayJSONResponse{Error: &errMsg}}, nil
 	}
 	return api.GetMarketPrice200JSONResponse{Symbol: &symbol, Price: &price, Currency: &currency}, nil
+}
+
+// GetMarketProfile answers 200 even when Yahoo is unavailable (the status says
+// so), keeping manual classification possible; only a bad symbol is a 400.
+func (h *Controller) GetMarketProfile(ctx context.Context, request api.GetMarketProfileRequestObject) (api.GetMarketProfileResponseObject, error) {
+	profile, err := h.profiles.LookupProfile(ctx, request.Params.Symbol)
+	if errors.Is(err, services.ErrInvalidSymbol) {
+		errMsg := "symbol must be 1–64 letters, digits or . - ^ = _"
+		return api.GetMarketProfile400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: &errMsg}}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return api.GetMarketProfile200JSONResponse(services.ProfileToAPI(profile)), nil
 }
 
 func (h *Controller) GetForexRate(ctx context.Context, request api.GetForexRateRequestObject) (api.GetForexRateResponseObject, error) {
