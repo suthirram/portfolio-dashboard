@@ -14,6 +14,7 @@ import (
 )
 
 func TestEnsureSuperAdmin_CreatesWhenAbsent(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("creates admin/admin with placeholders", func(mt *mtest.T) {
@@ -81,6 +82,7 @@ func TestEnsureSuperAdmin_CreatesWhenAbsent(t *testing.T) {
 }
 
 func TestEnsureSuperAdmin_NoOpWhenPresent(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("does not insert when superadmin already exists", func(mt *mtest.T) {

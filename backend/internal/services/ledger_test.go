@@ -41,6 +41,7 @@ func assertPos(t *testing.T, got Position, qty, avg, realized, div float64) {
 // Average cost: buy 10 for 1000 (avg 100), buy 10 for 2000 (avg 150),
 // sell 10 credited 2500 ⇒ realized 2500 − 150×10 = 1000, remaining 10 @ 150.
 func TestRecomputePosition_AverageCost(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1000),
 		tx(domain.TxnBuy, 1, 10, 2000),
@@ -56,6 +57,7 @@ func TestRecomputePosition_AverageCost(t *testing.T) {
 // Fees are folded into the cash amounts: buy 10 debited 1020 ⇒ avg 102;
 // sell 5 credited 740 ⇒ realized 740 − 102×5 = 230, remaining 5 @ 102.
 func TestRecomputePosition_FeesFoldedIntoAmount(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1020),
 		tx(domain.TxnSell, 1, 5, 740),
@@ -69,6 +71,7 @@ func TestRecomputePosition_FeesFoldedIntoAmount(t *testing.T) {
 
 // Sell everything then rebuy starts a fresh average.
 func TestRecomputePosition_FullExitResetsAverage(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1000),
 		tx(domain.TxnSell, 1, 10, 1500),
@@ -82,6 +85,7 @@ func TestRecomputePosition_FullExitResetsAverage(t *testing.T) {
 }
 
 func TestRecomputePosition_SplitDropsAvgCost(t *testing.T) {
+	t.Parallel()
 	// Buy 10 for 1000 (avg 100), 2-for-1 split ⇒ 20 shares, avg 50.
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1000),
@@ -95,6 +99,7 @@ func TestRecomputePosition_SplitDropsAvgCost(t *testing.T) {
 }
 
 func TestRecomputePosition_BonusDropsAvgCost(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1000),
 		{Type: domain.TxnBonus, Date: day(1), CreatedAt: day(1), Ratio: 2},
@@ -107,6 +112,7 @@ func TestRecomputePosition_BonusDropsAvgCost(t *testing.T) {
 }
 
 func TestRecomputePosition_DividendsAccumulate(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 10, 1000),
 		{Type: domain.TxnDividend, Date: day(1), CreatedAt: day(1), Amount: 35},
@@ -120,6 +126,7 @@ func TestRecomputePosition_DividendsAccumulate(t *testing.T) {
 }
 
 func TestRecomputePosition_OversellRejected(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{
 		tx(domain.TxnBuy, 0, 5, 500),
 		tx(domain.TxnSell, 1, 10, 1500),
@@ -136,6 +143,7 @@ func TestRecomputePosition_OversellRejected(t *testing.T) {
 // Migration equivalence: a single opening event reproduces the legacy
 // stocks_owned/avg_cost_price/realized_pnl identically (Amount = qty × avg).
 func TestRecomputePosition_OpeningSeedEquivalence(t *testing.T) {
+	t.Parallel()
 	txns := []domain.Transaction{{
 		Type: domain.TxnOpening, Date: day(0), CreatedAt: day(0),
 		Quantity: 25, Amount: 25 * 412.5, RealizedSeed: 1234.56,
@@ -148,6 +156,7 @@ func TestRecomputePosition_OpeningSeedEquivalence(t *testing.T) {
 }
 
 func TestRecomputePosition_OpeningIsBaselineNotDateOrdered(t *testing.T) {
+	t.Parallel()
 	// Opening dated AFTER a backdated buy must still be the baseline: buy
 	// adds to the opening position rather than being matched before it.
 	txns := []domain.Transaction{
@@ -163,6 +172,7 @@ func TestRecomputePosition_OpeningIsBaselineNotDateOrdered(t *testing.T) {
 }
 
 func TestRecomputePosition_OrdersByDateNotInsertion(t *testing.T) {
+	t.Parallel()
 	// Sell entered first (later CreatedAt) but dated after the buy must still
 	// be applied after it.
 	txns := []domain.Transaction{
@@ -181,6 +191,7 @@ func TestRecomputePosition_OrdersByDateNotInsertion(t *testing.T) {
 // day vs a saved buy with a time, PD-051), while a day that still ends short
 // is an oversell.
 func TestRecomputePosition_OversellJudgedAtEndOfDay(t *testing.T) {
+	t.Parallel()
 	savedBuy := tx(domain.TxnBuy, 1, 10, 1000)
 	savedBuy.Date = day(1).Add(12 * time.Hour)
 	importedSell := tx(domain.TxnSell, 1, 10, 1500)

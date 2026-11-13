@@ -91,6 +91,7 @@ func userDocument(t *testing.T, id primitive.ObjectID, username, password, role,
 func usersNS(mt *mtest.T) string { return mt.DB.Name() + ".users" }
 
 func TestGetRegions_ReturnsCatalogue(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetRegions(context.Background(), api.GetRegionsRequestObject{})
 	if err != nil {
@@ -106,6 +107,7 @@ func TestGetRegions_ReturnsCatalogue(t *testing.T) {
 }
 
 func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetSecurityQuestionCatalogue(context.Background(), api.GetSecurityQuestionCatalogueRequestObject{})
 	if err != nil {
@@ -118,6 +120,7 @@ func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
 }
 
 func TestSignup_RejectsInvalidInput(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 
 	cases := map[string]func(*api.SignupRequest){
@@ -148,6 +151,7 @@ func TestSignup_RejectsInvalidInput(t *testing.T) {
 }
 
 func TestSignup_RejectsDuplicateUsername(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("duplicate", func(mt *mtest.T) {
@@ -167,6 +171,7 @@ func TestSignup_RejectsDuplicateUsername(t *testing.T) {
 }
 
 func TestSignup_CreatesUserAndLogsIn(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("success", func(mt *mtest.T) {
@@ -208,6 +213,7 @@ func TestSignup_CreatesUserAndLogsIn(t *testing.T) {
 }
 
 func TestLogin_UnknownUser(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("unknown user", func(mt *mtest.T) {
@@ -227,6 +233,7 @@ func TestLogin_UnknownUser(t *testing.T) {
 }
 
 func TestLogin_DisabledAndLockedAreToldWhy(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("disabled gets 403", func(mt *mtest.T) {
@@ -265,6 +272,7 @@ func TestLogin_DisabledAndLockedAreToldWhy(t *testing.T) {
 }
 
 func TestLogin_WrongPasswordIncrementsFailures(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("wrong password", func(mt *mtest.T) {
@@ -288,6 +296,7 @@ func TestLogin_WrongPasswordIncrementsFailures(t *testing.T) {
 }
 
 func TestLogin_SuccessIssuesSessionCookie(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("success", func(mt *mtest.T) {
@@ -323,6 +332,7 @@ func TestLogin_SuccessIssuesSessionCookie(t *testing.T) {
 }
 
 func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	u := &domain.User{
 		ID:              primitive.NewObjectID(),
@@ -354,6 +364,7 @@ func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
 }
 
 func TestGetMe_Unauthenticated(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, nil, nil, false)
 	resp, err := h.GetMe(context.Background(), api.GetMeRequestObject{})
 	if err != nil {
@@ -365,6 +376,7 @@ func TestGetMe_Unauthenticated(t *testing.T) {
 }
 
 func TestLogout_DeletesSessionAndClearsCookie(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("logout", func(mt *mtest.T) {
@@ -391,6 +403,7 @@ func TestLogout_DeletesSessionAndClearsCookie(t *testing.T) {
 }
 
 func TestGetRecoveryQuestions(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("unknown user gets 404", func(mt *mtest.T) {
@@ -447,6 +460,7 @@ func TestGetRecoveryQuestions(t *testing.T) {
 }
 
 func TestRecoverPassword_AllAnswersCorrectResetsPassword(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("full match", func(mt *mtest.T) {
@@ -480,6 +494,7 @@ func TestRecoverPassword_AllAnswersCorrectResetsPassword(t *testing.T) {
 }
 
 func TestRecoverPassword_WrongAnswerCountsAndLocks(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("one wrong answer gets 401", func(mt *mtest.T) {
@@ -570,6 +585,7 @@ func testUser(t *testing.T, password string) *domain.User {
 }
 
 func TestChangePassword(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("wrong current password gets 401", func(mt *mtest.T) {
@@ -617,6 +633,7 @@ func TestChangePassword(t *testing.T) {
 }
 
 func TestUpdateProfile(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("wrong password gets 401", func(mt *mtest.T) {
@@ -674,6 +691,7 @@ func TestUpdateProfile(t *testing.T) {
 }
 
 func TestUpdateSecurityQuestions(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("invalid answers get 400", func(mt *mtest.T) {
@@ -706,6 +724,7 @@ func TestUpdateSecurityQuestions(t *testing.T) {
 }
 
 func TestCompleteOnboarding_ClearsMustChangePassword(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("success", func(mt *mtest.T) {

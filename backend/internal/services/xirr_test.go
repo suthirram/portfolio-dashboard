@@ -12,6 +12,7 @@ func flow(d string, amt float64) cashFlow {
 // TestXIRR pins the solver against spreadsheet XIRR() results — the same
 // function the owner's sheet uses (DD-003 §2).
 func TestXIRR(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		flows []cashFlow
@@ -63,6 +64,7 @@ func TestXIRR(t *testing.T) {
 
 // TestXIRR_NoRate pins the ok=false cases the UI renders as "—".
 func TestXIRR_NoRate(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		flows []cashFlow

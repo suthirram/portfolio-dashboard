@@ -8,6 +8,7 @@ entry or update the relevant one before handoff, including unresolved work.
 
 * [Docker tracing startup: missing network and Tempo volume permissions](docker-tracing-startup.md)
 * [Local preview server and missing Playwright browser](local-preview-access.md)
+* [Local Go and GitHub checks fail inside the sandbox](local-tooling-sandbox.md)
 
 ## Writing an entry
 

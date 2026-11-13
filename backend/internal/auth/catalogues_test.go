@@ -3,6 +3,7 @@ package auth
 import "testing"
 
 func TestRegions_ContainsExactlyThree(t *testing.T) {
+	t.Parallel()
 	regions := Regions()
 	if len(regions) != 3 {
 		t.Fatalf("len(Regions()) = %d, want 3", len(regions))
@@ -29,6 +30,7 @@ func TestRegions_ContainsExactlyThree(t *testing.T) {
 }
 
 func TestValidRegion(t *testing.T) {
+	t.Parallel()
 	for _, id := range []string{"india", "europe", "us"} {
 		if !ValidRegion(id) {
 			t.Errorf("ValidRegion(%q) = false, want true", id)
@@ -42,6 +44,7 @@ func TestValidRegion(t *testing.T) {
 }
 
 func TestSecurityQuestions_CatalogueComplete(t *testing.T) {
+	t.Parallel()
 	qs := SecurityQuestions()
 	if len(qs) != 10 {
 		t.Fatalf("len(SecurityQuestions()) = %d, want 10", len(qs))
@@ -64,6 +67,7 @@ func TestSecurityQuestions_CatalogueComplete(t *testing.T) {
 }
 
 func TestValidQuestionID(t *testing.T) {
+	t.Parallel()
 	if !ValidQuestionID("favourite_movie") {
 		t.Error("ValidQuestionID(favourite_movie) = false, want true")
 	}

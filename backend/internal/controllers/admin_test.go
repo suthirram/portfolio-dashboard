@@ -30,6 +30,7 @@ func superAdmin() *domain.User {
 }
 
 func TestAdminGetUserPrices_PreviousClose(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("authorized admin receives target previous close", func(mt *mtest.T) {
 		userId := primitive.NewObjectID()
@@ -92,6 +93,7 @@ func firstUpdateSet(t *testing.T, mt *mtest.T) bson.Raw {
 }
 
 func TestAdminListUsers_AdminSeesOwnRegionUsersOnly(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("region+role scoped, hidden excluded", func(mt *mtest.T) {
@@ -138,6 +140,7 @@ func TestAdminListUsers_AdminSeesOwnRegionUsersOnly(t *testing.T) {
 }
 
 func TestAdminListUsers_SuperAdminSeesAllRegions(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("no region clause", func(mt *mtest.T) {
@@ -158,6 +161,7 @@ func TestAdminListUsers_SuperAdminSeesAllRegions(t *testing.T) {
 }
 
 func TestAdminGetUser_OutOfRegionReadsAsNotFound(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("other region target", func(mt *mtest.T) {
@@ -214,6 +218,7 @@ func TestAdminGetUser_OutOfRegionReadsAsNotFound(t *testing.T) {
 }
 
 func TestAdminResetLockout_ClearsRecoveryNotLoginFailures(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("reset", func(mt *mtest.T) {
@@ -250,6 +255,7 @@ func TestAdminResetLockout_ClearsRecoveryNotLoginFailures(t *testing.T) {
 }
 
 func TestAdminHideUser_DisablesAndKillsSessions(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("hide", func(mt *mtest.T) {
@@ -279,6 +285,7 @@ func TestAdminHideUser_DisablesAndKillsSessions(t *testing.T) {
 }
 
 func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("delete cascades", func(mt *mtest.T) {
@@ -316,6 +323,7 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 }
 
 func TestAdminPromoteUser(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("user becomes admin, region kept", func(mt *mtest.T) {
@@ -370,6 +378,7 @@ func TestAdminPromoteUser(t *testing.T) {
 }
 
 func TestAdminDemoteUser(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("admin becomes user", func(mt *mtest.T) {
@@ -410,6 +419,7 @@ func TestAdminDemoteUser(t *testing.T) {
 }
 
 func TestAdminSetUserGold(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("super admin enables gold on any account", func(mt *mtest.T) {
@@ -482,6 +492,7 @@ func TestAdminSetUserGold(t *testing.T) {
 }
 
 func TestAdminSetUserPremium(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("super admin enables premium on any account", func(mt *mtest.T) {
@@ -556,6 +567,7 @@ func TestAdminSetUserPremium(t *testing.T) {
 // PD-052: the per-user switch back to the History-based investment delta,
 // on the shared super-admin flag path.
 func TestAdminSetUserDeltaFromHistory(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("super admin switches an account to History", func(mt *mtest.T) {
@@ -618,6 +630,7 @@ func TestAdminSetUserDeltaFromHistory(t *testing.T) {
 // PD-054: the per-user switch to the glass UI, on the shared super-admin
 // flag path.
 func TestAdminSetUserUiRevamp(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("super admin switches an account to the glass UI", func(mt *mtest.T) {
@@ -683,6 +696,7 @@ func TestAdminSetUserUiRevamp(t *testing.T) {
 }
 
 func TestAdminSetUserRegion(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("moves any account", func(mt *mtest.T) {
@@ -739,6 +753,7 @@ func TestAdminSetUserRegion(t *testing.T) {
 }
 
 func TestAdminListAdmins(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("filters to admin roles", func(mt *mtest.T) {
@@ -766,6 +781,7 @@ func TestAdminListAdmins(t *testing.T) {
 }
 
 func TestAdminCreateUserHolding_StampsTargetOwner(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("insert carries the target's user_id", func(mt *mtest.T) {
@@ -823,6 +839,7 @@ func TestAdminCreateUserHolding_StampsTargetOwner(t *testing.T) {
 }
 
 func TestAdminListUserHoldings_ScopedToTarget(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("list", func(mt *mtest.T) {
@@ -866,6 +883,7 @@ func TestAdminListUserHoldings_ScopedToTarget(t *testing.T) {
 }
 
 func TestAdminGetUserSummary_PlainUserRefused(t *testing.T) {
+	t.Parallel()
 	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
 	caller := scopedUser() // role: user
 	_, err := h.AdminGetUserSummary(userCtx(caller), api.AdminGetUserSummaryRequestObject{

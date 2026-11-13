@@ -6,6 +6,7 @@ import (
 )
 
 func TestHashPassword_RoundTrip(t *testing.T) {
+	t.Parallel()
 	hash, err := HashPassword("s3cret-password")
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
@@ -22,6 +23,7 @@ func TestHashPassword_RoundTrip(t *testing.T) {
 }
 
 func TestHashPassword_DistinctSalts(t *testing.T) {
+	t.Parallel()
 	h1, err := HashPassword("same")
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
@@ -36,6 +38,7 @@ func TestHashPassword_DistinctSalts(t *testing.T) {
 }
 
 func TestNormalizeAnswer(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"  Fluffy  ":      "fluffy",
 		"FLUFFY":          "fluffy",
@@ -50,6 +53,7 @@ func TestNormalizeAnswer(t *testing.T) {
 }
 
 func TestHashAnswer_CaseAndSpaceInsensitive(t *testing.T) {
+	t.Parallel()
 	hash, err := HashAnswer("  The Matrix ")
 	if err != nil {
 		t.Fatalf("HashAnswer: %v", err)
@@ -65,6 +69,7 @@ func TestHashAnswer_CaseAndSpaceInsensitive(t *testing.T) {
 }
 
 func TestNewSessionID_OpaqueAndUnique(t *testing.T) {
+	t.Parallel()
 	seen := map[string]bool{}
 	for range 50 {
 		id, err := NewSessionID()
