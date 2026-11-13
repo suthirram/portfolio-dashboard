@@ -59,9 +59,11 @@ jobs:
       # (PriceService cache mutex, migration lock under concurrent boots).
       # -v prints each test name (RUN/PASS/SKIP) so the CI log is a readable
       # per-test list, not just a per-package summary.
+      # Bound opted-in parallel tests on shared runners; shuffle exposes
+      # order dependencies and prints a seed for reproducing failures.
       - name: go test
         working-directory: backend
-        run: go test -race -v ./...
+        run: go test -race -shuffle=on -parallel=4 -v ./...
 
   frontend:
     name: Frontend (tsc + vitest)

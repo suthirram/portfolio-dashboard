@@ -42,6 +42,7 @@ func holdingResult(t *testing.T, view api.StockXirrView, holdingId primitive.Obj
 }
 
 func TestLedgerFlow_SignsAndDates(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name        string
 		txn         domain.Transaction
@@ -81,6 +82,7 @@ func TestLedgerFlow_SignsAndDates(t *testing.T) {
 
 // ₹1,000 that is worth ₹1,100 exactly 365 days later is a 10% XIRR.
 func TestBuildStockXirr_HeldPosition(t *testing.T) {
+	t.Parallel()
 	holdingId := primitive.NewObjectID()
 	holdings := []domain.Holding{{ID: holdingId, Symbol: "TCS.NS", Currency: "INR", StocksOwned: 10}}
 	txns := []domain.Transaction{{HoldingID: holdingId, Type: domain.TxnOpening, Date: calendarDay(2026, 6, 1), OpeningDate: calendarDayPtr(2025, 1, 1), Amount: 1000}}
@@ -107,6 +109,7 @@ func TestBuildStockXirr_HeldPosition(t *testing.T) {
 // A sold-out holding has no terminal value: its rate comes from the
 // realised cash alone. ₹1,000 → ₹1,210 over two years is 10% a year.
 func TestBuildStockXirr_SoldOutUsesRealisedCash(t *testing.T) {
+	t.Parallel()
 	holdingId := primitive.NewObjectID()
 	holdings := []domain.Holding{{ID: holdingId, Symbol: "INFY.NS", Currency: "INR"}}
 	txns := []domain.Transaction{
@@ -122,6 +125,7 @@ func TestBuildStockXirr_SoldOutUsesRealisedCash(t *testing.T) {
 
 // Dividends count as money received, so they raise the rate.
 func TestBuildStockXirr_DividendsRaiseTheRate(t *testing.T) {
+	t.Parallel()
 	holdingId := primitive.NewObjectID()
 	holdings := []domain.Holding{{ID: holdingId, Symbol: "ITC.NS", Currency: "INR", StocksOwned: 1}}
 	buy := domain.Transaction{HoldingID: holdingId, Type: domain.TxnBuy, Date: calendarDay(2025, 1, 1), Amount: 1000}
@@ -139,6 +143,7 @@ func TestBuildStockXirr_DividendsRaiseTheRate(t *testing.T) {
 // The currency bucket pools every holding in that currency; EUR stays
 // apart, a split moves no cash, and the INR bucket comes first.
 func TestBuildStockXirr_CurrencyBuckets(t *testing.T) {
+	t.Parallel()
 	tcs, infy, sap := primitive.NewObjectID(), primitive.NewObjectID(), primitive.NewObjectID()
 	holdings := []domain.Holding{
 		{ID: sap, Symbol: "SAP.DE", Currency: "EUR", StocksOwned: 1},
@@ -172,6 +177,7 @@ func TestBuildStockXirr_CurrencyBuckets(t *testing.T) {
 // money went in before the rise. Here ₹1,000 is added either just before
 // or just after the price doubles.
 func TestBuildStockXirr_RewardsGoodTiming(t *testing.T) {
+	t.Parallel()
 	holdingId := primitive.NewObjectID()
 	holdings := []domain.Holding{{ID: holdingId, Symbol: "X.NS", Currency: "INR", StocksOwned: 1}}
 	first := domain.Transaction{HoldingID: holdingId, Type: domain.TxnBuy, Date: calendarDay(2025, 1, 1), Amount: 1000}
@@ -196,6 +202,7 @@ func TestBuildStockXirr_RewardsGoodTiming(t *testing.T) {
 // Holdings outside the INR/EUR buckets are left out, events of an unknown
 // holding are ignored, and a holding with no cash flows has no rate.
 func TestBuildStockXirr_SkipsWhatCannotBeMeasured(t *testing.T) {
+	t.Parallel()
 	usd, empty := primitive.NewObjectID(), primitive.NewObjectID()
 	holdings := []domain.Holding{
 		{ID: usd, Symbol: "AAPL", Currency: "USD", StocksOwned: 1},
