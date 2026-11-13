@@ -1,12 +1,13 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DashboardPage, { dividendIncome } from './DashboardPage'
 import type { HoldingWithPrice } from '../../types'
 import type { GroupDayChange } from '../holdings/dashboardPriceMovement'
 
 // The holdings the mocked hook returns, and the props SummaryCards got.
 const dashboard = vi.hoisted(() => ({
+  holdings: [] as unknown[],
   enriched: [] as unknown[],
   summary: null as unknown,
   uiRevamp: false,
@@ -15,7 +16,7 @@ const dashboard = vi.hoisted(() => ({
 
 vi.mock('../holdings/useHoldings', () => ({
   useHoldings: () => ({
-    holdings: [], enriched: dashboard.enriched, summary: dashboard.summary,
+    holdings: dashboard.holdings, enriched: dashboard.enriched, summary: dashboard.summary,
     loadingHoldings: false, loadingPrices: false, lastRefresh: null,
     refresh: vi.fn(), fetchPrices: vi.fn(), remove: vi.fn(),
   }),
@@ -160,6 +161,34 @@ describe('DashboardPage in the glass UI (PD-054)', () => {
       </MemoryRouter>,
     )
     expect(screen.queryByRole('dialog', { name: 'Add holding' })).toBeNull()
+  })
+})
+
+describe('DashboardPage classification review queue', () => {
+  const needsReview = (id: string, script: string) => ({
+    id, script, symbol: `${script}.NS`, type: 'stock', currency: 'INR',
+    classification: { symbol: `${script}.NS`, status: 'needs_review' },
+  })
+  beforeEach(() => { dashboard.holdings = [needsReview('h1', 'ITC'), needsReview('h2', 'HUL')] })
+  afterEach(() => { dashboard.holdings = [] })
+
+  const reviewing = () => screen.queryByRole('dialog', { name: 'Review classification' })
+
+  it('Review later skips to the next holding, then ends after the last', () => {
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    expect(within(reviewing()!).getByText('ITC')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review later' }))
+    expect(within(reviewing()!).getByText('HUL')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review later' }))
+    expect(reviewing()).toBeNull()
+  })
+
+  it('Escape ends the whole review', () => {
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(reviewing()).toBeNull()
   })
 })
 

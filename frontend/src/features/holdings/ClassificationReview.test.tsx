@@ -15,22 +15,34 @@ beforeEach(() => vi.clearAllMocks())
 afterEach(() => vi.useRealTimers())
 
 describe('profile preview', () => {
-  it('debounces and ignores late responses for earlier symbols', async () => {
-    vi.useFakeTimers()
+  it('ignores late responses for earlier symbols', async () => {
     let resolveOld!: (profile: ProfileLookup) => void
     vi.mocked(api.getMarketProfile).mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
       .mockResolvedValueOnce({ symbol: 'NEW', lookup_status: 'found', sector: 'Energy' })
     const { rerender } = render(<ProfilePreview symbol="OLD" />)
-    await act(() => vi.advanceTimersByTimeAsync(349))
-    expect(api.getMarketProfile).not.toHaveBeenCalled()
-    await act(() => vi.advanceTimersByTimeAsync(1))
     rerender(<ProfilePreview symbol="NEW" />)
-    expect(screen.queryByText(/Technology/)).not.toBeInTheDocument()
-    await act(() => vi.advanceTimersByTimeAsync(350))
-    expect(screen.getByText('Yahoo: Energy')).toBeInTheDocument()
+    expect(await screen.findByText('Yahoo: Energy')).toBeInTheDocument()
     await act(async () => resolveOld({ symbol: 'OLD', lookup_status: 'found', sector: 'Technology' }))
     expect(screen.getByText('Yahoo: Energy')).toBeInTheDocument()
     expect(screen.queryByText(/Technology/)).not.toBeInTheDocument()
+  })
+
+  it('looks a symbol up only once it is committed, never per keystroke', async () => {
+    vi.mocked(api.getMarketProfile).mockResolvedValue({ symbol: 'TCS.NS', lookup_status: 'found', sector: 'Technology' })
+    render(<AddEditModal holding={null} ownerHoldings={[]} onClose={vi.fn()} onSaved={vi.fn()} />)
+    const symbol = screen.getByLabelText('Yahoo Symbol')
+    for (const partial of ['T', 'TC', 'TCS', 'TCS.', 'TCS.N', 'TCS.NS']) {
+      fireEvent.change(symbol, { target: { value: partial } })
+    }
+    expect(api.getMarketProfile).not.toHaveBeenCalled()
+    fireEvent.blur(symbol)
+    expect(await screen.findByText('Yahoo: Technology')).toBeInTheDocument()
+    expect(api.getMarketProfile).toHaveBeenCalledOnce()
+    expect(api.getMarketProfile).toHaveBeenCalledWith('TCS.NS')
+    // Editing the symbol hides the stale preview and sends nothing until committed again.
+    fireEvent.change(symbol, { target: { value: 'INFY' } })
+    expect(screen.queryByText('Yahoo: Technology')).not.toBeInTheDocument()
+    expect(api.getMarketProfile).toHaveBeenCalledOnce()
   })
 })
 
@@ -69,6 +81,18 @@ describe('classification review', () => {
     fireEvent.change(screen.getByLabelText('Sector'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm classification' }))
     await waitFor(() => expect(api.confirmClassification).toHaveBeenLastCalledWith('holding-1', { type: 'stock', sector: null }, undefined))
+  })
+
+  it('Review later and Escape are separate actions', () => {
+    const onClose = vi.fn()
+    const onReviewLater = vi.fn()
+    render(<ClassificationReview holding={pending} ownerHoldings={[]} onClose={onClose} onReviewLater={onReviewLater} onConfirmed={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review later' }))
+    expect(onReviewLater).toHaveBeenCalledOnce()
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onReviewLater).toHaveBeenCalledOnce()
   })
 
   it('traps focus, dismisses with Escape and restores the invoking control', () => {

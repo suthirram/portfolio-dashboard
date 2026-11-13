@@ -4,7 +4,7 @@ import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { Currency, Exchange, Holding, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 import ClassificationReview from './ClassificationReview'
-import ProfilePreview from './ProfilePreview'
+import ProfilePreview, { previewSymbolKey } from './ProfilePreview'
 import { classificationBucket } from './classification'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { CheckIcon } from '../../components/Icon'
@@ -66,6 +66,9 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
   const [lookupLoading, setLookupLoading] = useState(false)
   const [livePrice, setLivePrice] = useState<LivePrice | null>(null)
   const [savedHolding, setSavedHolding] = useState<Holding | null>(null)
+  // The symbol the sector preview looks up, committed on blur or Test so
+  // typing never sends a lookup per keystroke.
+  const [previewSymbol, setPreviewSymbol] = useState('')
   const root = useRef<HTMLDivElement>(null)
   const returnFocus = useRef(document.activeElement as HTMLElement | null)
   useDialogFocus(root, () => { if (!loading) onClose() }, !savedHolding, returnFocus.current)
@@ -87,6 +90,7 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
       setForm(empty)
     }
     setLivePrice(null)
+    setPreviewSymbol('')
   }, [holding])
 
   const set = (key: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -94,6 +98,7 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
 
   const handleLookup = async () => {
     if (!form.symbol) return
+    setPreviewSymbol(form.symbol)
     setLookupLoading(true)
     try {
       const data = await api.getMarketPrice(form.symbol)
@@ -177,7 +182,8 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
               <div>
                 <label htmlFor="holding-symbol" style={LABEL}>Yahoo Symbol</label>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')} placeholder="e.g. TCS.NS, AAPL" />
+                  <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')}
+                    onBlur={() => setPreviewSymbol(form.symbol)} placeholder="e.g. TCS.NS, AAPL" />
                   <button type="button" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '0 10px', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap' }}>
                     {lookupLoading ? '…' : 'Test'}
@@ -197,7 +203,8 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
               </div>
             </div>
 
-            <ProfilePreview symbol={form.symbol} />
+            {/* Hidden while the symbol is being edited, so a preview never describes another ticker. */}
+            {previewSymbol && previewSymbolKey(previewSymbol) === previewSymbolKey(form.symbol) && <ProfilePreview symbol={previewSymbol} />}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
               <div>
                 <label htmlFor="holding-exchange" style={LABEL}>Exchange</label>

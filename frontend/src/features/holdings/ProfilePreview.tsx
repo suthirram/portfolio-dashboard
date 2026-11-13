@@ -2,23 +2,33 @@ import { useEffect, useState } from 'react'
 import { api } from '../../lib/api/client'
 import type { ProfileLookup } from '../../types'
 
+const PROFILE_SYMBOL = /^[A-Z0-9.\-^=_]{1,64}$/
+
+/** Canonical form the preview compares symbols in (trimmed, upper-case). */
+export const previewSymbolKey = (symbol: string) => symbol.trim().toUpperCase()
+
+/**
+ * Yahoo sector preview for a committed symbol. The form commits the symbol on
+ * blur or Test, never per keystroke, so partial tickers (T, TC, TCS.) never
+ * reach Yahoo and its rate limit. A late response for an earlier symbol is
+ * ignored.
+ */
 export default function ProfilePreview({ symbol }: { symbol: string }) {
-  const normalized = symbol.trim().toUpperCase()
+  const normalized = previewSymbolKey(symbol)
+  const valid = PROFILE_SYMBOL.test(normalized)
   const [result, setResult] = useState<{ symbol: string; profile: ProfileLookup | null } | null>(null)
   useEffect(() => {
+    if (!valid) return
     let active = true
-    if (!/^[A-Z0-9.\-^=_]{1,64}$/.test(normalized)) return
-    const timer = setTimeout(async () => {
-      let profile: ProfileLookup | null = null
-      try { profile = await api.getMarketProfile(normalized) } catch { /* Saving and manual review remain available. */ }
-      if (active) setResult({ symbol: normalized, profile })
-    }, 350)
-    return () => { active = false; clearTimeout(timer) }
-  }, [normalized])
+    api.getMarketProfile(normalized)
+      .catch(() => null) // Saving and manual review remain available.
+      .then(profile => { if (active) setResult({ symbol: normalized, profile }) })
+    return () => { active = false }
+  }, [normalized, valid])
   if (!normalized) return null
   const profile = result?.symbol === normalized ? result.profile : undefined
   return <div role="status" className="profile-preview">
-    {!/^[A-Z0-9.\-^=_]{1,64}$/.test(normalized) ? 'Enter a valid Yahoo symbol to preview its sector.' :
+    {!valid ? 'Enter a valid Yahoo symbol to preview its sector.' :
       profile === undefined ? 'Checking Yahoo sector…' :
       !profile || profile.lookup_status === 'unavailable' ? 'Yahoo sector unavailable. You can save and classify this holding manually.' :
       <>
