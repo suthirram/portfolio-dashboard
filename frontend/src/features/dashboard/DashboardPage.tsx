@@ -71,6 +71,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const [modal, setModal] = useState<ModalState>(null)
   const [txnModal, setTxnModal] = useState<HoldingWithPrice | null>(null)
   const [reviewQueue, setReviewQueue] = useState<Holding[] | null>(null)
+  const advanceReviewQueue = () => setReviewQueue(queue => queue && queue.length > 1 ? queue.slice(1) : null)
   const reviewReturnFocus = useRef<HTMLElement | null>(null)
   const [goldMetrics, setGoldMetrics] = useState<GoldMetrics | null>(null)
   const [tab, setTab] = useState<Tab>('table')
@@ -394,10 +395,13 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       {reviewQueue?.[0] && <ClassificationReview key={reviewQueue[0].id} holding={reviewQueue[0]} ownerHoldings={holdings}
         restoreFocusTo={reviewReturnFocus.current}
         userId={actAsUserId} onClose={() => setReviewQueue(null)}
+        // Review later skips this holding (it stays needs-review) and moves on;
+        // Escape or the backdrop ends the whole review.
+        onReviewLater={advanceReviewQueue}
         onConfirmed={async () => {
           await refresh()
           const last = reviewQueue.length === 1
-          setReviewQueue(queue => queue && queue.length > 1 ? queue.slice(1) : null)
+          advanceReviewQueue()
           if (last) requestAnimationFrame(() => document.getElementById(`dashboard-${tab}-tab`)?.focus())
         }} />}
 

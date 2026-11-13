@@ -9,12 +9,15 @@ interface Props {
   holding: Holding
   ownerHoldings: Holding[]
   userId?: string
+  /** Escape or a backdrop click: leave the review. */
   onClose: () => void
+  /** The Review later button; defaults to onClose. A queue passes "skip to the next holding". */
+  onReviewLater?: () => void
   onConfirmed: (holding: Holding) => void | Promise<void>
   restoreFocusTo?: HTMLElement | null
 }
 
-export default function ClassificationReview({ holding, ownerHoldings, userId, onClose, onConfirmed, restoreFocusTo }: Props) {
+export default function ClassificationReview({ holding, ownerHoldings, userId, onClose, onReviewLater = onClose, onConfirmed, restoreFocusTo }: Props) {
   const [type, setType] = useState<HoldingType>(holding.type ?? 'stock')
   const [sector, setSector] = useState(holding.classification?.sector ??
     (holding.classification?.status === 'resolved' ? '' : holding.classification?.provider_sector ?? ''))
@@ -60,7 +63,7 @@ export default function ClassificationReview({ holding, ownerHoldings, userId, o
         <p>Saved on this holding only. Other holdings keep their own labels.</p>
         {error && <div role="alert" className="classification-error">{error}</div>}
         <div className="classification-actions">
-          <button type="button" className="btn btn-lg" onClick={close} disabled={saving}>Review later</button>
+          <button type="button" className="btn btn-lg" onClick={() => { if (!saving) onReviewLater() }} disabled={saving}>Review later</button>
           <button type="submit" className="btn-primary btn-lg" disabled={saving || !holding.id}>
             {saving ? 'Confirming…' : 'Confirm classification'}
           </button>
