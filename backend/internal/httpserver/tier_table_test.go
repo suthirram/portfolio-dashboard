@@ -21,7 +21,7 @@ func TestAuthGate_TierTableMatchesGeneratedRoutes(t *testing.T) {
 
 	mt.Run("admin routes are explicitly classified", func(mt *mtest.T) {
 		logger := zap.NewNop()
-		h := controllers.New(mt.DB, logger, false)
+		h := controllers.NewWithProfiles(mt.DB, logger, false, nil) // never contact Yahoo
 		e := New(config.Default(), logger, mt.DB, h)
 
 		for _, r := range e.Routes() {

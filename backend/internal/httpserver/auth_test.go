@@ -33,7 +33,7 @@ func fakeSessionID(seed string) string {
 
 func newTestServer(mt *mtest.T) http.Handler {
 	logger := zap.NewNop()
-	h := controllers.New(mt.DB, logger, false)
+	h := controllers.NewWithProfiles(mt.DB, logger, false, nil) // never contact Yahoo
 	return New(config.Default(), logger, mt.DB, h)
 }
 
