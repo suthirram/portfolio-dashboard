@@ -118,3 +118,27 @@ focus behavior. Browser checks now assert the dialog's full bounding rectangle
 fits the viewport; focusability alone is insufficient evidence of visibility.
 Narrow screenshots in both UI modes were inspected after entry animations
 finished. No database or deployment changes were needed.
+
+## Allocation helper naming and Vite cache (2026-11-13)
+
+Adding `SectorAllocation.tsx` beside `sectorAllocation.ts` caused TypeScript
+TS1261/TS1192 on this case-insensitive filesystem: extensionless component
+imports selected the helper rather than the component. Renaming the helper to
+`sectorAllocationData.ts` and updating imports fixed typecheck and build.
+
+The already-running Vite process retained its old resolution even on a fresh
+page load. Browser evidence: `SectorAllocation.ts does not provide an export
+named default`. Restarting only the isolated Vite process on port 3016 cleared
+the stale module path; the dashboard rendered again. Preserve any user-owned
+server on other ports. Future new component/helper pairs should have distinct
+basenames, not just different capitalization or extensions.
+
+After the restart, chart checks passed in legacy/glass, all themes, and
+1440/390/320 px. They verify the 60/20/20 denominator, EUR-native values,
+unpriced warning, no profile request on Sectors selection, keyboard legend and
+pointer navigation, preserved All/Nil views and sibling groups, and selected
+headings visibly below the responsive header. Desktop/narrow screenshots were
+inspected. Pointer tests click an actual donut arc: a path's bounding-box
+center can fall in the donut hole, where the surrounding SVG receives the click.
+These remain fictional-data checks; deployed provider/auth/database verification
+is still pending in PD-056.

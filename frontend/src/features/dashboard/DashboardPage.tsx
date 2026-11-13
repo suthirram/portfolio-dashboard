@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
 import { useUiRevamp } from '../../lib/uiMode'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
-import HoldingsByCurrency from '../holdings/HoldingsByCurrency'
+import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
+import type { HoldingView } from '../holdings/holdingViews'
 import AddEditModal from '../holdings/AddEditModal'
 import TransactionsModal from '../holdings/TransactionsModal'
 import OpeningDateModal from '../holdings/OpeningDateModal'
@@ -17,7 +18,7 @@ import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import type { Holding, HoldingWithPrice } from '../../types'
 import ClassificationReview from '../holdings/ClassificationReview'
-import { classificationBucket } from '../holdings/classification'
+import { classificationBucket, type SectorSelection } from '../holdings/classification'
 import { canonicalCurrency } from '../../lib/currency'
 import { computeGroupDayChange } from '../holdings/dashboardPriceMovement'
 import { groupByCurrency, type CurrencyCode } from '../holdings/groupByCurrency'
@@ -73,6 +74,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const reviewReturnFocus = useRef<HTMLElement | null>(null)
   const [goldMetrics, setGoldMetrics] = useState<GoldMetrics | null>(null)
   const [tab, setTab] = useState<Tab>('table')
+  const [positionView, setPositionView] = useState<HoldingView>('active')
+  const [holdingsLayout, setHoldingsLayout] = useState<HoldingsLayout>('holding')
+  const [sectorTarget, setSectorTarget] = useState<SectorSelection | null>(null)
+  const clearSectorTarget = useCallback(() => setSectorTarget(null), [])
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [regionLabel, setRegionLabel] = useState<string>('')
@@ -103,7 +108,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const needsReview = holdings.filter(holding => classificationBucket(holding).key === 'needs_review')
   const previousOwner = useRef(actAsUserId)
   useEffect(() => {
-    if (previousOwner.current !== actAsUserId) { setReviewQueue(null); setModal(null) }
+    if (previousOwner.current !== actAsUserId) {
+      setReviewQueue(null); setModal(null); setSectorTarget(null)
+      setPositionView('active'); setHoldingsLayout('holding')
+    }
     previousOwner.current = actAsUserId
   }, [actAsUserId])
 
@@ -347,6 +355,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <HoldingsByCurrency
             holdings={filtered}
             searchActive={Boolean(filter)}
+            view={positionView} onViewChange={setPositionView}
+            layout={holdingsLayout} onLayoutChange={setHoldingsLayout}
+            sectorTarget={sectorTarget} onSectorTargetHandled={clearSectorTarget}
             loading={loadingHoldings || loadingPrices}
             onEdit={holding => setModal(holding)}
             onDelete={handleDelete}
@@ -356,7 +367,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             xirr={xirr}
           />
         )}
-        {tab === 'charts' && <Charts holdings={enriched} />}
+        {tab === 'charts' && <Charts holdings={enriched} onSelectSector={selection => {
+          setHoldingsLayout('sector'); setSectorTarget(selection); setTab('table')
+        }} />}
       </main>
 
       {modal && (

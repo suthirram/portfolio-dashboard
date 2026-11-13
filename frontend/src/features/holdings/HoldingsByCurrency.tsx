@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { HoldingWithPrice } from '../../types'
 import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
@@ -8,7 +8,9 @@ import { computeGroupDayChange, type GroupDayChange, type HoldingWithPreviousClo
 import { xirrNote, type XirrIndex } from './stockXirr'
 import { formatRate, rateTone } from '../../lib/rate'
 import { formatDate } from '../../lib/formDates'
-import { groupBySector, sectorSectionId } from './classification'
+import { groupBySector, sectorSectionId, type SectorSelection } from './classification'
+
+export type HoldingsLayout = 'holding' | 'sector'
 
 interface Props {
   holdings: HoldingWithPreviousClose[]
@@ -19,6 +21,12 @@ interface Props {
   /** Stock XIRR (PD-055); null while loading or when /xirr failed. */
   xirr?: XirrIndex | null
   searchActive?: boolean
+  view?: HoldingView
+  onViewChange?: (view: HoldingView) => void
+  layout?: HoldingsLayout
+  onLayoutChange?: (layout: HoldingsLayout) => void
+  sectorTarget?: SectorSelection | null
+  onSectorTargetHandled?: () => void
 }
 
 const CURRENCY_LABEL: Record<CurrencyCode, string> = {
@@ -40,13 +48,40 @@ const fmt = (amount: number, sym: string) => {
 }
 
 
-export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, xirr, searchActive = false }: Props) {
-  const [view, setView] = useState<HoldingView>('active')
-  const [layout, setLayout] = useState<'holding' | 'sector'>('holding')
+export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, xirr, searchActive = false,
+  view: viewProp, onViewChange, layout: layoutProp, onLayoutChange, sectorTarget, onSectorTargetHandled }: Props) {
+  const [internalView, setInternalView] = useState<HoldingView>('active')
+  const [internalLayout, setInternalLayout] = useState<HoldingsLayout>('holding')
+  const [targetMessage, setTargetMessage] = useState('')
+  const statusRef = useRef<HTMLParagraphElement>(null)
+  const view = viewProp ?? internalView
+  const layout = layoutProp ?? internalLayout
+  const setView = (next: HoldingView) => { setTargetMessage(''); if (onViewChange) onViewChange(next); else setInternalView(next) }
+  const setLayout = (next: HoldingsLayout) => { setTargetMessage(''); if (onLayoutChange) onLayoutChange(next); else setInternalLayout(next) }
 
   const counts = viewCounts(holdings)
   const visible = filterByView(holdings, view)
   const groups = groupByCurrency(visible)
+  const membership = visible.map(holding => holding.id).join(',')
+  const previousMembership = useRef(membership)
+  useEffect(() => {
+    if (previousMembership.current !== membership && !sectorTarget) setTargetMessage('')
+    previousMembership.current = membership
+  }, [membership, sectorTarget])
+  useEffect(() => {
+    if (!sectorTarget || loading) return
+    if (layout !== 'sector') { setLayout('sector'); return }
+    const heading = document.getElementById(sectorSectionId(sectorTarget.currency, sectorTarget.key))
+    if (heading) {
+      setTargetMessage('')
+      heading.scrollIntoView?.({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+      heading.focus({ preventScroll: true })
+    } else {
+      setTargetMessage('The selected sector has no matching holdings in the current position view or search. Adjust those controls to see it.')
+    }
+    onSectorTargetHandled?.()
+  }, [sectorTarget, loading, holdings, view, layout, onSectorTargetHandled])
+  useEffect(() => { if (targetMessage) statusRef.current?.focus() }, [targetMessage])
 
   const segBtn = (key: HoldingView, label: string, count: number) => (
     <button
@@ -77,6 +112,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
           </button>)}
         </div>
       </div>
+      <p role="status" tabIndex={-1} ref={statusRef} hidden={!targetMessage}>{targetMessage}</p>
 
       {groups.length === 0 && !loading && (
         <div style={{
