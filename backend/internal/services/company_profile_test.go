@@ -18,10 +18,13 @@ import (
 type fakeYahoo struct {
 	mu             sync.Mutex
 	sessions       int
+	cookieCalls    int
 	crumbCalls     int
 	summaryCalls   int
 	summaryStatus  []int // consumed per quoteSummary call; empty means 200
+	cookieStatus   int
 	crumbStatus    int
+	crumbDelay     time.Duration
 	retryAfter     string
 	body           string
 	delay          time.Duration
@@ -33,11 +36,22 @@ func (f *fakeYahoo) handler(w http.ResponseWriter, r *http.Request) {
 	defer f.mu.Unlock()
 	switch {
 	case r.URL.Path == "/cookie":
+		f.cookieCalls++
+		if f.cookieStatus != 0 {
+			w.Header().Set("Retry-After", f.retryAfter)
+			w.WriteHeader(f.cookieStatus)
+			return
+		}
 		f.sessions++
 		http.SetCookie(w, &http.Cookie{Name: "A3", Value: fmt.Sprintf("session-%d", f.sessions), Path: "/"}) //nolint:gosec // fake provider cookie
 		w.WriteHeader(http.StatusNotFound)
 	case r.URL.Path == "/crumb":
 		f.crumbCalls++
+		if f.crumbDelay > 0 {
+			f.mu.Unlock()
+			time.Sleep(f.crumbDelay)
+			f.mu.Lock()
+		}
 		if f.crumbStatus != 0 {
 			w.Header().Set("Retry-After", f.retryAfter)
 			w.WriteHeader(f.crumbStatus)
@@ -88,6 +102,12 @@ func (f *fakeYahoo) counts() (crumbs, summaries int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.crumbCalls, f.summaryCalls
+}
+
+func (f *fakeYahoo) cookieCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cookieCalls
 }
 
 // fakeClock is a settable clock shared with the service under test.
@@ -330,6 +350,56 @@ func TestLookupProfile_RateLimitPauseIsAtLeastAMinute(t *testing.T) {
 	_, _ = service.LookupProfile(context.Background(), "TCS.NS")
 	if crumbs, _ := fake.counts(); crumbs != 1 {
 		t.Errorf("crumb calls = %d, want 1 (crumb 429 pauses lookups)", crumbs)
+	}
+}
+
+func TestLookupProfile_CookieRateLimitPausesLookups(t *testing.T) {
+	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), cookieStatus: http.StatusTooManyRequests, retryAfter: "120"}
+	service, clock := newFakeProfileService(t, fake)
+
+	if got, _ := service.LookupProfile(context.Background(), "ONGC.NS"); got.Status != ProfileUnavailable {
+		t.Fatalf("status = %q, want unavailable", got.Status)
+	}
+	if crumbs, summaries := fake.counts(); crumbs+summaries != 0 {
+		t.Errorf("crumb/summary calls after cookie 429 = %d/%d, want 0/0", crumbs, summaries)
+	}
+	clock.advance(61 * time.Second)
+	_, _ = service.LookupProfile(context.Background(), "TCS.NS")
+	if cookies := fake.cookieCount(); cookies != 1 {
+		t.Errorf("cookie calls during Retry-After = %d, want 1", cookies)
+	}
+	fake.mu.Lock()
+	fake.cookieStatus = 0
+	fake.mu.Unlock()
+	clock.advance(60 * time.Second)
+	if got, _ := service.LookupProfile(context.Background(), "INFY.NS"); got.Status != ProfileFound {
+		t.Errorf("status after pause = %q, want found", got.Status)
+	}
+}
+
+func TestLookupProfile_QueuedBootstrapsHonourRateLimit(t *testing.T) {
+	fake := &fakeYahoo{crumbStatus: http.StatusTooManyRequests, crumbDelay: 100 * time.Millisecond}
+	service, _ := newFakeProfileService(t, fake)
+
+	symbols := []string{"ONGC.NS", "TCS.NS", "INFY.NS", "ITC.NS", "HDFCBANK.NS", "WIPRO.NS"}
+	statuses := make([]ProfileStatus, len(symbols))
+	var wait sync.WaitGroup
+	for index, symbol := range symbols {
+		wait.Go(func() {
+			profile, _ := service.LookupProfile(context.Background(), symbol)
+			statuses[index] = profile.Status
+		})
+	}
+	wait.Wait()
+
+	for index, status := range statuses {
+		if status != ProfileUnavailable {
+			t.Errorf("lookup %s status = %q, want unavailable", symbols[index], status)
+		}
+	}
+	crumbs, summaries := fake.counts()
+	if cookies := fake.cookieCount(); cookies != 1 || crumbs != 1 || summaries != 0 {
+		t.Errorf("cookie/crumb/summary calls = %d/%d/%d, want 1/1/0 (queued lookups must not bootstrap during the pause)", cookies, crumbs, summaries)
 	}
 }
 

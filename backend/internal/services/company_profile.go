@@ -246,10 +246,6 @@ var (
 // retries once inside the same deadline; on 429 it pauses all lookups.
 func (s *CompanyProfileService) fetch(ctx context.Context, symbol string) CompanyProfile {
 	logger := s.log(ctx)
-	if s.paused() {
-		logger.Info("company profile lookup skipped", zap.String("symbol", symbol), zap.String("outcome", "rate_limit_pause"))
-		return unavailableProfile(symbol)
-	}
 	var profile CompanyProfile
 	var err error
 	for range 2 {
@@ -257,6 +253,10 @@ func (s *CompanyProfileService) fetch(ctx context.Context, symbol string) Compan
 		if !errors.Is(err, errSessionRejected) {
 			break
 		}
+	}
+	if errors.Is(err, errRateLimited) {
+		logger.Info("company profile lookup skipped", zap.String("symbol", symbol), zap.String("outcome", "rate_limit_pause"))
+		return unavailableProfile(symbol)
 	}
 	if err != nil {
 		logger.Warn("company profile lookup failed", zap.String("symbol", symbol), zap.Error(err))
@@ -379,12 +379,16 @@ func (s *CompanyProfileService) currentSession(ctx context.Context) (*yahooSessi
 	}
 	client := &http.Client{Transport: s.transport, Jar: jar, CheckRedirect: s.checkRedirect}
 	// fc.yahoo.com answers an error status while still setting the cookie, so
-	// its status is ignored; its body is never read.
+	// its status is ignored, except 429; its body is never read.
 	resp, err := s.get(ctx, client, s.cookieURL)
 	if err != nil {
 		return nil, err
 	}
 	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		s.pause(resp.Header.Get("Retry-After"))
+		return nil, errRateLimited
+	}
 	resp, err = s.get(ctx, client, s.crumbURL)
 	if err != nil {
 		return nil, err
@@ -431,8 +435,13 @@ func (s *CompanyProfileService) dropSession(session *yahooSession) {
 	}
 }
 
-// get issues a GET after checking the URL against the host allowlist.
+// get issues a GET after checking the URL against the host allowlist. Every
+// outbound request passes here, so the 429 pause is enforced in one place:
+// lookups queued behind a session refresh, or between steps, send nothing.
 func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, rawURL string) (*http.Response, error) {
+	if s.paused() {
+		return nil, errRateLimited
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
