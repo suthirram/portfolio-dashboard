@@ -48,6 +48,9 @@ type CompanyProfile struct {
 	Sector        string // "" when Yahoo gave none
 	Industry      string
 	SuggestedType string // stock | etf | mutual_fund; "" when Yahoo gave no quote type
+	// SessionUnavailable is internal provider state, omitted from API/storage.
+	// Backfill must leave this holding untouched so a rerun can retry it.
+	SessionUnavailable bool
 }
 
 // ProfileFetcher abstracts CompanyProfileService so holding and controller
@@ -237,8 +240,9 @@ func (s *CompanyProfileService) store(profile CompanyProfile) {
 
 // errRateLimited and errSessionRejected steer fetch's retry/cooldown logic.
 var (
-	errRateLimited     = errors.New("yahoo rate limited")
-	errSessionRejected = errors.New("yahoo session rejected")
+	errRateLimited        = errors.New("yahoo rate limited")
+	errSessionRejected    = errors.New("yahoo session rejected")
+	errSessionUnavailable = errors.New("yahoo session unavailable")
 )
 
 // fetch runs one lookup: on a rejected session it rebuilds the session and
@@ -259,7 +263,9 @@ func (s *CompanyProfileService) fetch(ctx context.Context, symbol string) Compan
 	}
 	if err != nil {
 		logger.Warn("company profile lookup failed", zap.String("symbol", symbol), zap.Error(err))
-		return unavailableProfile(symbol)
+		profile = unavailableProfile(symbol)
+		profile.SessionUnavailable = errors.Is(err, errSessionUnavailable) || errors.Is(err, errSessionRejected)
+		return profile
 	}
 	logger.Info("company profile lookup", zap.String("symbol", symbol), zap.String("outcome", string(profile.Status)))
 	return profile
@@ -268,7 +274,7 @@ func (s *CompanyProfileService) fetch(ctx context.Context, symbol string) Compan
 func (s *CompanyProfileService) fetchOnce(ctx context.Context, symbol string) (CompanyProfile, error) {
 	session, err := s.currentSession(ctx)
 	if err != nil {
-		return CompanyProfile{}, err
+		return CompanyProfile{}, fmt.Errorf("%w: %w", errSessionUnavailable, err)
 	}
 	query := url.Values{"modules": {"assetProfile,quoteType"}, "crumb": {session.crumb}}
 	endpoint := s.summaryURL + url.PathEscape(symbol) + "?" + query.Encode()

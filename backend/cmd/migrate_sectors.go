@@ -39,7 +39,8 @@ Holdings already resolved, including owner confirmations, are always skipped;
 needs-review ones are skipped unless --retry-unresolved. A holding edited or
 confirmed during the run is left alone (counted as a conflict). Lookups run
 one at a time, at most one new symbol per second. A Yahoo rate limit stops the
-batch with a non-zero exit; rerun later to resume where it stopped.`,
+batch with a non-zero exit, as does failure to obtain a Yahoo session. Neither
+records the failed holding; rerun later to resume where it stopped.`,
 	RunE: runMigrateSectors,
 }
 
