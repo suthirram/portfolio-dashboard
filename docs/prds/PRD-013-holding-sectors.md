@@ -52,9 +52,10 @@ sector exists because Yahoo labelled one of them with it (TCS → “Technology�
 because the owner typed one for a holding (“FMCG”). The sector field offers the
 labels already on the owner's own holdings and accepts a new one. Yahoo's text
 is kept as given; for example Yahoo labels ITC “Consumer Defensive”, not FMCG.
-When the owner relabels a Yahoo sector (“Consumer Defensive” → “FMCG”), the
-choice is remembered for that owner: later holdings Yahoo puts in that sector
-get the owner's label automatically. One owner's labels never appear for another.
+A rename belongs to the holding. If user 1 renames their ITC holding, user 1's
+ITC keeps that label through later transactions and edits. User 2, adding ITC,
+gets Yahoo's default label. An admin viewing each portfolio sees that
+portfolio's own label. One owner's labels never appear for another.
 
 Manual confirmation persists and is not overwritten by later lookups or
 migrations. Changing the Yahoo symbol requires a fresh classification; changing
@@ -180,8 +181,8 @@ unless separately confirmed; layout approval alone does not resolve them.
 
 RESOLVED (owner, 2026-11-13): no predefined sector set. Sectors come from Yahoo
 labels and owner-typed labels on the owner's own holdings, derived per user.
-The owner's renames of a Yahoo label are remembered and applied to later
-lookups (§5).
+A rename is stored on the renamed holding only, not as a per-owner or
+per-symbol mapping (owner, 2026-11-13; §5).
 
 ## 11. Success criteria
 

@@ -19,7 +19,7 @@ optional embedded `classification` object on the holding:
 | `status` | `resolved` or `needs_review` |
 | `source` | `yahoo` or `user`; omitted for failed lookup without metadata |
 | `sector` | Sector label shown to the owner, nullable; stocks only |
-| `provider_sector` | Yahoo's original sector text, nullable; kept so a rename can be remembered |
+| `provider_sector` | Yahoo's original sector text, nullable; shows what the owner renamed |
 | `industry` | Optional provider text, length-limited and rendered as text |
 | `suggested_type` | Optional `stock`, `etf`, or `mutual_fund`; never silently applied |
 | `checked_at` | UTC timestamp for the attempted lookup or manual decision |
@@ -37,15 +37,15 @@ Yahoo's `assetProfile.sector` text is kept as given (ITC → “Consumer Defensi
 in both `provider_sector` and, unless renamed, `sector`. Any nonempty Yahoo
 sector resolves; there is no unknown-taxonomy review state.
 
-Per-owner renames: when the owner confirms a holding with a `sector` that differs
-from its `provider_sector`, store a rename on the owner's user document
-(`sector_renames`: case-folded provider label → owner label). Every later
-classification of that owner's holdings maps a Yahoo label through the renames
-before writing `sector`; the profile preview does the same. Recording a rename
-also relabels that owner's Yahoo-sourced holdings with the same
-`provider_sector`, so the two labels never coexist. Manual (`source: user`)
-holdings are not relabelled. Confirming with the Yahoo label again deletes the
-rename.
+Renames belong to the holding (owner decision, 2026-11-13). Confirming a
+holding with a `sector` other than Yahoo's stores it on that holding only, with
+`source: user`; `provider_sector` keeps Yahoo's text. No mapping is stored per
+owner or per symbol, and no other holding changes. The label survives ledger
+writes, notes/name edits and backfill, and is replaced only by a new
+confirmation or a symbol/type change (§2). Example: owner 1 relabels their ITC
+holding; owner 2 adds ITC and gets Yahoo's label. Owner 1's later ITC
+transactions keep owner 1's label. An admin viewing each portfolio sees that
+portfolio's own label.
 
 Absent classification or a mismatch between its symbol and the current symbol
 is read as needs-review. Source `user` with status `resolved` can represent a
@@ -91,10 +91,12 @@ components in `portfolio-api.yaml`:
 | `PUT /admin/users/{id}/holdings/{holdingId}/classification` | Existing admin role/region/onboarding rules, target owner scoped |
 
 `ProfileLookup` returns normalized symbol, `lookup_status` (`found`, `missing`,
-`unavailable`), and optional sector/provider sector/industry/suggested type.
-`sector` is the caller's renamed label (once renames exist), `provider_sector`
-Yahoo's text. The UI builds its sector suggestions from the holdings it has
-already loaded, for the owner or the act-as target, so no list is returned.
+`unavailable`), and optional sector/industry/suggested type. The preview is
+provider-only: `sector` is always Yahoo's text and depends on no caller or owner,
+so own and act-as previews are identical. An owner's label lives on their
+holding and is returned with it. The UI builds its sector suggestions from the
+holdings it has already loaded, for the owner or the act-as target, so no list
+is returned.
 Invalid symbol returns 400. Provider failures return an unavailable result with
 200, so UI confirmation remains possible. Auth failures retain standard 401/403.
 Do not return cookies, crumbs, raw provider error bodies, or private account data.
@@ -247,9 +249,9 @@ Never call the live provider from CI.
 Behavior tests: automatic create, provider failure preserving creation, stored
 classification in prices/list/get/act-as, manual confirmation, validation,
 cross-owner 404, out-of-region 404, CSRF, symbol change invalidation and unchanged
-metadata edits, missing legacy fields, case-insensitive label reuse, rename
-recorded/applied/cleared, rename relabelling Yahoo-sourced holdings only, and
-renames scoped to one owner. Migration tests cover dry-run no writes,
+metadata edits, missing legacy fields, case-insensitive label reuse, a rename
+changing only its own holding, surviving ledger writes and backfill, and not
+reaching another owner's holding of the same symbol. Migration tests cover dry-run no writes,
 scope, idempotence, manual preservation, compare-and-set conflicts, resume, and
 financial fields untouched. Use mtest query assertions or pure fake store tests,
 not DB-availability error tests.

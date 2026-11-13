@@ -37,10 +37,10 @@ end. Backend and UI sub-tasks stay in separate PRs.
 | # | Branch | Scope | No regression | Standalone value | Test anchor |
 | --- | --- | --- | --- | --- | --- |
 | 0 | `docs/holding-sector-design` | PRD, DD, ADR, plan, dependencies, visual spec (merged, #280) | Docs only | Reviewable contract and UI before code | Markdown/link checks and visual inspection |
-| 0b | `docs/PD-056-dynamic-sectors` | Replace the fixed sector set with derived per-owner labels and remembered renames | Docs only | Contract matches the owner's decision before code | Markdown checks |
+| 0b | `docs/PD-056-dynamic-sectors` | Replace the fixed sector set with derived per-owner labels; renames stored per holding | Docs only | Contract matches the owner's decision before code | Markdown checks |
 | 1 | `feat/PD-056-profile-lookup` | Direct Yahoo profile service, `GET /market/profile` | New route only | Preview a symbol's Yahoo sector/type over the API | Provider httptest + handler tests |
 | 2 | `feat/PD-056-holding-classification` | Classification on holdings, create/identity-change enrichment, `mutual_fund`, DTO fields | Optional metadata; outage never blocks saves | New holdings carry their Yahoo sector | Holding service/mapper tests |
-| 3 | `feat/PD-056-classification-confirm` | Own + act-as confirmation, label reuse, per-owner renames | New routes only | Owners fix or relabel sectors | Handler/service tests incl. scoping |
+| 3 | `feat/PD-056-classification-confirm` | Own + act-as confirmation, label reuse, per-holding renames | New routes only | Owners fix or relabel sectors | Handler/service tests incl. scoping |
 | 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
 | 5+ | `feat/PD-056-sector-ui-*` | Generated TS, badges/By sector, preview + review, allocation chart | Existing views unchanged | Owners see and use sectors | Vitest + live-stack scenarios |
 
