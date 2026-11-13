@@ -29,18 +29,27 @@ types are regenerated during backend verification but committed only in the UI
 PR unless a minimal build fix is required. Existing unrelated cookbook/Makefile
 changes remain in their original worktree.
 
+Superseded (owner, 2026-11-13): work runs on feature branch
+`feat/PD-056-holding-sectors` (from `main`). Each sub-task is its own branch and
+PR targeting the feature branch; the feature branch merges to `main` once at the
+end. Backend and UI sub-tasks stay in separate PRs.
+
 | # | Branch | Scope | No regression | Standalone value | Test anchor |
 | --- | --- | --- | --- | --- | --- |
-| 0 | `docs/holding-sector-design` | PRD, DD, ADR, plan, dependencies, visual spec | Docs only | Reviewable contract and UI before code | Markdown/link checks and visual inspection |
-| 1 | `feat/holding-sector-api` | Direct Yahoo service, model/spec/codegen, create/update enrichment, profile/confirmation endpoints, dry-run/apply migration | Optional metadata; provider outage never blocks saves; financial projections untouched | API users can create/read/confirm sectors and operators can backfill | Provider httptest, holding/handler/migration behavioral tests; `go test ./...` |
-| 2 | `feat/holding-sector-ui` | Generated TS, add/edit preview, review queue, sector badges/grouped tables, on-demand chart | Existing position views, currency totals, themes, act-as remain available | Owners can classify/review and explore sector allocation | Vitest interaction/aggregation tests and live-stack scenarios |
+| 0 | `docs/holding-sector-design` | PRD, DD, ADR, plan, dependencies, visual spec (merged, #280) | Docs only | Reviewable contract and UI before code | Markdown/link checks and visual inspection |
+| 0b | `docs/PD-056-dynamic-sectors` | Replace the fixed sector set with derived per-owner labels; renames stored per holding | Docs only | Contract matches the owner's decision before code | Markdown checks |
+| 1 | `feat/PD-056-profile-lookup` | Direct Yahoo profile service, `GET /market/profile` | New route only | Preview a symbol's Yahoo sector/type over the API | Provider httptest + handler tests |
+| 2 | `feat/PD-056-holding-classification` | Classification on holdings, create/identity-change enrichment, `mutual_fund`, DTO fields | Optional metadata; outage never blocks saves | New holdings carry their Yahoo sector | Holding service/mapper tests |
+| 3 | `feat/PD-056-classification-confirm` | Own + act-as confirmation, label reuse, per-holding renames | New routes only | Owners fix or relabel sectors | Handler/service tests incl. scoping |
+| 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
+| 5+ | `feat/PD-056-sector-ui-*` | Generated TS, badges/By sector, preview + review, allocation chart | Existing views unchanged | Owners see and use sectors | Vitest + live-stack scenarios |
 
 ## 3. File map
 
 | Action | File | Responsibility |
 | --- | --- | --- |
 | Create | `backend/internal/services/company_profile.go` (+ test) | Bounded direct Yahoo protocol and cached profile fetcher |
-| Create | `backend/internal/domain/classification.go` | Catalogue and typed classification metadata |
+| Create | `backend/internal/domain/classification.go` | Holding types and typed classification metadata (no sector set) |
 | Modify | `backend/internal/domain/holding.go` | Optional embedded classification |
 | Modify | `backend/internal/persistence/holdings.go` (+ test) | Typed scoped writes and migration compare-and-set |
 | Modify | `backend/internal/services/holdings.go` (+ test) | Automatic create/identity-change enrichment, confirmation |
@@ -54,7 +63,7 @@ changes remain in their original worktree.
 | Modify | Existing persistence user enumeration | Reuse migration owner enumeration without service-level BSON |
 | Regenerate | `frontend/src/lib/api/schema.gen.ts` | UI slice generated types |
 | Modify | `frontend/src/types.ts`, `lib/api/client.ts`, act-as routing helpers (+ tests) | Typed profile/confirmation calls |
-| Create | `frontend/src/features/holdings/classification.ts` (+ test) | Shared bucket/group/color catalogue mapping |
+| Create | `frontend/src/features/holdings/classification.ts` (+ test) | Shared bucket/group mapping and label-hash colors |
 | Create | `frontend/src/features/holdings/ClassificationReview.tsx` (+ test) | Explicit confirmation and review queue |
 | Modify | `AddEditModal.tsx`, `HoldingsTable.tsx`, `HoldingsByCurrency.tsx` (+ tests) | Preview, badges, independent category navigation |
 | Create | `frontend/src/features/holdings/SectorAllocation.tsx` (+ test) | Native currency allocation and accessible legend |
@@ -115,7 +124,7 @@ and backfill are usable without the UI. New classification code uses typed
 persistence methods and bound loggers. Tests inject a profile fetcher and use
 httptest for provider behavior; CI never depends on Yahoo being reachable.
 
-* [ ] Implement the catalogue, normalized profile model, Yahoo host restrictions,
+* [ ] Implement the normalized profile model (verbatim Yahoo sector text), Yahoo host restrictions,
   cookie/crumb session, response bounds, timeout, cache, deduplication, and cooldown
   exactly as DD §3. Verify the direct protocol using public sample symbols from
   the dev runtime; preserve no cookie/crumb in logs or committed fixtures.

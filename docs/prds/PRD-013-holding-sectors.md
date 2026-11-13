@@ -47,6 +47,16 @@ The user can choose a stock sector or leave a stock unclassified, confirm a fund
 type, or choose Review later. Provider suggestions are clearly suggestions.
 Do not label a holding “ETF” solely because its sector is absent.
 
+Sectors are not a predefined list. The set grows from the owner's holdings: a
+sector exists because Yahoo labelled one of them with it (TCS → “Technology”) or
+because the owner typed one for a holding (“FMCG”). The sector field offers the
+labels already on the owner's own holdings and accepts a new one. Yahoo's text
+is kept as given; for example Yahoo labels ITC “Consumer Defensive”, not FMCG.
+A rename belongs to the holding. If user 1 renames their ITC holding, user 1's
+ITC keeps that label through later transactions and edits. User 2, adding ITC,
+gets Yahoo's default label. An admin viewing each portfolio sees that
+portfolio's own label. One owner's labels never appear for another.
+
 Manual confirmation persists and is not overwritten by later lookups or
 migrations. Changing the Yahoo symbol requires a fresh classification; changing
 the script display name or notes does not. Confirmed funds display their asset
@@ -168,6 +178,11 @@ the requirement to adapt it to the existing dashboard and retain its existing
 values and controls. The mockup is a layout reference, not a reduced replacement
 dashboard. Review later and current-value allocation remain proposed defaults
 unless separately confirmed; layout approval alone does not resolve them.
+
+RESOLVED (owner, 2026-11-13): no predefined sector set. Sectors come from Yahoo
+labels and owner-typed labels on the owner's own holdings, derived per user.
+A rename is stored on the renamed holding only, not as a per-owner or
+per-symbol mapping (owner, 2026-11-13; §5).
 
 ## 11. Success criteria
 
