@@ -298,7 +298,7 @@ func TestLookupProfile_RejectsInvalidSymbolWithoutRequest(t *testing.T) {
 	t.Parallel()
 	fake := &fakeYahoo{}
 	service, _ := newFakeProfileService(t, fake)
-	for _, symbol := range []string{"", "   ", "TCS NS", "A/B", "A?B", "A#B", "A%2F", "A\nB", strings.Repeat("A", 65)} {
+	for _, symbol := range []string{"", "   ", ".", "..", "TCS NS", "A/B", "A?B", "A#B", "A%2F", "A\nB", strings.Repeat("A", 65)} {
 		if _, err := service.LookupProfile(context.Background(), symbol); !errors.Is(err, ErrInvalidSymbol) {
 			t.Errorf("LookupProfile(%q) err = %v, want ErrInvalidSymbol", symbol, err)
 		}
