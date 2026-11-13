@@ -321,3 +321,23 @@ func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumu
 		HoldingCumulative: holdingCumulative,
 	}
 }
+
+// ProfileToAPI maps a profile lookup to its DTO. The preview is provider-only:
+// the sector is Yahoo's text, never an owner's rename. Empty text fields stay
+// absent, not "".
+func ProfileToAPI(profile CompanyProfile) api.ProfileLookup {
+	lookup := api.ProfileLookup{
+		Symbol:       profile.Symbol,
+		LookupStatus: api.ProfileLookupLookupStatus(profile.Status),
+	}
+	if profile.Sector != "" {
+		lookup.Sector = &profile.Sector
+	}
+	if profile.Industry != "" {
+		lookup.Industry = &profile.Industry
+	}
+	if profile.SuggestedType != "" {
+		lookup.SuggestedType = new(api.ProfileLookupSuggestedType(profile.SuggestedType))
+	}
+	return lookup
+}

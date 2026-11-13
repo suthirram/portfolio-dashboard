@@ -23,6 +23,7 @@ import (
 type Controller struct {
 	store        *persistence.Store
 	priceService services.PriceFetcher
+	profiles     services.ProfileFetcher
 	holdings     *services.HoldingsService
 	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
@@ -46,12 +47,15 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 	h.gold = services.NewGoldService(h.store.Gold, h.store.Holdings, h.priceService, h.log())
 }
 
-// New builds a Controller with the default PriceService. cookieSecure controls
-// whether the session cookie is emitted with Secure + SameSite=None
-// (cross-origin prod) or with SameSite=Lax (local dev). Sourced from
-// Config.CookieSecure; do not derive from the request scheme.
+// New builds a Controller with the default PriceService and
+// CompanyProfileService. cookieSecure controls whether the session cookie is
+// emitted with Secure + SameSite=None (cross-origin prod) or with
+// SameSite=Lax (local dev). Sourced from Config.CookieSecure; do not derive
+// from the request scheme.
 func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller {
-	return newWithDeps(persistence.New(db), services.NewPriceService(logger), logger, cookieSecure)
+	controller := newWithDeps(persistence.New(db), services.NewPriceService(logger), logger, cookieSecure)
+	controller.profiles = services.NewCompanyProfileService(logger)
+	return controller
 }
 
 // newWithDeps assembles the per-domain services around a pre-built store and
