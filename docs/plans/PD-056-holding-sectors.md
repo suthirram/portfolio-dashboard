@@ -82,6 +82,9 @@ do not relabel proposed defaults as accepted without that review.
   inspected. [Diagnosis and fix](../cookbook/holding-table-actions-overflow.md).
 * [ ] Finish rendered chart/review-dialog interaction verification; table
   geometry checks do not establish those interactions.
+* [x] Verify pinned Script identity/header/footer at start/middle/end of scroll
+  in both layouts at 1440 px, 390 px, and 320 px. Keep actions reachable and
+  opaque pinned surfaces readable; inspect mobile screenshot.
 * [x] Run Markdown checks. Expected: no errors in these new Markdown files.
 
   The check is limited to the new feature documents so unrelated local drafts
@@ -213,6 +216,10 @@ DashboardPage, and tests listed in §3.
   summary cards and native/converted currency stats. Keep currency XIRR on the
   overall total only; sector XIRR stays unavailable. Add regression tests for
   monetary/day-gain sums and correctly aligned footer cells in both layouts.
+* [ ] Pin the Script header, body identities, and total labels during horizontal
+  scrolling in both layouts, on desktop and mobile. Use opaque theme surfaces,
+  readable wrapping and a divider. Verify start/middle/end positions and that
+  the remaining viewport still supports readable values and reachable actions.
 * [ ] Implement native-currency sector allocation with explicit fund, pending,
   and unclassified buckets, priced-value denominator, unpriced count, empty
   state, and category-to-group scrolling/focus. Render only after Sectors selection.

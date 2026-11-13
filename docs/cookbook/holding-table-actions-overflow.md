@@ -2,7 +2,7 @@
 
 * Status: Resolved in design preview
 * Last verified: 2026-11-13
-* Environment: PD-056 HTML preview; Chrome at 1440 px and 390 px viewport widths
+* Environment: PD-056 HTML preview; Chrome at 1440 px, 390 px, and 320 px viewport widths
 * Related: [Visual spec](../visuals/PD-056-holding-sectors.html),
   [rollout plan](../plans/PD-056-holding-sectors.md)
 
@@ -59,3 +59,22 @@ their right edge. This verifies the preview layout, not production UI code.
 Preserve action-column sizing and contained table scrolling when adapting the
 approved grouping to the existing React table. Include rendered overlap checks;
 jsdom alone cannot validate cell geometry.
+
+## Pinned script identity during horizontal scrolling
+
+Problem: both desktop and mobile tables lost the holding identity when scrolled
+toward prices or Actions. The first column was an ordinary scrolling cell.
+
+Solution: pin first-column header/body/footer cells to `left: 0` inside each
+table wrapper, using opaque surfaces, a higher stacking order and a divider.
+Wrap identity text on mobile. Narrow layouts use a 160 px identity column and
+148 px Actions column; below 360 px, identity narrows to 128 px so actions remain
+reachable. The first 320 px browser run caught buttons obscured by the pinned
+column; reducing that identity width corrected it.
+
+Verification: approved isolated Chrome checks passed at 1440 px, 390 px, and
+320 px in both layouts at start, midpoint, and end of horizontal scroll. Header,
+all five identities, and footer labels stayed at the wrapper's left edge with
+opaque backgrounds. All action buttons remained reachable at the right edge;
+no page-wide horizontal overflow occurred. Mobile screenshot inspected. The
+production React adaptation still needs the same scrolling regression checks.

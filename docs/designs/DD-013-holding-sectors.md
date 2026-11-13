@@ -165,6 +165,12 @@ view; distinguish each sector table's own subtotal from the currency summary.
 Badges use theme tokens and readable labels; stable catalogue colors accompany,
 never replace, text. Layout buttons use `aria-pressed`; tables scroll within
 their cards on narrow screens, without forcing page-wide overflow.
+Make the first header/body/footer cell sticky at `left: 0` within each table's
+scroll wrapper in both layouts and at all viewport sizes. Use opaque theme
+surface backgrounds, layered header/footer cells, and a subtle right divider.
+Narrow layouts constrain the identity column and wrap script/symbol text;
+reserve enough scrollable space for Actions. Verify actual pinned-cell geometry
+at the start, middle, and end of horizontal scroll on desktop and mobile.
 
 Reuse `sumTotals` and native currency formatting for each sector table footer.
 Do not render a separate overall total beneath sector sections. Preserve the

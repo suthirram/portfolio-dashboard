@@ -94,6 +94,12 @@ and current value in the enclosing currency. Sorting applies within each group.
 Position-view selection still applies before grouping; switching layout does
 not hide categories or change portfolio-level totals. Desktop column widths
 align across sections; narrow screens scroll each table within its card.
+Pin the Script column, including its header and subtotal/total label, to the
+left edge of each scrolling table on desktop and mobile. Keep the holding name,
+symbol, asset identity and sector label readable while inspecting columns at
+any horizontal scroll position. Use an opaque background and clear divider so
+scrolled values do not show through. On narrow screens reduce the pinned width
+and wrap long names to leave usable space for the other columns and actions.
 
 Each sector table ends with a subtotal row for invested amount, current value,
 and unrealised P&L, plus day gain, realised gain and dividends as in the existing
