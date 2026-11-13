@@ -543,6 +543,32 @@ func (h *Controller) AdminUpdateUserHolding(ctx context.Context, request api.Adm
 	return api.AdminUpdateUserHolding200JSONResponse(updated), nil
 }
 
+func (h *Controller) AdminConfirmUserHoldingClassification(ctx context.Context, request api.AdminConfirmUserHoldingClassificationRequestObject) (api.AdminConfirmUserHoldingClassificationResponseObject, error) {
+	caller, err := adminCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, request.Id)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return api.AdminConfirmUserHoldingClassification404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	confirmed, found, err := h.holdings.ConfirmClassification(ctx, target.ID, request.HoldingId, string(request.Body.Type), request.Body.Sector)
+	switch {
+	case errors.Is(err, services.ErrInvalidClassification):
+		return api.AdminConfirmUserHoldingClassification400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+	case errors.Is(err, services.ErrClassificationConflict):
+		return api.AdminConfirmUserHoldingClassification409JSONResponse{Error: new(err.Error())}, nil
+	case err != nil:
+		return nil, err
+	case !found:
+		return api.AdminConfirmUserHoldingClassification404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("no such holding")}}, nil
+	}
+	return api.AdminConfirmUserHoldingClassification200JSONResponse(confirmed), nil
+}
+
 func (h *Controller) AdminDeleteUserHolding(ctx context.Context, request api.AdminDeleteUserHoldingRequestObject) (api.AdminDeleteUserHoldingResponseObject, error) {
 	caller, err := adminCaller(ctx)
 	if err != nil {
