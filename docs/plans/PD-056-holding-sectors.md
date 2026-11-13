@@ -70,8 +70,9 @@ a review state. Resolve product questions in PRD §10 in place after owner revie
 do not relabel proposed defaults as accepted without that review.
 
 * [x] Draft the linked product, technical, and rollout documents.
-* [x] Owner reviewed and approved grouped layout with sector and overall totals;
-  requested adaptation to all existing dashboard values and controls.
+* [x] Owner reviewed grouped layout and requested existing dashboard values and
+  controls. Subsequent correction: retain sector subtotals and flat overall
+  footer, remove bottom overall total from sector layout; keep currency summary.
 * [x] Updated visual spec and contract to retain the existing 12-column table,
   currency summary and controls. jsdom checks passed for group/row counts,
   subtotal alignment, overall money sums, XIRR scope, and layout switching.
@@ -197,8 +198,9 @@ DashboardPage, and tests listed in §3.
 * [ ] Add text sector badges and By holding / By sector layouts, with separate
   sector headings and rounded tables based on the owner's reference. Retain
   existing active/all/nil navigation and clearly labelled currency/group totals.
-  Add invested/current/unrealised sector subtotal rows and a currency-specific
-  overall total below all groups, reusing existing summation. Verify group sums
+  Add invested/current/unrealised sector subtotal rows, keeping the flat table's
+  overall footer and existing currency summary. No bottom overall total in By
+  sector. Reuse existing summation. Verify group sums
   reconcile, layout switching preserves totals, percentages use aggregate cost,
   and zero invested shows no invalid return.
 * [ ] Adapt the existing dashboard rather than replacing it: retain all 12

@@ -166,10 +166,11 @@ Badges use theme tokens and readable labels; stable catalogue colors accompany,
 never replace, text. Layout buttons use `aria-pressed`; tables scroll within
 their cards on narrow screens, without forcing page-wide overflow.
 
-Reuse `sumTotals` and native currency formatting for each sector table footer
-and the currency-wide overall total beneath its sector sections. Include invested,
-current value, unrealised P&L and aggregate P&L percentage; no summed quantity.
-Flat layout retains an equivalent overall footer. Calculate the percentage from
+Reuse `sumTotals` and native currency formatting for each sector table footer.
+Do not render a separate overall total beneath sector sections. Preserve the
+existing currency summary above those sections and the flat layout's overall
+table footer. Include invested, current value, unrealised P&L and aggregate P&L
+percentage; no summed quantity. Calculate the percentage from
 the aggregate money amounts with a zero-cost guard. Subtotals must sum to the
 overall figures including pending and fund buckets; never sum percentages.
 
@@ -177,7 +178,7 @@ Keep the existing `HoldingsTable` column order, formatters, row interactions,
 sorting, column highlighting and mobile hidden columns. Use the same component
 for each sector rather than implementing a reduced alternative table. Extend its
 footer contract with a total label and an explicit optional total XIRR: sector
-tables pass no aggregate rate, while the currency-wide overall total uses the
+tables pass no aggregate rate, while the flat table's overall total uses the
 existing `xirr.byCurrency` result. Never repeat the currency rate for each sector
 or average holding XIRRs. Preserve per-row rates/caveats. Unit-price and quantity
 subtotal cells remain blank. Move/extract the existing footer summation into a

@@ -97,9 +97,10 @@ align across sections; narrow screens scroll each table within its card.
 
 Each sector table ends with a subtotal row for invested amount, current value,
 and unrealised P&L, plus day gain, realised gain and dividends as in the existing
-table footer. Show an overall total after all sector sections, including
-funds and needs-review holdings, within each currency. The flat layout has the
-same overall total in its footer. Compute aggregate return as total unrealised
+table footer. Do not add an overall total below the sector sections; the existing
+currency summary above the groups remains. The flat By holding layout keeps
+its overall total in the table footer, including funds and needs-review holdings
+within that currency. Compute aggregate return as total unrealised
 P&L divided by total invested, never as a sum or mean of row percentages; show
 “—” when total invested is zero. Do not add share quantities across instruments.
 Totals follow the selected Holdings / All / Nil view and reconcile across the
@@ -152,7 +153,9 @@ separate tables under group headings, based on the owner's sample screenshot.
 The By holding / By sector switch and exact styling remain in visual review.
 
 RESOLVED (owner, 2026-11-13): grouped tables need summation and an overall total.
-Show sector subtotals and a currency-specific overall total as described in §7.
+Updated by the owner's subsequent correction: retain sector subtotals, remove
+the bottom overall total from By sector, and keep the existing overall table
+footer in By holding. Currency summaries remain above the groups (§7).
 
 RESOLVED (owner, 2026-11-13): the grouped design is approved in principle, with
 the requirement to adapt it to the existing dashboard and retain its existing
