@@ -236,16 +236,16 @@ func (e HoldingWithPriceExchange) Valid() bool {
 
 // Defines values for HoldingWithPriceType.
 const (
-	Etf   HoldingWithPriceType = "etf"
-	Stock HoldingWithPriceType = "stock"
+	HoldingWithPriceTypeEtf   HoldingWithPriceType = "etf"
+	HoldingWithPriceTypeStock HoldingWithPriceType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceType enum.
 func (e HoldingWithPriceType) Valid() bool {
 	switch e {
-	case Etf:
+	case HoldingWithPriceTypeEtf:
 		return true
-	case Stock:
+	case HoldingWithPriceTypeStock:
 		return true
 	default:
 		return false
@@ -267,6 +267,48 @@ func (e InvestmentDeltaColumnColumn) Valid() bool {
 	case InvestmentDeltaColumnColumnGOLD:
 		return true
 	case InvestmentDeltaColumnColumnINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProfileLookupLookupStatus.
+const (
+	ProfileLookupStatusFound       ProfileLookupLookupStatus = "found"
+	ProfileLookupStatusMissing     ProfileLookupLookupStatus = "missing"
+	ProfileLookupStatusUnavailable ProfileLookupLookupStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProfileLookupLookupStatus enum.
+func (e ProfileLookupLookupStatus) Valid() bool {
+	switch e {
+	case ProfileLookupStatusFound:
+		return true
+	case ProfileLookupStatusMissing:
+		return true
+	case ProfileLookupStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ProfileLookupSuggestedType.
+const (
+	ProfileLookupSuggestedTypeEtf        ProfileLookupSuggestedType = "etf"
+	ProfileLookupSuggestedTypeMutualFund ProfileLookupSuggestedType = "mutual_fund"
+	ProfileLookupSuggestedTypeStock      ProfileLookupSuggestedType = "stock"
+)
+
+// Valid indicates whether the value is a known member of the ProfileLookupSuggestedType enum.
+func (e ProfileLookupSuggestedType) Valid() bool {
+	switch e {
+	case ProfileLookupSuggestedTypeEtf:
+		return true
+	case ProfileLookupSuggestedTypeMutualFund:
+		return true
+	case ProfileLookupSuggestedTypeStock:
 		return true
 	default:
 		return false
@@ -1135,6 +1177,30 @@ type PricesResponse struct {
 	EurRate  *float64            `json:"eur_rate,omitempty"`
 	Holdings *[]HoldingWithPrice `json:"holdings,omitempty"`
 }
+
+// ProfileLookup defines model for ProfileLookup.
+type ProfileLookup struct {
+	// Industry Provider industry text (length-limited; render as text)
+	Industry *string `json:"industry,omitempty"`
+
+	// LookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+	LookupStatus ProfileLookupLookupStatus `json:"lookup_status"`
+
+	// Sector Yahoo's sector text as given (normalised whitespace). There is no fixed sector set (DD-013 §1), and the preview is provider-only: an owner's rename lives on their holding. Always null for funds.
+	Sector *string `json:"sector,omitempty"`
+
+	// SuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
+	SuggestedType *ProfileLookupSuggestedType `json:"suggested_type,omitempty"`
+
+	// Symbol Normalised (trimmed, upper-case) symbol that was looked up
+	Symbol string `json:"symbol"`
+}
+
+// ProfileLookupLookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+type ProfileLookupLookupStatus string
+
+// ProfileLookupSuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
+type ProfileLookupSuggestedType string
 
 // RecoverQuestionsRequest defines model for RecoverQuestionsRequest.
 type RecoverQuestionsRequest struct {

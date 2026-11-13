@@ -170,6 +170,12 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// GetMarketProfileParams defines parameters for GetMarketProfile.
+type GetMarketProfileParams struct {
+	// Symbol Yahoo Finance ticker (1–64 of letters, digits and . - ^ = _)
+	Symbol string `form:"symbol" json:"symbol"`
+}
+
 // GetInvestmentDeltaParams defines parameters for GetInvestmentDelta.
 type GetInvestmentDeltaParams struct {
 	Year int `form:"year" json:"year"`
@@ -498,6 +504,9 @@ type ServerInterface interface {
 	// Get live price for any symbol
 	// (GET /market/price)
 	GetMarketPrice(ctx echo.Context, params GetMarketPriceParams) error
+	// Look up a symbol's company sector and suggested holding type
+	// (GET /market/profile)
+	GetMarketProfile(ctx echo.Context, params GetMarketProfileParams) error
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx echo.Context) error
@@ -1734,6 +1743,26 @@ func (w *ServerInterfaceWrapper) GetMarketPrice(ctx echo.Context) error {
 	return err
 }
 
+// GetMarketProfile converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMarketProfile(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMarketProfileParams
+	// ------------- Required query parameter "symbol" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "symbol", ctx.QueryParams(), &params.Symbol, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter symbol: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetMarketProfile(ctx, params)
+	return err
+}
+
 // GetPrices converts echo context to params.
 func (w *ServerInterfaceWrapper) GetPrices(ctx echo.Context) error {
 	var err error
@@ -1983,6 +2012,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/holdings/:id/transactions", wrapper.CreateTransaction, options.OperationMiddlewares["createTransaction"]...)
 	router.GET(options.BaseURL+"/market/forex", wrapper.GetForexRate, options.OperationMiddlewares["getForexRate"]...)
 	router.GET(options.BaseURL+"/market/price", wrapper.GetMarketPrice, options.OperationMiddlewares["getMarketPrice"]...)
+	router.GET(options.BaseURL+"/market/profile", wrapper.GetMarketProfile, options.OperationMiddlewares["getMarketProfile"]...)
 	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
 	router.GET(options.BaseURL+"/regions", wrapper.GetRegions, options.OperationMiddlewares["getRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
@@ -5254,6 +5284,56 @@ func (response GetMarketPrice502JSONResponse) VisitGetMarketPriceResponse(w http
 	return err
 }
 
+type GetMarketProfileRequestObject struct {
+	Params GetMarketProfileParams
+}
+
+type GetMarketProfileResponseObject interface {
+	VisitGetMarketProfileResponse(w http.ResponseWriter) error
+}
+
+type GetMarketProfile200JSONResponse ProfileLookup
+
+func (response GetMarketProfile200JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMarketProfile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMarketProfile400JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMarketProfile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetMarketProfile401JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetPricesRequestObject struct {
 }
 
@@ -5799,6 +5879,9 @@ type StrictServerInterface interface {
 	// Get live price for any symbol
 	// (GET /market/price)
 	GetMarketPrice(ctx context.Context, request GetMarketPriceRequestObject) (GetMarketPriceResponseObject, error)
+	// Look up a symbol's company sector and suggested holding type
+	// (GET /market/profile)
+	GetMarketProfile(ctx context.Context, request GetMarketProfileRequestObject) (GetMarketProfileResponseObject, error)
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx context.Context, request GetPricesRequestObject) (GetPricesResponseObject, error)
@@ -7768,6 +7851,31 @@ func (sh *strictHandler) GetMarketPrice(ctx echo.Context, params GetMarketPriceP
 		return err
 	} else if validResponse, ok := response.(GetMarketPriceResponseObject); ok {
 		return validResponse.VisitGetMarketPriceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetMarketProfile operation middleware
+func (sh *strictHandler) GetMarketProfile(ctx echo.Context, params GetMarketProfileParams) error {
+	var request GetMarketProfileRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMarketProfile(ctx.Request().Context(), request.(GetMarketProfileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMarketProfile")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetMarketProfileResponseObject); ok {
+		return validResponse.VisitGetMarketProfileResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

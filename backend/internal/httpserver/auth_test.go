@@ -124,7 +124,7 @@ func TestProtectedEndpointsRequireLogin(t *testing.T) {
 
 	mt.Run("anonymous requests get 401", func(mt *mtest.T) {
 		srv := newTestServer(mt)
-		for _, path := range []string{"/api/holdings", "/api/prices", "/api/summary", "/api/auth/me", "/api/admin/users", "/api/market/price?symbol=TCS.NS"} {
+		for _, path := range []string{"/api/holdings", "/api/prices", "/api/summary", "/api/auth/me", "/api/admin/users", "/api/market/price?symbol=TCS.NS", "/api/market/profile?symbol=TCS.NS"} {
 			rec := doRequest(t, srv, http.MethodGet, path, nil)
 			if rec.Code != http.StatusUnauthorized {
 				t.Errorf("GET %s = %d, want 401; body=%s", path, rec.Code, rec.Body.String())

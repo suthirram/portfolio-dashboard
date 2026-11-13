@@ -87,6 +87,8 @@ paths:
     $ref: "./market/market.yaml#/price"
   /market/forex:
     $ref: "./market/market.yaml#/forex"
+  /market/profile:
+    $ref: "./market/market.yaml#/profile"
 
   /regions:
     $ref: "./auth/auth.yaml#/regions"

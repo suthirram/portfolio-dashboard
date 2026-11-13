@@ -563,6 +563,41 @@ components:
           format: double
           description: actual_paid − gold_cost (spreadsheet J − D)
 
+    ProfileLookup:
+      type: object
+      required: [symbol, lookup_status]
+      properties:
+        symbol:
+          type: string
+          description: Normalised (trimmed, upper-case) symbol that was looked up
+          example: TCS.NS
+        lookup_status:
+          type: string
+          enum: [found, missing, unavailable]
+          x-enum-varnames: [ProfileLookupStatusFound, ProfileLookupStatusMissing, ProfileLookupStatusUnavailable]
+          description: >
+            found — Yahoo gave a sector or a fund type; missing — Yahoo answered
+            without a usable classification; unavailable — Yahoo could not be
+            reached or refused the lookup
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: >
+            Yahoo's sector text as given (normalised whitespace). There is no
+            fixed sector set (DD-013 §1), and the preview is provider-only: an
+            owner's rename lives on their holding. Always null for funds.
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          description: Provider industry text (length-limited; render as text)
+        suggested_type:
+          type: string
+          enum: [stock, etf, mutual_fund]
+          nullable: true
+          description: Yahoo's quote type as a holding type; a suggestion, never applied silently
+
     Holding:
       type: object
       properties:
