@@ -68,3 +68,27 @@ not covered by those table geometry checks.
 
 Continue collecting UI feedback. Keep unverified interactions distinct from
 the approved table checks. Stop the preview server when review is complete.
+
+## Frontend fixture routing (2026-11-13)
+
+A Playwright check of the implemented sector tables initially rendered a blank
+page. Browser console evidence: `Expected a JavaScript-or-Wasm module script
+but the server responded with a MIME type of "application/json"`.
+
+Cause: the fixture matcher `**/api/**` also matched the Vite source module
+`/src/lib/api/client.ts`, returning JSON instead of JavaScript. Match only the
+endpoint prefix when mocking API calls:
+
+```javascript
+await page.route(url => url.pathname.startsWith('/api/'), async route => {
+  // Return the fixture for the requested API endpoint only.
+})
+```
+
+After correcting the fixture, Chrome checks passed for both holdings layouts,
+legacy/glass UI, all three themes, and 1440/390/320 px. Identity cells remained
+pinned at the start/middle/end of horizontal scrolling, with opaque backgrounds
+and reachable actions. Desktop and narrow screenshots were inspected. The
+reference visual's chart navigation, Review later, fund confirmation, narrow
+dialog and Escape dismissal also passed. These checks used fictional API
+responses, not a real database or deployed dev stack.

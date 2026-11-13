@@ -331,6 +331,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         {tab === 'table' && (
           <HoldingsByCurrency
             holdings={filtered}
+            searchActive={Boolean(filter)}
             loading={loadingHoldings || loadingPrices}
             onEdit={holding => setModal(holding)}
             onDelete={handleDelete}
