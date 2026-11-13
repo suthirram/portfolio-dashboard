@@ -68,44 +68,47 @@ func (s *HoldingStore) Insert(ctx context.Context, h domain.Holding) error {
 	return err
 }
 
-// UpdateScopedAndReturn applies set to the holding owned by uid and returns
+// UpdateScopedAndReturn applies set to the holding owned by userId and returns
 // the post-update document in one round-trip (FindOneAndUpdate with
 // ReturnDocument=After). Returns ErrNotFound when no holding matched the
 // owner-scoped filter — either the id is wrong or the caller does not own
 // it; both cases collapse to 404 at the handler.
-func (s *HoldingStore) UpdateScopedAndReturn(ctx context.Context, uid, id primitive.ObjectID, set bson.D) (domain.Holding, error) {
-	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-
-	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
-	var out domain.Holding
-	err := s.col.FindOneAndUpdate(ctx,
-		scopedFilter(uid, bson.M{"_id": id}),
-		bson.M{"$set": set},
-		opts,
-	).Decode(&out)
-	if err != nil {
-		return domain.Holding{}, translateFindErr(err)
-	}
-	return out, nil
+func (s *HoldingStore) UpdateScopedAndReturn(ctx context.Context, userId, id primitive.ObjectID, set bson.D) (domain.Holding, error) {
+	return s.findAndSet(ctx, scopedFilter(userId, bson.M{"_id": id}), set)
 }
 
-// SetClassification stores classification on the holding owned by userId, but
-// only while its symbol and type are still the ones the lookup was made for
-// (compare-and-set). A lookup that raced a symbol or type change never
-// overwrites the newer identity, so a stock sector cannot land on a fund.
-// Returns the post-update holding, or ErrNotFound when no holding matched.
-func (s *HoldingStore) SetClassification(ctx context.Context, userId, id primitive.ObjectID, symbol, holdingType string, classification domain.Classification) (domain.Holding, error) {
+// SetClassification stores a Yahoo lookup's classification on the holding
+// owned by userId, but only while the holding is still what the lookup was
+// made for (compare-and-set): the same symbol and type, and the classification
+// it had when the lookup started (expected, matched by checked_at; nil or a
+// zero checked_at means none was stored). A lookup that raced a symbol or type change, or an owner's
+// confirmation, never overwrites the newer result, so a stock sector cannot
+// land on a fund. Returns ErrNotFound when no holding matched.
+func (s *HoldingStore) SetClassification(ctx context.Context, userId, id primitive.ObjectID, symbol, holdingType string, expected *domain.Classification, classification domain.Classification) (domain.Holding, error) {
+	filter := bson.M{"_id": id, "symbol": symbol, "type": holdingType, "classification.checked_at": bson.M{"$exists": false}}
+	if expected != nil && !expected.CheckedAt.IsZero() {
+		filter["classification.checked_at"] = expected.CheckedAt
+	}
+	return s.findAndSet(ctx, scopedFilter(userId, filter), bson.M{"classification": classification})
+}
+
+// ConfirmClassification stores the owner's classification and the type they
+// chose on the holding owned by userId, while its symbol is still symbol: a
+// confirmation for an earlier symbol never lands on a renamed holding. Returns
+// ErrNotFound when no holding matched.
+func (s *HoldingStore) ConfirmClassification(ctx context.Context, userId, id primitive.ObjectID, symbol, holdingType string, classification domain.Classification) (domain.Holding, error) {
+	return s.findAndSet(ctx, scopedFilter(userId, bson.M{"_id": id, "symbol": symbol}), bson.M{"type": holdingType, "classification": classification})
+}
+
+// findAndSet applies $set to the single holding matching filter and returns
+// the post-update document, or ErrNotFound when nothing matched.
+func (s *HoldingStore) findAndSet(ctx context.Context, filter bson.M, set any) (domain.Holding, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var out domain.Holding
-	err := s.col.FindOneAndUpdate(ctx,
-		scopedFilter(userId, bson.M{"_id": id, "symbol": symbol, "type": holdingType}),
-		bson.M{"$set": bson.M{"classification": classification}},
-		opts,
-	).Decode(&out)
+	err := s.col.FindOneAndUpdate(ctx, filter, bson.M{"$set": set}, opts).Decode(&out)
 	if err != nil {
 		return domain.Holding{}, translateFindErr(err)
 	}
