@@ -96,16 +96,16 @@ func (s *HoldingsService) Get(ctx context.Context, uid primitive.ObjectID, idHex
 	return h, true, nil
 }
 
-// Create inserts a new holding owned by uid. The position fields become
+// Create inserts a new holding owned by userId. The position fields become
 // derived: any opening stocks_owned/avg_cost_price/realized_pnl are recorded as
 // an `opening` ledger event and the holding is recomputed from it.
-func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, input api.HoldingInput) (_ api.Holding, retErr error) {
+func (s *HoldingsService) Create(ctx context.Context, userId primitive.ObjectID, input api.HoldingInput) (_ api.Holding, retErr error) {
 	ctx, span := tracer.Start(ctx, "HoldingsService.Create")
 	defer endSpan(span, &retErr)
 	logger := s.log(ctx)
 	holding := HoldingFromInput(input)
 	holding.ID = primitive.NewObjectID()
-	holding.UserID = uid
+	holding.UserID = userId
 	now := time.Now()
 	holding.CreatedAt = now
 	holding.UpdatedAt = now
@@ -117,7 +117,7 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	holding.TotalDividends = 0
 	// Classify before inserting, independent of any UI preview; a Yahoo
 	// outage only leaves the new holding needs-review.
-	classification, err := s.classify(ctx, uid, holding.Symbol, holding.Type)
+	classification, err := s.classify(ctx, userId, holding.Symbol, holding.Type)
 	if err != nil {
 		logger.Error("classify new holding failed", zap.String("script", holding.Script), zap.Error(err))
 		return api.Holding{}, err
@@ -133,7 +133,7 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	if qty, amount, seed, ok := openingFromInput(input); ok {
 		opening := domain.Transaction{
 			ID:           primitive.NewObjectID(),
-			UserID:       uid,
+			UserID:       userId,
 			HoldingID:    holding.ID,
 			Type:         domain.TxnOpening,
 			Date:         now,
@@ -148,7 +148,7 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 			logger.Error("create opening transaction failed", zap.String("error", err.Error()))
 			return api.Holding{}, err
 		}
-		if updated, err := recomputeAndPersist(ctx, s.store, s.txns, uid, holding.ID); err != nil {
+		if updated, err := recomputeAndPersist(ctx, s.store, s.txns, userId, holding.ID); err != nil {
 			logger.Error("recompute after create failed", zap.String("error", err.Error()))
 		} else {
 			holding = updated
@@ -157,7 +157,7 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 
 	logger.Info("holding created",
 		zap.String("id", holding.ID.Hex()),
-		zap.String("owner", uid.Hex()),
+		zap.String("owner", userId.Hex()),
 		zap.String("script", holding.Script),
 		zap.String("currency", holding.Currency),
 	)
