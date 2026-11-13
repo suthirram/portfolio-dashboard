@@ -45,8 +45,11 @@ end. Backend and UI sub-tasks stay in separate PRs.
 | 3b | `feat/PD-056-land-classification-confirm` | Land #286 on feature branch (merged, #287) | Same reviewed code | Confirmation reaches feature branch | Backend tree comparison and Go tests |
 | 3c | `fix/PD-056-crumb-accept` | Per-request Accept headers and offline profile-test wiring (merged, #289) | Existing price client unchanged | Yahoo session succeeds | Provider header regression test |
 | 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply (merged, #288) | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
-| 4b | `fix/PD-056-backend-followup` | Stop on unavailable session; operator runbook, decisions, test audit (this PR) | Holding saves remain available | Rerun interrupted batches without recording session failures | Session recovery and backfill resume tests |
-| 5+ | `feat/PD-056-sector-ui-*` | Generated TS, badges/By sector, preview + review, allocation chart | Existing views unchanged | Owners see and use sectors | Vitest + live-stack scenarios |
+| 4b | `fix/PD-056-backend-followup` | Session stop, runbook, decisions, test audit (merged, #290) | Holding saves remain available | Resume interrupted batches | Session recovery and backfill tests |
+| 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
+| 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
+| 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
+| 8 | `feat/PD-056-sector-ui-chart` | Sector allocation, legend and navigation; visual verification | Existing charts retained | Inspect concentration and jump to a sector | Allocation/denominator/navigation tests and browser checks |
 
 All implementation sub-task PRs above target `feat/PD-056-holding-sectors`,
 except #286, which targeted `feat/PD-056-holding-classification` after #285 had
@@ -247,6 +250,9 @@ DashboardPage, and tests listed in §3.
   branch after its backend prerequisites land; target the feature branch.
 * [ ] Regenerate TS and wire profile preview and scoped confirmation methods.
   Implement stale-response protection and preserve entered data on failure.
+  API slice: generated types and client calls are implemented; 10 routing/API
+  tests pass, including act-as, encoded symbols, CSRF and confirmation errors.
+  Preview state handling ships in the review slice.
 * [ ] Implement the accessible confirmation/review flow with an explicit
   Review later path, no duplicate creation, and act-as target routing.
 * [ ] Add text sector badges and By holding / By sector layouts, with separate
