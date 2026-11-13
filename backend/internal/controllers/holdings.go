@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -9,6 +10,7 @@ import (
 
 	"portfolio-dashboard/api"
 	"portfolio-dashboard/internal/auth"
+	"portfolio-dashboard/internal/services"
 )
 
 // errNotLoggedIn is a defence-in-depth guard: requireAuth middleware should
@@ -75,6 +77,25 @@ func (h *Controller) UpdateHolding(ctx context.Context, request api.UpdateHoldin
 		return api.UpdateHolding404JSONResponse{}, nil
 	}
 	return api.UpdateHolding200JSONResponse(updated), nil
+}
+
+func (h *Controller) ConfirmHoldingClassification(ctx context.Context, request api.ConfirmHoldingClassificationRequestObject) (api.ConfirmHoldingClassificationResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	confirmed, found, err := h.holdings.ConfirmClassification(ctx, currentUserId, request.Id, string(request.Body.Type), request.Body.Sector)
+	switch {
+	case errors.Is(err, services.ErrInvalidClassification):
+		return api.ConfirmHoldingClassification400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new(err.Error())}}, nil
+	case errors.Is(err, services.ErrClassificationConflict):
+		return api.ConfirmHoldingClassification409JSONResponse{Error: new(err.Error())}, nil
+	case err != nil:
+		return nil, err
+	case !found:
+		return api.ConfirmHoldingClassification404JSONResponse{NotFoundJSONResponse: api.NotFoundJSONResponse{Error: new("no such holding")}}, nil
+	}
+	return api.ConfirmHoldingClassification200JSONResponse(confirmed), nil
 }
 
 func (h *Controller) DeleteHolding(ctx context.Context, request api.DeleteHoldingRequestObject) (api.DeleteHoldingResponseObject, error) {

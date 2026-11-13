@@ -55,6 +55,8 @@ paths:
   /xirr:
     $ref: "./holdings/holdings.yaml#/xirr"
 
+  /holdings/{id}/classification:
+    $ref: "./holdings/holdings.yaml#/holdings_id_classification"
   /holdings/{id}/transactions:
     $ref: "./transactions/transactions.yaml#/holdings_id_transactions"
   /transactions:
@@ -157,6 +159,8 @@ paths:
     $ref: "./admin/admin.yaml#/users_id_holdings"
   /admin/users/{id}/holdings/{holdingId}:
     $ref: "./admin/admin.yaml#/users_id_holdings_holdingid"
+  /admin/users/{id}/holdings/{holdingId}/classification:
+    $ref: "./admin/admin.yaml#/users_id_holdings_holdingid_classification"
   /admin/users/{id}/holdings/{holdingId}/transactions:
     $ref: "./admin/admin.yaml#/users_id_holdings_holdingid_transactions"
   /admin/users/{id}/transactions/{transactionId}:
