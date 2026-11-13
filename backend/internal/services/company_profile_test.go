@@ -144,6 +144,7 @@ func summaryBody(quoteType, sector, industry string) string {
 }
 
 func TestLookupProfile_ClassifiesQuoteSummary(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name   string
 		body   string
@@ -237,6 +238,7 @@ func assertProfile(t *testing.T, got, want CompanyProfile) {
 }
 
 func TestLookupProfile_RejectsInvalidSymbolWithoutRequest(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{}
 	service, _ := newFakeProfileService(t, fake)
 	for _, symbol := range []string{"", "   ", "TCS NS", "A/B", "A?B", "A#B", "A%2F", "A\nB", strings.Repeat("A", 65)} {
@@ -250,6 +252,7 @@ func TestLookupProfile_RejectsInvalidSymbolWithoutRequest(t *testing.T) {
 }
 
 func TestLookupProfile_AcceptsTickerAlphabet(t *testing.T) {
+	t.Parallel()
 	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "")})
 	for _, symbol := range []string{"^NSEI", "EURINR=X", "BRK-B", "M_M.NS", strings.Repeat("A", 64)} {
 		got, err := service.LookupProfile(context.Background(), symbol)
@@ -260,6 +263,7 @@ func TestLookupProfile_AcceptsTickerAlphabet(t *testing.T) {
 }
 
 func TestLookupProfile_OversizedBodyIsUnavailable(t *testing.T) {
+	t.Parallel()
 	padding := strings.Repeat(" ", profileBodyLimit)
 	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "") + padding})
 
@@ -269,6 +273,7 @@ func TestLookupProfile_OversizedBodyIsUnavailable(t *testing.T) {
 	}
 }
 
+// Serial: asserts wall-clock bounds that parallel load on CI would skew.
 func TestLookupProfile_TimeoutIsUnavailable(t *testing.T) {
 	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 300 * time.Millisecond})
 	service.timeout = 50 * time.Millisecond
@@ -283,6 +288,7 @@ func TestLookupProfile_TimeoutIsUnavailable(t *testing.T) {
 	}
 }
 
+// Serial: depends on a 30 ms caller deadline beating a 300 ms provider delay.
 func TestLookupProfile_CallerCancellationIsUnavailable(t *testing.T) {
 	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 300 * time.Millisecond})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
@@ -295,6 +301,7 @@ func TestLookupProfile_CallerCancellationIsUnavailable(t *testing.T) {
 }
 
 func TestLookupProfile_RefreshesRejectedSessionOnce(t *testing.T) {
+	t.Parallel()
 	t.Run("second session succeeds", func(t *testing.T) {
 		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), summaryStatus: []int{http.StatusUnauthorized}}
 		service, _ := newFakeProfileService(t, fake)
@@ -322,6 +329,7 @@ func TestLookupProfile_RefreshesRejectedSessionOnce(t *testing.T) {
 }
 
 func TestLookupProfile_RateLimitPausesAllLookups(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), summaryStatus: []int{http.StatusTooManyRequests}, retryAfter: "120"}
 	service, clock := newFakeProfileService(t, fake)
 
@@ -342,6 +350,7 @@ func TestLookupProfile_RateLimitPausesAllLookups(t *testing.T) {
 }
 
 func TestLookupProfile_RateLimitPauseIsAtLeastAMinute(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{crumbStatus: http.StatusTooManyRequests, retryAfter: "5"}
 	service, clock := newFakeProfileService(t, fake)
 
@@ -354,6 +363,7 @@ func TestLookupProfile_RateLimitPauseIsAtLeastAMinute(t *testing.T) {
 }
 
 func TestLookupProfile_CookieRateLimitPausesLookups(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), cookieStatus: http.StatusTooManyRequests, retryAfter: "120"}
 	service, clock := newFakeProfileService(t, fake)
 
@@ -378,6 +388,7 @@ func TestLookupProfile_CookieRateLimitPausesLookups(t *testing.T) {
 }
 
 func TestLookupProfile_QueuedBootstrapsHonourRateLimit(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{crumbStatus: http.StatusTooManyRequests, crumbDelay: 100 * time.Millisecond}
 	service, _ := newFakeProfileService(t, fake)
 
@@ -404,6 +415,7 @@ func TestLookupProfile_QueuedBootstrapsHonourRateLimit(t *testing.T) {
 }
 
 func TestLookupProfile_RejectsRedirectToAnotherHost(t *testing.T) {
+	t.Parallel()
 	otherHits := 0
 	other := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		otherHits++
@@ -422,6 +434,7 @@ func TestLookupProfile_RejectsRedirectToAnotherHost(t *testing.T) {
 }
 
 func TestLookupProfile_RejectsPlainHTTP(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{}
 	server := httptest.NewServer(http.HandlerFunc(fake.handler))
 	defer server.Close()
@@ -437,6 +450,7 @@ func TestLookupProfile_RejectsPlainHTTP(t *testing.T) {
 }
 
 func TestLookupProfile_CachesPerStatusTTL(t *testing.T) {
+	t.Parallel()
 	t.Run("found is cached for a day", func(t *testing.T) {
 		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "")}
 		service, clock := newFakeProfileService(t, fake)
@@ -469,6 +483,7 @@ func TestLookupProfile_CachesPerStatusTTL(t *testing.T) {
 }
 
 func TestProfileCache_EvictsAtCap(t *testing.T) {
+	t.Parallel()
 	service, clock := newFakeProfileService(t, &fakeYahoo{})
 	for index := range profileCacheLimit {
 		service.store(CompanyProfile{Symbol: fmt.Sprintf("S%d", index), Status: ProfileFound})
@@ -488,6 +503,7 @@ func TestProfileCache_EvictsAtCap(t *testing.T) {
 }
 
 func TestLookupProfile_DeduplicatesConcurrentLookups(t *testing.T) {
+	t.Parallel()
 	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 100 * time.Millisecond}
 	service, _ := newFakeProfileService(t, fake)
 

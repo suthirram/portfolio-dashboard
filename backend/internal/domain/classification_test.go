@@ -5,7 +5,34 @@ import (
 	"testing"
 )
 
+func TestClassificationCurrentFor(t *testing.T) {
+	t.Parallel()
+	var missing *Classification
+	if missing.CurrentFor("TCS.NS") {
+		t.Error("nil classification reported current")
+	}
+	classification := &Classification{Symbol: "TCS.NS"}
+	if !classification.CurrentFor(" tcs.ns ") {
+		t.Error("same symbol in another case/spacing reported stale")
+	}
+	if classification.CurrentFor("INFY.NS") {
+		t.Error("classification for another symbol reported current")
+	}
+}
+
+func TestReuseSectorLabel(t *testing.T) {
+	t.Parallel()
+	existing := []string{"FMCG", "Technology"}
+	if got := ReuseSectorLabel("technology", existing); got != "Technology" {
+		t.Errorf("ReuseSectorLabel(technology) = %q, want the existing Technology", got)
+	}
+	if got := ReuseSectorLabel("Banking", existing); got != "Banking" {
+		t.Errorf("ReuseSectorLabel(Banking) = %q, want a new label kept as typed", got)
+	}
+}
+
 func TestNormalizeSectorLabel(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name  string
 		label string

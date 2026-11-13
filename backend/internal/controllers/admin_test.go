@@ -884,7 +884,7 @@ func TestAdminListUserHoldings_ScopedToTarget(t *testing.T) {
 
 func TestAdminGetUserSummary_PlainUserRefused(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, nil, false)
 	caller := scopedUser() // role: user
 	_, err := h.AdminGetUserSummary(userCtx(caller), api.AdminGetUserSummaryRequestObject{
 		Id: primitive.NewObjectID().Hex(),

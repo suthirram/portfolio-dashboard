@@ -593,10 +593,64 @@ components:
           nullable: true
           description: Provider industry text (length-limited; render as text)
         suggested_type:
-          type: string
-          enum: [stock, etf, mutual_fund]
+          allOf:
+            - $ref: "#/components/schemas/SuggestedHoldingType"
           nullable: true
-          description: Yahoo's quote type as a holding type; a suggestion, never applied silently
+
+    SuggestedHoldingType:
+      type: string
+      enum: [stock, etf, mutual_fund]
+      x-enum-varnames: [SuggestedStock, SuggestedEtf, SuggestedMutualFund]
+      description: Yahoo's quote type as a holding type; a suggestion, never applied silently
+
+    HoldingClassification:
+      type: object
+      required: [status]
+      description: >
+        A holding's sector/type metadata (DD-013 §1). There is no fixed sector
+        set; the sector is a label on this holding. A holding with no
+        classification, or one made for a different symbol, reads as
+        needs_review with no other fields.
+      properties:
+        symbol:
+          type: string
+          description: Canonical (trimmed, upper-case) symbol this classification belongs to
+          example: TCS.NS
+        status:
+          type: string
+          enum: [resolved, needs_review]
+          x-enum-varnames: [ClassificationStatusResolved, ClassificationStatusNeedsReview]
+        source:
+          type: string
+          enum: [yahoo, user]
+          x-enum-varnames: [ClassificationSourceYahoo, ClassificationSourceUser]
+          nullable: true
+          description: Absent when the lookup failed without metadata
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Sector label shown for this holding; stocks only
+          example: Technology
+        provider_sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Yahoo's sector text as given; differs from sector when the owner renamed this holding
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          description: Provider industry text (length-limited; render as text)
+        suggested_type:
+          allOf:
+            - $ref: "#/components/schemas/SuggestedHoldingType"
+          nullable: true
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the lookup ran or the owner decided
 
     Holding:
       type: object
@@ -615,7 +669,7 @@ components:
           enum: [NSE, BSE, NYSE, NASDAQ, OTHER]
         type:
           type: string
-          enum: [stock, etf]
+          enum: [stock, etf, mutual_fund]
         stocks_owned:
           type: number
           format: double
@@ -647,6 +701,8 @@ components:
           format: date
           nullable: true
           description: User-set effective date of the opening balance; null when not yet set
+        classification:
+          $ref: "#/components/schemas/HoldingClassification"
         created_at:
           type: string
           format: date-time
@@ -667,7 +723,7 @@ components:
           enum: [NSE, BSE, NYSE, NASDAQ, OTHER]
         type:
           type: string
-          enum: [stock, etf]
+          enum: [stock, etf, mutual_fund]
         stocks_owned:
           type: number
           format: double
