@@ -135,7 +135,7 @@ average cost per share are not additive and have blank subtotal cells.
 Add a Sectors option to the existing chart navigation. Render this view only
 when selected; opening it does not trigger another Yahoo lookup. Offer currency
 selection and show allocation within the selected currency, avoiding addition
-of unlike monetary units. Use current market value as the proposed default.
+of unlike monetary units. Use current market value (owner confirmed, 2026-11-13).
 
 Show a donut and a ranked legend with category, native value, share, and holding
 count. Positive active positions contribute. ETFs and mutual funds are separate
@@ -157,12 +157,18 @@ holdings, prices, ledger operations, and previously saved classifications usable
 
 ## 10. Open questions
 
-The following defaults were proposed to the owner on 2026-11-13 and remain open
-for review; they are not recorded as owner-confirmed decisions:
+RESOLVED (owner, 2026-11-13): the following defaults are confirmed:
 
 * Review later is available rather than making fund confirmation a blocking step.
 * Allocation uses current market value per currency rather than invested cost.
 * Funds use separate ETF/MF buckets; look-through allocation is deferred.
+
+RESOLVED (owner, 2026-11-13): ETFs and mutual funds require explicit user
+confirmation even when Yahoo agrees with the holding's selected type.
+
+RESOLVED (owner, 2026-11-13): the operator can monitor and rerun a failed
+migration. Stop a batch when a Yahoo session is unavailable, preserving completed
+progress and leaving the failed holding eligible for a normal rerun.
 
 RESOLVED (owner, 2026-11-13): replace the sector-filter chip proposal with
 separate tables under group headings, based on the owner's sample screenshot.
@@ -176,8 +182,8 @@ footer in By holding. Currency summaries remain above the groups (§7).
 RESOLVED (owner, 2026-11-13): the grouped design is approved in principle, with
 the requirement to adapt it to the existing dashboard and retain its existing
 values and controls. The mockup is a layout reference, not a reduced replacement
-dashboard. Review later and current-value allocation remain proposed defaults
-unless separately confirmed; layout approval alone does not resolve them.
+dashboard. Review later and current-value allocation were subsequently confirmed
+separately above; layout approval alone did not resolve them.
 
 RESOLVED (owner, 2026-11-13): no predefined sector set. Sectors come from Yahoo
 labels and owner-typed labels on the owner's own holdings, derived per user.

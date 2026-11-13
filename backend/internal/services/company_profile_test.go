@@ -246,6 +246,33 @@ func assertProfile(t *testing.T, got, want CompanyProfile) {
 	}
 }
 
+func TestLookupProfile_SessionFailureIsRetryableByBackfill(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{http.StatusNotAcceptable, http.StatusServiceUnavailable} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			fake := &fakeYahoo{crumbStatus: status, body: summaryBody("EQUITY", "Technology", "")}
+			service, clock := newFakeProfileService(t, fake)
+			for range 2 {
+				profile, err := service.LookupProfile(context.Background(), "TCS.NS")
+				if err != nil || profile.Status != ProfileUnavailable || !profile.SessionUnavailable {
+					t.Fatalf("profile = %+v, error = %v; want unavailable session (including cache hit)", profile, err)
+				}
+			}
+			if crumbs, summaries := fake.counts(); crumbs != 1 || summaries != 0 {
+				t.Fatalf("crumb/summary calls = %d/%d, want 1/0", crumbs, summaries)
+			}
+			fake.mu.Lock()
+			fake.crumbStatus = 0
+			fake.mu.Unlock()
+			clock.advance(unavailableTTL + time.Second)
+			profile, err := service.LookupProfile(context.Background(), "TCS.NS")
+			if err != nil || profile.Status != ProfileFound || profile.SessionUnavailable {
+				t.Errorf("recovered profile = %+v, error = %v; want found", profile, err)
+			}
+		})
+	}
+}
+
 // The crumb is plain text: asking for it as JSON only gets a 406 from Yahoo
 // and every lookup turns unavailable (cookbook: yahoo-profile-session).
 func TestLookupProfile_AcceptHeaderPerRequest(t *testing.T) {
@@ -349,8 +376,8 @@ func TestLookupProfile_RefreshesRejectedSessionOnce(t *testing.T) {
 		service, _ := newFakeProfileService(t, fake)
 
 		got, _ := service.LookupProfile(context.Background(), "ONGC.NS")
-		if got.Status != ProfileUnavailable {
-			t.Errorf("status = %q, want unavailable", got.Status)
+		if got.Status != ProfileUnavailable || !got.SessionUnavailable {
+			t.Errorf("profile = %+v, want unavailable session", got)
 		}
 		if _, summaries := fake.counts(); summaries != 2 {
 			t.Errorf("summary calls = %d, want 2", summaries)

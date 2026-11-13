@@ -82,6 +82,12 @@ func TestClassifyFromProfile(t *testing.T) {
 			want:        domain.Classification{Status: "needs_review", Source: "yahoo", SuggestedType: "etf"},
 		},
 		{
+			name:        "matching mutual fund still needs the owner's confirmation",
+			holdingType: "mutual_fund",
+			profile:     CompanyProfile{Status: ProfileFound, SuggestedType: "mutual_fund"},
+			want:        domain.Classification{Status: "needs_review", Source: "yahoo", SuggestedType: "mutual_fund"},
+		},
+		{
 			name:        "a fund never gets a company sector",
 			holdingType: "mutual_fund",
 			profile:     CompanyProfile{Status: ProfileFound, Sector: "Financial Services", SuggestedType: "stock"},
@@ -269,7 +275,7 @@ func TestHoldingsService_Create_ClassifiesBeforeInsert(t *testing.T) {
 	})
 
 	mt.Run("Yahoo outage still creates the holding as needs review", func(mt *mtest.T) {
-		profiles := &stubProfiles{profile: CompanyProfile{Status: ProfileUnavailable}}
+		profiles := &stubProfiles{profile: CompanyProfile{Status: ProfileUnavailable, SessionUnavailable: true}}
 		mt.AddMockResponses(mtest.CreateSuccessResponse()) // insert only: no sector, no owner lookup
 		store := persistence.New(mt.DB)
 		service := NewHoldingsService(store.Holdings, store.Transactions, profiles, nil)

@@ -95,8 +95,9 @@ func NeedsBackfill(holding domain.Holding, retryUnresolved bool) bool {
 }
 
 // Run backfills the users in opts in order. A per-holding provider failure is
-// recorded as needs-review and the run continues; a Yahoo rate limit stops the
-// run with RateLimited set and nothing written for that holding. Cancelling
+// recorded as needs-review and the run continues. A Yahoo session failure
+// returns an error; a rate limit sets RateLimited. Both stop before writing
+// that holding. Cancelling
 // ctx stops before the next write and returns ctx's error. Each write is a
 // compare-and-set, so a holding edited or confirmed meanwhile is a conflict,
 // never overwritten. Reruns resume: processed holdings are no longer eligible.
@@ -132,7 +133,10 @@ func (b *SectorBackfill) Run(ctx context.Context, opts SectorBackfillOptions) (_
 				}
 				seenSymbols[symbol] = true
 			}
-			classification, err := lookupClassification(ctx, b.profiles, holding.Symbol, holding.Type, func() ([]string, error) { return ownerSectors, nil }, b.now())
+			profile, err := b.profiles.LookupProfile(ctx, holding.Symbol)
+			if errors.Is(err, ErrInvalidSymbol) {
+				profile, err = unavailableProfile(symbol), nil
+			}
 			// A cancelled lookup reads as unavailable; never record it.
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return report, ctxErr
@@ -142,11 +146,17 @@ func (b *SectorBackfill) Run(ctx context.Context, opts SectorBackfillOptions) (_
 				logger.Error("backfill lookup failed", zap.String("holding", holding.ID.Hex()), zap.Error(err))
 				continue
 			}
-			if classification.Source == "" && b.profiles.RateLimited() {
+			if profile.Status == ProfileUnavailable && b.profiles.RateLimited() {
 				report.RateLimited = true
 				logger.Warn("backfill stopped", zap.String("outcome", "rate_limited"))
 				return report, nil
 			}
+			if profile.SessionUnavailable {
+				report.Errors++
+				logger.Warn("backfill stopped", zap.String("outcome", "session_unavailable"))
+				return report, errSessionUnavailable
+			}
+			classification := ClassifyFromProfile(holding.Type, profile, ownerSectors, b.now())
 			report.Eligible++
 			if opts.Apply {
 				_, err := b.holdings.SetClassification(ctx, userId, holding.ID, holding.Symbol, holding.Type, holding.Classification, classification)
