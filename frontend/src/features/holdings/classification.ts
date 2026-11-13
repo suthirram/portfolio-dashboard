@@ -2,6 +2,7 @@ import type { Holding } from '../../types'
 import type { CurrencyCode } from './groupByCurrency'
 
 export interface ClassificationBucket { key: string; label: string; color: string }
+export interface SectorSelection { currency: CurrencyCode; key: string }
 type ClassifiedHolding = Pick<Holding, 'symbol' | 'type' | 'classification'>
 const PALETTE = ['var(--blue)', 'var(--green)', 'var(--purple)', 'var(--yellow)', 'var(--red)']
 const canonical = (symbol?: string | null) => (symbol ?? '').trim().toUpperCase()
