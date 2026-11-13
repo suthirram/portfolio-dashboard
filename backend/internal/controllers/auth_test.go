@@ -92,7 +92,7 @@ func usersNS(mt *mtest.T) string { return mt.DB.Name() + ".users" }
 
 func TestGetRegions_ReturnsCatalogue(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, nil, nil, false)
+	h := newWithDeps(&persistence.Store{}, nil, nil, nil, false)
 	resp, err := h.GetRegions(context.Background(), api.GetRegionsRequestObject{})
 	if err != nil {
 		t.Fatalf("GetRegions: %v", err)
@@ -108,7 +108,7 @@ func TestGetRegions_ReturnsCatalogue(t *testing.T) {
 
 func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, nil, nil, false)
+	h := newWithDeps(&persistence.Store{}, nil, nil, nil, false)
 	resp, err := h.GetSecurityQuestionCatalogue(context.Background(), api.GetSecurityQuestionCatalogueRequestObject{})
 	if err != nil {
 		t.Fatalf("GetSecurityQuestionCatalogue: %v", err)
@@ -121,7 +121,7 @@ func TestGetSecurityQuestionCatalogue_ReturnsTen(t *testing.T) {
 
 func TestSignup_RejectsInvalidInput(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, nil, nil, false)
+	h := newWithDeps(&persistence.Store{}, nil, nil, nil, false)
 
 	cases := map[string]func(*api.SignupRequest){
 		"short username":         func(r *api.SignupRequest) { r.Username = "ab" },
@@ -333,7 +333,7 @@ func TestLogin_SuccessIssuesSessionCookie(t *testing.T) {
 
 func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, nil, nil, false)
+	h := newWithDeps(&persistence.Store{}, nil, nil, nil, false)
 	u := &domain.User{
 		ID:              primitive.NewObjectID(),
 		Username:        "alice",
@@ -365,7 +365,7 @@ func TestGetMe_ReturnsCurrentUserWithQuestionIDs(t *testing.T) {
 
 func TestGetMe_Unauthenticated(t *testing.T) {
 	t.Parallel()
-	h := newWithDeps(&persistence.Store{}, nil, nil, false)
+	h := newWithDeps(&persistence.Store{}, nil, nil, nil, false)
 	resp, err := h.GetMe(context.Background(), api.GetMeRequestObject{})
 	if err != nil {
 		t.Fatalf("GetMe: %v", err)

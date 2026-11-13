@@ -20,17 +20,19 @@ import (
 // Every call is scoped by owner id; the underlying store enforces the same
 // invariant so mis-routed reads return ErrNotFound, never another user's row.
 type HoldingsService struct {
-	store  *persistence.HoldingStore
-	txns   *persistence.TransactionStore
-	logger *zap.Logger
+	store    *persistence.HoldingStore
+	txns     *persistence.TransactionStore
+	profiles ProfileFetcher // nil: holdings are saved unclassified (needs-review)
+	logger   *zap.Logger
 }
 
 // NewHoldingsService wires a HoldingsService. The transaction store lets the
 // opening-balance fields (stocks_owned/avg_cost_price/realized_pnl) be recorded
 // as an `opening` ledger event so the holding's derived position stays a
-// projection of its ledger.
-func NewHoldingsService(store *persistence.HoldingStore, txns *persistence.TransactionStore, logger *zap.Logger) *HoldingsService {
-	return &HoldingsService{store: store, txns: txns, logger: logger}
+// projection of its ledger. profiles classifies holdings by sector on create
+// and on symbol/type edits (DD-013 §2).
+func NewHoldingsService(store *persistence.HoldingStore, txns *persistence.TransactionStore, profiles ProfileFetcher, logger *zap.Logger) *HoldingsService {
+	return &HoldingsService{store: store, txns: txns, profiles: profiles, logger: logger}
 }
 
 func (s *HoldingsService) log(ctx context.Context) *zap.Logger {
@@ -113,6 +115,14 @@ func (s *HoldingsService) Create(ctx context.Context, uid primitive.ObjectID, in
 	holding.AvgCostPrice = 0
 	holding.RealizedPnL = 0
 	holding.TotalDividends = 0
+	// Classify before inserting, independent of any UI preview; a Yahoo
+	// outage only leaves the new holding needs-review.
+	classification, err := s.classify(ctx, uid, holding.Symbol, holding.Type)
+	if err != nil {
+		logger.Error("classify new holding failed", zap.String("script", holding.Script), zap.Error(err))
+		return api.Holding{}, err
+	}
+	holding.Classification = classification
 
 	if err := s.store.Insert(ctx, holding); err != nil {
 		logger.Error("create holding failed",
@@ -181,6 +191,20 @@ func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID,
 	if err != nil {
 		return api.Holding{}, false, nil
 	}
+	// The pre-edit holding tells whether the symbol or type changed and so
+	// whether to reclassify. Without a profile fetcher there is nothing to
+	// reclassify; a stale classification still reads as needs-review.
+	var previous domain.Holding
+	if s.profiles != nil {
+		previous, err = s.store.GetScoped(ctx, userId, id)
+		if errors.Is(err, persistence.ErrNotFound) {
+			return api.Holding{}, false, nil
+		}
+		if err != nil {
+			logger.Error("load holding before update failed", zap.String("id", idHex), zap.Error(err))
+			return api.Holding{}, false, err
+		}
+	}
 
 	// Update edits identity fields only. The position fields
 	// (stocks_owned/avg_cost_price/realized_pnl) are derived from the ledger
@@ -232,6 +256,27 @@ func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID,
 			logger.Error("set opening date failed",
 				zap.String("id", idHex), zap.String("error", err.Error()))
 			return api.Holding{}, false, err
+		}
+	}
+
+	// A new symbol or type gets a fresh classification; notes/name edits keep
+	// the existing one, including an owner's rename.
+	if s.profiles != nil && identityChanged(previous, updated) {
+		classification, err := s.classify(ctx, userId, updated.Symbol, updated.Type)
+		if err != nil {
+			logger.Error("reclassify holding failed", zap.String("id", idHex), zap.Error(err))
+			return api.Holding{}, false, err
+		}
+		reclassified, err := s.store.SetClassification(ctx, userId, id, updated.Symbol, *classification)
+		switch {
+		case errors.Is(err, persistence.ErrNotFound):
+			// The symbol changed again meanwhile; that edit reclassifies.
+			logger.Info("holding reclassification skipped", zap.String("id", idHex), zap.String("outcome", "symbol_changed"))
+		case err != nil:
+			logger.Error("store holding classification failed", zap.String("id", idHex), zap.Error(err))
+			return api.Holding{}, false, err
+		default:
+			updated = reclassified
 		}
 	}
 
