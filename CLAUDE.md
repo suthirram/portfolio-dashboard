@@ -46,6 +46,16 @@ These are the owner's standing rules. They apply to every task, every session, a
 * The shell's `grep` is a shim that can return false negatives; use `/usr/bin/grep` (or the Grep tool) whenever a "not found" result matters, and tell spawned agents the same.
 * Never upgrade the plan to keep working; wait for the token reset and retry.
 
+### Troubleshooting
+
+For every troubleshooting task, consult the [cookbook](docs/cookbook/README.md)
+first and add or update an entry before handing off. Record the problem,
+reproduction or diagnostic aids, redacted evidence, cause, solution, and
+verification results using its template. Record unresolved work with its
+blocker and next step; label hypotheses and unverified fixes explicitly.
+Never include secrets or personal portfolio data. See also the `run-app` skill
+for development-stack troubleshooting.
+
 ## Project Overview
 
 A full-stack portfolio tracker for NSE/BSE (Indian) and US stocks/ETFs. Tracks holdings with live prices from Yahoo Finance (5-min cache), unrealised P&L, realised P&L, and INR/EUR conversion via live forex.
@@ -64,6 +74,7 @@ make dev-db                        # or: docker compose -f docker-compose.dev.ym
 
 # Start dev databases + local trace stack (Grafana Tempo :4318, Grafana UI :3001)
 make dev-trace                     # then run backend with OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+make backend-trace                 # start dev containers + backend with local tracing enabled
 
 # Backend (Go) — runs on :8080
 make backend                           # or: cd backend && go run . serve
