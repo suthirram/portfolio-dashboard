@@ -69,6 +69,12 @@ Not confirmed. Evidence so far:
   Acceptable.
 * The 429s show that repeated probes throttle this IP, so diagnosis needs
   spaced-out single requests.
+* Alternative under test: Yahoo's search endpoint
+  (`query2.finance.yahoo.com/v1/finance/search?q=<symbol>&quotesCount=1&newsCount=0`)
+  may return `sector`, `industry` and `quoteType` without any cookie or
+  crumb, i.e. one request per symbol and no session. At 14:05 on 2026-11-13,
+  three spaced requests (TCS.NS, NIFTYBEES.NS, VFIAX) all answered 429 while
+  the IP was throttled, so this is still unverified.
 
 ## Solution
 
@@ -86,7 +92,10 @@ and `crumb=200`, and a `--limit 5` dry run reports resolved holdings.
 
 Blocker: Yahoo throttling (429) on this IP. Next step, once unthrottled:
 
-1. Run the two crumb probes above when the chart endpoint answers 200.
+1. When the chart endpoint answers 200, first send the three search requests
+   above. If they return sector and type, the session flow can be replaced
+   (DD-013 §3 and ADR-0004 update first) and the crumb probes are moot.
+2. Otherwise run the two crumb probes above.
    `crumb json=406` with `crumb any=200` confirms the Accept hypothesis.
-2. If confirmed, send `Accept: application/json` only on the quoteSummary
+3. If confirmed, send `Accept: application/json` only on the quoteSummary
    request (the crumb gets `*/*`), then repeat a `--limit 5` dry run.
