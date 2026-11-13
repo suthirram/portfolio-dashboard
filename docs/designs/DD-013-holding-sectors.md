@@ -18,17 +18,34 @@ optional embedded `classification` object on the holding:
 | `symbol` | Trimmed canonical symbol the classification belongs to |
 | `status` | `resolved` or `needs_review` |
 | `source` | `yahoo` or `user`; omitted for failed lookup without metadata |
-| `sector` | Canonical sector key, nullable; stocks only |
+| `sector` | Sector label shown to the owner, nullable; stocks only |
+| `provider_sector` | Yahoo's original sector text, nullable; kept so a rename can be remembered |
 | `industry` | Optional provider text, length-limited and rendered as text |
 | `suggested_type` | Optional `stock`, `etf`, or `mutual_fund`; never silently applied |
 | `checked_at` | UTC timestamp for the attempted lookup or manual decision |
 
-Sector keys are `basic_materials`, `communication_services`, `consumer_cyclical`,
-`consumer_defensive`, `energy`, `financial_services`, `healthcare`, `industrials`,
-`real_estate`, `technology`, and `utilities`. Keep a backend catalogue of keys,
-labels, and accepted Yahoo aliases. Unknown provider sector values require review
-rather than expanding the taxonomy automatically. Return the catalogue from the
-profile lookup endpoint so the UI does not invent accepted values.
+There is no predefined sector set, enum, or catalogue (owner decision,
+2026-11-13). A sector is a free-text label. An owner's set of sectors is derived:
+the distinct `sector` labels on that owner's own holdings, so a sector exists
+only while a holding uses it. Nothing is shared across users. Labels are
+normalised once at write: trimmed, internal whitespace collapsed, control
+characters removed, 1–60 characters. Matching is case-insensitive: saving
+“technology” when the owner already has “Technology” reuses the existing
+spelling, so one sector never splits into two groups.
+
+Yahoo's `assetProfile.sector` text is kept as given (ITC → “Consumer Defensive”)
+in both `provider_sector` and, unless renamed, `sector`. Any nonempty Yahoo
+sector resolves; there is no unknown-taxonomy review state.
+
+Per-owner renames: when the owner confirms a holding with a `sector` that differs
+from its `provider_sector`, store a rename on the owner's user document
+(`sector_renames`: case-folded provider label → owner label). Every later
+classification of that owner's holdings maps a Yahoo label through the renames
+before writing `sector`; the profile preview does the same. Recording a rename
+also relabels that owner's Yahoo-sourced holdings with the same
+`provider_sector`, so the two labels never coexist. Manual (`source: user`)
+holdings are not relabelled. Confirming with the Yahoo label again deletes the
+rename.
 
 Absent classification or a mismatch between its symbol and the current symbol
 is read as needs-review. Source `user` with status `resolved` can represent a
@@ -69,19 +86,22 @@ components in `portfolio-api.yaml`:
 
 | Route | Behavior |
 | --- | --- |
-| `GET /market/profile?symbol=...` | Authenticated symbol lookup; returns profile, catalogue, lookup status |
+| `GET /market/profile?symbol=...` | Authenticated symbol lookup; returns profile and lookup status |
 | `PUT /holdings/{id}/classification` | Owner confirms type and optional sector; returns updated Holding |
 | `PUT /admin/users/{id}/holdings/{holdingId}/classification` | Existing admin role/region/onboarding rules, target owner scoped |
 
 `ProfileLookup` returns normalized symbol, `lookup_status` (`found`, `missing`,
-`unavailable`), optional sector/industry/suggested type, and the sector catalogue.
+`unavailable`), and optional sector/provider sector/industry/suggested type.
+`sector` is the caller's renamed label (once renames exist), `provider_sector`
+Yahoo's text. The UI builds its sector suggestions from the holdings it has
+already loaded, for the owner or the act-as target, so no list is returned.
 Invalid symbol returns 400. Provider failures return an unavailable result with
 200, so UI confirmation remains possible. Auth failures retain standard 401/403.
 Do not return cookies, crumbs, raw provider error bodies, or private account data.
 
 `HoldingClassificationInput` requires `type` and nullable `sector`; optional
-`industry` is not accepted from the user in this slice. Stock accepts a catalogue
-sector or null; fund types require null sector. Reject incompatible values with
+`industry` is not accepted from the user in this slice. Stock accepts any valid
+label (§1 normalisation) or null; fund types require null sector. Reject incompatible values with
 400. Confirmation requires CSRF and returns 404 for wrong owner or missing id.
 Reuse `loadTargetUser` in act-as. Add the admin operation to the tier table.
 Expose classification on Holding and HoldingWithPrice via existing mappers,
@@ -138,7 +158,7 @@ logger. New service methods use the existing tracer/endSpan convention.
 
 Build a shared `classificationBucket(holding)` helper for badge, grouping, and
 chart. A missing/stale/pending classification maps to needs-review. Resolved
-funds map to ETF/MF buckets; resolved stocks use sector key or unclassified.
+funds map to ETF/MF buckets; resolved stocks use the case-folded sector label or unclassified.
 This single helper prevents disagreements between the table and chart.
 
 Reuse `AddEditModal`, `useHoldings`, the act-as routing helpers, and existing
@@ -162,8 +182,8 @@ rounded `HoldingsTable`, matching the owner's grouped-table reference. Preserve
 consistent column widths across sections. Do not add sector-filter chips or
 hide sibling categories. Keep currency summaries over all rows in the position
 view; distinguish each sector table's own subtotal from the currency summary.
-Badges use theme tokens and readable labels; stable catalogue colors accompany,
-never replace, text. Layout buttons use `aria-pressed`; tables scroll within
+Badges use theme tokens and readable labels; a color picked from a fixed palette
+by a stable hash of the case-folded label accompanies, never replaces, text. Layout buttons use `aria-pressed`; tables scroll within
 their cards on narrow screens, without forcing page-wide overflow.
 Make the first header/body/footer cell sticky at `left: 0` within each table's
 scroll wrapper in both layouts and at all viewport sizes. Use opaque theme
@@ -219,15 +239,17 @@ with fictional data and is not the production implementation.
 ## 5. Testing
 
 Provider tests use `httptest` and injected transport: session cookie/crumb
-exchange, recognized sector mapping, missing sector, ETF/MF suggestions,
-unsupported taxonomy, invalid symbol, JSON/body limits, timeout, 401 bounded
+exchange, verbatim sector text, missing sector, ETF/MF suggestions,
+label normalisation, invalid symbol, JSON/body limits, timeout, 401 bounded
 refresh, 429 cooldown, redirected-host rejection, caching and concurrent lookup.
 Never call the live provider from CI.
 
 Behavior tests: automatic create, provider failure preserving creation, stored
 classification in prices/list/get/act-as, manual confirmation, validation,
 cross-owner 404, out-of-region 404, CSRF, symbol change invalidation and unchanged
-metadata edits, missing legacy fields. Migration tests cover dry-run no writes,
+metadata edits, missing legacy fields, case-insensitive label reuse, rename
+recorded/applied/cleared, rename relabelling Yahoo-sourced holdings only, and
+renames scoped to one owner. Migration tests cover dry-run no writes,
 scope, idempotence, manual preservation, compare-and-set conflicts, resume, and
 financial fields untouched. Use mtest query assertions or pure fake store tests,
 not DB-availability error tests.
