@@ -158,7 +158,7 @@ func (s *stubProfileFetcher) LookupProfile(_ context.Context, symbol string) (se
 func TestGetMarketProfile_ReturnsProfileAndCatalogue(t *testing.T) {
 	fetcher := &stubProfileFetcher{profile: services.CompanyProfile{
 		Status:        services.ProfileFound,
-		Sector:        new(domain.SectorTechnology),
+		Sector:        "Technology",
 		Industry:      "Information Technology Services",
 		SuggestedType: "stock",
 	}}
@@ -174,17 +174,14 @@ func TestGetMarketProfile_ReturnsProfileAndCatalogue(t *testing.T) {
 	if got.Symbol != "TCS.NS" || got.LookupStatus != api.ProfileLookupStatusFound {
 		t.Errorf("symbol/status = %q/%q, want TCS.NS/found", got.Symbol, got.LookupStatus)
 	}
-	if got.Sector == nil || *got.Sector != api.SectorKeyTechnology {
-		t.Errorf("Sector = %v, want technology", got.Sector)
+	if got.Sector == nil || *got.Sector != "Technology" || got.ProviderSector == nil || *got.ProviderSector != "Technology" {
+		t.Errorf("Sector/ProviderSector = %v/%v, want Yahoo's text Technology", got.Sector, got.ProviderSector)
 	}
 	if got.Industry == nil || *got.Industry != "Information Technology Services" {
 		t.Errorf("Industry = %v", got.Industry)
 	}
 	if got.SuggestedType == nil || *got.SuggestedType != api.ProfileLookupSuggestedTypeStock {
 		t.Errorf("SuggestedType = %v, want stock", got.SuggestedType)
-	}
-	if len(got.Sectors) != len(domain.SectorCatalogue) || got.Sectors[0].Key != api.SectorKeyBasicMaterials || got.Sectors[0].Label != "Basic Materials" {
-		t.Errorf("Sectors = %+v, want the full catalogue in display order", got.Sectors)
 	}
 }
 
@@ -201,11 +198,8 @@ func TestGetMarketProfile_UnavailableStillAnswers200(t *testing.T) {
 	if got.LookupStatus != api.ProfileLookupStatusUnavailable {
 		t.Errorf("LookupStatus = %q, want unavailable", got.LookupStatus)
 	}
-	if got.Sector != nil || got.Industry != nil || got.SuggestedType != nil {
+	if got.Sector != nil || got.ProviderSector != nil || got.Industry != nil || got.SuggestedType != nil {
 		t.Errorf("unavailable lookup carried classification: %+v", got)
-	}
-	if len(got.Sectors) != len(domain.SectorCatalogue) {
-		t.Errorf("Sectors len = %d, want the catalogue for manual classification", len(got.Sectors))
 	}
 }
 

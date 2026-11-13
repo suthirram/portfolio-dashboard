@@ -322,26 +322,16 @@ func DividendRowToAPI(dividend domain.Transaction, holding *domain.Holding, cumu
 	}
 }
 
-// SectorCatalogueToAPI maps the domain sector catalogue to its DTO, in
-// display order.
-func SectorCatalogueToAPI() []api.SectorOption {
-	options := make([]api.SectorOption, 0, len(domain.SectorCatalogue))
-	for _, sector := range domain.SectorCatalogue {
-		options = append(options, api.SectorOption{Key: api.SectorKey(sector.Key), Label: sector.Label})
-	}
-	return options
-}
-
-// ProfileToAPI maps a profile lookup to its DTO, attaching the catalogue.
-// Empty industry and suggested type stay absent rather than "".
+// ProfileToAPI maps a profile lookup to its DTO. Until owner renames exist,
+// the shown sector is Yahoo's text. Empty text fields stay absent, not "".
 func ProfileToAPI(profile CompanyProfile) api.ProfileLookup {
 	lookup := api.ProfileLookup{
 		Symbol:       profile.Symbol,
 		LookupStatus: api.ProfileLookupLookupStatus(profile.Status),
-		Sectors:      SectorCatalogueToAPI(),
 	}
-	if profile.Sector != nil {
-		lookup.Sector = new(api.SectorKey(*profile.Sector))
+	if profile.Sector != "" {
+		lookup.Sector = &profile.Sector
+		lookup.ProviderSector = &profile.Sector
 	}
 	if profile.Industry != "" {
 		lookup.Industry = &profile.Industry

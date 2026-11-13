@@ -28,7 +28,7 @@ import (
 type ProfileStatus string
 
 const (
-	// ProfileFound: a catalogue sector or a fund type was recognised.
+	// ProfileFound: Yahoo gave a sector or a fund type.
 	ProfileFound ProfileStatus = "found"
 	// ProfileMissing: Yahoo answered but gave no usable classification.
 	ProfileMissing ProfileStatus = "missing"
@@ -40,11 +40,12 @@ const (
 var ErrInvalidSymbol = errors.New("invalid symbol")
 
 // CompanyProfile is the normalised, provider-neutral lookup result. Sector is
-// set only for a recognised company sector; funds never carry one.
+// Yahoo's sector text as given (normalised whitespace); there is no fixed
+// sector set. Funds never carry one.
 type CompanyProfile struct {
 	Symbol        string
 	Status        ProfileStatus
-	Sector        *domain.SectorKey
+	Sector        string // "" when Yahoo gave none
 	Industry      string
 	SuggestedType string // stock | etf | mutual_fund; "" when Yahoo gave no quote type
 }
@@ -302,9 +303,8 @@ type quoteSummaryResp struct {
 	QuoteSummary struct {
 		Result []struct {
 			AssetProfile *struct {
-				Sector    string `json:"sector"`
-				SectorKey string `json:"sectorKey"`
-				Industry  string `json:"industry"`
+				Sector   string `json:"sector"`
+				Industry string `json:"industry"`
 			} `json:"assetProfile"`
 			QuoteType *struct {
 				QuoteType string `json:"quoteType"`
@@ -321,7 +321,7 @@ var yahooQuoteTypes = map[string]string{
 }
 
 // parseQuoteSummary classifies a quoteSummary body: a fund type is found with
-// no sector; otherwise a catalogue sector is found and anything else missing.
+// no sector; otherwise any nonempty Yahoo sector is found, none is missing.
 func parseQuoteSummary(symbol string, body []byte) (CompanyProfile, error) {
 	var decoded quoteSummaryResp
 	if err := json.Unmarshal(body, &decoded); err != nil {
@@ -343,8 +343,8 @@ func parseQuoteSummary(symbol string, body []byte) (CompanyProfile, error) {
 		return profile, nil
 	}
 	profile.Industry = cleanIndustry(result.AssetProfile.Industry)
-	if sector, ok := domain.SectorFromProvider(result.AssetProfile.SectorKey, result.AssetProfile.Sector); ok {
-		profile.Sector = &sector
+	if sector, ok := domain.NormalizeSectorLabel(result.AssetProfile.Sector); ok {
+		profile.Sector = sector
 		profile.Status = ProfileFound
 	}
 	return profile, nil

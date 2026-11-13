@@ -71,7 +71,7 @@ profile:
     description: >
       Direct Yahoo profile lookup (DD-013 §2). Provider failure is a 200 with
       lookup_status `unavailable`, so the caller can still classify by hand.
-      Returns the sector catalogue so the UI never invents accepted values.
+      There is no fixed sector set: the sector is Yahoo's text.
     operationId: getMarketProfile
     parameters:
       - name: symbol

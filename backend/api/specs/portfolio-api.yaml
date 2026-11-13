@@ -563,47 +563,9 @@ components:
           format: double
           description: actual_paid − gold_cost (spreadsheet J − D)
 
-    SectorKey:
-      type: string
-      description: Canonical company sector (DD-013 §1); the taxonomy is closed
-      enum:
-        - basic_materials
-        - communication_services
-        - consumer_cyclical
-        - consumer_defensive
-        - energy
-        - financial_services
-        - healthcare
-        - industrials
-        - real_estate
-        - technology
-        - utilities
-      x-enum-varnames:
-        - SectorKeyBasicMaterials
-        - SectorKeyCommunicationServices
-        - SectorKeyConsumerCyclical
-        - SectorKeyConsumerDefensive
-        - SectorKeyEnergy
-        - SectorKeyFinancialServices
-        - SectorKeyHealthcare
-        - SectorKeyIndustrials
-        - SectorKeyRealEstate
-        - SectorKeyTechnology
-        - SectorKeyUtilities
-
-    SectorOption:
-      type: object
-      required: [key, label]
-      properties:
-        key:
-          $ref: "#/components/schemas/SectorKey"
-        label:
-          type: string
-          example: Financial Services
-
     ProfileLookup:
       type: object
-      required: [symbol, lookup_status, sectors]
+      required: [symbol, lookup_status]
       properties:
         symbol:
           type: string
@@ -614,14 +576,23 @@ components:
           enum: [found, missing, unavailable]
           x-enum-varnames: [ProfileLookupStatusFound, ProfileLookupStatusMissing, ProfileLookupStatusUnavailable]
           description: >
-            found — a catalogue sector or a fund type was recognised; missing —
-            Yahoo answered without a usable classification; unavailable — Yahoo
-            could not be reached or refused the lookup
+            found — Yahoo gave a sector or a fund type; missing — Yahoo answered
+            without a usable classification; unavailable — Yahoo could not be
+            reached or refused the lookup
         sector:
-          allOf:
-            - $ref: "#/components/schemas/SectorKey"
+          type: string
           nullable: true
-          description: Recognised company sector; always null for funds
+          maxLength: 60
+          description: >
+            Sector label to show. There is no fixed sector set (DD-013 §1); this
+            is Yahoo's text until the owner renames it. Always null for funds.
+          example: Technology
+        provider_sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Yahoo's sector text as given; null when Yahoo gave none
+          example: Technology
         industry:
           type: string
           nullable: true
@@ -631,11 +602,6 @@ components:
           enum: [stock, etf, mutual_fund]
           nullable: true
           description: Yahoo's quote type as a holding type; a suggestion, never applied silently
-        sectors:
-          type: array
-          description: The accepted sector catalogue, in display order
-          items:
-            $ref: "#/components/schemas/SectorOption"
 
     Holding:
       type: object

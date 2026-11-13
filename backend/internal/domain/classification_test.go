@@ -1,42 +1,32 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestSectorFromProvider(t *testing.T) {
+func TestNormalizeSectorLabel(t *testing.T) {
 	testCases := []struct {
-		name   string
-		values []string
-		want   SectorKey
-		ok     bool
+		name  string
+		label string
+		want  string
+		ok    bool
 	}{
-		{name: "display label", values: []string{"Consumer Defensive"}, want: SectorConsumerDefensive, ok: true},
-		{name: "hyphenated key", values: []string{"real-estate"}, want: SectorRealEstate, ok: true},
-		{name: "first recognised wins", values: []string{"", "Communication Services"}, want: SectorCommunicationServices, ok: true},
-		{name: "alias", values: []string{"Financial"}, want: SectorFinancialServices, ok: true},
-		{name: "spaced alias", values: []string{"Health Care"}, want: SectorHealthcare, ok: true},
-		{name: "unknown taxonomy", values: []string{"Conglomerates"}},
-		{name: "empty", values: []string{"", "  "}},
+		{name: "Yahoo text kept as given", label: "Consumer Defensive", want: "Consumer Defensive", ok: true},
+		{name: "owner label kept as given", label: "FMCG", want: "FMCG", ok: true},
+		{name: "whitespace trimmed and collapsed", label: "  Financial \t Services ", want: "Financial Services", ok: true},
+		{name: "control characters removed", label: "Tech\nnology\x00", want: "Tech nology", ok: true},
+		{name: "capped at the limit", label: strings.Repeat("a", SectorLabelLimit+5), want: strings.Repeat("a", SectorLabelLimit), ok: true},
+		{name: "multi-byte characters counted as one", label: strings.Repeat("é", SectorLabelLimit+1), want: strings.Repeat("é", SectorLabelLimit), ok: true},
+		{name: "empty", label: "", ok: false},
+		{name: "only whitespace", label: " \t\n ", ok: false},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			got, ok := SectorFromProvider(testCase.values...)
+			got, ok := NormalizeSectorLabel(testCase.label)
 			if got != testCase.want || ok != testCase.ok {
-				t.Errorf("SectorFromProvider(%q) = %q, %v; want %q, %v", testCase.values, got, ok, testCase.want, testCase.ok)
+				t.Errorf("NormalizeSectorLabel(%q) = %q, %v; want %q, %v", testCase.label, got, ok, testCase.want, testCase.ok)
 			}
 		})
-	}
-}
-
-func TestSectorCatalogueKeysAreValid(t *testing.T) {
-	if len(SectorCatalogue) != 11 {
-		t.Fatalf("catalogue has %d sectors, want 11", len(SectorCatalogue))
-	}
-	for _, sector := range SectorCatalogue {
-		if !ValidSector(sector.Key) || sector.Label == "" {
-			t.Errorf("invalid catalogue entry %+v", sector)
-		}
-	}
-	if ValidSector("conglomerates") {
-		t.Error("ValidSector accepted a key outside the catalogue")
 	}
 }

@@ -10,8 +10,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"portfolio-dashboard/internal/domain"
 )
 
 // fakeYahoo serves the cookie → crumb → quoteSummary exchange. Each session
@@ -120,9 +118,9 @@ func newFakeProfileService(t *testing.T, fake *fakeYahoo) (*CompanyProfileServic
 	return service, clock
 }
 
-func summaryBody(quoteType, sector, sectorKey, industry string) string {
-	return fmt.Sprintf(`{"quoteSummary":{"result":[{"assetProfile":{"sector":%q,"sectorKey":%q,"industry":%q},"quoteType":{"quoteType":%q}}],"error":null}}`,
-		sector, sectorKey, industry, quoteType)
+func summaryBody(quoteType, sector, industry string) string {
+	return fmt.Sprintf(`{"quoteSummary":{"result":[{"assetProfile":{"sector":%q,"industry":%q},"quoteType":{"quoteType":%q}}],"error":null}}`,
+		sector, industry, quoteType)
 }
 
 func TestLookupProfile_ClassifiesQuoteSummary(t *testing.T) {
@@ -133,39 +131,44 @@ func TestLookupProfile_ClassifiesQuoteSummary(t *testing.T) {
 		want   CompanyProfile
 	}{
 		{
-			name: "recognised equity sector",
-			body: summaryBody("EQUITY", "Technology", "technology", "Information Technology Services"),
-			want: CompanyProfile{Status: ProfileFound, Sector: new(domain.SectorTechnology), Industry: "Information Technology Services", SuggestedType: "stock"},
+			name: "Yahoo sector",
+			body: summaryBody("EQUITY", "Technology", "Information Technology Services"),
+			want: CompanyProfile{Status: ProfileFound, Sector: "Technology", Industry: "Information Technology Services", SuggestedType: "stock"},
 		},
 		{
-			name: "sector key only",
-			body: summaryBody("EQUITY", "", "financial-services", "Banks - Regional"),
-			want: CompanyProfile{Status: ProfileFound, Sector: new(domain.SectorFinancialServices), Industry: "Banks - Regional", SuggestedType: "stock"},
+			name: "Yahoo text kept as given",
+			body: summaryBody("EQUITY", "Consumer Defensive", "Tobacco"),
+			want: CompanyProfile{Status: ProfileFound, Sector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock"},
+		},
+		{
+			name: "any sector text is accepted",
+			body: summaryBody("EQUITY", "Conglomerates", "Conglomerates"),
+			want: CompanyProfile{Status: ProfileFound, Sector: "Conglomerates", Industry: "Conglomerates", SuggestedType: "stock"},
+		},
+		{
+			name: "sector label normalised",
+			body: summaryBody("EQUITY", "  Financial \t Services ", "Banks - Regional"),
+			want: CompanyProfile{Status: ProfileFound, Sector: "Financial Services", Industry: "Banks - Regional", SuggestedType: "stock"},
 		},
 		{
 			name: "missing sector",
-			body: summaryBody("EQUITY", "", "", ""),
+			body: summaryBody("EQUITY", "  ", ""),
 			want: CompanyProfile{Status: ProfileMissing, SuggestedType: "stock"},
 		},
 		{
-			name: "unsupported taxonomy needs review",
-			body: summaryBody("EQUITY", "Conglomerates", "conglomerates", "Conglomerates"),
-			want: CompanyProfile{Status: ProfileMissing, Industry: "Conglomerates", SuggestedType: "stock"},
-		},
-		{
 			name: "ETF suggests a fund with no sector",
-			body: summaryBody("ETF", "Technology", "technology", ""),
+			body: summaryBody("ETF", "Technology", ""),
 			want: CompanyProfile{Status: ProfileFound, SuggestedType: "etf"},
 		},
 		{
 			name: "mutual fund suggestion",
-			body: summaryBody("MUTUALFUND", "", "", ""),
+			body: summaryBody("MUTUALFUND", "", ""),
 			want: CompanyProfile{Status: ProfileFound, SuggestedType: "mutual_fund"},
 		},
 		{
 			name: "sector without quote type",
 			body: `{"quoteSummary":{"result":[{"assetProfile":{"sector":"Energy"}}]}}`,
-			want: CompanyProfile{Status: ProfileFound, Sector: new(domain.SectorEnergy)},
+			want: CompanyProfile{Status: ProfileFound, Sector: "Energy"},
 		},
 		{
 			name: "empty result",
@@ -208,11 +211,8 @@ func TestLookupProfile_ClassifiesQuoteSummary(t *testing.T) {
 
 func assertProfile(t *testing.T, got, want CompanyProfile) {
 	t.Helper()
-	if got.Symbol != want.Symbol || got.Status != want.Status || got.Industry != want.Industry || got.SuggestedType != want.SuggestedType {
+	if got != want {
 		t.Errorf("profile = %+v, want %+v", got, want)
-	}
-	if (got.Sector == nil) != (want.Sector == nil) || (got.Sector != nil && *got.Sector != *want.Sector) {
-		t.Errorf("sector = %v, want %v", got.Sector, want.Sector)
 	}
 }
 
@@ -230,7 +230,7 @@ func TestLookupProfile_RejectsInvalidSymbolWithoutRequest(t *testing.T) {
 }
 
 func TestLookupProfile_AcceptsTickerAlphabet(t *testing.T) {
-	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", "")})
+	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "")})
 	for _, symbol := range []string{"^NSEI", "EURINR=X", "BRK-B", "M_M.NS", strings.Repeat("A", 64)} {
 		got, err := service.LookupProfile(context.Background(), symbol)
 		if err != nil || got.Status != ProfileFound {
@@ -241,7 +241,7 @@ func TestLookupProfile_AcceptsTickerAlphabet(t *testing.T) {
 
 func TestLookupProfile_OversizedBodyIsUnavailable(t *testing.T) {
 	padding := strings.Repeat(" ", profileBodyLimit)
-	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", "") + padding})
+	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "") + padding})
 
 	got, _ := service.LookupProfile(context.Background(), "ONGC.NS")
 	if got.Status != ProfileUnavailable {
@@ -250,7 +250,7 @@ func TestLookupProfile_OversizedBodyIsUnavailable(t *testing.T) {
 }
 
 func TestLookupProfile_TimeoutIsUnavailable(t *testing.T) {
-	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), delay: 300 * time.Millisecond})
+	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 300 * time.Millisecond})
 	service.timeout = 50 * time.Millisecond
 
 	started := time.Now()
@@ -264,7 +264,7 @@ func TestLookupProfile_TimeoutIsUnavailable(t *testing.T) {
 }
 
 func TestLookupProfile_CallerCancellationIsUnavailable(t *testing.T) {
-	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), delay: 300 * time.Millisecond})
+	service, _ := newFakeProfileService(t, &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 300 * time.Millisecond})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
 
@@ -276,7 +276,7 @@ func TestLookupProfile_CallerCancellationIsUnavailable(t *testing.T) {
 
 func TestLookupProfile_RefreshesRejectedSessionOnce(t *testing.T) {
 	t.Run("second session succeeds", func(t *testing.T) {
-		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), summaryStatus: []int{http.StatusUnauthorized}}
+		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), summaryStatus: []int{http.StatusUnauthorized}}
 		service, _ := newFakeProfileService(t, fake)
 
 		got, _ := service.LookupProfile(context.Background(), "ONGC.NS")
@@ -302,7 +302,7 @@ func TestLookupProfile_RefreshesRejectedSessionOnce(t *testing.T) {
 }
 
 func TestLookupProfile_RateLimitPausesAllLookups(t *testing.T) {
-	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), summaryStatus: []int{http.StatusTooManyRequests}, retryAfter: "120"}
+	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), summaryStatus: []int{http.StatusTooManyRequests}, retryAfter: "120"}
 	service, clock := newFakeProfileService(t, fake)
 
 	if got, _ := service.LookupProfile(context.Background(), "ONGC.NS"); got.Status != ProfileUnavailable {
@@ -337,7 +337,7 @@ func TestLookupProfile_RejectsRedirectToAnotherHost(t *testing.T) {
 	otherHits := 0
 	other := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		otherHits++
-		_, _ = w.Write([]byte(summaryBody("EQUITY", "Energy", "energy", "")))
+		_, _ = w.Write([]byte(summaryBody("EQUITY", "Energy", "")))
 	}))
 	defer other.Close()
 	service, _ := newFakeProfileService(t, &fakeYahoo{redirectTarget: other.URL + "/summary/ONGC.NS"})
@@ -368,7 +368,7 @@ func TestLookupProfile_RejectsPlainHTTP(t *testing.T) {
 
 func TestLookupProfile_CachesPerStatusTTL(t *testing.T) {
 	t.Run("found is cached for a day", func(t *testing.T) {
-		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", "")}
+		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "")}
 		service, clock := newFakeProfileService(t, fake)
 
 		_, _ = service.LookupProfile(context.Background(), "ONGC.NS")
@@ -384,7 +384,7 @@ func TestLookupProfile_CachesPerStatusTTL(t *testing.T) {
 		}
 	})
 	t.Run("unavailable is cached for a minute", func(t *testing.T) {
-		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), summaryStatus: []int{http.StatusInternalServerError}}
+		fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), summaryStatus: []int{http.StatusInternalServerError}}
 		service, clock := newFakeProfileService(t, fake)
 
 		_, _ = service.LookupProfile(context.Background(), "ONGC.NS")
@@ -418,7 +418,7 @@ func TestProfileCache_EvictsAtCap(t *testing.T) {
 }
 
 func TestLookupProfile_DeduplicatesConcurrentLookups(t *testing.T) {
-	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", "energy", ""), delay: 100 * time.Millisecond}
+	fake := &fakeYahoo{body: summaryBody("EQUITY", "Energy", ""), delay: 100 * time.Millisecond}
 	service, _ := newFakeProfileService(t, fake)
 
 	var wait sync.WaitGroup

@@ -315,51 +315,6 @@ func (e ProfileLookupSuggestedType) Valid() bool {
 	}
 }
 
-// Defines values for SectorKey.
-const (
-	SectorKeyBasicMaterials        SectorKey = "basic_materials"
-	SectorKeyCommunicationServices SectorKey = "communication_services"
-	SectorKeyConsumerCyclical      SectorKey = "consumer_cyclical"
-	SectorKeyConsumerDefensive     SectorKey = "consumer_defensive"
-	SectorKeyEnergy                SectorKey = "energy"
-	SectorKeyFinancialServices     SectorKey = "financial_services"
-	SectorKeyHealthcare            SectorKey = "healthcare"
-	SectorKeyIndustrials           SectorKey = "industrials"
-	SectorKeyRealEstate            SectorKey = "real_estate"
-	SectorKeyTechnology            SectorKey = "technology"
-	SectorKeyUtilities             SectorKey = "utilities"
-)
-
-// Valid indicates whether the value is a known member of the SectorKey enum.
-func (e SectorKey) Valid() bool {
-	switch e {
-	case SectorKeyBasicMaterials:
-		return true
-	case SectorKeyCommunicationServices:
-		return true
-	case SectorKeyConsumerCyclical:
-		return true
-	case SectorKeyConsumerDefensive:
-		return true
-	case SectorKeyEnergy:
-		return true
-	case SectorKeyFinancialServices:
-		return true
-	case SectorKeyHealthcare:
-		return true
-	case SectorKeyIndustrials:
-		return true
-	case SectorKeyRealEstate:
-		return true
-	case SectorKeyTechnology:
-		return true
-	case SectorKeyUtilities:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for StockXirrCurrencyCurrency.
 const (
 	StockXirrCurrencyCurrencyEUR StockXirrCurrencyCurrency = "EUR"
@@ -1228,14 +1183,14 @@ type ProfileLookup struct {
 	// Industry Provider industry text (length-limited; render as text)
 	Industry *string `json:"industry,omitempty"`
 
-	// LookupStatus found — a catalogue sector or a fund type was recognised; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+	// LookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
 	LookupStatus ProfileLookupLookupStatus `json:"lookup_status"`
 
-	// Sector Recognised company sector; always null for funds
-	Sector *SectorKey `json:"sector,omitempty"`
+	// ProviderSector Yahoo's sector text as given; null when Yahoo gave none
+	ProviderSector *string `json:"provider_sector,omitempty"`
 
-	// Sectors The accepted sector catalogue, in display order
-	Sectors []SectorOption `json:"sectors"`
+	// Sector Sector label to show. There is no fixed sector set (DD-013 §1); this is Yahoo's text until the owner renames it. Always null for funds.
+	Sector *string `json:"sector,omitempty"`
 
 	// SuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
 	SuggestedType *ProfileLookupSuggestedType `json:"suggested_type,omitempty"`
@@ -1244,7 +1199,7 @@ type ProfileLookup struct {
 	Symbol string `json:"symbol"`
 }
 
-// ProfileLookupLookupStatus found — a catalogue sector or a fund type was recognised; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+// ProfileLookupLookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
 type ProfileLookupLookupStatus string
 
 // ProfileLookupSuggestedType Yahoo's quote type as a holding type; a suggestion, never applied silently
@@ -1281,16 +1236,6 @@ type RegionUpdateRequest struct {
 type RejectedPasteRow struct {
 	Date   string `json:"date"`
 	Reason string `json:"reason"`
-}
-
-// SectorKey Canonical company sector (DD-013 §1); the taxonomy is closed
-type SectorKey string
-
-// SectorOption defines model for SectorOption.
-type SectorOption struct {
-	// Key Canonical company sector (DD-013 §1); the taxonomy is closed
-	Key   SectorKey `json:"key"`
-	Label string    `json:"label"`
 }
 
 // SecurityAnswerInput defines model for SecurityAnswerInput.
