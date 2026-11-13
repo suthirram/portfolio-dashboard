@@ -1,7 +1,7 @@
-# Yahoo company profile lookups always unavailable
+# Yahoo company profile lookups always unavailable (crumb 406)
 
-* Status: Investigating
-* Last verified: not yet verified (observations from 2026-11-13)
+* Status: Resolved
+* Last verified: 2026-11-13
 * Environment: local dev, macOS, a European network; backend
   `CompanyProfileService` (PD-056 / DD-013 §3); Yahoo quoteSummary protocol
 * Related: [DD-013](../designs/DD-013-holding-sectors.md),
@@ -58,44 +58,48 @@ Observed on 2026-11-13:
 
 ## Cause and evidence
 
-Not confirmed. Evidence so far:
+Confirmed: the backend sent `Accept: application/json` on every request,
+including the crumb request, and the crumb endpoint serves plain text. Yahoo
+answers that with 406 Not Acceptable, so every lookup became unavailable.
 
-* The session cookie is issued, so the bootstrap step works. (The earlier
-  European-consent hypothesis came from the faulty jar check above and has
+* The session cookie is issued, so the bootstrap step works. (An earlier
+  European-consent hypothesis came from the faulty jar check above and had
   no evidence behind it.)
-* Hypothesis (unverified, leading): the 406 comes from the backend sending
-  `Accept: application/json` to the crumb endpoint, which serves plain text.
-  The backend and curl differ mainly in that header, and 406 means Not
-  Acceptable.
-* The 429s show that repeated probes throttle this IP, so diagnosis needs
-  spaced-out single requests.
-* Alternative under test: Yahoo's search endpoint
-  (`query2.finance.yahoo.com/v1/finance/search?q=<symbol>&quotesCount=1&newsCount=0`)
-  may return `sector`, `industry` and `quoteType` without any cookie or
-  crumb, i.e. one request per symbol and no session. At 14:05 on 2026-11-13,
-  three spaced requests (TCS.NS, NIFTYBEES.NS, VFIAX) all answered 429 while
-  the IP was throttled, so this is still unverified.
+* With only the Accept header changed and nothing else, the same Go dry run
+  went from 406 on every lookup to every lookup found (see Verification).
+* curl is not a reliable probe: through most of the day curl got 429 from
+  every Yahoo endpoint, chart included, even with the app's headers, while
+  the Go client was answered normally (406, then 200). Yahoo appears to
+  distinguish clients, e.g. by TLS fingerprint. Diagnose from the Go client.
+* Not needed: the cookie-less search endpoint
+  (`query2.finance.yahoo.com/v1/finance/search`) was considered as a
+  replacement but never answered curl's three requests (429). It remains
+  untested.
 
 ## Solution
 
-None yet. Lookups correctly degrade to unavailable, so holding saves keep
-working and the dry run wrote nothing. Do **not** run `migrate sectors
---apply` while every lookup is unavailable: each holding would be recorded
-as needs-review and need `--retry-unresolved` later.
+Send `Accept: */*` on the cookie and crumb requests, and
+`Accept: application/json` only on quoteSummary (PR #289). The fake Yahoo
+server in `company_profile_test.go` now refuses a JSON-only crumb request
+like the real one, so the regression is covered offline.
+
+The same PR stopped the httpserver tests calling live Yahoo: they built the
+server with the real profile service (via `controllers.New`), so CI made live
+lookups. They now use `controllers.NewWithProfiles(…, nil)`.
 
 ## Verification
 
-Pending. A fix is verified when the curl steps above show a session cookie
-and `crumb=200`, and a `--limit 5` dry run reports resolved holdings.
+From `backend/`, with the fix:
+
+```bash
+go run . migrate sectors --all-users --limit 3
+```
+
+Observed: `"eligible":3,"resolved":3,"needs_review":0,"errors":0`; three
+lookups logged `"outcome":"found"`; nothing written (dry run). The backend
+test suite passes, and 24 profile tests fail without the fix.
 
 ## Follow-up
 
-Blocker: Yahoo throttling (429) on this IP. Next step, once unthrottled:
-
-1. When the chart endpoint answers 200, first send the three search requests
-   above. If they return sector and type, the session flow can be replaced
-   (DD-013 §3 and ADR-0004 update first) and the crumb probes are moot.
-2. Otherwise run the two crumb probes above.
-   `crumb json=406` with `crumb any=200` confirms the Accept hypothesis.
-3. If confirmed, send `Accept: application/json` only on the quoteSummary
-   request (the crumb gets `*/*`), then repeat a `--limit 5` dry run.
+None required. When probing Yahoo by hand, prefer a dry run from the Go
+client, and space requests to avoid a 429.
