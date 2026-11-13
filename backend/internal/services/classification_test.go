@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -200,6 +201,18 @@ func classifiedHoldingDoc(userId, holdingId primitive.ObjectID, symbol string, c
 	return doc
 }
 
+// classificationWriteQueries returns the filter of every findAndModify that
+// set a classification, in order.
+func classificationWriteQueries(mt *mtest.T) []bson.Raw {
+	var queries []bson.Raw
+	for _, started := range mt.GetAllStartedEvents() {
+		if _, err := started.Command.LookupErr("update", "$set", "classification"); started.CommandName == "findAndModify" && err == nil {
+			queries = append(queries, started.Command.Lookup("query").Document())
+		}
+	}
+	return queries
+}
+
 // withHoldingType sets the document's type field, e.g. to make an ETF.
 func withHoldingType(doc bson.D, holdingType string) bson.D {
 	for index := range doc {
@@ -298,7 +311,7 @@ func TestHoldingsService_Create_ClassifiesBeforeInsert(t *testing.T) {
 func TestHoldingsService_Update_Reclassification(t *testing.T) {
 	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	renamed := bson.D{{Key: "symbol", Value: "ITC.NS"}, {Key: "status", Value: "resolved"}, {Key: "source", Value: "user"}, {Key: "sector", Value: "FMCG"}, {Key: "provider_sector", Value: "Consumer Defensive"}}
+	renamed := bson.D{{Key: "symbol", Value: "ITC.NS"}, {Key: "status", Value: "resolved"}, {Key: "source", Value: "user"}, {Key: "sector", Value: "FMCG"}, {Key: "provider_sector", Value: "Consumer Defensive"}, {Key: "checked_at", Value: classifiedAt}}
 
 	mt.Run("notes edit keeps the owner's rename and skips Yahoo", func(mt *mtest.T) {
 		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
@@ -342,27 +355,23 @@ func TestHoldingsService_Update_Reclassification(t *testing.T) {
 		if len(profiles.symbols) != 1 || profiles.symbols[0] != "HINDUNILVR.NS" {
 			t.Errorf("looked up %v, want [HINDUNILVR.NS]", profiles.symbols)
 		}
-		var classificationWrites int
-		for _, started := range mt.GetAllStartedEvents() {
-			if started.CommandName != "findAndModify" {
-				continue
-			}
-			if _, err := started.Command.LookupErr("update", "$set", "classification"); err != nil {
-				continue
-			}
-			classificationWrites++
-			if symbol := started.Command.Lookup("query", "symbol").StringValue(); symbol != "HINDUNILVR.NS" {
-				t.Errorf("compare-and-set symbol = %q, want HINDUNILVR.NS", symbol)
-			}
-			if holdingType, _ := started.Command.Lookup("query", "type").StringValueOK(); holdingType != "stock" {
-				t.Errorf("compare-and-set type = %q, want stock", holdingType)
-			}
-			if _, err := started.Command.LookupErr("query", "user_id"); err != nil {
-				t.Error("classification write is not owner-scoped")
-			}
+		writes := classificationWriteQueries(mt)
+		if len(writes) != 1 {
+			t.Fatalf("classification writes = %d, want 1", len(writes))
 		}
-		if classificationWrites != 1 {
-			t.Errorf("classification writes = %d, want 1", classificationWrites)
+		query := writes[0]
+		if symbol := query.Lookup("symbol").StringValue(); symbol != "HINDUNILVR.NS" {
+			t.Errorf("compare-and-set symbol = %q, want HINDUNILVR.NS", symbol)
+		}
+		if holdingType, _ := query.Lookup("type").StringValueOK(); holdingType != "stock" {
+			t.Errorf("compare-and-set type = %q, want stock", holdingType)
+		}
+		// The classification read before the lookup must still be there.
+		if checkedAt, ok := query.Lookup("classification.checked_at").TimeOK(); !ok || !checkedAt.Equal(classifiedAt) {
+			t.Errorf("compare-and-set checked_at = %v, want %v", checkedAt, classifiedAt)
+		}
+		if _, err := query.LookupErr("user_id"); err != nil {
+			t.Error("classification write is not owner-scoped")
 		}
 		if *got.Classification.Sector != "Consumer Defensive" || *got.Classification.Source != api.ClassificationSourceYahoo {
 			t.Errorf("classification = %+v, want Yahoo's Consumer Defensive", got.Classification)
@@ -389,14 +398,12 @@ func TestHoldingsService_Update_Reclassification(t *testing.T) {
 		if err != nil || !found {
 			t.Fatalf("Update: found=%v err=%v", found, err)
 		}
-		var checkedType string
-		for _, started := range mt.GetAllStartedEvents() {
-			if _, err := started.Command.LookupErr("update", "$set", "classification"); started.CommandName == "findAndModify" && err == nil {
-				checkedType, _ = started.Command.Lookup("query", "type").StringValueOK()
-			}
+		writes := classificationWriteQueries(mt)
+		if len(writes) != 1 {
+			t.Fatalf("classification writes = %d, want 1", len(writes))
 		}
-		if checkedType != "etf" {
-			t.Errorf("compare-and-set type = %q, want etf so a racing stock lookup cannot overwrite it", checkedType)
+		if checkedType, _ := writes[0].Lookup("type").StringValueOK(); checkedType != "etf" {
+			t.Errorf("compare-and-set type = %q, want etf so a racing stock lookup cannot overwrite it", writes[0].Lookup("type"))
 		}
 		if got.Classification.Status != api.ClassificationStatusNeedsReview || got.Classification.Sector != nil {
 			t.Errorf("classification = %+v, want needs_review with no sector", got.Classification)
@@ -415,6 +422,153 @@ func TestHoldingsService_Update_Reclassification(t *testing.T) {
 		}
 		if len(profiles.symbols) != 0 {
 			t.Errorf("missing holding looked up %v", profiles.symbols)
+		}
+	})
+}
+
+func TestConfirmedClassification(t *testing.T) {
+	t.Parallel()
+	yahooITC := domain.Holding{Symbol: "itc.ns", Classification: &domain.Classification{
+		Symbol: "ITC.NS", Status: "resolved", Source: "yahoo", Sector: "Consumer Defensive",
+		ProviderSector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock", CheckedAt: classifiedAt,
+	}}
+	testCases := []struct {
+		name         string
+		holdingType  string
+		sector       *string
+		holding      domain.Holding
+		ownerSectors []string
+		want         domain.Classification
+		wantErr      bool
+	}{
+		{
+			name: "rename keeps Yahoo's text as provider sector", holdingType: "stock", sector: new("  FMCG "), holding: yahooITC,
+			want: domain.Classification{Status: "resolved", Source: "user", Sector: "FMCG", ProviderSector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock"},
+		},
+		{
+			name: "label reuses the owner's spelling", holdingType: "stock", sector: new("fmcg"), holding: yahooITC, ownerSectors: []string{"FMCG"},
+			want: domain.Classification{Status: "resolved", Source: "user", Sector: "FMCG", ProviderSector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock"},
+		},
+		{
+			name: "null sector is an unclassified stock", holdingType: "stock", holding: yahooITC,
+			want: domain.Classification{Status: "resolved", Source: "user", ProviderSector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock"},
+		},
+		{
+			name: "fund confirmation carries no sector", holdingType: "etf", holding: domain.Holding{Symbol: "NIFTYBEES.NS"},
+			want: domain.Classification{Status: "resolved", Source: "user"},
+		},
+		{
+			name: "provider details for an earlier symbol are dropped", holdingType: "stock", sector: new("FMCG"),
+			holding: domain.Holding{Symbol: "HINDUNILVR.NS", Classification: yahooITC.Classification},
+			want:    domain.Classification{Status: "resolved", Source: "user", Sector: "FMCG"},
+		},
+		{name: "fund with a sector is rejected", holdingType: "mutual_fund", sector: new("Banking"), holding: yahooITC, wantErr: true},
+		{name: "blank sector is rejected", holdingType: "stock", sector: new("   "), holding: yahooITC, wantErr: true},
+		{name: "unknown type is rejected", holdingType: "bond", holding: yahooITC, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := ConfirmedClassification(testCase.holdingType, testCase.sector, testCase.holding, testCase.ownerSectors, classifiedAt)
+			if testCase.wantErr {
+				if !errors.Is(err, ErrInvalidClassification) {
+					t.Errorf("err = %v, want ErrInvalidClassification", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ConfirmedClassification: %v", err)
+			}
+			testCase.want.Symbol = domain.CanonicalSymbol(testCase.holding.Symbol)
+			testCase.want.CheckedAt = classifiedAt
+			if got != testCase.want {
+				t.Errorf("classification = %+v\nwant %+v", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestHoldingsService_ConfirmClassification(t *testing.T) {
+	t.Parallel()
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	yahoo := bson.D{{Key: "symbol", Value: "ITC.NS"}, {Key: "status", Value: "resolved"}, {Key: "source", Value: "yahoo"}, {Key: "sector", Value: "Consumer Defensive"}, {Key: "provider_sector", Value: "Consumer Defensive"}, {Key: "checked_at", Value: classifiedAt}}
+
+	mt.Run("rename reuses another holding's label, not this holding's own", func(mt *mtest.T) {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		itc := classifiedHoldingDoc(userId, holdingId, "ITC.NS", yahoo)
+		hul := classifiedHoldingDoc(userId, primitive.NewObjectID(), "HINDUNILVR.NS", bson.D{{Key: "symbol", Value: "HINDUNILVR.NS"}, {Key: "status", Value: "resolved"}, {Key: "sector", Value: "FMCG"}})
+		confirmed := classifiedHoldingDoc(userId, holdingId, "ITC.NS", bson.D{{Key: "symbol", Value: "ITC.NS"}, {Key: "status", Value: "resolved"}, {Key: "source", Value: "user"}, {Key: "sector", Value: "FMCG"}, {Key: "provider_sector", Value: "Consumer Defensive"}})
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, itc),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, hul, itc),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: confirmed}),
+		)
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil, nil)
+
+		got, found, err := service.ConfirmClassification(context.Background(), userId, holdingId.Hex(), "stock", new("fmcg"))
+		if err != nil || !found {
+			t.Fatalf("ConfirmClassification: found=%v err=%v", found, err)
+		}
+		var written bson.Raw
+		for _, started := range mt.GetAllStartedEvents() {
+			if started.CommandName == "findAndModify" {
+				written = started.Command.Lookup("update", "$set", "classification").Document()
+			}
+		}
+		if written.Lookup("sector").StringValue() != "FMCG" || written.Lookup("source").StringValue() != "user" || written.Lookup("provider_sector").StringValue() != "Consumer Defensive" {
+			t.Errorf("written classification = %v, want user FMCG over Yahoo's Consumer Defensive", written)
+		}
+		if *got.Classification.Sector != "FMCG" {
+			t.Errorf("response sector = %v, want FMCG", got.Classification.Sector)
+		}
+	})
+
+	mt.Run("case-only rename of a lone holding keeps the new spelling", func(mt *mtest.T) {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		itc := classifiedHoldingDoc(userId, holdingId, "ITC.NS", yahoo)
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, itc),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, itc),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: itc}),
+		)
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil, nil)
+
+		if _, _, err := service.ConfirmClassification(context.Background(), userId, holdingId.Hex(), "stock", new("consumer defensive")); err != nil {
+			t.Fatalf("ConfirmClassification: %v", err)
+		}
+		for _, started := range mt.GetAllStartedEvents() {
+			if started.CommandName == "findAndModify" {
+				if sector := started.Command.Lookup("update", "$set", "classification", "sector").StringValue(); sector != "consumer defensive" {
+					t.Errorf("written sector = %q, want the owner's new spelling", sector)
+				}
+			}
+		}
+	})
+
+	mt.Run("another owner's holding is not found", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch))
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil, nil)
+
+		_, found, err := service.ConfirmClassification(context.Background(), primitive.NewObjectID(), primitive.NewObjectID().Hex(), "stock", nil)
+		if err != nil || found {
+			t.Errorf("ConfirmClassification: found=%v err=%v, want not found", found, err)
+		}
+	})
+
+	mt.Run("symbol changed meanwhile is a conflict", func(mt *mtest.T) {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, classifiedHoldingDoc(userId, holdingId, "ITC.NS", yahoo)),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}),
+		)
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil, nil)
+
+		_, _, err := service.ConfirmClassification(context.Background(), userId, holdingId.Hex(), "etf", nil)
+		if !errors.Is(err, ErrClassificationConflict) {
+			t.Errorf("err = %v, want ErrClassificationConflict", err)
 		}
 	})
 }

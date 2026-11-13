@@ -165,6 +165,27 @@ func (e HoldingClassificationStatus) Valid() bool {
 	}
 }
 
+// Defines values for HoldingClassificationInputType.
+const (
+	HoldingClassificationInputTypeEtf        HoldingClassificationInputType = "etf"
+	HoldingClassificationInputTypeMutualFund HoldingClassificationInputType = "mutual_fund"
+	HoldingClassificationInputTypeStock      HoldingClassificationInputType = "stock"
+)
+
+// Valid indicates whether the value is a known member of the HoldingClassificationInputType enum.
+func (e HoldingClassificationInputType) Valid() bool {
+	switch e {
+	case HoldingClassificationInputTypeEtf:
+		return true
+	case HoldingClassificationInputTypeMutualFund:
+		return true
+	case HoldingClassificationInputTypeStock:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HoldingInputCurrency.
 const (
 	HoldingInputCurrencyEUR HoldingInputCurrency = "EUR"
@@ -278,19 +299,19 @@ func (e HoldingWithPriceExchange) Valid() bool {
 
 // Defines values for HoldingWithPriceType.
 const (
-	Etf        HoldingWithPriceType = "etf"
-	MutualFund HoldingWithPriceType = "mutual_fund"
-	Stock      HoldingWithPriceType = "stock"
+	HoldingWithPriceTypeEtf        HoldingWithPriceType = "etf"
+	HoldingWithPriceTypeMutualFund HoldingWithPriceType = "mutual_fund"
+	HoldingWithPriceTypeStock      HoldingWithPriceType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceType enum.
 func (e HoldingWithPriceType) Valid() bool {
 	switch e {
-	case Etf:
+	case HoldingWithPriceTypeEtf:
 		return true
-	case MutualFund:
+	case HoldingWithPriceTypeMutualFund:
 		return true
-	case Stock:
+	case HoldingWithPriceTypeStock:
 		return true
 	default:
 		return false
@@ -1085,6 +1106,16 @@ type HoldingClassificationSource string
 
 // HoldingClassificationStatus defines model for HoldingClassification.Status.
 type HoldingClassificationStatus string
+
+// HoldingClassificationInput The owner's classification of a holding (DD-013 §2). Saved with source `user` on this holding only. A stock takes any sector label, or null for an unclassified stock; a fund (etf, mutual_fund) must have a null sector.
+type HoldingClassificationInput struct {
+	// Sector Sector label; trimmed, whitespace collapsed, and matched case-insensitively against the owner's existing labels
+	Sector *string                        `json:"sector,omitempty"`
+	Type   HoldingClassificationInputType `json:"type"`
+}
+
+// HoldingClassificationInputType defines model for HoldingClassificationInput.Type.
+type HoldingClassificationInputType string
 
 // HoldingInput defines model for HoldingInput.
 type HoldingInput struct {
