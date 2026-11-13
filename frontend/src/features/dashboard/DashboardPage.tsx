@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
@@ -15,7 +15,9 @@ import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
-import type { HoldingWithPrice } from '../../types'
+import type { Holding, HoldingWithPrice } from '../../types'
+import ClassificationReview from '../holdings/ClassificationReview'
+import { classificationBucket } from '../holdings/classification'
 import { canonicalCurrency } from '../../lib/currency'
 import { computeGroupDayChange } from '../holdings/dashboardPriceMovement'
 import { groupByCurrency, type CurrencyCode } from '../holdings/groupByCurrency'
@@ -67,6 +69,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
   const [modal, setModal] = useState<ModalState>(null)
   const [txnModal, setTxnModal] = useState<HoldingWithPrice | null>(null)
+  const [reviewQueue, setReviewQueue] = useState<Holding[] | null>(null)
+  const reviewReturnFocus = useRef<HTMLElement | null>(null)
   const [goldMetrics, setGoldMetrics] = useState<GoldMetrics | null>(null)
   const [tab, setTab] = useState<Tab>('table')
   const [filter, setFilter] = useState('')
@@ -96,6 +100,12 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // enriched with opening status).
   const needsOpeningDate = actAsUserId ? [] : holdings.filter(holding => holding.has_opening && !holding.opening_date)
   const showOpeningPrompt = needsOpeningDate.length > 0 && !openingPromptSkipped && !loadingHoldings
+  const needsReview = holdings.filter(holding => classificationBucket(holding).key === 'needs_review')
+  const previousOwner = useRef(actAsUserId)
+  useEffect(() => {
+    if (previousOwner.current !== actAsUserId) { setReviewQueue(null); setModal(null) }
+    previousOwner.current = actAsUserId
+  }, [actAsUserId])
 
   useEffect(() => {
     if (!user?.gold_enabled || actAsUserId) return
@@ -155,7 +165,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const income = useMemo(() => dividendIncome(enriched), [enriched])
 
   const TAB = (key: Tab, label: string) => (
-    <button className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
+    <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
       {label}
     </button>
   )
@@ -229,7 +239,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             style={{ opacity: loadingPrices ? 0.6 : 1 }}>
             {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
           </button>
-          <button onClick={() => setModal('add')} className="btn-primary dash-nav-btn">
+          <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
             <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
           <div className="dash-nav-user shell-dup" style={{ position: 'relative' }}>
@@ -309,6 +319,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           computedDayChangeEur={computedDayChangeByCurrency.EUR}
         />
 
+        {needsReview.length > 0 && <aside className="classification-banner" aria-label="Classification review">
+          <span>{needsReview.length} {needsReview.length === 1 ? 'holding needs' : 'holdings need'} review</span>
+          <button className="btn" onClick={event => { reviewReturnFocus.current = event.currentTarget; setReviewQueue(needsReview) }}>Review</button>
+        </aside>}
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
           <div className="seg-group">
             {TAB('table', 'Holdings')}
@@ -349,6 +364,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           holding={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
+          onPersisted={() => { void refresh() }}
+          ownerHoldings={holdings}
           userId={actAsUserId}
         />
       )}
@@ -361,7 +378,17 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         />
       )}
 
-      {showOpeningPrompt && (
+      {reviewQueue?.[0] && <ClassificationReview key={reviewQueue[0].id} holding={reviewQueue[0]} ownerHoldings={holdings}
+        restoreFocusTo={reviewReturnFocus.current}
+        userId={actAsUserId} onClose={() => setReviewQueue(null)}
+        onConfirmed={async () => {
+          await refresh()
+          const last = reviewQueue.length === 1
+          setReviewQueue(queue => queue && queue.length > 1 ? queue.slice(1) : null)
+          if (last) requestAnimationFrame(() => document.getElementById(`dashboard-${tab}-tab`)?.focus())
+        }} />}
+
+      {showOpeningPrompt && !modal && !reviewQueue && (
         <OpeningDateModal
           holdings={needsOpeningDate}
           userId={actAsUserId}

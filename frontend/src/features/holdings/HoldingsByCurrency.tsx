@@ -64,16 +64,18 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
 
   return (
     <>
-      <div className="seg-group" style={{ marginBottom: 12 }}>
-        {segBtn('active', 'Holdings', counts.active)}
-        {segBtn('all', 'All', counts.all)}
-        {segBtn('nil', 'Nil', counts.nil)}
-      </div>
-      <div className="seg-group" aria-label="Group holdings" style={{ marginBottom: 16 }}>
-        {(['holding', 'sector'] as const).map(option => <button key={option} type="button" className="seg-btn"
-          aria-pressed={layout === option} onClick={() => setLayout(option)}>
-          By {option}
-        </button>)}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+        <div className="seg-group">
+          {segBtn('active', 'Holdings', counts.active)}
+          {segBtn('all', 'All', counts.all)}
+          {segBtn('nil', 'Nil', counts.nil)}
+        </div>
+        <div className="seg-group" aria-label="Group holdings" style={{ marginLeft: 'auto' }}>
+          {(['holding', 'sector'] as const).map(option => <button key={option} type="button" className="seg-btn"
+            aria-pressed={layout === option} onClick={() => setLayout(option)}>
+            By {option}
+          </button>)}
+        </div>
       </div>
 
       {groups.length === 0 && !loading && (
