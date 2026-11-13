@@ -577,7 +577,21 @@ a:hover .app-icon .icon-spark,
 .sector-group { margin-top: 24px; }
 .sector-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; margin-bottom: 10px; scroll-margin-top: 100px; }
 .sector-group-meta { font-weight: 400; color: var(--text-secondary); font-size: 12px; }
+.sector-allocation-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 12px; }
+.sector-allocation-header h3 { font-size: 18px; margin-bottom: 6px; }
+.sector-allocation-header p, .sector-allocation-note, .sector-allocation-total { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.sector-allocation-header select { margin-left: 6px; padding: 8px; color: var(--text-primary); background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.sector-allocation-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 24px; margin: 16px 0; }
+.sector-allocation-total { text-align: center; }
+.sector-allocation-legend { list-style: none; padding: 0; min-width: 0; }
+.sector-allocation-legend button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 14px 0; text-align: left; background: transparent; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.sector-legend-label { min-width: 0; overflow-wrap: anywhere; }
+.sector-allocation-legend small { display: block; font-size: 12px; margin-top: 4px; color: var(--text-secondary); }
+.sector-legend-value { text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.sector-allocation-note { border-top: 1px solid var(--border); padding-top: 14px; }
+.sector-allocation-empty { padding: 32px 0; color: var(--text-secondary); }
 @media (max-width: 650px) {
+  .sector-allocation-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .holdings-table-wrap th:first-child { width: 144px; }
   .holdings-table-wrap table { min-width: 1240px !important; }
 }

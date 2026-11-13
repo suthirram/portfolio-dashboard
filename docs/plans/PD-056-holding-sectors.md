@@ -1,6 +1,6 @@
 # PD-056: Holding sectors and allocation rollout
 
-* **Status**: Backend sub-tasks merged into feature branch; backend follow-up validated; UI and dev rollout pending
+* **Status**: Backend and frontend implemented and locally verified; dev rollout pending
 * **Owner**: project owner
 * **PRD**: [PRD-013](../prds/PRD-013-holding-sectors.md)
 * **Design**: [DD-013](../designs/DD-013-holding-sectors.md)
@@ -48,7 +48,7 @@ end. Backend and UI sub-tasks stay in separate PRs.
 | 4b | `fix/PD-056-backend-followup` | Session stop, runbook, decisions, test audit (merged, #290) | Holding saves remain available | Resume interrupted batches | Session recovery and backfill tests |
 | 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls (merged, #291) | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
 | 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity (merged, #292) | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
-| 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
+| 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation (merged, #293) | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
 | 8 | `feat/PD-056-sector-ui-chart` | Sector allocation, legend and navigation; visual verification | Existing charts retained | Inspect concentration and jump to a sector | Allocation/denominator/navigation tests and browser checks |
 
 All implementation sub-task PRs above target `feat/PD-056-holding-sectors`,
@@ -83,8 +83,11 @@ are confirmed in PRD §10.
 | Modify | `frontend/src/types.ts`, `lib/api/client.ts`, act-as routing helpers (+ tests) | Typed profile/confirmation calls |
 | Create | `frontend/src/features/holdings/classification.ts` (+ test) | Shared bucket/group mapping and label-hash colors |
 | Create | `frontend/src/features/holdings/ClassificationReview.tsx` (+ test) | Explicit confirmation and review queue |
+| Create | `frontend/src/features/holdings/ProfilePreview.tsx` (+ test) | Debounced Yahoo preview and stale-response protection |
+| Create | `frontend/src/lib/useDialogFocus.ts` | Dialog focus trapping, Escape and focus restoration |
 | Modify | `AddEditModal.tsx`, `HoldingsTable.tsx`, `HoldingsByCurrency.tsx` (+ tests) | Preview, badges, independent category navigation |
 | Create | `frontend/src/features/holdings/SectorAllocation.tsx` (+ test) | Native currency allocation and accessible legend |
+| Create | `frontend/src/features/holdings/sectorAllocationData.ts` (+ test) | Positive priced-value denominator, unpriced counts and currency isolation |
 | Modify | `frontend/src/components/Charts.tsx`, `features/dashboard/DashboardPage.tsx` (+ tests) | On-demand mounting, review banner, chart-to-table selection |
 | Modify | `docs/local-setup.md`, cookbook when troubleshooting occurs | Operator guidance and verified recovery evidence |
 
@@ -248,7 +251,7 @@ new-holding classification and confirmation sub-tasks merged.
 review component, AddEditModal, table/currency views, SectorAllocation, Charts,
 DashboardPage, and tests listed in §3.
 
-* [ ] Branch each `feat/PD-056-sector-ui-*` sub-task from the current feature
+* [x] Branch each `feat/PD-056-sector-ui-*` sub-task from the current feature
   branch after its backend prerequisites land; target the feature branch.
 * [x] Regenerate TS and wire profile preview and scoped confirmation methods.
   Implement stale-response protection and preserve entered data on failure.
@@ -289,10 +292,20 @@ DashboardPage, and tests listed in §3.
   1440/390/320 px, at start/middle/end scroll, with opaque identity surfaces and
   reachable actions. Screenshots inspected; pinned header stacking corrected.
   Typecheck, 556 frontend tests, ESLint and build passed for the table slice.
-* [ ] Implement native-currency sector allocation with explicit fund, pending,
+* [x] Implement native-currency sector allocation with explicit fund, pending,
   and unclassified buckets, priced-value denominator, unpriced count, empty
   state, and category-to-group scrolling/focus. Render only after Sectors selection.
-* [ ] Test interactions and aggregation, then run the normal frontend checks.
+  The current Holdings / All / Nil view and search survive chart navigation;
+  missing targets produce a focused explanation rather than silently changing
+  the view or hiding sibling groups. Nine new tests cover 60/20/20, EUR-native
+  values, pending/fund/unclassified buckets, absent prices, empty state, mounting,
+  and dashboard navigation/focus.
+* [x] Test interactions and aggregation, then run the normal frontend checks.
+  Typecheck, 575 frontend tests, changed-source ESLint, and build pass. Chrome
+  fixture checks passed for native INR/EUR values, unpriced warning, no profile
+  fetch on chart selection, keyboard legend and pie navigation, preserved
+  All/Nil and sibling groups, and headings visible below the sticky header.
+  Both UI modes, all themes and 1440/390/320 px passed; screenshots inspected.
 
   These commands exercise the UI slice without broadening the backend PR.
 
@@ -307,9 +320,11 @@ DashboardPage, and tests listed in §3.
 
   Expected: generation/build/typecheck/lint succeed; all frontend tests pass.
 
-* [ ] Stage only frontend source/types/tests plus plan status; commit with
+* [x] Stage only frontend source/types/tests plus plan status; commit with
   `✨ Show holding sectors and allocation`, push the UI branch, and open its PR.
   Validate manually before merging; do not rerun local suites after merge.
+  Shipped as the separate frontend PRs in §2, with the allocation chart in this
+  final frontend sub-task PR. No backend source or new dependencies are included.
 
 ## 8. Environment and production rollout
 
@@ -342,6 +357,15 @@ No financial or ledger rollback is necessary because those fields are untouched.
 
 ## 10. End-to-end verification
 
+Local frontend evidence (2026-11-13): Vitest and Chrome fixtures verify review
+later, explicit ETF/MF confirmation, unclassified-choice preservation, stale
+preview suppression, own/act-as target paths, currency isolation, allocation
+denominators, empty/unpriced states, chart-to-table navigation, themes, keyboard,
+and responsive geometry. The owner reviewed the local table/review preview.
+The checkboxes below remain pending for full-stack/deployed-dev verification:
+fixtures do not establish real database persistence, provider access, authz or
+backfill behavior in that environment.
+
 * [ ] Create a stock with a recognized sector; skip preview and confirm backend
   enrichment still persists. Reload and check sector badge and chart membership.
 * [ ] Simulate unavailable profile and missing-sector stock: save succeeds,
@@ -373,10 +397,12 @@ No financial or ledger rollback is necessary because those fields are untouched.
   full race/shuffle suite, changed-package retest, Go lint, both API generators,
   CLI help, Markdown, and diff checks passed. No migration apply was run.
 * [ ] Backend deployed to dev; profile lookup and backfill verified there.
-* [ ] UI slice implemented, tested, verified in dev, merged.
+* [x] Frontend implemented and locally validated: API #291, tables #292, review
+  #293, and allocation chart in this PR. Table/review preview feedback applied.
+* [ ] UI deployed and verified against the dev backend, including persisted
+  owner/act-as flows and provider/backfill checks in §10.
 * [ ] Production backfill explicitly approved and observed.
 
-Next: after this follow-up PR lands, implement separate frontend sub-tasks and
-verify the visual spec and deployed-dev flows. Final merge
-to main and production backfill remain pending; production writes need a backup
-and explicit owner approval.
+Next: after the chart PR lands, deploy the feature to dev and complete §8/§10
+verification. Final feature merge to main and production backfill remain
+pending; production writes need a backup and explicit owner approval.
