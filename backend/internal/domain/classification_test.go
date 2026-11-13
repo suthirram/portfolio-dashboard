@@ -6,6 +6,7 @@ import (
 )
 
 func TestClassificationCurrentFor(t *testing.T) {
+	t.Parallel()
 	var missing *Classification
 	if missing.CurrentFor("TCS.NS") {
 		t.Error("nil classification reported current")
@@ -20,6 +21,7 @@ func TestClassificationCurrentFor(t *testing.T) {
 }
 
 func TestReuseSectorLabel(t *testing.T) {
+	t.Parallel()
 	existing := []string{"FMCG", "Technology"}
 	if got := ReuseSectorLabel("technology", existing); got != "Technology" {
 		t.Errorf("ReuseSectorLabel(technology) = %q, want the existing Technology", got)
@@ -30,6 +32,7 @@ func TestReuseSectorLabel(t *testing.T) {
 }
 
 func TestNormalizeSectorLabel(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name  string
 		label string

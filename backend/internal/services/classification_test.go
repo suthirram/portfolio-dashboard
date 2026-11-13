@@ -35,6 +35,7 @@ func (s *stubProfiles) LookupProfile(_ context.Context, symbol string) (CompanyP
 var classifiedAt = time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 
 func TestClassifyFromProfile(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name         string
 		holdingType  string
@@ -113,6 +114,7 @@ func TestClassifyFromProfile(t *testing.T) {
 }
 
 func TestSectorLabels_CurrentSectorsOnly(t *testing.T) {
+	t.Parallel()
 	holdings := []domain.Holding{
 		{Symbol: "TCS.NS", Classification: &domain.Classification{Symbol: "TCS.NS", Sector: "Technology"}},
 		{Symbol: "itc.ns", Classification: &domain.Classification{Symbol: "ITC.NS", Sector: "FMCG"}},
@@ -127,6 +129,7 @@ func TestSectorLabels_CurrentSectorsOnly(t *testing.T) {
 }
 
 func TestIdentityChanged(t *testing.T) {
+	t.Parallel()
 	base := domain.Holding{Symbol: "TCS.NS", Type: "stock", Script: "TCS", Notes: "a"}
 	testCases := []struct {
 		name  string
@@ -148,6 +151,7 @@ func TestIdentityChanged(t *testing.T) {
 }
 
 func TestClassificationToAPI(t *testing.T) {
+	t.Parallel()
 	classification := &domain.Classification{
 		Symbol: "ITC.NS", Status: "resolved", Source: "user", Sector: "FMCG",
 		ProviderSector: "Consumer Defensive", Industry: "Tobacco", SuggestedType: "stock", CheckedAt: classifiedAt,
@@ -212,6 +216,7 @@ func insertedClassification(t *testing.T, mt *mtest.T) bson.Raw {
 }
 
 func TestHoldingsService_Create_ClassifiesBeforeInsert(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 
 	mt.Run("Yahoo sector reuses the owner's spelling", func(mt *mtest.T) {
@@ -281,6 +286,7 @@ func TestHoldingsService_Create_ClassifiesBeforeInsert(t *testing.T) {
 }
 
 func TestHoldingsService_Update_Reclassification(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	renamed := bson.D{{Key: "symbol", Value: "ITC.NS"}, {Key: "status", Value: "resolved"}, {Key: "source", Value: "user"}, {Key: "sector", Value: "FMCG"}, {Key: "provider_sector", Value: "Consumer Defensive"}}
 

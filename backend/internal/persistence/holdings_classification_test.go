@@ -14,6 +14,7 @@ import (
 )
 
 func TestSetClassification_ComparesSymbolAndScopesToOwner(t *testing.T) {
+	t.Parallel()
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	classification := domain.Classification{Symbol: "TCS.NS", Status: "resolved", Source: "yahoo", Sector: "Technology", CheckedAt: time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)}
 
