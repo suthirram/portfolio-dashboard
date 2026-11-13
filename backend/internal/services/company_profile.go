@@ -76,11 +76,10 @@ var profileSymbolPattern = regexp.MustCompile(`^[A-Za-z0-9.\-^=_]{1,64}$`)
 // NormalizeProfileSymbol trims and upper-cases a ticker, rejecting control
 // characters and URL delimiters (DD-013 §3).
 func NormalizeProfileSymbol(symbol string) (string, error) {
-	trimmed := strings.TrimSpace(symbol)
-	if !profileSymbolPattern.MatchString(trimmed) {
+	if !profileSymbolPattern.MatchString(strings.TrimSpace(symbol)) {
 		return "", ErrInvalidSymbol
 	}
-	return strings.ToUpper(trimmed), nil
+	return domain.CanonicalSymbol(symbol), nil
 }
 
 type profileCacheEntry struct {

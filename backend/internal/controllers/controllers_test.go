@@ -180,7 +180,7 @@ func TestGetMarketProfile_ReturnsProfileAndCatalogue(t *testing.T) {
 	if got.Industry == nil || *got.Industry != "Information Technology Services" {
 		t.Errorf("Industry = %v", got.Industry)
 	}
-	if got.SuggestedType == nil || *got.SuggestedType != api.ProfileLookupSuggestedTypeStock {
+	if got.SuggestedType == nil || *got.SuggestedType != api.SuggestedStock {
 		t.Errorf("SuggestedType = %v, want stock", got.SuggestedType)
 	}
 }

@@ -16,7 +16,7 @@ import (
 
 // newIntegrationHandler builds a Controller backed by the mtest mock database.
 func newIntegrationHandler(mt *mtest.T, ps services.PriceFetcher) *Controller {
-	return newWithDeps(persistence.New(mt.DB), ps, nil, false)
+	return newWithDeps(persistence.New(mt.DB), ps, nil, nil, false)
 }
 
 // holdingDocument builds an INR stock holding document for mtest cursor
@@ -54,7 +54,7 @@ func addOpeningRecompute(mt *mtest.T, qty, avg float64, holding bson.D) {
 }
 
 func TestIntegration_GetHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, nil, false)
 
 	resp, err := h.GetHolding(userCtx(scopedUser()), api.GetHoldingRequestObject{Id: "not-an-object-id"})
 	if err != nil {
@@ -368,7 +368,7 @@ func TestIntegration_UpdateHolding_OptionalFieldsPersistedAndReturned(t *testing
 }
 
 func TestIntegration_UpdateHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, nil, false)
 
 	resp, err := h.UpdateHolding(userCtx(scopedUser()), api.UpdateHoldingRequestObject{
 		Id: "bad-id",
@@ -414,7 +414,7 @@ func TestIntegration_UpdateHolding_ReturnsNotFoundWhenNoDocumentMatched(t *testi
 }
 
 func TestIntegration_DeleteHolding_ReturnsNotFoundForInvalidID(t *testing.T) {
-	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, nil, false)
 
 	resp, err := h.DeleteHolding(userCtx(scopedUser()), api.DeleteHoldingRequestObject{Id: "bad-id"})
 	if err != nil {

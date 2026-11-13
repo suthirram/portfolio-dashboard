@@ -51,7 +51,7 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 	for _, tc := range tests {
 		mt.Run(tc.name, func(mt *mtest.T) {
 			successful(mt)
-			svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil)
+			svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil, nil)
 			_, found, err := svc.Update(context.Background(), uid, hid.Hex(), tc.input)
 			if err != nil {
 				t.Fatalf("update: %v", err)
@@ -67,7 +67,7 @@ func TestHoldingsService_Update_AppliesAllInputFields(t *testing.T) {
 // where the path-param can't be parsed as ObjectID — must read as 404, not
 // 500, so ids stay non-enumerable.
 func TestHoldingsService_Update_InvalidIDIsNotFound(t *testing.T) {
-	svc := NewHoldingsService(nil, nil, nil)
+	svc := NewHoldingsService(nil, nil, nil, nil)
 	_, found, err := svc.Update(context.Background(), primitive.NewObjectID(), "not-an-oid", api.HoldingInput{})
 	if err != nil {
 		t.Fatalf("update: %v", err)
@@ -85,7 +85,7 @@ func TestHoldingsService_Update_StoreNotFoundIsNotFound(t *testing.T) {
 	mt.Run("scoped update misses", func(mt *mtest.T) {
 		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}))
 
-		svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil)
+		svc := NewHoldingsService(persistence.New(mt.DB).Holdings, persistence.New(mt.DB).Transactions, nil, nil)
 		_, found, err := svc.Update(context.Background(), primitive.NewObjectID(), primitive.NewObjectID().Hex(), api.HoldingInput{
 			Script: "X", Exchange: "NSE", Type: "stock",
 		})
@@ -113,7 +113,7 @@ func TestHoldingsService_Update_SyncsLedgerCurrency(t *testing.T) {
 			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: int32(3)}, bson.E{Key: "nModified", Value: int32(3)}),
 		)
 		store := persistence.New(mt.DB)
-		service := NewHoldingsService(store.Holdings, store.Transactions, nil)
+		service := NewHoldingsService(store.Holdings, store.Transactions, nil, nil)
 		if _, found, err := service.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{
 			Script: "SAP", Exchange: "OTHER", Type: "stock", Currency: currency,
 		}); err != nil || !found {

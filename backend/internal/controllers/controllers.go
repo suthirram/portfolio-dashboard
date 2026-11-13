@@ -53,20 +53,20 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 // SameSite=Lax (local dev). Sourced from Config.CookieSecure; do not derive
 // from the request scheme.
 func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller {
-	controller := newWithDeps(persistence.New(db), services.NewPriceService(logger), logger, cookieSecure)
-	controller.profiles = services.NewCompanyProfileService(logger)
-	return controller
+	return newWithDeps(persistence.New(db), services.NewPriceService(logger), services.NewCompanyProfileService(logger), logger, cookieSecure)
 }
 
-// newWithDeps assembles the per-domain services around a pre-built store and
-// price service. Used by New and by tests that supply an in-memory mock store
-// or a stub price fetcher.
-func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
+// newWithDeps assembles the per-domain services around a pre-built store,
+// price service and profile fetcher. Used by New and by tests that supply an
+// in-memory mock store or stub fetchers; a nil profiles leaves new holdings
+// unclassified.
+func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, profiles services.ProfileFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
 	recomputer := services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger)
 	return &Controller{
 		store:        store,
 		priceService: priceService,
-		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, logger),
+		profiles:     profiles,
+		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, profiles, logger),
 		transactions: services.NewTransactionsService(store.Transactions, store.Holdings, recomputer, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		stockXirr:    services.NewStockXirrService(store.Holdings, store.Transactions, priceService, logger),
