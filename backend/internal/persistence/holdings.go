@@ -91,17 +91,18 @@ func (s *HoldingStore) UpdateScopedAndReturn(ctx context.Context, uid, id primit
 }
 
 // SetClassification stores classification on the holding owned by userId, but
-// only while its symbol is still symbol (compare-and-set), so a lookup that
-// raced a symbol change never overwrites the newer identity. Returns the
-// post-update holding, or ErrNotFound when no holding matched.
-func (s *HoldingStore) SetClassification(ctx context.Context, userId, id primitive.ObjectID, symbol string, classification domain.Classification) (domain.Holding, error) {
+// only while its symbol and type are still the ones the lookup was made for
+// (compare-and-set). A lookup that raced a symbol or type change never
+// overwrites the newer identity, so a stock sector cannot land on a fund.
+// Returns the post-update holding, or ErrNotFound when no holding matched.
+func (s *HoldingStore) SetClassification(ctx context.Context, userId, id primitive.ObjectID, symbol, holdingType string, classification domain.Classification) (domain.Holding, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	var out domain.Holding
 	err := s.col.FindOneAndUpdate(ctx,
-		scopedFilter(userId, bson.M{"_id": id, "symbol": symbol}),
+		scopedFilter(userId, bson.M{"_id": id, "symbol": symbol, "type": holdingType}),
 		bson.M{"$set": bson.M{"classification": classification}},
 		opts,
 	).Decode(&out)

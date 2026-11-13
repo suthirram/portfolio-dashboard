@@ -25,7 +25,7 @@ func TestSetClassification_ComparesSymbolAndScopesToOwner(t *testing.T) {
 			{Key: "classification", Value: bson.D{{Key: "symbol", Value: "TCS.NS"}, {Key: "status", Value: "resolved"}, {Key: "sector", Value: "Technology"}}},
 		}}))
 
-		got, err := New(mt.DB).Holdings.SetClassification(context.Background(), userId, holdingId, "TCS.NS", classification)
+		got, err := New(mt.DB).Holdings.SetClassification(context.Background(), userId, holdingId, "TCS.NS", "stock", classification)
 		if err != nil {
 			t.Fatalf("SetClassification: %v", err)
 		}
@@ -39,16 +39,20 @@ func TestSetClassification_ComparesSymbolAndScopesToOwner(t *testing.T) {
 		if symbol := command.Lookup("query", "symbol").StringValue(); symbol != "TCS.NS" {
 			t.Errorf("query symbol = %q, want TCS.NS", symbol)
 		}
+		// A lookup made for a stock must not land on a holding since changed to a fund.
+		if holdingType, ok := command.Lookup("query", "type").StringValueOK(); !ok || holdingType != "stock" {
+			t.Errorf("query type = %q, want stock", holdingType)
+		}
 		set, _ := command.Lookup("update", "$set").DocumentOK()
 		if elements, _ := set.Elements(); len(elements) != 1 || elements[0].Key() != "classification" {
 			t.Errorf("$set = %v, want only classification (no position fields)", set)
 		}
 	})
 
-	mt.Run("symbol changed meanwhile is ErrNotFound", func(mt *mtest.T) {
+	mt.Run("symbol or type changed meanwhile is ErrNotFound", func(mt *mtest.T) {
 		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "value", Value: nil}))
 
-		_, err := New(mt.DB).Holdings.SetClassification(context.Background(), primitive.NewObjectID(), primitive.NewObjectID(), "TCS.NS", classification)
+		_, err := New(mt.DB).Holdings.SetClassification(context.Background(), primitive.NewObjectID(), primitive.NewObjectID(), "TCS.NS", "stock", classification)
 		if !errors.Is(err, ErrNotFound) {
 			t.Errorf("err = %v, want ErrNotFound", err)
 		}

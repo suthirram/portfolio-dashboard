@@ -267,11 +267,11 @@ func (s *HoldingsService) Update(ctx context.Context, userId primitive.ObjectID,
 			logger.Error("reclassify holding failed", zap.String("id", idHex), zap.Error(err))
 			return api.Holding{}, false, err
 		}
-		reclassified, err := s.store.SetClassification(ctx, userId, id, updated.Symbol, *classification)
+		reclassified, err := s.store.SetClassification(ctx, userId, id, updated.Symbol, updated.Type, *classification)
 		switch {
 		case errors.Is(err, persistence.ErrNotFound):
-			// The symbol changed again meanwhile; that edit reclassifies.
-			logger.Info("holding reclassification skipped", zap.String("id", idHex), zap.String("outcome", "symbol_changed"))
+			// The symbol or type changed again meanwhile; that edit reclassifies.
+			logger.Info("holding reclassification skipped", zap.String("id", idHex), zap.String("outcome", "identity_changed"))
 		case err != nil:
 			logger.Error("store holding classification failed", zap.String("id", idHex), zap.Error(err))
 			return api.Holding{}, false, err

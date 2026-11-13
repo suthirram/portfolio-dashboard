@@ -200,6 +200,16 @@ func classifiedHoldingDoc(userId, holdingId primitive.ObjectID, symbol string, c
 	return doc
 }
 
+// withHoldingType sets the document's type field, e.g. to make an ETF.
+func withHoldingType(doc bson.D, holdingType string) bson.D {
+	for index := range doc {
+		if doc[index].Key == "type" {
+			doc[index].Value = holdingType
+		}
+	}
+	return doc
+}
+
 func insertedClassification(t *testing.T, mt *mtest.T) bson.Raw {
 	t.Helper()
 	for _, started := range mt.GetAllStartedEvents() {
@@ -344,6 +354,9 @@ func TestHoldingsService_Update_Reclassification(t *testing.T) {
 			if symbol := started.Command.Lookup("query", "symbol").StringValue(); symbol != "HINDUNILVR.NS" {
 				t.Errorf("compare-and-set symbol = %q, want HINDUNILVR.NS", symbol)
 			}
+			if holdingType, _ := started.Command.Lookup("query", "type").StringValueOK(); holdingType != "stock" {
+				t.Errorf("compare-and-set type = %q, want stock", holdingType)
+			}
 			if _, err := started.Command.LookupErr("query", "user_id"); err != nil {
 				t.Error("classification write is not owner-scoped")
 			}
@@ -353,6 +366,40 @@ func TestHoldingsService_Update_Reclassification(t *testing.T) {
 		}
 		if *got.Classification.Sector != "Consumer Defensive" || *got.Classification.Source != api.ClassificationSourceYahoo {
 			t.Errorf("classification = %+v, want Yahoo's Consumer Defensive", got.Classification)
+		}
+	})
+
+	mt.Run("type change reclassifies with compare-and-set on the new type", func(mt *mtest.T) {
+		userId, holdingId := primitive.NewObjectID(), primitive.NewObjectID()
+		profiles := &stubProfiles{profile: CompanyProfile{Status: ProfileFound, SuggestedType: "etf"}}
+		fundReview := bson.D{{Key: "symbol", Value: "NIFTYBEES.NS"}, {Key: "status", Value: "needs_review"}, {Key: "source", Value: "yahoo"}, {Key: "suggested_type", Value: "etf"}}
+		stock := classifiedHoldingDoc(userId, holdingId, "NIFTYBEES.NS", nil)
+		etf := withHoldingType(classifiedHoldingDoc(userId, holdingId, "NIFTYBEES.NS", nil), "etf")
+		reclassified := withHoldingType(classifiedHoldingDoc(userId, holdingId, "NIFTYBEES.NS", fundReview), "etf")
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch, stock),
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: etf}),
+			// No sector from Yahoo, so no owner-sector read before the write.
+			mtest.CreateSuccessResponse(bson.E{Key: "value", Value: reclassified}),
+		)
+		store := persistence.New(mt.DB)
+		service := NewHoldingsService(store.Holdings, store.Transactions, profiles, nil)
+
+		got, found, err := service.Update(context.Background(), userId, holdingId.Hex(), api.HoldingInput{Script: "Nifty BeES", Symbol: new("NIFTYBEES.NS"), Exchange: "NSE", Type: "etf"})
+		if err != nil || !found {
+			t.Fatalf("Update: found=%v err=%v", found, err)
+		}
+		var checkedType string
+		for _, started := range mt.GetAllStartedEvents() {
+			if _, err := started.Command.LookupErr("update", "$set", "classification"); started.CommandName == "findAndModify" && err == nil {
+				checkedType, _ = started.Command.Lookup("query", "type").StringValueOK()
+			}
+		}
+		if checkedType != "etf" {
+			t.Errorf("compare-and-set type = %q, want etf so a racing stock lookup cannot overwrite it", checkedType)
+		}
+		if got.Classification.Status != api.ClassificationStatusNeedsReview || got.Classification.Sector != nil {
+			t.Errorf("classification = %+v, want needs_review with no sector", got.Classification)
 		}
 	})
 
