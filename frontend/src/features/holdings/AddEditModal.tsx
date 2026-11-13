@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
-import type { Currency, Exchange, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
+import type { Currency, Exchange, Holding, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
+import ClassificationReview from './ClassificationReview'
+import ProfilePreview from './ProfilePreview'
+import { classificationBucket } from './classification'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import { CheckIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
 import { currencySymbol } from '../../lib/currency'
 
 const EXCHANGES: Exchange[] = ['NSE', 'BSE', 'NYSE', 'NASDAQ', 'OTHER']
-const TYPES: HoldingType[] = ['stock', 'etf']
+const TYPES: HoldingType[] = ['stock', 'etf', 'mutual_fund']
 
 const CURRENCIES: Currency[] = ['INR', 'EUR']
 
@@ -36,7 +41,7 @@ interface LivePrice {
 }
 
 const INPUT: CSSProperties = {
-  width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
+  width: '100%', minWidth: 0, background: 'var(--bg-input)', border: '1px solid var(--border)',
   borderRadius: 'var(--radius-sm)', padding: '8px 12px', color: 'var(--text-primary)',
   outline: 'none', transition: 'border-color 0.15s',
 }
@@ -46,18 +51,24 @@ const ROW2: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', g
 interface AddEditModalProps {
   holding: HoldingWithPrice | null
   onClose: () => void
-  onSaved: () => void
+  onSaved: (holding?: Holding) => void
+  onPersisted?: () => void
+  ownerHoldings?: Holding[]
   /** Admin act-as: save into this user's portfolio instead of the caller's. */
   userId?: string
 }
 
-export default function AddEditModal({ holding, onClose, onSaved, userId }: AddEditModalProps) {
+export default function AddEditModal({ holding, onClose, onSaved, userId, ownerHoldings = [], onPersisted }: AddEditModalProps) {
   const isEdit = Boolean(holding)
   const [form, setForm] = useState<FormState>(empty)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [lookupLoading, setLookupLoading] = useState(false)
   const [livePrice, setLivePrice] = useState<LivePrice | null>(null)
+  const [savedHolding, setSavedHolding] = useState<Holding | null>(null)
+  const root = useRef<HTMLDivElement>(null)
+  const returnFocus = useRef(document.activeElement as HTMLElement | null)
+  useDialogFocus(root, () => { if (!loading) onClose() }, !savedHolding, returnFocus.current)
 
   useEffect(() => {
     if (holding) {
@@ -78,8 +89,8 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
     setLivePrice(null)
   }, [holding])
 
-  const set = (k: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (key: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(previousForm => ({ ...previousForm, [key]: e.target.value }))
 
   const handleLookup = async () => {
     if (!form.symbol) return
@@ -125,12 +136,11 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
         currency: form.currency,
         notes: form.notes.trim(),
       }
-      if (holding && holding.id) {
-        await api.updateHolding(holding.id, payload, userId)
-      } else {
-        await api.createHolding(payload, userId)
-      }
-      onSaved()
+      const saved = holding?.id ? await api.updateHolding(holding.id, payload, userId) : await api.createHolding(payload, userId)
+      onPersisted?.()
+      const reviewRequested = (e.nativeEvent as SubmitEvent).submitter?.getAttribute('name') === 'reviewClassification'
+      if (saved?.id && (classificationBucket(saved).key === 'needs_review' || reviewRequested)) setSavedHolding(saved)
+      else onSaved(saved)
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
@@ -138,18 +148,22 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
     }
   }
 
-  return (
+  if (savedHolding) return <ClassificationReview holding={savedHolding} ownerHoldings={ownerHoldings} userId={userId}
+    onClose={() => onSaved(savedHolding)} onConfirmed={updated => onSaved(updated)} restoreFocusTo={returnFocus.current} />
+
+  return createPortal(
     <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card" style={{
+      padding: 12,
+    }} onClick={(e) => { if (!loading && e.target === e.currentTarget) onClose() }}>
+      <div ref={root} role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Holding' : 'Add Holding'} tabIndex={-1} className="modal-card holding-form-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 520,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>{isEdit ? 'Edit Holding' : 'Add Holding'}</h2>
-          <button onClick={onClose} style={{ background: 'none', color: 'var(--text-muted)', fontSize: 20, padding: '0 4px' }}>✕</button>
+          <button onClick={onClose} aria-label="Close holding form" disabled={loading} style={{ background: 'none', color: 'var(--text-muted)', fontSize: 20, padding: '0 4px' }}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -157,13 +171,13 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
 
             <div style={ROW2}>
               <div>
-                <label style={LABEL}>Script Name *</label>
-                <input style={INPUT} value={form.script} onChange={set('script')} placeholder="e.g. TCS, GOLD BEES" />
+                <label htmlFor="holding-script" style={LABEL}>Script Name *</label>
+                <input id="holding-script" style={INPUT} value={form.script} onChange={set('script')} placeholder="e.g. TCS, GOLD BEES" />
               </div>
               <div>
-                <label style={LABEL}>Yahoo Symbol</label>
+                <label htmlFor="holding-symbol" style={LABEL}>Yahoo Symbol</label>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')} placeholder="e.g. TCS.NS, AAPL" />
+                  <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')} placeholder="e.g. TCS.NS, AAPL" />
                   <button type="button" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '0 10px', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap' }}>
                     {lookupLoading ? '…' : 'Test'}
@@ -183,23 +197,24 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+            <ProfilePreview symbol={form.symbol} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
               <div>
-                <label style={LABEL}>Exchange</label>
-                <select style={{ ...INPUT, cursor: 'pointer' }} value={form.exchange} onChange={set('exchange')}>
-                  {EXCHANGES.map(e => <option key={e} value={e}>{e}</option>)}
+                <label htmlFor="holding-exchange" style={LABEL}>Exchange</label>
+                <select id="holding-exchange" style={{ ...INPUT, cursor: 'pointer' }} value={form.exchange} onChange={set('exchange')}>
+                  {EXCHANGES.map(exchange => <option key={exchange} value={exchange}>{exchange}</option>)}
                 </select>
               </div>
               <div>
-                <label style={LABEL}>Type</label>
-                <select style={{ ...INPUT, cursor: 'pointer' }} value={form.type} onChange={set('type')}>
-                  {TYPES.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                <label htmlFor="holding-type" style={LABEL}>Type</label>
+                <select id="holding-type" style={{ ...INPUT, cursor: 'pointer' }} value={form.type} onChange={set('type')}>
+                  {TYPES.map(holdingType => <option key={holdingType} value={holdingType}>{holdingType === 'mutual_fund' ? 'Mutual fund' : holdingType.toUpperCase()}</option>)}
                 </select>
               </div>
               <div>
-                <label style={LABEL}>Currency</label>
-                <select style={{ ...INPUT, cursor: 'pointer' }} value={form.currency} onChange={set('currency')}>
-                  {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                <label htmlFor="holding-currency" style={LABEL}>Currency</label>
+                <select id="holding-currency" style={{ ...INPUT, cursor: 'pointer' }} value={form.currency} onChange={set('currency')}>
+                  {CURRENCIES.map(currency => <option key={currency} value={currency}>{currency}</option>)}
                 </select>
               </div>
             </div>
@@ -227,33 +242,34 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
                 <div style={ROW2}>
                   <div>
                     <label style={LABEL}>Shares Owned</label>
-                    <DecimalInput style={INPUT} value={form.stocks_owned} onValueChange={value => setForm(f => ({ ...f, stocks_owned: value }))} placeholder="0" />
+                    <DecimalInput style={INPUT} value={form.stocks_owned} onValueChange={value => setForm(previousForm => ({ ...previousForm, stocks_owned: value }))} placeholder="0" />
                   </div>
                   <div>
                     <label style={LABEL}>Avg Cost Price ({currencySymbol(form.currency)})</label>
-                    <DecimalInput style={INPUT} value={form.avg_cost_price} onValueChange={value => setForm(f => ({ ...f, avg_cost_price: value }))} placeholder="0.00" />
+                    <DecimalInput style={INPUT} value={form.avg_cost_price} onValueChange={value => setForm(previousForm => ({ ...previousForm, avg_cost_price: value }))} placeholder="0.00" />
                   </div>
                 </div>
 
                 <div>
                   <label style={LABEL}>Realised P&L ({currencySymbol(form.currency)})</label>
-                  <DecimalInput style={INPUT} value={form.realized_pnl} allowNegative onValueChange={value => setForm(f => ({ ...f, realized_pnl: value }))} placeholder="Profit/loss from shares already sold" />
+                  <DecimalInput style={INPUT} value={form.realized_pnl} allowNegative onValueChange={value => setForm(previousForm => ({ ...previousForm, realized_pnl: value }))} placeholder="Profit/loss from shares already sold" />
                 </div>
               </>
             )}
 
             <div>
-              <label style={LABEL}>Notes</label>
-              <textarea style={{ ...INPUT, resize: 'vertical', minHeight: 60 }} value={form.notes} onChange={set('notes')} placeholder="Optional notes…" />
+              <label htmlFor="holding-notes" style={LABEL}>Notes</label>
+              <textarea id="holding-notes" style={{ ...INPUT, resize: 'vertical', minHeight: 60 }} value={form.notes} onChange={set('notes')} placeholder="Optional notes…" />
             </div>
           </div>
 
           {err && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 10 }}>{err}</div>}
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 22 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end', marginTop: 22 }}>
             <button type="button" onClick={onClose} className="btn btn-lg">
               Cancel
             </button>
+            {isEdit && <button type="submit" name="reviewClassification" className="btn btn-lg" disabled={loading}>Save and review classification</button>}
             <button type="submit" disabled={loading} className="btn-primary btn-lg"
               style={{ opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Saving…' : isEdit ? 'Update' : 'Add Holding'}
@@ -261,6 +277,6 @@ export default function AddEditModal({ holding, onClose, onSaved, userId }: AddE
           </div>
         </form>
       </div>
-    </div>
+    </div>, document.body
   )
 }

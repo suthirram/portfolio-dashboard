@@ -47,7 +47,7 @@ end. Backend and UI sub-tasks stay in separate PRs.
 | 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply (merged, #288) | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
 | 4b | `fix/PD-056-backend-followup` | Session stop, runbook, decisions, test audit (merged, #290) | Holding saves remain available | Resume interrupted batches | Session recovery and backfill tests |
 | 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls (merged, #291) | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
-| 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
+| 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity (merged, #292) | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
 | 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
 | 8 | `feat/PD-056-sector-ui-chart` | Sector allocation, legend and navigation; visual verification | Existing charts retained | Inspect concentration and jump to a sector | Allocation/denominator/navigation tests and browser checks |
 
@@ -250,13 +250,23 @@ DashboardPage, and tests listed in §3.
 
 * [ ] Branch each `feat/PD-056-sector-ui-*` sub-task from the current feature
   branch after its backend prerequisites land; target the feature branch.
-* [ ] Regenerate TS and wire profile preview and scoped confirmation methods.
+* [x] Regenerate TS and wire profile preview and scoped confirmation methods.
   Implement stale-response protection and preserve entered data on failure.
   API slice: generated types and client calls are implemented; 10 routing/API
   tests pass, including act-as, encoded symbols, CSRF and confirmation errors.
-  Preview state handling ships in the review slice.
-* [ ] Implement the accessible confirmation/review flow with an explicit
+  Review slice adds 350 ms debounce, stale-response suppression, provider-error
+  fallback, and retained form input on save/confirmation errors.
+* [x] Implement the accessible confirmation/review flow with an explicit
   Review later path, no duplicate creation, and act-as target routing.
+  Queue includes nil holdings. Existing classifications can be renamed via
+  Save and review classification. Unit and Chrome fixture checks passed for
+  own/act-as, owner-only labels, post-save fund confirmation, keyboard focus
+  trapping/restoration, all themes, and 1440/390/320 px. Typecheck, ESLint,
+  566 frontend tests and build pass, including reopening an explicitly
+  unclassified stock without restoring Yahoo's sector. Live dev verification
+  remains pending.
+* [x] Owner reviewed the local preview and approved tighter column spacing and
+  a right-aligned By holding / By sector switch (2026-11-13).
 * [x] Add text sector badges and By holding / By sector layouts, with separate
   sector headings and rounded tables based on the owner's reference. Retain
   existing active/all/nil navigation and clearly labelled currency/group totals.

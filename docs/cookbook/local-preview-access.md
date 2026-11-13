@@ -92,3 +92,29 @@ and reachable actions. Desktop and narrow screenshots were inspected. The
 reference visual's chart navigation, Review later, fund confirmation, narrow
 dialog and Escape dismissal also passed. These checks used fictional API
 responses, not a real database or deployed dev stack.
+
+The subsequent review check found the dashboard Add Holding button lost its
+accessible name on narrow screens: its label span is hidden by responsive CSS
+and its icon is aria-hidden. An explicit `aria-label="Add Holding"` preserves
+the name at every width. The review browser check locates it by role/name at
+320 px, so it exercises the same control keyboard and screen-reader users use.
+
+Review verification subsequently passed for own and act-as flows, including
+debounced stale-response handling, explicit post-save fund confirmation without
+duplicate creation, owner-only label suggestions, focus trapping/restoration,
+and all themes at 1440/390/320 px. The act-as fixture must return the requested
+target's id from its user endpoint; returning the caller's id caused an initial
+route assertion failure in the fixture, corrected without changing app routing.
+Preview uses fictional in-memory data; this does not verify deployed auth or
+database persistence. The owner reviewed the local preview and requested
+tighter columns and a right-aligned layout switch; both adjustments were applied.
+
+Settled screenshot inspection then found that a dialog could be focusable yet
+outside the viewport. Legacy page effects and the glass shell's transformed
+containers establish a containing block for fixed-position descendants. The
+holding form and classification dialog now use React portals to `document.body`,
+escaping those containers while retaining the existing theme selectors and
+focus behavior. Browser checks now assert the dialog's full bounding rectangle
+fits the viewport; focusability alone is insufficient evidence of visibility.
+Narrow screenshots in both UI modes were inspected after entry animations
+finished. No database or deployment changes were needed.
