@@ -272,7 +272,7 @@ func (s *CompanyProfileService) fetchOnce(ctx context.Context, symbol string) (C
 	}
 	query := url.Values{"modules": {"assetProfile,quoteType"}, "crumb": {session.crumb}}
 	endpoint := s.summaryURL + url.PathEscape(symbol) + "?" + query.Encode()
-	resp, err := s.get(ctx, session.client, endpoint)
+	resp, err := s.get(ctx, session.client, endpoint, "application/json")
 	if err != nil {
 		return CompanyProfile{}, err
 	}
@@ -379,7 +379,7 @@ func (s *CompanyProfileService) currentSession(ctx context.Context) (*yahooSessi
 	client := &http.Client{Transport: s.transport, Jar: jar, CheckRedirect: s.checkRedirect}
 	// fc.yahoo.com answers an error status while still setting the cookie, so
 	// its status is ignored, except 429; its body is never read.
-	resp, err := s.get(ctx, client, s.cookieURL)
+	resp, err := s.get(ctx, client, s.cookieURL, "*/*")
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func (s *CompanyProfileService) currentSession(ctx context.Context) (*yahooSessi
 		s.pause(resp.Header.Get("Retry-After"))
 		return nil, errRateLimited
 	}
-	resp, err = s.get(ctx, client, s.crumbURL)
+	resp, err = s.get(ctx, client, s.crumbURL, "*/*")
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,9 @@ func (s *CompanyProfileService) dropSession(session *yahooSession) {
 // get issues a GET after checking the URL against the host allowlist. Every
 // outbound request passes here, so the 429 pause is enforced in one place:
 // lookups queued behind a session refresh, or between steps, send nothing.
-func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, rawURL string) (*http.Response, error) {
+// accept is the Accept header: the crumb is plain text and is refused (406)
+// when only JSON is acceptable.
+func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, rawURL, accept string) (*http.Response, error) {
 	if s.paused() {
 		return nil, errRateLimited
 	}
@@ -449,7 +451,7 @@ func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, ra
 		return nil, err
 	}
 	req.Header.Set("User-Agent", yahooUserAgent)
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", accept)
 	resp, err := client.Do(req)
 	if err != nil {
 		// The error text can carry the URL (and with it the crumb), so only
