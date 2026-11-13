@@ -39,7 +39,9 @@
     .group-heading .group-value { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
     .sector-group .card { box-shadow: none; border-radius: 16px; background: #151e3070; }
     .dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--muted); margin-right: 7px; }
-    .technology { background: var(--tech); } .financial_services { background: var(--finance); } .etf { background: var(--fund); } .needs_review { background: var(--amber); }
+    .etf { background: var(--fund); } .needs_review { background: var(--amber); }
+    .renamed { color: var(--muted); font-size: 11px; }
+    dialog input { width: 100%; background: #101a2c; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; color: var(--ink); font: inherit; }
     .table-wrap { overflow: auto; }
     table { width: 100%; min-width: 1860px; table-layout: fixed; border-collapse: collapse; text-align: right; white-space: nowrap; }
     .currency-summary { display: flex; flex-wrap: wrap; gap: 24px; padding: 18px 22px; margin: 16px 0 24px; }
@@ -78,7 +80,7 @@
     .foot { display: flex; justify-content: space-between; gap: 12px; padding: 15px 22px; color: var(--muted); font-size: 11px; }
     .chart-card { padding: 26px; }
     .chart-layout { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 45px; padding: 30px 0; }
-    .donut { width: 248px; height: 248px; border-radius: 50%; margin: auto; position: relative; background: conic-gradient(var(--tech) 0 42%, var(--finance) 42% 70%, var(--fund) 70% 90%, var(--amber) 90% 100%); }
+    .donut { width: 248px; height: 248px; border-radius: 50%; margin: auto; position: relative; background: var(--line); }
     .donut::before { content: ''; position: absolute; inset: 24px; border-radius: 50%; background: #172136; }
     .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .center strong { font-size: 28px; font-weight: 550; }
@@ -137,11 +139,11 @@
       <div class="card" id="flat-holdings" hidden>
         <div class="table-wrap"><table><colgroup><col style="width:220px"><col style="width:80px"><col style="width:130px"><col style="width:130px"><col style="width:150px"><col style="width:150px"><col style="width:130px"><col style="width:160px"><col style="width:140px"><col style="width:130px"><col style="width:110px"><col style="width:230px"></colgroup><thead><tr><th>Script</th><th>Shares</th><th>Cost Price</th><th>Avg Cost/Sh</th><th>Share Price</th><th>Current Value</th><th>Day Gain</th><th>Unrealised Gain</th><th>Realised Gain</th><th>Dividends</th><th>XIRR</th><th>Actions</th></tr></thead>
           <tbody id="rows">
-            <tr data-category="technology" data-value="300000" data-invested="260000"><td><strong>TCS</strong><span class="symbol">TCS.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>75</td><td>₹2,60,000</td><td>₹3,00,000</td><td class="positive">+₹40,000</td><td><button aria-label="Edit TCS">Edit</button></td></tr>
-            <tr data-category="technology" data-value="120000" data-invested="100000"><td><strong>Infosys</strong><span class="symbol">INFY.NS</span><span class="classification"><i class="dot technology"></i>Technology</span></td><td>80</td><td>₹1,00,000</td><td>₹1,20,000</td><td class="positive">+₹20,000</td><td><button aria-label="Edit Infosys">Edit</button></td></tr>
-            <tr data-category="financial_services" data-value="280000" data-invested="245000"><td><strong>HDFC Bank</strong><span class="symbol">HDFCBANK.NS</span><span class="classification"><i class="dot financial_services"></i>Financial Services</span></td><td>160</td><td>₹2,45,000</td><td>₹2,80,000</td><td class="positive">+₹35,000</td><td><button aria-label="Edit HDFC Bank">Edit</button></td></tr>
-            <tr data-category="etf" data-value="200000" data-invested="170000"><td><strong>Nifty ETF</strong><span class="symbol">EXAMPLE-ETF</span><span class="classification"><i class="dot etf"></i>ETF · Confirmed</span></td><td>800</td><td>₹1,70,000</td><td>₹2,00,000</td><td class="positive">+₹30,000</td><td><button aria-label="Edit Nifty ETF">Edit</button></td></tr>
-            <tr data-category="needs_review" data-value="100000" data-invested="90000" id="pending-row"><td><strong>Example holding</strong><span class="symbol">EXAMPLE</span><span class="classification" id="pending-badge"><i class="dot needs_review"></i>Needs review</span></td><td>400</td><td>₹90,000</td><td>₹1,00,000</td><td class="positive">+₹10,000</td><td><button id="row-review">Review</button></td></tr>
+            <tr data-category="Technology" data-provider="Technology" data-value="300000" data-invested="260000"><td><strong>TCS</strong><span class="symbol">TCS.NS</span><span class="classification sector-badge"></span></td><td>75</td><td>₹2,60,000</td><td>₹3,00,000</td><td class="positive">+₹40,000</td><td><button aria-label="Edit TCS">Edit</button></td></tr>
+            <tr data-category="Technology" data-provider="Technology" data-value="120000" data-invested="100000"><td><strong>Infosys</strong><span class="symbol">INFY.NS</span><span class="classification sector-badge"></span></td><td>80</td><td>₹1,00,000</td><td>₹1,20,000</td><td class="positive">+₹20,000</td><td><button aria-label="Edit Infosys">Edit</button></td></tr>
+            <tr data-category="Financial Services" data-provider="Financial Services" data-value="280000" data-invested="245000"><td><strong>HDFC Bank</strong><span class="symbol">HDFCBANK.NS</span><span class="classification sector-badge"></span></td><td>160</td><td>₹2,45,000</td><td>₹2,80,000</td><td class="positive">+₹35,000</td><td><button aria-label="Edit HDFC Bank">Edit</button></td></tr>
+            <tr data-category="etf" data-value="200000" data-invested="170000"><td><strong>Nifty ETF</strong><span class="symbol">EXAMPLE-ETF</span><span class="classification sector-badge"></span></td><td>800</td><td>₹1,70,000</td><td>₹2,00,000</td><td class="positive">+₹30,000</td><td><button aria-label="Edit Nifty ETF">Edit</button></td></tr>
+            <tr data-category="needs_review" data-value="100000" data-invested="90000" id="pending-row"><td><strong>Example holding</strong><span class="symbol">EXAMPLE</span><span class="classification sector-badge" id="pending-badge"></span></td><td>400</td><td>₹90,000</td><td>₹1,00,000</td><td class="positive">+₹10,000</td><td><button id="row-review">Review</button></td></tr>
           </tbody></table></div>
         <div class="foot"><span>5 holdings shown</span><span>Portfolio totals above include all sectors.</span></div>
       </div>
@@ -151,28 +153,24 @@
       <div class="card chart-card">
         <div class="title-row"><div><div class="eyebrow">Portfolio composition</div><h2>Where your money is invested</h2><span class="small">Current market value · active holdings</span></div><label style="margin:0">Currency <select aria-label="Chart currency"><option>INR · Indian Rupee</option></select></label></div>
         <div class="chart-layout"><div class="donut" role="img" aria-label="Sector allocation; exact values in the adjacent legend"><div class="center"><span class="small">Priced holdings</span><strong>₹10.0L</strong><span class="small">5 holdings</span></div></div>
-          <div aria-label="Allocation values">
-            <button class="legend-row" data-target="technology"><span><i class="dot technology"></i>Technology<br><span class="small">2 holdings</span></span><span><strong>42.0%</strong><br><span class="small">₹4,20,000</span></span></button>
-            <button class="legend-row" data-target="financial_services"><span><i class="dot financial_services"></i>Financial Services<br><span class="small">1 holding</span></span><span><strong>28.0%</strong><br><span class="small">₹2,80,000</span></span></button>
-            <button class="legend-row" data-target="etf"><span><i class="dot etf"></i>ETFs<br><span class="small">1 holding · underlying sectors not included</span></span><span><strong>20.0%</strong><br><span class="small">₹2,00,000</span></span></button>
-            <button class="legend-row" data-target="needs_review"><span><i class="dot needs_review"></i>Needs review<br><span class="small">1 holding</span></span><span><strong>10.0%</strong><br><span class="small">₹1,00,000</span></span></button>
-          </div>
+          <div aria-label="Allocation values" id="legend"></div>
         </div>
         <div class="note">Funds are grouped by asset type. This view does not split a fund into its underlying company sectors. Select a category to explore its holdings.</div>
       </div>
     </section>
-    <p class="notice">This is an additive layout reference for the existing dashboard, not its replacement. Production retains all existing hero/cards, refresh, themes, search, sorting, price warnings, actions and responsive behavior. Preview interactions: switch layout, open Charts, select a category, or review a holding. Search, row actions, position-view and other chart controls are visual references only. All amounts, FX (₹100/€), and XIRRs are fictional; scroll tables horizontally for all existing columns.</p>
+    <p class="notice">This is an additive layout reference for the existing dashboard, not its replacement. Production retains all existing hero/cards, refresh, themes, search, sorting, price warnings, actions and responsive behavior. Preview interactions: switch layout, open Charts, select a category, review a holding, or Edit a row to rename its sector (the rename stays on that holding; a new label forms its own group, and the same text in any case joins the existing one). There is no fixed sector list: groups, colors and the legend come from the holdings' own labels. Search, row actions, position-view and other chart controls are visual references only. All amounts, FX (₹100/€), and XIRRs are fictional; scroll tables horizontally for all existing columns.</p>
   </main>
   <dialog id="review-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description">
     <form method="dialog" id="confirm-form">
       <div class="eyebrow">Complete your portfolio picture</div>
       <h2 id="dialog-title">What kind of holding is this?</h2>
       <p id="dialog-description">A sector wasn't available. Confirm the type, or leave it for later.</p>
-      <div class="holding-tile"><strong>Example holding</strong><br><span class="small">EXAMPLE · No sector found</span></div>
+      <div class="holding-tile"><strong id="dialog-script">Example holding</strong><br><span class="small" id="dialog-provider">EXAMPLE · No sector found</span></div>
       <label>Holding type</label>
       <div class="types" aria-label="Holding type"><button type="button" data-type="stock" aria-pressed="true">Stock</button><button type="button" data-type="etf" aria-pressed="false">ETF</button><button type="button" data-type="mutual_fund" aria-pressed="false">Mutual fund</button></div>
-      <div id="sector-field"><label for="sector">Sector</label><select id="sector"><option value="unclassified">Unclassified stock</option><option value="technology">Technology</option><option value="financial_services">Financial Services</option></select></div>
-      <p class="small" id="confirmation-note">Your confirmation is saved with the holding and kept during future lookups.</p>
+      <div id="sector-field"><label for="sector">Sector</label><input id="sector" list="sector-options" maxlength="60" autocomplete="off" placeholder="Pick one of your sectors or type a new one" aria-describedby="sector-help"><datalist id="sector-options"></datalist>
+        <p class="small" id="sector-help">Suggestions are the sectors already on your holdings. Leave empty for an unclassified stock.</p></div>
+      <p class="small" id="confirmation-note">Saved on this holding only. Your other holdings, and other people's holdings of the same symbol, keep their own sector.</p>
       <div class="actions"><button value="later">Review later</button><button class="primary" value="confirm">Confirm classification</button></div>
     </form>
   </dialog>
@@ -186,7 +184,36 @@
       byId('charts-tab').setAttribute('aria-pressed', String(view === 'charts'))
     }
     const holdingRows = Array.from(document.querySelectorAll('#rows tr'))
-    const categoryLabels = { technology: 'Technology', financial_services: 'Financial Services', etf: 'ETFs', needs_review: 'Needs review' }
+    // There is no fixed sector list: sectors are the labels on the holdings
+    // (Yahoo's text or the owner's own). Only these asset-type buckets are fixed.
+    const bucketLabels = { etf: 'ETFs', mutual_fund: 'Mutual funds', unclassified: 'Unclassified stocks', needs_review: 'Needs review' }
+    const badgeLabels = { etf: 'ETF · Confirmed', mutual_fund: 'Mutual fund · Confirmed', unclassified: 'Unclassified stock', needs_review: 'Needs review' }
+    const palette = ['#a698ff', '#6ed4c6', '#f2a7c3', '#9fd67a', '#f6b26b', '#7cc8f2', '#d8c27a', '#c9a0ff']
+    const fold = label => label.toLocaleLowerCase()
+    const isBucket = category => Object.hasOwn(bucketLabels, category)
+    const categoryLabel = category => bucketLabels[category] || category
+    const groupId = category => 'group-' + fold(category).replace(/[^a-z0-9]+/g, '-')
+    // A stable color per label (hash of the case-folded text), so the same
+    // sector keeps its color without anyone maintaining a palette per sector.
+    function sectorColor(label) {
+      let hash = 0
+      for (const char of fold(label)) hash = (hash * 31 + char.codePointAt(0)) >>> 0
+      return palette[hash % palette.length]
+    }
+    function paintDot(dot, category) {
+      dot.className = 'dot' + (category === 'needs_review' ? ' needs_review' : category === 'etf' || category === 'mutual_fund' ? ' etf' : '')
+      dot.style.background = isBucket(category) ? '' : sectorColor(category)
+    }
+    const inCategory = (row, category) => isBucket(category) ? row.dataset.category === category : !isBucket(row.dataset.category) && fold(row.dataset.category) === fold(category)
+    // The owner's sectors: distinct labels on their holdings, case-insensitive,
+    // first spelling wins; asset-type buckets follow when any holding uses them.
+    function categories() {
+      const sectors = new Map()
+      for (const row of holdingRows) {
+        if (!isBucket(row.dataset.category) && !sectors.has(fold(row.dataset.category))) sectors.set(fold(row.dataset.category), row.dataset.category)
+      }
+      return [...sectors.values(), ...Object.keys(bucketLabels).filter(bucket => holdingRows.some(row => row.dataset.category === bucket))]
+    }
     const money = amount => (amount < 0 ? '−' : '') + '₹' + Math.abs(amount).toLocaleString('en-IN')
     const sampleMetrics = [
       { day: 1500, real: 6000, dividends: 3000, xirr: '13.2%*', exchange: 'NSE', type: 'STOCK' },
@@ -261,25 +288,27 @@
       return footer
     }
     byId('flat-holdings').querySelector('table').append(totalsFooter(holdingRows, 'Overall total'))
+    let groupedLayout = true
     function setGrouping(grouped) {
+      groupedLayout = grouped
       // Move the same rows between layouts so review controls retain their state.
       holdingRows.forEach(row => byId('rows').append(row))
       byId('sector-groups').replaceChildren()
       if (grouped) {
-        for (const [category, label] of Object.entries(categoryLabels)) {
-          const rows = holdingRows.filter(row => row.dataset.category === category)
-          if (!rows.length) continue
+        for (const category of categories()) {
+          const label = categoryLabel(category)
+          const rows = holdingRows.filter(row => inCategory(row, category))
           const section = document.createElement('section')
           section.className = 'sector-group'
-          section.id = 'group-' + category
+          section.id = groupId(category)
           section.tabIndex = -1
-          section.setAttribute('aria-labelledby', 'heading-' + category)
+          section.setAttribute('aria-labelledby', 'heading-' + section.id)
           const heading = document.createElement('div')
           heading.className = 'group-heading'
           const title = document.createElement('h3')
-          title.id = 'heading-' + category
+          title.id = 'heading-' + section.id
           const dot = document.createElement('i')
-          dot.className = 'dot ' + category
+          paintDot(dot, category)
           const count = document.createElement('span')
           count.className = 'count'
           count.textContent = rows.length + (rows.length === 1 ? ' holding' : ' holdings')
@@ -305,31 +334,115 @@
       byId('sector-groups').hidden = !grouped
       byId('by-holding').setAttribute('aria-pressed', String(!grouped))
       byId('by-sector').setAttribute('aria-pressed', String(grouped))
-      byId('group-description').textContent = grouped ? '5 holdings across 4 groups' : '5 holdings'
+      byId('group-description').textContent = holdingRows.length + ' holdings' + (grouped ? ' across ' + categories().length + ' groups' : '')
+    }
+    function renderBadges() {
+      for (const row of holdingRows) {
+        const badge = row.querySelector('.sector-badge')
+        const category = row.dataset.category
+        const dot = document.createElement('i')
+        paintDot(dot, category)
+        badge.replaceChildren(dot, document.createTextNode(badgeLabels[category] || category))
+        // A rename lives on this holding only; show what Yahoo said.
+        if (!isBucket(category) && row.dataset.provider && fold(row.dataset.provider) !== fold(category)) {
+          const renamed = document.createElement('span')
+          renamed.className = 'renamed'
+          renamed.textContent = ' · Yahoo: ' + row.dataset.provider
+          badge.append(renamed)
+        }
+      }
+      const pending = holdingRows.filter(row => row.dataset.category === 'needs_review').length
+      byId('review-label').textContent = pending ? pending + (pending === 1 ? ' holding needs' : ' holdings need') + ' a closer look' : 'Every holding is classified'
+    }
+    function renderLegend() {
+      const total = holdingRows.reduce((sum, row) => sum + Number(row.dataset.value), 0)
+      const segments = []
+      let start = 0
+      byId('legend').replaceChildren(...categories().map(category => {
+        const rows = holdingRows.filter(row => inCategory(row, category))
+        const value = rows.reduce((sum, row) => sum + Number(row.dataset.value), 0)
+        const share = value / total * 100
+        const dot = document.createElement('i')
+        paintDot(dot, category)
+        segments.push(`${dot.style.background || getComputedStyle(document.documentElement).getPropertyValue(category === 'needs_review' ? '--amber' : category === 'unclassified' ? '--muted' : '--fund')} ${start}% ${start + share}%`)
+        start += share
+        const button = document.createElement('button')
+        button.className = 'legend-row'
+        button.dataset.target = category
+        const name = document.createElement('span')
+        const detail = document.createElement('span')
+        detail.className = 'small'
+        detail.textContent = rows.length + (rows.length === 1 ? ' holding' : ' holdings') + (category === 'etf' || category === 'mutual_fund' ? ' · underlying sectors not included' : '')
+        name.append(dot, categoryLabel(category), document.createElement('br'), detail)
+        const amount = document.createElement('span')
+        const percent = document.createElement('strong')
+        percent.textContent = share.toFixed(1) + '%'
+        const valueText = document.createElement('span')
+        valueText.className = 'small'
+        valueText.textContent = '₹' + value.toLocaleString('en-IN')
+        amount.append(percent, document.createElement('br'), valueText)
+        button.append(name, amount)
+        button.onclick = () => {
+          showView('holdings')
+          setGrouping(true)
+          const group = byId(groupId(category))
+          group.focus({ preventScroll: true })
+          group.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
+        }
+        return button
+      }))
+      document.querySelector('.donut').style.background = `conic-gradient(${segments.join(', ')})`
+    }
+    function renderAll() {
+      renderBadges()
+      setGrouping(groupedLayout)
+      renderLegend()
     }
     byId('holdings-tab').onclick = () => showView('holdings')
     byId('charts-tab').onclick = () => showView('charts')
     byId('by-holding').onclick = () => setGrouping(false)
     byId('by-sector').onclick = () => setGrouping(true)
-    document.querySelectorAll('[data-target]').forEach(button => button.onclick = () => {
-      showView('holdings')
-      setGrouping(true)
-      const group = byId('group-' + button.dataset.target)
-      group.focus({ preventScroll: true })
-      group.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })
-    })
-    ;['review', 'row-review', 'add'].forEach(id => byId(id).onclick = () => byId('review-dialog').showModal())
-    document.querySelectorAll('[data-type]').forEach(button => button.onclick = () => {
-      selectedType = button.dataset.type
-      document.querySelectorAll('[data-type]').forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate === button)))
-      byId('sector-field').hidden = selectedType !== 'stock'
-    })
+    let dialogRow = null
+    function selectType(type) {
+      selectedType = type
+      document.querySelectorAll('[data-type]').forEach(candidate => candidate.setAttribute('aria-pressed', String(candidate.dataset.type === type)))
+      byId('sector-field').hidden = type !== 'stock'
+    }
+    // Review (pending) and Edit (rename) share one dialog, scoped to one holding.
+    function openDialog(row) {
+      dialogRow = row
+      const pending = !row || row.dataset.category === 'needs_review'
+      const symbol = row ? row.querySelector('.symbol').textContent : 'NEW'
+      byId('dialog-title').textContent = pending ? 'What kind of holding is this?' : 'Edit classification'
+      byId('dialog-description').textContent = pending ? "A sector wasn't available. Confirm the type, or leave it for later." : 'Change this holding’s type or sector label.'
+      byId('dialog-script').textContent = row ? row.querySelector('strong').textContent : 'New holding'
+      byId('dialog-provider').textContent = symbol + ' · ' + (row?.dataset.provider ? 'Yahoo: ' + row.dataset.provider : 'No sector found')
+      const category = row?.dataset.category ?? 'needs_review'
+      selectType(category === 'etf' || category === 'mutual_fund' ? category : 'stock')
+      byId('sector').value = isBucket(category) ? '' : category
+      byId('sector-options').replaceChildren(...categories().filter(option => !isBucket(option)).map(label => Object.assign(document.createElement('option'), { value: label })))
+      byId('review-dialog').showModal()
+    }
+    holdingRows.forEach(row => row.querySelector('.row-actions button').onclick = () => openDialog(row))
+    byId('review').onclick = () => openDialog(byId('pending-row'))
+    byId('add').onclick = () => openDialog(null)
+    document.querySelectorAll('[data-type]').forEach(button => button.onclick = () => selectType(button.dataset.type))
     byId('confirm-form').onsubmit = event => {
       if (event.submitter.value !== 'confirm') return
-      const labels = { stock: byId('sector').selectedOptions[0].text, etf: 'ETF', mutual_fund: 'Mutual fund' }
-      byId('confirmation-note').textContent = 'Preview confirmation: ' + labels[selectedType]
+      let category = selectedType
+      if (selectedType === 'stock') {
+        const typed = byId('sector').value.replace(/\s+/g, ' ').trim().slice(0, 60)
+        // Case-insensitive reuse: "technology" joins the existing "Technology".
+        category = typed ? categories().find(existing => !isBucket(existing) && fold(existing) === fold(typed)) ?? typed : 'unclassified'
+      }
+      if (!dialogRow) {
+        byId('confirmation-note').textContent = 'Preview confirmation: ' + (badgeLabels[category] || category)
+        return
+      }
+      dialogRow.dataset.category = category
+      renderAll()
     }
-    setGrouping(true)
+    renderAll()
   </script>
 </body>
 </html>
