@@ -3,6 +3,8 @@ import type {
   ForexRate,
   Holding,
   HoldingInput,
+  HoldingClassificationInput,
+  ProfileLookup,
   HoldingWithPrice,
   MarketPrice,
   PricesResponse,
@@ -22,6 +24,7 @@ import type {
 } from '../../types'
 import {
   dividendsPath,
+  classificationPath,
   holdingPath,
   holdingTransactionsPath,
   holdingsPath,
@@ -137,6 +140,8 @@ export const api = {
     request<Holding>('PUT', holdingPath(id, userId), body),
   deleteHolding:  (id: string, userId?: string) =>
     request<DeleteResponse>('DELETE', holdingPath(id, userId)),
+  confirmClassification: (id: string, body: HoldingClassificationInput, userId?: string) =>
+    request<Holding>('PUT', classificationPath(id, userId), body),
   getPrices:      (userId?: string) =>
     request<PricesResponse>('GET', pricesPath(userId)),
   getSummary:     (userId?: string) =>
@@ -179,6 +184,7 @@ export const api = {
     request<{ deleted: number }>('DELETE', `${dividendsPath(userId)}?currency=${currency}`),
 
   // Market.
+  getMarketProfile: (symbol: string) => request<ProfileLookup>('GET', `/market/profile?symbol=${encodeURIComponent(symbol)}`),
   getMarketPrice: (symbol: string) => request<MarketPrice>('GET', `/market/price?symbol=${encodeURIComponent(symbol)}`),
   getForexRate:   (from = 'INR', to = 'EUR') => request<ForexRate>('GET', `/market/forex?from=${from}&to=${to}`),
 
