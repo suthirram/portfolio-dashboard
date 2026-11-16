@@ -83,11 +83,14 @@ jobs:
         # pd-snapshot is a separate Cloud Run Job that runs the same binary as
         # the service. Pin it to the same image so the cron and the web app
         # always run identical code.
-        run: |
-          IMAGE=$(gcloud run services describe "$SERVICE" --region "$REGION" \
-            --format 'value(spec.template.spec.containers[0].image)')
-          echo "Repointing pd-snapshot to $IMAGE"
-          gcloud run jobs update pd-snapshot --region "$REGION" --image "$IMAGE"
+        run: ./deploy/cloudrun/repoint-job.sh "$SERVICE" pd-snapshot "$REGION"
+
+      - name: Run pending data migrations
+        # portfolio-dashboard-migrate runs `migrate` on the new image after
+        # rollout (DD-014 §7). A failed step warns without failing the
+        # deploy; its status is in the migrations collection and the next
+        # deploy resumes it. Skipped while the job does not exist.
+        run: ./deploy/cloudrun/run-migrations.sh "$SERVICE" portfolio-dashboard-migrate "$REGION"
 
       - name: Show service URL
         run: |

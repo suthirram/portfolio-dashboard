@@ -109,14 +109,21 @@ fails the step, so it is retried. Holdings already `needs_review` are not
 retried (`--retry-unresolved` stays a manual, diagnosed action); owners resolve
 them in the review queue.
 
-## 7. Deployment (follow-up)
+## 7. Deployment
 
-A `pd-migrate` Cloud Run Job (and `pd-migrate-dev`) on the service image with
-args `migrate`. Both deploy workflows repoint it to the new image, then run
-`gcloud run jobs execute --wait` **after** the service rollout. A failure
-emits a workflow warning, and the deploy stays green; the step's status is in
-the collection. Production gets the job only after the owner takes a backup.
-Until the job exists, the deploy step skips.
+The `portfolio-dashboard-migrate` Cloud Run Job (prod, `europe-west1`, created
+2026-11-16) and `portfolio-dashboard-migrate-dev` (dev, `portfolio_dev`) run
+the service image with args `migrate`, `--max-retries 0` (the runner resumes;
+an immediate retry only repeats a rate limit) and a 30-minute task timeout.
+
+`deploy/cloudrun/run-migrations.sh` runs **after** the service rollout in both
+deploy workflows and in `deploy.sh`. It pins the job to the service's new
+image with `repoint-job.sh` (shared with `pd-snapshot`, so a job never runs a
+stale image), then runs `gcloud run jobs execute --wait`. A failed execution
+emits a workflow warning and the deploy stays green, because the step's status
+is in the collection and the next deploy resumes it. A failed repoint fails
+the deploy, so a stale image never runs. Until a job exists, its step skips.
+Production got its job only after the owner took a backup.
 
 ## 8. Testing
 

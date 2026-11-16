@@ -115,3 +115,12 @@ jobs:
           python-version: '3.x'
       - run: pip install yamllint==1.37.1
       - run: yamllint -c .yamllint .
+
+  deploy-scripts:
+    name: Deploy scripts (bash tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Fake gcloud on PATH: checks job repointing and the migrations step
+      # without touching GCP.
+      - run: bash deploy/cloudrun/test.sh
