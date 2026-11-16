@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
-import type { HoldingWithPrice } from '../../types'
+import type { HoldingWithPrice, StockXirrCurrency } from '../../types'
+import SectorBadge from './SectorBadge'
+import { sumTotals, nativeView } from './currencyTotals'
 import { EditIcon, TrashIcon, AlertTriangleIcon, ListIcon } from '../../components/Icon'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
 import {
@@ -51,7 +53,7 @@ interface CellProps {
 
 const TH = ({ children, style, className }: CellProps) => (
   <th className={className} style={{
-    padding: '10px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11,
+    padding: '10px 8px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
     position: 'sticky', top: 'var(--nav-height)', zIndex: 1,
@@ -63,7 +65,7 @@ const TH = ({ children, style, className }: CellProps) => (
   </th>
 )
 const TD = ({ children, style, className }: CellProps) => (
-  <td style={{ padding: '10px 12px', textAlign: 'right', borderBottom: '1px solid var(--border)', ...style }} className={className}>
+  <td style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '1px solid var(--border)', ...style }} className={className}>
     {children}
   </td>
 )
@@ -83,6 +85,9 @@ interface HoldingsTableProps {
   nativeCurrency?: 'INR' | 'EUR'
   /** Stock XIRR (PD-055); null while loading or when /xirr failed. */
   xirr?: XirrIndex | null
+  totalLabel?: string
+  /** null suppresses the aggregate rate for sector subtotals/unsupported currencies. */
+  totalXirr?: StockXirrCurrency | null
 }
 
 // XirrCell shows a rate with an asterisk when it carries a caveat, the
@@ -95,7 +100,7 @@ function XirrCell({ rate, note, className }: { rate: number | null | undefined; 
   )
 }
 
-export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onTransactions, view: viewProp, nativeCurrency, xirr }: HoldingsTableProps) {
+export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onTransactions, view: viewProp, nativeCurrency, xirr, totalLabel = 'TOTAL', totalXirr }: HoldingsTableProps) {
   const [sortKey, setSortKey] = useState<keyof HoldingWithPrice>('script')
   const [sortDir, setSortDir] = useState(1)
   const [confirm, setConfirm] = useState<string | null>(null)
@@ -140,19 +145,20 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
 
   // Totals — summed in the table's native currency (the currency-grouped
   // wrapper renders one table per currency, so rows share a currency).
-  const totals = sorted.reduce((acc, holding) => {
-    acc.cost += nativeCost(holding) || 0
-    acc.value += nativeValue(holding) || 0
-    acc.unreal += nativeUnrealized(holding) || 0
-    acc.real += holding.realized_pnl || 0
-    acc.dividends += holding.total_dividends || 0
-    return acc
-  }, { cost: 0, value: 0, unreal: 0, real: 0, dividends: 0 })
+  const summed = sumTotals(sorted)
+  const currency = nativeCurrency ?? 'INR'
+  const totals = {
+    cost: nativeView(currency, summed.cost, summed.costEur).primary,
+    value: nativeView(currency, summed.value, summed.valueEur).primary,
+    unreal: nativeView(currency, summed.unreal, summed.unrealEur).primary,
+    real: summed.real,
+    dividends: sorted.reduce((sum, holding) => sum + (holding.total_dividends ?? 0), 0),
+  }
   // The same group sum as the currency cards: null when a row with shares
   // has no previous close.
   const totalDayGain = computeGroupDayGain(sorted)
   const TOTAL_MONEY = nativeCurrency === 'EUR' ? EUR : INR
-  const currencyXirr = xirr?.byCurrency[nativeCurrency ?? 'INR']
+  const currencyXirr = totalXirr === undefined ? xirr?.byCurrency[currency] : totalXirr
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
 
@@ -195,7 +201,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
         style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-secondary)' }}>
-            <TH style={{ textAlign: 'left', width: 160 }}>Script</TH>
+            <TH style={{ textAlign: 'left' }}>Script</TH>
             {colHead('Shares', 'stocks_owned')}
             <TH>Cost Price</TH>
             <TH>{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
@@ -206,7 +212,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH className="col-hide-sm">Realised Gain</TH>
             <TH className="col-hide-sm">Dividends</TH>
             <TH>XIRR</TH>
-            <TH style={{ textAlign: 'center', width: 90 }}>Actions</TH>
+            <TH style={{ textAlign: 'center', width: 104 }}>Actions</TH>
           </tr>
         </thead>
 
@@ -245,6 +251,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                 {/* Script */}
                 <TD style={{ textAlign: 'left' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{holding.script}</div>
+                  <SectorBadge holding={holding} />
                   {holding.symbol && (
                     <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
                       {holding.symbol} · {holding.exchange} · {holding.type?.toUpperCase()}
@@ -361,16 +368,19 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
         {sorted.length > 0 && (
           <tfoot>
             <tr style={{ background: 'var(--bg-secondary)', fontWeight: 700 }}>
-              <TD style={{ textAlign: 'left', fontWeight: 700 }}>TOTAL</TD>
+              <TD style={{ textAlign: 'left', fontWeight: 700 }}>{totalLabel}</TD>
               <td style={{ borderBottom: '1px solid var(--border)' }} />
-              <td className="col-hide-sm" style={{ borderBottom: '1px solid var(--border)' }} />
               <TD className="mono">{TOTAL_MONEY(totals.cost)}</TD>
+              <td style={{ borderBottom: '1px solid var(--border)' }} />
               <td style={{ borderBottom: '1px solid var(--border)' }} />
               <TD className="mono">{TOTAL_MONEY(totals.value)}</TD>
               <TD className={`mono${totalDayGain === null ? '' : totalDayGain > 0 ? ' pos' : totalDayGain < 0 ? ' neg' : ' neutral'}`}>
                 {totalDayGain === null ? '—' : SIGNED_MONEY(totalDayGain, nativeCurrency === 'EUR' ? 'EUR' : 'INR')}
               </TD>
-              <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.unreal)}</TD>
+              <TD className={`mono ${totals.unreal >= 0 ? 'pos' : 'neg'}`}>
+                {TOTAL_MONEY(totals.unreal)}
+                <div style={{ fontSize: 10 }}>{totals.cost === 0 ? '—' : `${(totals.unreal / totals.cost * 100).toFixed(2)}%`}</div>
+              </TD>
               <TD className={`mono col-hide-sm ${totals.real >= 0 ? 'pos' : 'neg'}`}>{TOTAL_MONEY(totals.real)}</TD>
               <TD className={`mono col-hide-sm ${totals.dividends > 0 ? 'pos' : 'neutral'}`}>{TOTAL_MONEY(totals.dividends)}</TD>
               <XirrCell rate={currencyXirr?.xirr}

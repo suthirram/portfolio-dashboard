@@ -6,10 +6,12 @@ import {
 import type { TooltipProps } from 'recharts'
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
 import type { HoldingWithPrice } from '../types'
+import SectorAllocation from '../features/holdings/SectorAllocation'
+import type { SectorSelection } from '../features/holdings/classification'
 
 const COLORS = ['#4f8ef7', '#00c896', '#a78bfa', '#fbbf24', '#ff4d6d', '#38bdf8', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
 
-const fmt = (v: number) => `₹${Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+const fmt = (value: number) => `₹${Math.abs(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 
 const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
   if (!active || !payload?.length) return null
@@ -28,67 +30,68 @@ const PnLTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
-      {payload.map(p => (
-        <div key={String(p.name ?? '')} style={{ color: p.fill, marginBottom: 2 }}>
-          {p.name}: {fmt(typeof p.value === 'number' ? p.value : 0)}
+      {payload.map(entry => (
+        <div key={String(entry.name ?? '')} style={{ color: entry.fill, marginBottom: 2 }}>
+          {entry.name}: {fmt(typeof entry.value === 'number' ? entry.value : 0)}
         </div>
       ))}
     </div>
   )
 }
 
-type ChartView = 'allocation' | 'pnl' | 'exchange'
+type ChartView = 'allocation' | 'pnl' | 'exchange' | 'sectors'
 
 interface ChartsProps {
   holdings: HoldingWithPrice[]
+  onSelectSector?: (selection: SectorSelection) => void
 }
 
-export default function Charts({ holdings }: ChartsProps) {
+export default function Charts({ holdings, onSelectSector }: ChartsProps) {
   const [view, setView] = useState<ChartView>('allocation')
-
-  if (!holdings?.length) return null
 
   // Allocation by current value
   const allocationData = holdings
-    .filter(h => (h.current_value ?? 0) > 0)
-    .map(h => ({ name: h.script, value: h.current_value ?? 0 }))
-    .sort((a, b) => b.value - a.value)
+    .filter(holding => (holding.current_value ?? 0) > 0)
+    .map(holding => ({ name: holding.script, value: holding.current_value ?? 0 }))
+    .sort((left, right) => right.value - left.value)
 
   // P&L bar chart
   const pnlData = holdings
-    .filter(h => h.unrealized_pnl !== 0 || h.realized_pnl !== 0)
-    .map(h => ({
-      name: h.script,
-      unrealised: h.unrealized_pnl || 0,
-      realised: h.realized_pnl || 0,
+    .filter(holding => holding.unrealized_pnl !== 0 || holding.realized_pnl !== 0)
+    .map(holding => ({
+      name: holding.script,
+      unrealised: holding.unrealized_pnl || 0,
+      realised: holding.realized_pnl || 0,
     }))
-    .sort((a, b) => (b.unrealised + b.realised) - (a.unrealised + a.realised))
+    .sort((left, right) => (right.unrealised + right.realised) - (left.unrealised + left.realised))
     .slice(0, 15) // top 15
 
   // Exchange breakdown
-  const byExchange = holdings.reduce<Record<string, number>>((acc, h) => {
-    const key = h.exchange || 'OTHER'
-    acc[key] = (acc[key] || 0) + (h.current_value || h.cost_price || 0)
+  const byExchange = holdings.reduce<Record<string, number>>((acc, holding) => {
+    const key = holding.exchange || 'OTHER'
+    acc[key] = (acc[key] || 0) + (holding.current_value || holding.cost_price || 0)
     return acc
   }, {})
   const exchangeData = Object.entries(byExchange).map(([name, value]) => ({ name, value }))
 
-  const BTN = (k: ChartView, label: string) => (
-    <button key={k} className="seg-btn" aria-pressed={view === k} onClick={() => setView(k)}>
+  const BTN = (key: ChartView, label: string) => (
+    <button key={key} className="seg-btn" aria-pressed={view === key} onClick={() => setView(key)}>
       {label}
     </button>
   )
 
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600 }}>Charts</h3>
-        <div className="seg-group">
+        <div className="seg-group" style={{ display: 'flex', flexWrap: 'wrap' }}>
           {BTN('allocation', 'Allocation')}
           {BTN('pnl', 'P&L')}
           {BTN('exchange', 'By Exchange')}
+          {BTN('sectors', 'Sectors')}
         </div>
       </div>
+      {view === 'sectors' && <SectorAllocation holdings={holdings} onSelectSector={onSelectSector} />}
 
       {view === 'allocation' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'center' }}>
@@ -102,13 +105,13 @@ export default function Charts({ holdings }: ChartsProps) {
             </PieChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
-            {allocationData.map((d, i) => {
-              const total = allocationData.reduce((s, x) => s + x.value, 0)
-              const pct = total ? ((d.value / total) * 100).toFixed(1) : 0
+            {allocationData.map((entry, i) => {
+              const total = allocationData.reduce((sum, item) => sum + item.value, 0)
+              const pct = total ? ((entry.value / total) * 100).toFixed(1) : 0
               return (
-                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{d.name}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{entry.name}</span>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pct}%</span>
                 </div>
               )
@@ -122,7 +125,7 @@ export default function Charts({ holdings }: ChartsProps) {
           <BarChart data={pnlData} margin={{ left: 20, right: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} angle={-30} textAnchor="end" interval={0} height={60} />
-            <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+            <YAxis tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
             <Tooltip content={<PnLTooltip />} />
             <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-secondary)' }} />
             <Bar dataKey="unrealised" name="Unrealised" fill="#4f8ef7" radius={[3, 3, 0, 0]} />
@@ -144,19 +147,19 @@ export default function Charts({ holdings }: ChartsProps) {
             </PieChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {exchangeData.map((d, i) => {
-              const total = exchangeData.reduce((s, x) => s + x.value, 0)
+            {exchangeData.map((entry, i) => {
+              const total = exchangeData.reduce((sum, item) => sum + item.value, 0)
               return (
-                <div key={d.name}>
+                <div key={entry.name}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[i % COLORS.length], display: 'inline-block' }} />
-                      {d.name}
+                      {entry.name}
                     </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmt(d.value)}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmt(entry.value)}</span>
                   </div>
                   <div style={{ height: 4, background: 'var(--border)', borderRadius: 2 }}>
-                    <div style={{ height: '100%', background: COLORS[i % COLORS.length], borderRadius: 2, width: `${total ? (d.value / total) * 100 : 0}%` }} />
+                    <div style={{ height: '100%', background: COLORS[i % COLORS.length], borderRadius: 2, width: `${total ? (entry.value / total) * 100 : 0}%` }} />
                   </div>
                 </div>
               )

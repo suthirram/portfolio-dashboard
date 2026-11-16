@@ -70,6 +70,9 @@ func TestNewBuildsHandlerWithDefaultDependencies(t *testing.T) {
 		if h.priceService == nil {
 			t.Fatal("priceService is nil")
 		}
+		if h.profiles == nil {
+			t.Fatal("profiles is nil")
+		}
 		if h.log() == nil {
 			t.Fatal("log() returned nil")
 		}
@@ -131,6 +134,90 @@ func TestGetMarketPrice_UpstreamErrorReturnsBadGateway(t *testing.T) {
 	got := resp.(api.GetMarketPrice502JSONResponse)
 	if got.Error == nil || *got.Error != "price provider unavailable" {
 		t.Errorf("Error = %v, want price provider unavailable", got.Error)
+	}
+}
+
+// stubProfileFetcher answers every lookup with profile, after the real
+// symbol validation, and records the symbols it was asked for.
+type stubProfileFetcher struct {
+	profile services.CompanyProfile
+	symbols []string
+}
+
+func (s *stubProfileFetcher) LookupProfile(_ context.Context, symbol string) (services.CompanyProfile, error) {
+	normalized, err := services.NormalizeProfileSymbol(symbol)
+	if err != nil {
+		return services.CompanyProfile{}, err
+	}
+	s.symbols = append(s.symbols, normalized)
+	profile := s.profile
+	profile.Symbol = normalized
+	return profile, nil
+}
+
+func TestGetMarketProfile_ReturnsProfileAndCatalogue(t *testing.T) {
+	fetcher := &stubProfileFetcher{profile: services.CompanyProfile{
+		Status:        services.ProfileFound,
+		Sector:        "Technology",
+		Industry:      "Information Technology Services",
+		SuggestedType: "stock",
+	}}
+	h := &Controller{profiles: fetcher}
+
+	resp, err := h.GetMarketProfile(context.Background(), api.GetMarketProfileRequestObject{
+		Params: api.GetMarketProfileParams{Symbol: " tcs.ns"},
+	})
+	if err != nil {
+		t.Fatalf("GetMarketProfile: %v", err)
+	}
+	got := resp.(api.GetMarketProfile200JSONResponse)
+	if got.Symbol != "TCS.NS" || got.LookupStatus != api.ProfileLookupStatusFound {
+		t.Errorf("symbol/status = %q/%q, want TCS.NS/found", got.Symbol, got.LookupStatus)
+	}
+	if got.Sector == nil || *got.Sector != "Technology" {
+		t.Errorf("Sector = %v, want Yahoo's text Technology", got.Sector)
+	}
+	if got.Industry == nil || *got.Industry != "Information Technology Services" {
+		t.Errorf("Industry = %v", got.Industry)
+	}
+	if got.SuggestedType == nil || *got.SuggestedType != api.SuggestedStock {
+		t.Errorf("SuggestedType = %v, want stock", got.SuggestedType)
+	}
+}
+
+func TestGetMarketProfile_UnavailableStillAnswers200(t *testing.T) {
+	h := &Controller{profiles: &stubProfileFetcher{profile: services.CompanyProfile{Status: services.ProfileUnavailable}}}
+
+	resp, err := h.GetMarketProfile(context.Background(), api.GetMarketProfileRequestObject{
+		Params: api.GetMarketProfileParams{Symbol: "TCS.NS"},
+	})
+	if err != nil {
+		t.Fatalf("GetMarketProfile: %v", err)
+	}
+	got := resp.(api.GetMarketProfile200JSONResponse)
+	if got.LookupStatus != api.ProfileLookupStatusUnavailable {
+		t.Errorf("LookupStatus = %q, want unavailable", got.LookupStatus)
+	}
+	if got.Sector != nil || got.Industry != nil || got.SuggestedType != nil {
+		t.Errorf("unavailable lookup carried classification: %+v", got)
+	}
+}
+
+func TestGetMarketProfile_InvalidSymbolIsBadRequest(t *testing.T) {
+	fetcher := &stubProfileFetcher{}
+	h := &Controller{profiles: fetcher}
+
+	resp, err := h.GetMarketProfile(context.Background(), api.GetMarketProfileRequestObject{
+		Params: api.GetMarketProfileParams{Symbol: "TCS/NS"},
+	})
+	if err != nil {
+		t.Fatalf("GetMarketProfile: %v", err)
+	}
+	if _, ok := resp.(api.GetMarketProfile400JSONResponse); !ok {
+		t.Fatalf("response = %T, want 400", resp)
+	}
+	if len(fetcher.symbols) != 0 {
+		t.Errorf("invalid symbol reached the fetcher: %v", fetcher.symbols)
 	}
 }
 

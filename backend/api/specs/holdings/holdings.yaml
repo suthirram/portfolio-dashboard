@@ -94,6 +94,47 @@ holdings_id:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+holdings_id_classification:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MongoDB ObjectID
+
+  put:
+    tags: [Holdings]
+    summary: Confirm or rename a holding's type and sector
+    description: >
+      Saves the owner's classification on this holding only (DD-013 §1–§2):
+      source `user`, status `resolved`. Also sets the holding's type. Yahoo's
+      text stays in provider_sector so a rename stays visible.
+    operationId: confirmHoldingClassification
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingClassificationInput"
+    responses:
+      "200":
+        description: Holding with its confirmed classification
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "409":
+        description: The holding's symbol changed while confirming; reload and retry
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Error"
+
 prices:
   get:
     tags: [Holdings]

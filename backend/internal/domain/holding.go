@@ -13,7 +13,7 @@ type Holding struct {
 	Script         string             `bson:"script" json:"script"`                   // display name (e.g. "TCS", "GOLD BEES")
 	Symbol         string             `bson:"symbol" json:"symbol"`                   // Yahoo Finance ticker (e.g. "TCS.NS", "GOLDBEES.NS")
 	Exchange       string             `bson:"exchange" json:"exchange"`               // NSE, BSE, NYSE, NASDAQ
-	Type           string             `bson:"type" json:"type"`                       // stock | etf
+	Type           string             `bson:"type" json:"type"`                       // stock | etf | mutual_fund
 	StocksOwned    float64            `bson:"stocks_owned" json:"stocks_owned"`       // DERIVED from ledger: current quantity held
 	AvgCostPrice   float64            `bson:"avg_cost_price" json:"avg_cost_price"`   // DERIVED (average cost): running basis / qty, in Currency
 	RealizedPnL    float64            `bson:"realized_pnl" json:"realized_pnl"`       // DERIVED: profit/loss from sold shares, in Currency
@@ -22,10 +22,13 @@ type Holding struct {
 	// Aliases are sheet names (exactKey: lower-case, spaces collapsed) the owner confirmed as this
 	// holding during a dividend import (PRD-005 §6.3); later imports map them
 	// automatically. Written only by the import commit, never derived.
-	Aliases   []string  `bson:"aliases,omitempty" json:"-"`
-	Notes     string    `bson:"notes,omitempty" json:"notes,omitempty"`
-	CreatedAt time.Time `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+	Aliases []string `bson:"aliases,omitempty" json:"-"`
+	// Classification is the holding's sector/type metadata (PRD-013). nil on
+	// legacy and imported holdings, which read as needs-review.
+	Classification *Classification `bson:"classification,omitempty" json:"-"`
+	Notes          string          `bson:"notes,omitempty" json:"notes,omitempty"`
+	CreatedAt      time.Time       `bson:"created_at" json:"created_at"`
+	UpdatedAt      time.Time       `bson:"updated_at" json:"updated_at"`
 }
 
 // HoldingWithPrice adds live market data to a Holding

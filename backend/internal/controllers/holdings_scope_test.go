@@ -117,7 +117,7 @@ func TestListHoldings_ScopesToCurrentUser(t *testing.T) {
 }
 
 func TestListHoldings_UnauthenticatedFails(t *testing.T) {
-	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, false)
+	h := newWithDeps(&persistence.Store{}, &mockPriceFetcher{}, nil, nil, false)
 	_, err := h.ListHoldings(context.Background(), api.ListHoldingsRequestObject{})
 	var httpErr *echo.HTTPError
 	if !errors.As(err, &httpErr) || httpErr.Code != 401 {

@@ -110,8 +110,9 @@ func (e HoldingExchange) Valid() bool {
 
 // Defines values for HoldingType.
 const (
-	HoldingTypeEtf   HoldingType = "etf"
-	HoldingTypeStock HoldingType = "stock"
+	HoldingTypeEtf        HoldingType = "etf"
+	HoldingTypeMutualFund HoldingType = "mutual_fund"
+	HoldingTypeStock      HoldingType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingType enum.
@@ -119,7 +120,66 @@ func (e HoldingType) Valid() bool {
 	switch e {
 	case HoldingTypeEtf:
 		return true
+	case HoldingTypeMutualFund:
+		return true
 	case HoldingTypeStock:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HoldingClassificationSource.
+const (
+	ClassificationSourceUser  HoldingClassificationSource = "user"
+	ClassificationSourceYahoo HoldingClassificationSource = "yahoo"
+)
+
+// Valid indicates whether the value is a known member of the HoldingClassificationSource enum.
+func (e HoldingClassificationSource) Valid() bool {
+	switch e {
+	case ClassificationSourceUser:
+		return true
+	case ClassificationSourceYahoo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HoldingClassificationStatus.
+const (
+	ClassificationStatusNeedsReview HoldingClassificationStatus = "needs_review"
+	ClassificationStatusResolved    HoldingClassificationStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the HoldingClassificationStatus enum.
+func (e HoldingClassificationStatus) Valid() bool {
+	switch e {
+	case ClassificationStatusNeedsReview:
+		return true
+	case ClassificationStatusResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HoldingClassificationInputType.
+const (
+	HoldingClassificationInputTypeEtf        HoldingClassificationInputType = "etf"
+	HoldingClassificationInputTypeMutualFund HoldingClassificationInputType = "mutual_fund"
+	HoldingClassificationInputTypeStock      HoldingClassificationInputType = "stock"
+)
+
+// Valid indicates whether the value is a known member of the HoldingClassificationInputType enum.
+func (e HoldingClassificationInputType) Valid() bool {
+	switch e {
+	case HoldingClassificationInputTypeEtf:
+		return true
+	case HoldingClassificationInputTypeMutualFund:
+		return true
+	case HoldingClassificationInputTypeStock:
 		return true
 	default:
 		return false
@@ -173,14 +233,17 @@ func (e HoldingInputExchange) Valid() bool {
 
 // Defines values for HoldingInputType.
 const (
-	HoldingInputTypeEtf   HoldingInputType = "etf"
-	HoldingInputTypeStock HoldingInputType = "stock"
+	HoldingInputTypeEtf        HoldingInputType = "etf"
+	HoldingInputTypeMutualFund HoldingInputType = "mutual_fund"
+	HoldingInputTypeStock      HoldingInputType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingInputType enum.
 func (e HoldingInputType) Valid() bool {
 	switch e {
 	case HoldingInputTypeEtf:
+		return true
+	case HoldingInputTypeMutualFund:
 		return true
 	case HoldingInputTypeStock:
 		return true
@@ -236,16 +299,19 @@ func (e HoldingWithPriceExchange) Valid() bool {
 
 // Defines values for HoldingWithPriceType.
 const (
-	Etf   HoldingWithPriceType = "etf"
-	Stock HoldingWithPriceType = "stock"
+	HoldingWithPriceTypeEtf        HoldingWithPriceType = "etf"
+	HoldingWithPriceTypeMutualFund HoldingWithPriceType = "mutual_fund"
+	HoldingWithPriceTypeStock      HoldingWithPriceType = "stock"
 )
 
 // Valid indicates whether the value is a known member of the HoldingWithPriceType enum.
 func (e HoldingWithPriceType) Valid() bool {
 	switch e {
-	case Etf:
+	case HoldingWithPriceTypeEtf:
 		return true
-	case Stock:
+	case HoldingWithPriceTypeMutualFund:
+		return true
+	case HoldingWithPriceTypeStock:
 		return true
 	default:
 		return false
@@ -273,6 +339,27 @@ func (e InvestmentDeltaColumnColumn) Valid() bool {
 	}
 }
 
+// Defines values for ProfileLookupLookupStatus.
+const (
+	ProfileLookupStatusFound       ProfileLookupLookupStatus = "found"
+	ProfileLookupStatusMissing     ProfileLookupLookupStatus = "missing"
+	ProfileLookupStatusUnavailable ProfileLookupLookupStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ProfileLookupLookupStatus enum.
+func (e ProfileLookupLookupStatus) Valid() bool {
+	switch e {
+	case ProfileLookupStatusFound:
+		return true
+	case ProfileLookupStatusMissing:
+		return true
+	case ProfileLookupStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StockXirrCurrencyCurrency.
 const (
 	StockXirrCurrencyCurrencyEUR StockXirrCurrencyCurrency = "EUR"
@@ -285,6 +372,27 @@ func (e StockXirrCurrencyCurrency) Valid() bool {
 	case StockXirrCurrencyCurrencyEUR:
 		return true
 	case StockXirrCurrencyCurrencyINR:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SuggestedHoldingType.
+const (
+	SuggestedEtf        SuggestedHoldingType = "etf"
+	SuggestedMutualFund SuggestedHoldingType = "mutual_fund"
+	SuggestedStock      SuggestedHoldingType = "stock"
+)
+
+// Valid indicates whether the value is a known member of the SuggestedHoldingType enum.
+func (e SuggestedHoldingType) Valid() bool {
+	switch e {
+	case SuggestedEtf:
+		return true
+	case SuggestedMutualFund:
+		return true
+	case SuggestedStock:
 		return true
 	default:
 		return false
@@ -923,8 +1031,11 @@ type HistoryTotals struct {
 // Holding defines model for Holding.
 type Holding struct {
 	// AvgCostPrice Average purchase price per share in the holding's currency
-	AvgCostPrice *float64   `json:"avg_cost_price,omitempty"`
-	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
+
+	// Classification A holding's sector/type metadata (DD-013 §1). There is no fixed sector set; the sector is a label on this holding. A holding with no classification, or one made for a different symbol, reads as needs_review with no other fields.
+	Classification *HoldingClassification `json:"classification,omitempty"`
+	CreatedAt      *time.Time             `json:"created_at,omitempty"`
 
 	// Currency Currency in which avg_cost_price and realized_pnl are denominated
 	Currency *HoldingCurrency `json:"currency,omitempty"`
@@ -967,6 +1078,45 @@ type HoldingExchange string
 // HoldingType defines model for Holding.Type.
 type HoldingType string
 
+// HoldingClassification A holding's sector/type metadata (DD-013 §1). There is no fixed sector set; the sector is a label on this holding. A holding with no classification, or one made for a different symbol, reads as needs_review with no other fields.
+type HoldingClassification struct {
+	// CheckedAt When the lookup ran or the owner decided
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Industry Provider industry text (length-limited; render as text)
+	Industry *string `json:"industry,omitempty"`
+
+	// ProviderSector Yahoo's sector text as given; differs from sector when the owner renamed this holding
+	ProviderSector *string `json:"provider_sector,omitempty"`
+
+	// Sector Sector label shown for this holding; stocks only
+	Sector *string `json:"sector,omitempty"`
+
+	// Source Absent when the lookup failed without metadata
+	Source        *HoldingClassificationSource `json:"source,omitempty"`
+	Status        HoldingClassificationStatus  `json:"status"`
+	SuggestedType *SuggestedHoldingType        `json:"suggested_type,omitempty"`
+
+	// Symbol Canonical (trimmed, upper-case) symbol this classification belongs to
+	Symbol *string `json:"symbol,omitempty"`
+}
+
+// HoldingClassificationSource Absent when the lookup failed without metadata
+type HoldingClassificationSource string
+
+// HoldingClassificationStatus defines model for HoldingClassification.Status.
+type HoldingClassificationStatus string
+
+// HoldingClassificationInput The owner's classification of a holding (DD-013 §2). Saved with source `user` on this holding only. A stock takes any sector label, or null for an unclassified stock; a fund (etf, mutual_fund) must have a null sector.
+type HoldingClassificationInput struct {
+	// Sector Sector label; trimmed, whitespace collapsed, and matched case-insensitively against the owner's existing labels
+	Sector *string                        `json:"sector,omitempty"`
+	Type   HoldingClassificationInputType `json:"type"`
+}
+
+// HoldingClassificationInputType defines model for HoldingClassificationInput.Type.
+type HoldingClassificationInputType string
+
 // HoldingInput defines model for HoldingInput.
 type HoldingInput struct {
 	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
@@ -1000,6 +1150,9 @@ type HoldingInputType string
 type HoldingWithPrice struct {
 	// AvgCostPrice Average purchase price per share in the holding's currency
 	AvgCostPrice *float64 `json:"avg_cost_price,omitempty"`
+
+	// Classification A holding's sector/type metadata (DD-013 §1). There is no fixed sector set; the sector is a label on this holding. A holding with no classification, or one made for a different symbol, reads as needs_review with no other fields.
+	Classification *HoldingClassification `json:"classification,omitempty"`
 
 	// CostPrice stocks_owned × avg_cost_price
 	CostPrice    *float64   `json:"cost_price,omitempty"`
@@ -1136,6 +1289,25 @@ type PricesResponse struct {
 	Holdings *[]HoldingWithPrice `json:"holdings,omitempty"`
 }
 
+// ProfileLookup defines model for ProfileLookup.
+type ProfileLookup struct {
+	// Industry Provider industry text (length-limited; render as text)
+	Industry *string `json:"industry,omitempty"`
+
+	// LookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+	LookupStatus ProfileLookupLookupStatus `json:"lookup_status"`
+
+	// Sector Yahoo's sector text as given (normalised whitespace). There is no fixed sector set (DD-013 §1), and the preview is provider-only: an owner's rename lives on their holding. Always null for funds.
+	Sector        *string               `json:"sector,omitempty"`
+	SuggestedType *SuggestedHoldingType `json:"suggested_type,omitempty"`
+
+	// Symbol Normalised (trimmed, upper-case) symbol that was looked up
+	Symbol string `json:"symbol"`
+}
+
+// ProfileLookupLookupStatus found — Yahoo gave a sector or a fund type; missing — Yahoo answered without a usable classification; unavailable — Yahoo could not be reached or refused the lookup
+type ProfileLookupLookupStatus string
+
 // RecoverQuestionsRequest defines model for RecoverQuestionsRequest.
 type RecoverQuestionsRequest struct {
 	Username string `json:"username"`
@@ -1236,6 +1408,9 @@ type StockXirrView struct {
 	Currencies []StockXirrCurrency `json:"currencies"`
 	Holdings   []StockXirrHolding  `json:"holdings"`
 }
+
+// SuggestedHoldingType Yahoo's quote type as a holding type; a suggestion, never applied silently
+type SuggestedHoldingType string
 
 // Summary defines model for Summary.
 type Summary struct {

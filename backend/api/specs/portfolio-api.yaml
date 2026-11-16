@@ -563,6 +563,113 @@ components:
           format: double
           description: actual_paid − gold_cost (spreadsheet J − D)
 
+    ProfileLookup:
+      type: object
+      required: [symbol, lookup_status]
+      properties:
+        symbol:
+          type: string
+          description: Normalised (trimmed, upper-case) symbol that was looked up
+          example: TCS.NS
+        lookup_status:
+          type: string
+          enum: [found, missing, unavailable]
+          x-enum-varnames: [ProfileLookupStatusFound, ProfileLookupStatusMissing, ProfileLookupStatusUnavailable]
+          description: >
+            found — Yahoo gave a sector or a fund type; missing — Yahoo answered
+            without a usable classification; unavailable — Yahoo could not be
+            reached or refused the lookup
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: >
+            Yahoo's sector text as given (normalised whitespace). There is no
+            fixed sector set (DD-013 §1), and the preview is provider-only: an
+            owner's rename lives on their holding. Always null for funds.
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          description: Provider industry text (length-limited; render as text)
+        suggested_type:
+          allOf:
+            - $ref: "#/components/schemas/SuggestedHoldingType"
+          nullable: true
+
+    SuggestedHoldingType:
+      type: string
+      enum: [stock, etf, mutual_fund]
+      x-enum-varnames: [SuggestedStock, SuggestedEtf, SuggestedMutualFund]
+      description: Yahoo's quote type as a holding type; a suggestion, never applied silently
+
+    HoldingClassification:
+      type: object
+      required: [status]
+      description: >
+        A holding's sector/type metadata (DD-013 §1). There is no fixed sector
+        set; the sector is a label on this holding. A holding with no
+        classification, or one made for a different symbol, reads as
+        needs_review with no other fields.
+      properties:
+        symbol:
+          type: string
+          description: Canonical (trimmed, upper-case) symbol this classification belongs to
+          example: TCS.NS
+        status:
+          type: string
+          enum: [resolved, needs_review]
+          x-enum-varnames: [ClassificationStatusResolved, ClassificationStatusNeedsReview]
+        source:
+          type: string
+          enum: [yahoo, user]
+          x-enum-varnames: [ClassificationSourceYahoo, ClassificationSourceUser]
+          nullable: true
+          description: Absent when the lookup failed without metadata
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Sector label shown for this holding; stocks only
+          example: Technology
+        provider_sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Yahoo's sector text as given; differs from sector when the owner renamed this holding
+          example: Technology
+        industry:
+          type: string
+          nullable: true
+          description: Provider industry text (length-limited; render as text)
+        suggested_type:
+          allOf:
+            - $ref: "#/components/schemas/SuggestedHoldingType"
+          nullable: true
+        checked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the lookup ran or the owner decided
+
+    HoldingClassificationInput:
+      type: object
+      required: [type]
+      description: >
+        The owner's classification of a holding (DD-013 §2). Saved with source
+        `user` on this holding only. A stock takes any sector label, or null for
+        an unclassified stock; a fund (etf, mutual_fund) must have a null sector.
+      properties:
+        type:
+          type: string
+          enum: [stock, etf, mutual_fund]
+        sector:
+          type: string
+          nullable: true
+          maxLength: 60
+          description: Sector label; trimmed, whitespace collapsed, and matched case-insensitively against the owner's existing labels
+          example: FMCG
+
     Holding:
       type: object
       properties:
@@ -580,7 +687,7 @@ components:
           enum: [NSE, BSE, NYSE, NASDAQ, OTHER]
         type:
           type: string
-          enum: [stock, etf]
+          enum: [stock, etf, mutual_fund]
         stocks_owned:
           type: number
           format: double
@@ -612,6 +719,8 @@ components:
           format: date
           nullable: true
           description: User-set effective date of the opening balance; null when not yet set
+        classification:
+          $ref: "#/components/schemas/HoldingClassification"
         created_at:
           type: string
           format: date-time
@@ -632,7 +741,7 @@ components:
           enum: [NSE, BSE, NYSE, NASDAQ, OTHER]
         type:
           type: string
-          enum: [stock, etf]
+          enum: [stock, etf, mutual_fund]
         stocks_owned:
           type: number
           format: double

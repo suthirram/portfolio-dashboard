@@ -398,6 +398,47 @@ users_id_holdings_holdingid:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_holdings_holdingid_classification:
+  parameters:
+    - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    - name: holdingId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MongoDB ObjectID of the holding
+
+  put:
+    tags: [Admin]
+    summary: Confirm or rename a holding's type and sector in a user's portfolio
+    description: >
+      Act-as twin of PUT /holdings/{id}/classification. Region-scoped like the
+      other act-as routes: an out-of-region or non-user target reads as 404.
+    operationId: adminConfirmUserHoldingClassification
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/HoldingClassificationInput"
+    responses:
+      "200":
+        description: Holding with its confirmed classification
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Holding"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+      "409":
+        description: The holding's symbol changed while confirming; reload and retry
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/Error"
+
 users_id_prices:
   get:
     tags: [Admin]

@@ -23,6 +23,7 @@ import (
 type Controller struct {
 	store        *persistence.Store
 	priceService services.PriceFetcher
+	profiles     services.ProfileFetcher
 	holdings     *services.HoldingsService
 	transactions *services.TransactionsService
 	portfolio    *services.PortfolioService
@@ -46,23 +47,32 @@ func (h *Controller) AttachGold(pool *pgxpool.Pool) {
 	h.gold = services.NewGoldService(h.store.Gold, h.store.Holdings, h.priceService, h.log())
 }
 
-// New builds a Controller with the default PriceService. cookieSecure controls
-// whether the session cookie is emitted with Secure + SameSite=None
-// (cross-origin prod) or with SameSite=Lax (local dev). Sourced from
-// Config.CookieSecure; do not derive from the request scheme.
+// New builds a Controller with the default PriceService and
+// CompanyProfileService. cookieSecure controls whether the session cookie is
+// emitted with Secure + SameSite=None (cross-origin prod) or with
+// SameSite=Lax (local dev). Sourced from Config.CookieSecure; do not derive
+// from the request scheme.
 func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller {
-	return newWithDeps(persistence.New(db), services.NewPriceService(logger), logger, cookieSecure)
+	return NewWithProfiles(db, logger, cookieSecure, services.NewCompanyProfileService(logger))
 }
 
-// newWithDeps assembles the per-domain services around a pre-built store and
-// price service. Used by New and by tests that supply an in-memory mock store
-// or a stub price fetcher.
-func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
+// NewWithProfiles is New with the profile fetcher supplied. HTTP-level tests
+// pass nil so they never contact Yahoo; holdings are then saved unclassified.
+func NewWithProfiles(db *mongo.Database, logger *zap.Logger, cookieSecure bool, profiles services.ProfileFetcher) *Controller {
+	return newWithDeps(persistence.New(db), services.NewPriceService(logger), profiles, logger, cookieSecure)
+}
+
+// newWithDeps assembles the per-domain services around a pre-built store,
+// price service and profile fetcher. Used by New and by tests that supply an
+// in-memory mock store or stub fetchers; a nil profiles leaves new holdings
+// unclassified.
+func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, profiles services.ProfileFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
 	recomputer := services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger)
 	return &Controller{
 		store:        store,
 		priceService: priceService,
-		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, logger),
+		profiles:     profiles,
+		holdings:     services.NewHoldingsService(store.Holdings, store.Transactions, profiles, logger),
 		transactions: services.NewTransactionsService(store.Transactions, store.Holdings, recomputer, logger),
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		stockXirr:    services.NewStockXirrService(store.Holdings, store.Transactions, priceService, logger),

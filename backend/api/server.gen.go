@@ -170,6 +170,12 @@ type GetMarketPriceParams struct {
 	Symbol string `form:"symbol" json:"symbol"`
 }
 
+// GetMarketProfileParams defines parameters for GetMarketProfile.
+type GetMarketProfileParams struct {
+	// Symbol Yahoo Finance ticker (1–64 of letters, digits and . - ^ = _)
+	Symbol string `form:"symbol" json:"symbol"`
+}
+
 // GetInvestmentDeltaParams defines parameters for GetInvestmentDelta.
 type GetInvestmentDeltaParams struct {
 	Year int `form:"year" json:"year"`
@@ -195,6 +201,9 @@ type AdminCreateUserHoldingJSONRequestBody = HoldingInput
 
 // AdminUpdateUserHoldingJSONRequestBody defines body for AdminUpdateUserHolding for application/json ContentType.
 type AdminUpdateUserHoldingJSONRequestBody = HoldingInput
+
+// AdminConfirmUserHoldingClassificationJSONRequestBody defines body for AdminConfirmUserHoldingClassification for application/json ContentType.
+type AdminConfirmUserHoldingClassificationJSONRequestBody = HoldingClassificationInput
 
 // AdminCreateUserTransactionJSONRequestBody defines body for AdminCreateUserTransaction for application/json ContentType.
 type AdminCreateUserTransactionJSONRequestBody = TransactionInput
@@ -271,6 +280,9 @@ type CreateHoldingJSONRequestBody = HoldingInput
 // UpdateHoldingJSONRequestBody defines body for UpdateHolding for application/json ContentType.
 type UpdateHoldingJSONRequestBody = HoldingInput
 
+// ConfirmHoldingClassificationJSONRequestBody defines body for ConfirmHoldingClassification for application/json ContentType.
+type ConfirmHoldingClassificationJSONRequestBody = HoldingClassificationInput
+
 // CreateTransactionJSONRequestBody defines body for CreateTransaction for application/json ContentType.
 type CreateTransactionJSONRequestBody = TransactionInput
 
@@ -336,6 +348,9 @@ type ServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx echo.Context, id UserID, holdingId string) error
+	// Confirm or rename a holding's type and sector in a user's portfolio
+	// (PUT /admin/users/{id}/holdings/{holdingId}/classification)
+	AdminConfirmUserHoldingClassification(ctx echo.Context, id UserID, holdingId string) error
 	// A user's ledger for one holding (act-as)
 	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
 	AdminListUserHoldingTransactions(ctx echo.Context, id UserID, holdingId string) error
@@ -486,6 +501,9 @@ type ServerInterface interface {
 	// Update a holding
 	// (PUT /holdings/{id})
 	UpdateHolding(ctx echo.Context, id string) error
+	// Confirm or rename a holding's type and sector
+	// (PUT /holdings/{id}/classification)
+	ConfirmHoldingClassification(ctx echo.Context, id string) error
 	// List a holding's transactions
 	// (GET /holdings/{id}/transactions)
 	ListTransactions(ctx echo.Context, id string) error
@@ -498,6 +516,9 @@ type ServerInterface interface {
 	// Get live price for any symbol
 	// (GET /market/price)
 	GetMarketPrice(ctx echo.Context, params GetMarketPriceParams) error
+	// Look up a symbol's company sector and suggested holding type
+	// (GET /market/profile)
+	GetMarketProfile(ctx echo.Context, params GetMarketProfileParams) error
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx echo.Context) error
@@ -860,6 +881,32 @@ func (w *ServerInterfaceWrapper) AdminUpdateUserHolding(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.AdminUpdateUserHolding(ctx, id, holdingId)
+	return err
+}
+
+// AdminConfirmUserHoldingClassification converts echo context to params.
+func (w *ServerInterfaceWrapper) AdminConfirmUserHoldingClassification(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id UserID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// ------------- Path parameter "holdingId" -------------
+	var holdingId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holdingId", ctx.Param("holdingId"), &holdingId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter holdingId: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.AdminConfirmUserHoldingClassification(ctx, id, holdingId)
 	return err
 }
 
@@ -1651,6 +1698,24 @@ func (w *ServerInterfaceWrapper) UpdateHolding(ctx echo.Context) error {
 	return err
 }
 
+// ConfirmHoldingClassification converts echo context to params.
+func (w *ServerInterfaceWrapper) ConfirmHoldingClassification(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ConfirmHoldingClassification(ctx, id)
+	return err
+}
+
 // ListTransactions converts echo context to params.
 func (w *ServerInterfaceWrapper) ListTransactions(ctx echo.Context) error {
 	var err error
@@ -1731,6 +1796,26 @@ func (w *ServerInterfaceWrapper) GetMarketPrice(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.GetMarketPrice(ctx, params)
+	return err
+}
+
+// GetMarketProfile converts echo context to params.
+func (w *ServerInterfaceWrapper) GetMarketProfile(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMarketProfileParams
+	// ------------- Required query parameter "symbol" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "symbol", ctx.QueryParams(), &params.Symbol, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter symbol: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetMarketProfile(ctx, params)
 	return err
 }
 
@@ -1929,6 +2014,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.POST(options.BaseURL+"/admin/users/:id/holdings", wrapper.AdminCreateUserHolding, options.OperationMiddlewares["adminCreateUserHolding"]...)
 	router.DELETE(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminDeleteUserHolding, options.OperationMiddlewares["adminDeleteUserHolding"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holdingId", wrapper.AdminUpdateUserHolding, options.OperationMiddlewares["adminUpdateUserHolding"]...)
+	router.PUT(options.BaseURL+"/admin/users/:id/holdings/:holdingId/classification", wrapper.AdminConfirmUserHoldingClassification, options.OperationMiddlewares["adminConfirmUserHoldingClassification"]...)
 	router.GET(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminListUserHoldingTransactions, options.OperationMiddlewares["adminListUserHoldingTransactions"]...)
 	router.POST(options.BaseURL+"/admin/users/:id/holdings/:holdingId/transactions", wrapper.AdminCreateUserTransaction, options.OperationMiddlewares["adminCreateUserTransaction"]...)
 	router.PUT(options.BaseURL+"/admin/users/:id/premium", wrapper.AdminSetUserPremium, options.OperationMiddlewares["adminSetUserPremium"]...)
@@ -1979,10 +2065,12 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.DELETE(options.BaseURL+"/holdings/:id", wrapper.DeleteHolding, options.OperationMiddlewares["deleteHolding"]...)
 	router.GET(options.BaseURL+"/holdings/:id", wrapper.GetHolding, options.OperationMiddlewares["getHolding"]...)
 	router.PUT(options.BaseURL+"/holdings/:id", wrapper.UpdateHolding, options.OperationMiddlewares["updateHolding"]...)
+	router.PUT(options.BaseURL+"/holdings/:id/classification", wrapper.ConfirmHoldingClassification, options.OperationMiddlewares["confirmHoldingClassification"]...)
 	router.GET(options.BaseURL+"/holdings/:id/transactions", wrapper.ListTransactions, options.OperationMiddlewares["listTransactions"]...)
 	router.POST(options.BaseURL+"/holdings/:id/transactions", wrapper.CreateTransaction, options.OperationMiddlewares["createTransaction"]...)
 	router.GET(options.BaseURL+"/market/forex", wrapper.GetForexRate, options.OperationMiddlewares["getForexRate"]...)
 	router.GET(options.BaseURL+"/market/price", wrapper.GetMarketPrice, options.OperationMiddlewares["getMarketPrice"]...)
+	router.GET(options.BaseURL+"/market/profile", wrapper.GetMarketProfile, options.OperationMiddlewares["getMarketProfile"]...)
 	router.GET(options.BaseURL+"/prices", wrapper.GetPrices, options.OperationMiddlewares["getPrices"]...)
 	router.GET(options.BaseURL+"/regions", wrapper.GetRegions, options.OperationMiddlewares["getRegions"]...)
 	router.GET(options.BaseURL+"/summary", wrapper.GetSummary, options.OperationMiddlewares["getSummary"]...)
@@ -2775,6 +2863,72 @@ func (response AdminUpdateUserHolding404JSONResponse) VisitAdminUpdateUserHoldin
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminConfirmUserHoldingClassificationRequestObject struct {
+	Id        UserID `json:"id"`
+	HoldingId string `json:"holdingId"`
+	Body      *AdminConfirmUserHoldingClassificationJSONRequestBody
+}
+
+type AdminConfirmUserHoldingClassificationResponseObject interface {
+	VisitAdminConfirmUserHoldingClassificationResponse(w http.ResponseWriter) error
+}
+
+type AdminConfirmUserHoldingClassification200JSONResponse Holding
+
+func (response AdminConfirmUserHoldingClassification200JSONResponse) VisitAdminConfirmUserHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminConfirmUserHoldingClassification400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AdminConfirmUserHoldingClassification400JSONResponse) VisitAdminConfirmUserHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminConfirmUserHoldingClassification404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AdminConfirmUserHoldingClassification404JSONResponse) VisitAdminConfirmUserHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AdminConfirmUserHoldingClassification409JSONResponse Error
+
+func (response AdminConfirmUserHoldingClassification409JSONResponse) VisitAdminConfirmUserHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5085,6 +5239,71 @@ func (response UpdateHolding404JSONResponse) VisitUpdateHoldingResponse(w http.R
 	return err
 }
 
+type ConfirmHoldingClassificationRequestObject struct {
+	Id   string `json:"id"`
+	Body *ConfirmHoldingClassificationJSONRequestBody
+}
+
+type ConfirmHoldingClassificationResponseObject interface {
+	VisitConfirmHoldingClassificationResponse(w http.ResponseWriter) error
+}
+
+type ConfirmHoldingClassification200JSONResponse Holding
+
+func (response ConfirmHoldingClassification200JSONResponse) VisitConfirmHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmHoldingClassification400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ConfirmHoldingClassification400JSONResponse) VisitConfirmHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmHoldingClassification404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ConfirmHoldingClassification404JSONResponse) VisitConfirmHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmHoldingClassification409JSONResponse Error
+
+func (response ConfirmHoldingClassification409JSONResponse) VisitConfirmHoldingClassificationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTransactionsRequestObject struct {
 	Id string `json:"id"`
 }
@@ -5250,6 +5469,56 @@ func (response GetMarketPrice502JSONResponse) VisitGetMarketPriceResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMarketProfileRequestObject struct {
+	Params GetMarketProfileParams
+}
+
+type GetMarketProfileResponseObject interface {
+	VisitGetMarketProfileResponse(w http.ResponseWriter) error
+}
+
+type GetMarketProfile200JSONResponse ProfileLookup
+
+func (response GetMarketProfile200JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMarketProfile400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMarketProfile400JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMarketProfile401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetMarketProfile401JSONResponse) VisitGetMarketProfileResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -5637,6 +5906,9 @@ type StrictServerInterface interface {
 	// Update a holding in a user's portfolio
 	// (PUT /admin/users/{id}/holdings/{holdingId})
 	AdminUpdateUserHolding(ctx context.Context, request AdminUpdateUserHoldingRequestObject) (AdminUpdateUserHoldingResponseObject, error)
+	// Confirm or rename a holding's type and sector in a user's portfolio
+	// (PUT /admin/users/{id}/holdings/{holdingId}/classification)
+	AdminConfirmUserHoldingClassification(ctx context.Context, request AdminConfirmUserHoldingClassificationRequestObject) (AdminConfirmUserHoldingClassificationResponseObject, error)
 	// A user's ledger for one holding (act-as)
 	// (GET /admin/users/{id}/holdings/{holdingId}/transactions)
 	AdminListUserHoldingTransactions(ctx context.Context, request AdminListUserHoldingTransactionsRequestObject) (AdminListUserHoldingTransactionsResponseObject, error)
@@ -5787,6 +6059,9 @@ type StrictServerInterface interface {
 	// Update a holding
 	// (PUT /holdings/{id})
 	UpdateHolding(ctx context.Context, request UpdateHoldingRequestObject) (UpdateHoldingResponseObject, error)
+	// Confirm or rename a holding's type and sector
+	// (PUT /holdings/{id}/classification)
+	ConfirmHoldingClassification(ctx context.Context, request ConfirmHoldingClassificationRequestObject) (ConfirmHoldingClassificationResponseObject, error)
 	// List a holding's transactions
 	// (GET /holdings/{id}/transactions)
 	ListTransactions(ctx context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error)
@@ -5799,6 +6074,9 @@ type StrictServerInterface interface {
 	// Get live price for any symbol
 	// (GET /market/price)
 	GetMarketPrice(ctx context.Context, request GetMarketPriceRequestObject) (GetMarketPriceResponseObject, error)
+	// Look up a symbol's company sector and suggested holding type
+	// (GET /market/profile)
+	GetMarketProfile(ctx context.Context, request GetMarketProfileRequestObject) (GetMarketProfileResponseObject, error)
 	// Get all holdings enriched with live market prices
 	// (GET /prices)
 	GetPrices(ctx context.Context, request GetPricesRequestObject) (GetPricesResponseObject, error)
@@ -6304,6 +6582,38 @@ func (sh *strictHandler) AdminUpdateUserHolding(ctx echo.Context, id UserID, hol
 		return err
 	} else if validResponse, ok := response.(AdminUpdateUserHoldingResponseObject); ok {
 		return validResponse.VisitAdminUpdateUserHoldingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AdminConfirmUserHoldingClassification operation middleware
+func (sh *strictHandler) AdminConfirmUserHoldingClassification(ctx echo.Context, id UserID, holdingId string) error {
+	var request AdminConfirmUserHoldingClassificationRequestObject
+
+	request.Id = id
+	request.HoldingId = holdingId
+
+	var body AdminConfirmUserHoldingClassificationJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminConfirmUserHoldingClassification(ctx.Request().Context(), request.(AdminConfirmUserHoldingClassificationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminConfirmUserHoldingClassification")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AdminConfirmUserHoldingClassificationResponseObject); ok {
+		return validResponse.VisitAdminConfirmUserHoldingClassificationResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -7668,6 +7978,37 @@ func (sh *strictHandler) UpdateHolding(ctx echo.Context, id string) error {
 	return nil
 }
 
+// ConfirmHoldingClassification operation middleware
+func (sh *strictHandler) ConfirmHoldingClassification(ctx echo.Context, id string) error {
+	var request ConfirmHoldingClassificationRequestObject
+
+	request.Id = id
+
+	var body ConfirmHoldingClassificationJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmHoldingClassification(ctx.Request().Context(), request.(ConfirmHoldingClassificationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmHoldingClassification")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ConfirmHoldingClassificationResponseObject); ok {
+		return validResponse.VisitConfirmHoldingClassificationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // ListTransactions operation middleware
 func (sh *strictHandler) ListTransactions(ctx echo.Context, id string) error {
 	var request ListTransactionsRequestObject
@@ -7768,6 +8109,31 @@ func (sh *strictHandler) GetMarketPrice(ctx echo.Context, params GetMarketPriceP
 		return err
 	} else if validResponse, ok := response.(GetMarketPriceResponseObject); ok {
 		return validResponse.VisitGetMarketPriceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetMarketProfile operation middleware
+func (sh *strictHandler) GetMarketProfile(ctx echo.Context, params GetMarketProfileParams) error {
+	var request GetMarketProfileRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMarketProfile(ctx.Request().Context(), request.(GetMarketProfileRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMarketProfile")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetMarketProfileResponseObject); ok {
+		return validResponse.VisitGetMarketProfileResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

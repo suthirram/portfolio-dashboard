@@ -108,7 +108,7 @@ func TestAPI_CreateThenListHoldingsJourney(t *testing.T) {
 		)
 
 		logger := zap.NewNop()
-		h := controllers.New(mt.DB, logger, false)
+		h := controllers.NewWithProfiles(mt.DB, logger, false, nil) // never contact Yahoo
 		e := New(config.Default(), logger, mt.DB, h)
 
 		cookie := &http.Cookie{Name: controllers.SessionCookieName, Value: fakeSessionID("e2e")} //nolint:gosec // request-side cookie

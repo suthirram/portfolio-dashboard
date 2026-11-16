@@ -1,6 +1,6 @@
 # PD-056: Holding sectors and allocation rollout
 
-* **Status**: Grouped design approved in principle; dashboard-compatible docs ready for PR; implementation not started
+* **Status**: Backend and frontend implemented and locally verified; dev rollout pending
 * **Owner**: project owner
 * **PRD**: [PRD-013](../prds/PRD-013-holding-sectors.md)
 * **Design**: [DD-013](../designs/DD-013-holding-sectors.md)
@@ -23,24 +23,51 @@ editing. Profile failure leaves holding creation available.
 
 ## 2. Branching and PR sequence
 
-Each branch starts from current `main` after its prerequisite merges. Keep backend
+The original plan used a branch from current `main` after each prerequisite
+merge; the feature-branch decision below supersedes that sequence. Keep backend
 and UI PRs separate. The docs PR lands before implementation; generated frontend
 types are regenerated during backend verification but committed only in the UI
 PR unless a minimal build fix is required. Existing unrelated cookbook/Makefile
 changes remain in their original worktree.
 
+Current branching model (owner, 2026-11-13): work runs on feature branch
+`feat/PD-056-holding-sectors` (from `main`). Each sub-task is its own branch and
+PR targeting the feature branch; the feature branch merges to `main` once at the
+end. Backend and UI sub-tasks stay in separate PRs.
+
 | # | Branch | Scope | No regression | Standalone value | Test anchor |
 | --- | --- | --- | --- | --- | --- |
-| 0 | `docs/holding-sector-design` | PRD, DD, ADR, plan, dependencies, visual spec | Docs only | Reviewable contract and UI before code | Markdown/link checks and visual inspection |
-| 1 | `feat/holding-sector-api` | Direct Yahoo service, model/spec/codegen, create/update enrichment, profile/confirmation endpoints, dry-run/apply migration | Optional metadata; provider outage never blocks saves; financial projections untouched | API users can create/read/confirm sectors and operators can backfill | Provider httptest, holding/handler/migration behavioral tests; `go test ./...` |
-| 2 | `feat/holding-sector-ui` | Generated TS, add/edit preview, review queue, sector badges/grouped tables, on-demand chart | Existing position views, currency totals, themes, act-as remain available | Owners can classify/review and explore sector allocation | Vitest interaction/aggregation tests and live-stack scenarios |
+| 0 | `docs/holding-sector-design` | PRD, DD, ADR, plan, dependencies, visual spec (merged, #280) | Docs only | Reviewable contract and UI before code | Markdown/link checks and visual inspection |
+| 0b | `docs/PD-056-dynamic-sectors` | Dynamic owner labels and per-holding renames (merged, #282) | Docs only | Contract matches the owner's decision before code | Markdown checks |
+| 1 | `feat/PD-056-profile-lookup` | Direct Yahoo profile service, `GET /market/profile` (merged, #283) | New route only | Preview a symbol's Yahoo sector/type over the API | Provider httptest + handler tests |
+| 2 | `feat/PD-056-holding-classification` | Classification enrichment, `mutual_fund`, DTO fields (merged, #285) | Optional metadata; outage never blocks saves | New holdings carry their Yahoo sector | Holding service/mapper tests |
+| 3 | `feat/PD-056-classification-confirm` | Own + act-as confirmation (merged into sub-task branch, #286) | New routes only | Owners fix or relabel sectors | Handler/service tests incl. scoping |
+| 3b | `feat/PD-056-land-classification-confirm` | Land #286 on feature branch (merged, #287) | Same reviewed code | Confirmation reaches feature branch | Backend tree comparison and Go tests |
+| 3c | `fix/PD-056-crumb-accept` | Per-request Accept headers and offline profile-test wiring (merged, #289) | Existing price client unchanged | Yahoo session succeeds | Provider header regression test |
+| 4 | `feat/PD-056-sector-backfill` | `migrate sectors` dry-run/apply (merged, #288) | CLI only, default no writes | Legacy holdings get sectors | Migration tests |
+| 4b | `fix/PD-056-backend-followup` | Session stop, runbook, decisions, test audit (merged, #290) | Holding saves remain available | Resume interrupted batches | Session recovery and backfill tests |
+| 5 | `feat/PD-056-sector-ui-api` | Generated TS and typed own/act-as profile/confirmation calls (merged, #291) | Existing methods unchanged | Frontend can use the merged classification contract | API routing/CSRF/error tests |
+| 6 | `feat/PD-056-sector-ui-tables` | Sector badges, grouped tables, native subtotals, pinned identity (merged, #292) | Reuse existing table and financial helpers | Browse sectors within each currency | Grouping, totals, XIRR and action regression tests |
+| 7 | `feat/PD-056-sector-ui-review` | Debounced preview, post-save review and queue, act-as confirmation (merged, #293) | Save remains possible during provider failure | Owners resolve classifications | Stale preview, review-later, error and act-as tests |
+| 8 | `feat/PD-056-sector-ui-chart` | Sector allocation, legend and navigation; visual verification | Existing charts retained | Inspect concentration and jump to a sector | Allocation/denominator/navigation tests and browser checks |
+
+All implementation sub-task PRs above target `feat/PD-056-holding-sectors`,
+except #286, which targeted `feat/PD-056-holding-classification` after #285 had
+already been squashed. #287 repaired that landing. #288 merged after #289.
+The final feature-to-main PR has not been opened. Keep sub-task and recovery
+branches until the owner authorizes cleanup.
+
+Owner decisions (2026-11-13): stop migration on Yahoo session failure, retaining
+completed progress for a rerun; ETF/MF classification always requires user
+confirmation; Review later, current-value allocation, and separate fund buckets
+are confirmed in PRD §10.
 
 ## 3. File map
 
 | Action | File | Responsibility |
 | --- | --- | --- |
 | Create | `backend/internal/services/company_profile.go` (+ test) | Bounded direct Yahoo protocol and cached profile fetcher |
-| Create | `backend/internal/domain/classification.go` | Catalogue and typed classification metadata |
+| Create | `backend/internal/domain/classification.go` | Holding types and typed classification metadata (no sector set) |
 | Modify | `backend/internal/domain/holding.go` | Optional embedded classification |
 | Modify | `backend/internal/persistence/holdings.go` (+ test) | Typed scoped writes and migration compare-and-set |
 | Modify | `backend/internal/services/holdings.go` (+ test) | Automatic create/identity-change enrichment, confirmation |
@@ -54,10 +81,13 @@ changes remain in their original worktree.
 | Modify | Existing persistence user enumeration | Reuse migration owner enumeration without service-level BSON |
 | Regenerate | `frontend/src/lib/api/schema.gen.ts` | UI slice generated types |
 | Modify | `frontend/src/types.ts`, `lib/api/client.ts`, act-as routing helpers (+ tests) | Typed profile/confirmation calls |
-| Create | `frontend/src/features/holdings/classification.ts` (+ test) | Shared bucket/group/color catalogue mapping |
+| Create | `frontend/src/features/holdings/classification.ts` (+ test) | Shared bucket/group mapping and label-hash colors |
 | Create | `frontend/src/features/holdings/ClassificationReview.tsx` (+ test) | Explicit confirmation and review queue |
+| Create | `frontend/src/features/holdings/ProfilePreview.tsx` (+ test) | Debounced Yahoo preview and stale-response protection |
+| Create | `frontend/src/lib/useDialogFocus.ts` | Dialog focus trapping, Escape and focus restoration |
 | Modify | `AddEditModal.tsx`, `HoldingsTable.tsx`, `HoldingsByCurrency.tsx` (+ tests) | Preview, badges, independent category navigation |
 | Create | `frontend/src/features/holdings/SectorAllocation.tsx` (+ test) | Native currency allocation and accessible legend |
+| Create | `frontend/src/features/holdings/sectorAllocationData.ts` (+ test) | Positive priced-value denominator, unpriced counts and currency isolation |
 | Modify | `frontend/src/components/Charts.tsx`, `features/dashboard/DashboardPage.tsx` (+ tests) | On-demand mounting, review banner, chart-to-table selection |
 | Modify | `docs/local-setup.md`, cookbook when troubleshooting occurs | Operator guidance and verified recovery evidence |
 
@@ -80,8 +110,10 @@ do not relabel proposed defaults as accepted without that review.
   Chrome at 1440 px and 390 px for both layouts. All action buttons stay inside
   their cells, clear of XIRR; no page overflow or script errors. Screenshots
   inspected. [Diagnosis and fix](../cookbook/holding-table-actions-overflow.md).
-* [ ] Finish rendered chart/review-dialog interaction verification; table
-  geometry checks do not establish those interactions.
+* [x] Finish reference visual chart/review-dialog interaction verification:
+  Chrome checks passed for chart navigation/focus, Review later, fund
+  confirmation, narrow dialog and Escape; desktop/narrow screenshots inspected.
+  Implemented app review/chart verification remains part of the UI slices.
 * [x] Verify pinned Script identity/header/footer at start/middle/end of scroll
   in both layouts at 1440 px, 390 px, and 320 px. Keep actions reachable and
   opaque pinned surfaces readable; inspect mobile screenshot.
@@ -94,7 +126,7 @@ do not relabel proposed defaults as accepted without that review.
   markdownlint docs/prds/PRD-013-holding-sectors.md docs/designs/DD-013-holding-sectors.md docs/plans/PD-056-holding-sectors.md docs/adrs/ADR-0004-direct-yahoo-classification.md docs/feature-deps/PD-056-holding-sectors.md --config .markdownlintrc
   ```
 
-* [ ] Commit the docs slice, push, open a docs PR, and merge only after the five
+* [x] Commit the docs slice, push, open a docs PR, and merge only after the five
   protected checks pass and the design is reviewed.
 
   Stage only the feature documents to preserve earlier work.
@@ -110,24 +142,31 @@ do not relabel proposed defaults as accepted without that review.
 **Files:** backend profile/domain/store/service/controllers/spec/auth files in
 §3, generated API files, and adjacent tests.
 
-Complete this as one useful backend PR: auto-enrichment, confirmation, reads,
-and backfill are usable without the UI. New classification code uses typed
+Completed as the separate backend sub-task PRs in §2: auto-enrichment,
+confirmation, reads, and backfill are usable without the UI. New classification code uses typed
 persistence methods and bound loggers. Tests inject a profile fetcher and use
 httptest for provider behavior; CI never depends on Yahoo being reachable.
 
-* [ ] Implement the catalogue, normalized profile model, Yahoo host restrictions,
+* [x] Implement the normalized profile model (verbatim Yahoo sector text), Yahoo host restrictions,
   cookie/crumb session, response bounds, timeout, cache, deduplication, and cooldown
-  exactly as DD §3. Verify the direct protocol using public sample symbols from
-  the dev runtime; preserve no cookie/crumb in logs or committed fixtures.
-* [ ] Add typed optional holding classification, scoped compare-and-set writes,
+  exactly as DD §3 (#283, #289). Local dry-run evidence is in the session
+  cookbook; deployed-dev verification remains unchecked in §8. Preserve no
+  cookie/crumb in logs or committed fixtures.
+* [x] Add typed optional holding classification, scoped compare-and-set writes,
   and automatic create/identity-change enrichment. Preserve unresolved holding
   saves and manual confirmation on unrelated edits.
-* [ ] Add profile/own-confirmation/act-as-confirmation schemas and handlers,
+* [x] Add profile/own-confirmation/act-as-confirmation schemas and handlers,
   `mutual_fund` enum, validation, CSRF, role/region scoping, and mapper fields.
-* [ ] Audit existing type switches and trade/dividend import paths. Keep old
+* [x] Audit existing type switches and trade/dividend import paths. Keep old
   stock/ETF behavior; add explicit MF handling only where existing types are
   assumed exhaustive. Imported holdings missing metadata join the review queue.
-* [ ] Regenerate both sides after spec edits and verify generated contracts.
+  Backend audit: type validation uses `ValidHoldingType`; trade import creates
+  stocks without classification, and dividend/ledger paths preserve metadata.
+  Existing classification tests cover matching ETF/MF suggestions staying pending.
+* [x] Regenerate both sides after spec edits and verify generated contracts.
+  Follow-up verification succeeded: Go output unchanged; TS contains the
+  profile/confirmation operations, optional classification, and `mutual_fund`.
+  Generated TS remains reserved for the frontend API-wiring PR.
 
   Generation follows the repository's split-PR convention: frontend type output
   is verified now and regenerated again for the UI commit.
@@ -142,27 +181,36 @@ httptest for provider behavior; CI never depends on Yahoo being reachable.
   Expected: Go generation succeeds, tests pass, linter passes, generated TS
   includes optional classification without forcing existing fixtures to change.
 
-* [ ] Verify ready-to-run endpoint curls in the backend PR description: login
+* [x] Verify ready-to-run endpoint curls in the backend PR description: login
   into a cookie jar first, GET profile, create and read a classified holding,
   PUT own confirmation, PUT act-as confirmation. Use `<dev password>` and CSRF
   header on every write, with expected statuses in comments. Keep prose <200
   words with What / How to test / No regression sections.
-* [ ] Stage only backend spec/source/tests/generated Go plus this plan's status;
+* [x] Stage only backend spec/source/tests/generated Go plus this plan's status;
   commit with `✨ Add automatic holding sector classification`, push the backend
-  branch, and open its PR. Merge after green CI; never mix UI source into it.
+  branch, and open its PR. Merged as #283, #285, #287, #289; no UI source mixed in.
+
+Backend test audit (2026-11-13): httpserver fixtures use
+`controllers.NewWithProfiles(..., nil)` after #289. This still constructs a real
+`PriceService`, but current price/summary/market-price requests are unauthenticated
+and return 401 before reaching it; authenticated journeys only create/list
+holdings. Price-service behavior tests use `httptest` endpoints, while controller
+and portfolio tests inject price stubs. No live Yahoo price fetch was found in
+these test paths. Re-audit or inject prices before adding authenticated HTTP
+price journeys; construction alone does not prove tests are offline.
 
 ## 6. Task 3: Backfill command and runbook
 
 **Files:** `backend/cmd/migrate_sectors.go`, typed holdings/user persistence,
-profile classification helper and migration tests. Ships with Task 2's backend
-PR so backfill cannot precede classification on new holding creation.
+profile classification helper and migration tests. Shipped in #288 after the
+new-holding classification and confirmation sub-tasks merged.
 
-* [ ] Add explicit owner/all-users scope, default dry-run, `--apply`, limit,
+* [x] Add explicit owner/all-users scope, default dry-run, `--apply`, limit,
   retry-unresolved, pacing, cancellation, aggregate report, and conflict skips.
-* [ ] Test no writes in dry-run; successful first apply; rerun skip; manual
+* [x] Test no writes in dry-run; successful first apply; rerun skip; manual
   preservation; concurrent symbol/confirmation preservation; rate-limit stop;
   one owner's scope; and no financial-field writes.
-* [ ] Run help and tests. Expected: help documents default dry-run and required
+* [x] Run help and tests. Expected: help documents default dry-run and required
   scope; tests pass without a live database or provider.
 
   Operators need discoverable scope and write semantics before touching data.
@@ -188,8 +236,14 @@ PR so backfill cannot precede classification on new holding creation.
   Expected: initial report classifies or queues eligible rows; applying the same
   completed batch twice adds no writes. Retry needs-review only deliberately.
 
-* [ ] Update backend PR validation evidence and this plan with observed counts,
-  environment, and limitations, excluding personal portfolio data.
+* [x] Record existing local dry-run evidence: #289 and the session cookbook report
+  3 eligible, 3 resolved, 0 needs-review, 0 errors, no writes (2026-11-13).
+  This was local verification, not a dev deployment or backfill apply.
+* [x] Add operator steps to `docs/local-setup.md`: dry-run/report inspection,
+  bounded apply, reruns, retry-unresolved, conflicts, and production approval.
+* [x] Implement the follow-up session stop with no write for the failed holding;
+  add offline tests for cached session failure/recovery, dry-run/apply stop and
+  resume, and per-symbol failures continuing. Ordinary saves remain needs-review.
 
 ## 7. Task 4: UI slice
 
@@ -197,12 +251,26 @@ PR so backfill cannot precede classification on new holding creation.
 review component, AddEditModal, table/currency views, SectorAllocation, Charts,
 DashboardPage, and tests listed in §3.
 
-* [ ] Branch `feat/holding-sector-ui` from `main` only after the backend PR lands.
-* [ ] Regenerate TS and wire profile preview and scoped confirmation methods.
+* [x] Branch each `feat/PD-056-sector-ui-*` sub-task from the current feature
+  branch after its backend prerequisites land; target the feature branch.
+* [x] Regenerate TS and wire profile preview and scoped confirmation methods.
   Implement stale-response protection and preserve entered data on failure.
-* [ ] Implement the accessible confirmation/review flow with an explicit
+  API slice: generated types and client calls are implemented; 10 routing/API
+  tests pass, including act-as, encoded symbols, CSRF and confirmation errors.
+  Review slice adds 350 ms debounce, stale-response suppression, provider-error
+  fallback, and retained form input on save/confirmation errors.
+* [x] Implement the accessible confirmation/review flow with an explicit
   Review later path, no duplicate creation, and act-as target routing.
-* [ ] Add text sector badges and By holding / By sector layouts, with separate
+  Queue includes nil holdings. Existing classifications can be renamed via
+  Save and review classification. Unit and Chrome fixture checks passed for
+  own/act-as, owner-only labels, post-save fund confirmation, keyboard focus
+  trapping/restoration, all themes, and 1440/390/320 px. Typecheck, ESLint,
+  566 frontend tests and build pass, including reopening an explicitly
+  unclassified stock without restoring Yahoo's sector. Live dev verification
+  remains pending.
+* [x] Owner reviewed the local preview and approved tighter column spacing and
+  a right-aligned By holding / By sector switch (2026-11-13).
+* [x] Add text sector badges and By holding / By sector layouts, with separate
   sector headings and rounded tables based on the owner's reference. Retain
   existing active/all/nil navigation and clearly labelled currency/group totals.
   Add invested/current/unrealised sector subtotal rows, keeping the flat table's
@@ -210,20 +278,34 @@ DashboardPage, and tests listed in §3.
   sector. Reuse existing summation. Verify group sums
   reconcile, layout switching preserves totals, percentages use aggregate cost,
   and zero invested shows no invalid return.
-* [ ] Adapt the existing dashboard rather than replacing it: retain all 12
+* [x] Adapt the existing dashboard rather than replacing it: retain all 12
   holdings columns, table interactions, price/day movement, realised gain,
   dividends, row XIRR/caveats, existing actions/guards, search, refresh, hero,
   summary cards and native/converted currency stats. Keep currency XIRR on the
   overall total only; sector XIRR stays unavailable. Add regression tests for
   monetary/day-gain sums and correctly aligned footer cells in both layouts.
-* [ ] Pin the Script header, body identities, and total labels during horizontal
+* [x] Pin the Script header, body identities, and total labels during horizontal
   scrolling in both layouts, on desktop and mobile. Use opaque theme surfaces,
   readable wrapping and a divider. Verify start/middle/end positions and that
   the remaining viewport still supports readable values and reachable actions.
-* [ ] Implement native-currency sector allocation with explicit fund, pending,
+  Chrome fixture checks passed in legacy/glass, dark/light/cyberpunk, at
+  1440/390/320 px, at start/middle/end scroll, with opaque identity surfaces and
+  reachable actions. Screenshots inspected; pinned header stacking corrected.
+  Typecheck, 556 frontend tests, ESLint and build passed for the table slice.
+* [x] Implement native-currency sector allocation with explicit fund, pending,
   and unclassified buckets, priced-value denominator, unpriced count, empty
   state, and category-to-group scrolling/focus. Render only after Sectors selection.
-* [ ] Test interactions and aggregation, then run the normal frontend checks.
+  The current Holdings / All / Nil view and search survive chart navigation;
+  missing targets produce a focused explanation rather than silently changing
+  the view or hiding sibling groups. Nine new tests cover 60/20/20, EUR-native
+  values, pending/fund/unclassified buckets, absent prices, empty state, mounting,
+  and dashboard navigation/focus.
+* [x] Test interactions and aggregation, then run the normal frontend checks.
+  Typecheck, 575 frontend tests, changed-source ESLint, and build pass. Chrome
+  fixture checks passed for native INR/EUR values, unpriced warning, no profile
+  fetch on chart selection, keyboard legend and pie navigation, preserved
+  All/Nil and sibling groups, and headings visible below the sticky header.
+  Both UI modes, all themes and 1440/390/320 px passed; screenshots inspected.
 
   These commands exercise the UI slice without broadening the backend PR.
 
@@ -238,9 +320,11 @@ DashboardPage, and tests listed in §3.
 
   Expected: generation/build/typecheck/lint succeed; all frontend tests pass.
 
-* [ ] Stage only frontend source/types/tests plus plan status; commit with
+* [x] Stage only frontend source/types/tests plus plan status; commit with
   `✨ Show holding sectors and allocation`, push the UI branch, and open its PR.
   Validate manually before merging; do not rerun local suites after merge.
+  Shipped as the separate frontend PRs in §2, with the allocation chart in this
+  final frontend sub-task PR. No backend source or new dependencies are included.
 
 ## 8. Environment and production rollout
 
@@ -273,6 +357,15 @@ No financial or ledger rollback is necessary because those fields are untouched.
 
 ## 10. End-to-end verification
 
+Local frontend evidence (2026-11-13): Vitest and Chrome fixtures verify review
+later, explicit ETF/MF confirmation, unclassified-choice preservation, stale
+preview suppression, own/act-as target paths, currency isolation, allocation
+denominators, empty/unpriced states, chart-to-table navigation, themes, keyboard,
+and responsive geometry. The owner reviewed the local table/review preview.
+The checkboxes below remain pending for full-stack/deployed-dev verification:
+fixtures do not establish real database persistence, provider access, authz or
+backfill behavior in that environment.
+
 * [ ] Create a stock with a recognized sector; skip preview and confirm backend
   enrichment still persists. Reload and check sector badge and chart membership.
 * [ ] Simulate unavailable profile and missing-sector stock: save succeeds,
@@ -296,10 +389,20 @@ No financial or ledger rollback is necessary because those fields are untouched.
 ## 11. Done and next
 
 * [x] Repository flow inspected and docs slice drafted.
-* [ ] Docs reviewed and merged.
-* [ ] Backend and migration slice implemented, tested, deployed to dev, merged.
-* [ ] UI slice implemented, tested, verified in dev, merged.
+* [x] Docs reviewed and merged (#280 to main, #282 to feature branch).
+* [x] Backend and migration implemented and merged into feature branch
+  (#283, #285, #287, #289, #288; #286 landed via #287).
+* [x] Owner decisions resolved in PRD §10; backend test audit and runbook added.
+* [x] Backend follow-up implemented and validated for its feature-branch PR:
+  full race/shuffle suite, changed-package retest, Go lint, both API generators,
+  CLI help, Markdown, and diff checks passed. No migration apply was run.
+* [ ] Backend deployed to dev; profile lookup and backfill verified there.
+* [x] Frontend implemented and locally validated: API #291, tables #292, review
+  #293, and allocation chart in this PR. Table/review preview feedback applied.
+* [ ] UI deployed and verified against the dev backend, including persisted
+  owner/act-as flows and provider/backfill checks in §10.
 * [ ] Production backfill explicitly approved and observed.
 
-Next: review the visual spec and resolve PRD §10, then implement the backend
-slice after the docs PR lands.
+Next: after the chart PR lands, deploy the feature to dev and complete §8/§10
+verification. Final feature merge to main and production backfill remain
+pending; production writes need a backup and explicit owner approval.
