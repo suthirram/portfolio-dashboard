@@ -4,16 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
-	"portfolio-dashboard/internal/config"
-	"portfolio-dashboard/internal/logging"
 	"portfolio-dashboard/internal/persistence"
 	"portfolio-dashboard/internal/services"
 )
@@ -89,22 +84,12 @@ func runMigrateSectors(cmd *cobra.Command, _ []string) error {
 	if migrateSectorsLimit < 0 {
 		return errors.New("--limit must be 0 (all) or more")
 	}
-	cfg := config.Default()
-	cfg.ApplyEnv()
-	logger, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
-	if err != nil {
-		return err
-	}
 	// Ctrl-C or SIGTERM stops the run before its next write.
-	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	connectCtx, cancel := context.WithTimeout(ctx, cfg.StartupTimeout)
-	defer cancel()
-	store, _, disconnect, err := cliConnect(connectCtx, logger, cfg)
+	ctx, store, logger, closeSession, err := cliSession(cmd)
 	if err != nil {
 		return err
 	}
-	defer disconnect()
+	defer closeSession()
 
 	userIds, err := sectorBackfillUsers(ctx, store.Users, userId)
 	if err != nil {
@@ -117,9 +102,22 @@ func runMigrateSectors(cmd *cobra.Command, _ []string) error {
 		RetryUnresolved: migrateSectorsRetry,
 		Limit:           migrateSectorsLimit,
 	})
+	logSectorBackfillReport(logger, migrateSectorsApply, len(userIds), report)
+	switch {
+	case runErr != nil:
+		return fmt.Errorf("sector backfill stopped early: %w", runErr)
+	case report.RateLimited:
+		return errors.New("sector backfill stopped: Yahoo rate-limited the lookups; rerun later to resume")
+	}
+	return nil
+}
+
+// logSectorBackfillReport logs one backfill run's counts; shared by the
+// manual `migrate sectors` command and the tracked migration step.
+func logSectorBackfillReport(logger *zap.Logger, applied bool, users int, report services.SectorBackfillReport) {
 	logger.Info("sector backfill finished",
-		zap.Bool("applied", migrateSectorsApply),
-		zap.Int("users", len(userIds)),
+		zap.Bool("applied", applied),
+		zap.Int("users", users),
 		zap.Int("eligible", report.Eligible),
 		zap.Int("resolved", report.Resolved),
 		zap.Int("needs_review", report.NeedsReview),
@@ -129,13 +127,6 @@ func runMigrateSectors(cmd *cobra.Command, _ []string) error {
 		zap.Int("remaining", report.Remaining),
 		zap.Bool("rate_limited", report.RateLimited),
 	)
-	switch {
-	case runErr != nil:
-		return fmt.Errorf("sector backfill stopped early: %w", runErr)
-	case report.RateLimited:
-		return errors.New("sector backfill stopped: Yahoo rate-limited the lookups; rerun later to resume")
-	}
-	return nil
 }
 
 func init() {
