@@ -56,6 +56,44 @@ docker exec portfolio_mongo_dev mongosh --quiet portfolio \
 
 The `migrate <name>` subcommands are separate, manual and untracked.
 
+### On deploy (Cloud Run Jobs)
+
+After every rollout, both deploy workflows (and `deploy/cloudrun/deploy.sh`)
+run `deploy/cloudrun/run-migrations.sh`. It pins the migrate job to the image
+that was just deployed, executes it and waits. A failed step only warns; its
+status is in `migrations`, and the next deploy resumes it. The step is skipped
+while the job does not exist. Create each job once:
+
+```bash
+REGION=europe-west1
+
+# prod: take a backup first
+IMAGE=$(gcloud run services describe portfolio-dashboard-api --region $REGION \
+  --format='value(spec.template.spec.containers[0].image)')
+gcloud run jobs create portfolio-dashboard-migrate \
+  --region $REGION --image "$IMAGE" \
+  --command /app/portfolio-api --args migrate \
+  --set-env-vars LOG_FORMAT=json,MONGODB_DATABASE=portfolio \
+  --set-secrets MONGODB_URI=MONGODB_URI:latest \
+  --service-account 361268533788-compute@developer.gserviceaccount.com \
+  --task-timeout 30m --max-retries 0 --tasks 1
+
+# dev: dev image, portfolio_dev database
+IMAGE=$(gcloud run services describe portfolio-dashboard-api-dev --region $REGION \
+  --format='value(spec.template.spec.containers[0].image)')
+gcloud run jobs create portfolio-dashboard-migrate-dev \
+  --region $REGION --image "$IMAGE" \
+  --command /app/portfolio-api --args migrate \
+  --set-env-vars LOG_FORMAT=json,MONGODB_DATABASE=portfolio_dev \
+  --set-secrets MONGODB_URI=MONGODB_URI:latest \
+  --service-account 361268533788-compute@developer.gserviceaccount.com \
+  --task-timeout 30m --max-retries 0 --tasks 1
+```
+
+Never pair a dev image with `MONGODB_DATABASE=portfolio`. The job must live in
+the service's region: `run-migrations.sh` looks it up there. To run it by hand:
+`./deploy/cloudrun/run-migrations.sh portfolio-dashboard-api portfolio-dashboard-migrate europe-west1`.
+
 ## Seeding a demo user (`seed-max.sh`)
 
 ```bash

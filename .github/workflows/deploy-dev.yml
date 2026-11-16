@@ -79,6 +79,12 @@ jobs:
             --set-env-vars "^##^LOG_FORMAT=json##LOG_LEVEL=info##COOKIE_SECURE=true##MONGODB_DATABASE=portfolio_dev##CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS_DEV || secrets.CORS_ALLOWED_ORIGINS }}" \
             --set-secrets "$SECRETS"
 
+      - name: Run pending data migrations (dev)
+        # Same as production (DD-014 §7), against portfolio_dev through its
+        # own job. Skipped while portfolio-dashboard-migrate-dev does not
+        # exist; a failed step warns and the next deploy resumes it.
+        run: ./deploy/cloudrun/run-migrations.sh "$SERVICE" portfolio-dashboard-migrate-dev "$REGION"
+
       - name: Comment dev URL on the PR
         env:
           GH_TOKEN: ${{ github.token }}

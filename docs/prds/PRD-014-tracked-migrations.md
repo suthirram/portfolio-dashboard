@@ -62,7 +62,7 @@ server, and converting the existing manual subcommands. `migrate users
 ## 6. Rollout constraints
 
 Production writes stay owner-gated. The backend command ships first. Running
-it from the deploy pipeline (a `pd-migrate` Cloud Run Job executed after the
-service rollout) is a follow-up, and production gets that job only after the
-owner takes a backup. A failed step marks itself `failed`, but the deploy
+it from the deploy pipeline (the `portfolio-dashboard-migrate` Cloud Run Job,
+executed after the service rollout) followed, and production got that job only
+after the owner took a backup. A failed step marks itself `failed`, but the deploy
 stays green (owner decision, 2026-11-16).

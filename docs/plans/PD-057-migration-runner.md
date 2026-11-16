@@ -1,6 +1,6 @@
 # PD-057: Tracked migration runner
 
-* **Status**: PR1 (docs + runner, → `main`) and PR2 (sector step, → `feat/PD-056-holding-sectors`) open; deploy wiring next
+* **Status**: PR1 (#299) and PR2 (#300) merged; PR3 (deploy wiring) open
 * **Owner**: project owner
 * **Goal**: `go run . migrate` runs every registered migration step not yet
   done in that database, records each step's status (`in_progress`, `done`,
@@ -55,7 +55,7 @@
 |---|---|---|---|---|---|
 | 1 | `feat/PD-057-migration-runner` → `main` | docs + runner + store + bare `migrate` (empty registry) | bare `migrate` printed help before; subcommands unchanged; services tracing is a pure move | any database gets tracked, resumable, exclusive migrations; the next step is one registry line | runner/store/registry tests |
 | 2 | `feat/PD-057-sector-migration-step` → `feat/PD-056-holding-sectors` | sector backfill step `20261116_01`; `migrate sectors` reuses `cliSession` | `migrate sectors` behaviour and log identical | `migrate` classifies every environment's holdings with no flags | `TestSectorBackfillIsRegistered`, `TestSectorBackfillNext` |
-| 3 | next | `pd-migrate` job + workflow step | — | runs on every deploy | see Next |
+| 3 | `feat/PD-057-deploy-migrations` → `main` | `run-migrations.sh` + shared `repoint-job.sh`; step after rollout in both deploy workflows and `deploy.sh`; CI job for the script tests | `pd-snapshot` repointing behaves as before; the step skips while a job is missing | migrations run on every deploy, and the job can never run a stale image again | `deploy/cloudrun/test.sh` (13 checks, fake `gcloud`) |
 
 ## Task 1: Shared tracing helpers
 
@@ -1660,6 +1660,262 @@ func TestSectorBackfillNext(t *testing.T) {
   production migration automatically". Commit: `git add docs/plans/PD-056-holding-sectors.md`,
   then `git commit -m "📝 Note PD-056 backfill moved to migrate step"`.
 
+## Task 8 (PR3): Run migrations on deploy
+
+**Files:** `deploy/cloudrun/repoint-job.sh`, `deploy/cloudrun/run-migrations.sh`, `deploy/cloudrun/test.sh` (create); `.github/workflows/deploy-cloudrun.yml`, `.github/workflows/deploy-dev.yml`, `.github/workflows/lint.yml`, `deploy/cloudrun/deploy.sh`, `docs/operations.md`, `docs/designs/DD-014-tracked-migrations.md`, `docs/prds/PRD-014-tracked-migrations.md` (modify)
+
+The prod job's first runs used a stale dev image: they printed `migrate`'s old
+help and exited 0, with nothing migrated. Pinning the job to the image just
+deployed, in the same step that runs it, makes that impossible. The pinning
+logic already existed inline for `pd-snapshot` (workflow and `deploy.sh`), so
+it moves into `repoint-job.sh` and all three callers share it. A failed
+execution warns instead of failing (owner decision). A failed repoint fails the
+deploy, because the alternative is running stale code.
+
+* [ ] Create `deploy/cloudrun/repoint-job.sh` (`chmod +x`):
+
+```bash
+#!/usr/bin/env bash
+# Pins a Cloud Run Job to the image a Cloud Run service is running, so the
+# job and the web app always run identical code. Exits 3 when the job does
+# not exist, so a caller can skip a job that has not been created yet.
+#
+# Usage: repoint-job.sh <service> <job> <region>
+# The project comes from gcloud config or CLOUDSDK_CORE_PROJECT.
+
+set -euo pipefail
+
+SERVICE="$1"
+JOB="$2"
+REGION="$3"
+
+if ! gcloud run jobs describe "${JOB}" --region "${REGION}" >/dev/null 2>&1; then
+  echo ">> Job ${JOB} not found in ${REGION}"
+  exit 3
+fi
+IMAGE=$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
+  --format 'value(spec.template.spec.containers[0].image)')
+echo ">> Repointing ${JOB} to ${IMAGE}"
+gcloud run jobs update "${JOB}" --region "${REGION}" --image "${IMAGE}"
+```
+
+* [ ] Create `deploy/cloudrun/run-migrations.sh` (`chmod +x`):
+
+```bash
+#!/usr/bin/env bash
+# Runs pending data migrations after a deploy (DD-014 §7): pins the migrate
+# job to the service's freshly deployed image, executes it and waits.
+#
+# A failed migration step is recorded `failed` in the migrations collection
+# and the next run resumes it, so a failed execution warns instead of failing
+# the deploy (owner decision, 2026-11-16). Skips when the job does not exist
+# yet; create it as described in docs/operations.md.
+#
+# Usage: run-migrations.sh <service> <job> <region>
+# The project comes from gcloud config or CLOUDSDK_CORE_PROJECT.
+
+set -euo pipefail
+
+SERVICE="$1"
+JOB="$2"
+REGION="$3"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+STATUS=0
+"${HERE}/repoint-job.sh" "${SERVICE}" "${JOB}" "${REGION}" || STATUS=$?
+if (( STATUS == 3 )); then
+  echo ">> Skipping migrations — job ${JOB} does not exist yet (see docs/operations.md)"
+  exit 0
+fi
+(( STATUS == 0 )) || exit "${STATUS}"
+
+if gcloud run jobs execute "${JOB}" --region "${REGION}" --wait; then
+  echo ">> Migrations finished"
+else
+  echo "::warning title=Migrations::Job ${JOB} failed; its step status is in the migrations collection and the next deploy resumes it"
+fi
+```
+
+* [ ] Create `deploy/cloudrun/test.sh`. A fake `gcloud` on `PATH` records the
+  calls; the checks cover: pin before run, skip a missing job, warn on a failed
+  run, fail on a failed repoint, and exit 3 for a missing job:
+
+```bash
+#!/usr/bin/env bash
+# Self-tests for repoint-job.sh and run-migrations.sh against a fake gcloud
+# on PATH: no network, no GCP project. Run: bash deploy/cloudrun/test.sh
+
+set -uo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# The fake records every call and answers per FAKE_* switches.
+cat > "$tmp/gcloud" <<'FAKE'
+#!/usr/bin/env bash
+echo "$*" >> "$GCLOUD_LOG"
+case "$*" in
+  "run jobs describe"*)     [[ "${FAKE_JOB_EXISTS:-1}" == 1 ]] ;;
+  "run services describe"*) echo "registry/app@sha256:new" ;;
+  "run jobs update"*)       [[ "${FAKE_UPDATE_FAILS:-0}" == 0 ]] ;;
+  "run jobs execute"*)      [[ "${FAKE_EXECUTE_FAILS:-0}" == 0 ]] ;;
+esac
+FAKE
+chmod +x "$tmp/gcloud"
+export PATH="$tmp:$PATH" GCLOUD_LOG="$tmp/calls"
+
+pass=0
+fail=0
+check() { # check <name> <command…>: passes when the command succeeds
+  local name="$1"
+  shift
+  if "$@"; then
+    pass=$((pass + 1))
+  else
+    fail=$((fail + 1))
+    echo "FAIL: $name"
+    echo "  output: $output"
+    echo "  calls:  $(tr '\n' '|' < "$GCLOUD_LOG")"
+  fi
+}
+migrate() { # runs run-migrations.sh, capturing output and exit code
+  : > "$GCLOUD_LOG"
+  output="$("$here/run-migrations.sh" svc migrate-job europe-west1 2>&1)"
+  code=$?
+}
+called() { grep -q -- "$1" "$GCLOUD_LOG"; }
+not_called() { ! called "$1"; }
+
+migrate
+check "existing job exits 0" test "$code" -eq 0
+check "job is pinned to the service image" called "run jobs update migrate-job --region europe-west1 --image registry/app@sha256:new"
+check "job runs and waits" called "run jobs execute migrate-job --region europe-west1 --wait"
+check "image is pinned before the run" test "$(grep -n 'jobs update' "$GCLOUD_LOG" | cut -d: -f1)" -lt "$(grep -n 'jobs execute' "$GCLOUD_LOG" | cut -d: -f1)"
+
+FAKE_JOB_EXISTS=0 migrate
+check "missing job exits 0" test "$code" -eq 0
+check "missing job says it skipped" grep -q "Skipping migrations" <<< "$output"
+check "missing job is never updated" not_called "run jobs update"
+check "missing job is never executed" not_called "run jobs execute"
+
+FAKE_EXECUTE_FAILS=1 migrate
+check "failed migration does not fail the deploy" test "$code" -eq 0
+check "failed migration emits a workflow warning" grep -q "::warning title=Migrations::" <<< "$output"
+
+FAKE_UPDATE_FAILS=1 migrate
+check "failed repoint fails the deploy" test "$code" -ne 0
+check "failed repoint never runs a stale image" not_called "run jobs execute"
+
+: > "$GCLOUD_LOG"
+FAKE_JOB_EXISTS=0 "$here/repoint-job.sh" svc snapshot-job europe-west1 >/dev/null 2>&1
+code=$?
+output=""
+check "repoint-job exits 3 for a missing job" test "$code" -eq 3
+
+echo "deploy script tests: $pass passed, $fail failed"
+(( fail == 0 ))
+```
+
+* [ ] Modify `.github/workflows/deploy-cloudrun.yml`. Current:
+
+```yaml
+      - name: Repoint snapshot job to the freshly deployed image
+        # pd-snapshot is a separate Cloud Run Job that runs the same binary as
+        # the service. Pin it to the same image so the cron and the web app
+        # always run identical code.
+        run: |
+          IMAGE=$(gcloud run services describe "$SERVICE" --region "$REGION" \
+            --format 'value(spec.template.spec.containers[0].image)')
+          echo "Repointing pd-snapshot to $IMAGE"
+          gcloud run jobs update pd-snapshot --region "$REGION" --image "$IMAGE"
+```
+
+  Replacement:
+
+```yaml
+      - name: Repoint snapshot job to the freshly deployed image
+        # pd-snapshot is a separate Cloud Run Job that runs the same binary as
+        # the service. Pin it to the same image so the cron and the web app
+        # always run identical code.
+        run: ./deploy/cloudrun/repoint-job.sh "$SERVICE" pd-snapshot "$REGION"
+
+      - name: Run pending data migrations
+        # portfolio-dashboard-migrate runs `migrate` on the new image after
+        # rollout (DD-014 §7). A failed step warns without failing the
+        # deploy; its status is in the migrations collection and the next
+        # deploy resumes it. Skipped while the job does not exist.
+        run: ./deploy/cloudrun/run-migrations.sh "$SERVICE" portfolio-dashboard-migrate "$REGION"
+```
+
+* [ ] Modify `.github/workflows/deploy-dev.yml`: insert before `Comment dev URL on the PR`:
+
+```yaml
+      - name: Run pending data migrations (dev)
+        # Same as production (DD-014 §7), against portfolio_dev through its
+        # own job. Skipped while portfolio-dashboard-migrate-dev does not
+        # exist; a failed step warns and the next deploy resumes it.
+        run: ./deploy/cloudrun/run-migrations.sh "$SERVICE" portfolio-dashboard-migrate-dev "$REGION"
+```
+
+* [ ] Modify `.github/workflows/lint.yml`: append the job:
+
+```yaml
+  deploy-scripts:
+    name: Deploy scripts (bash tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Fake gcloud on PATH: checks job repointing and the migrations step
+      # without touching GCP.
+      - run: bash deploy/cloudrun/test.sh
+```
+
+* [ ] Modify `deploy/cloudrun/deploy.sh`. Current:
+
+```bash
+SNAPSHOT_JOB="${SNAPSHOT_JOB:-pd-snapshot}"
+if gcloud run jobs describe "${SNAPSHOT_JOB}" --project "${PROJECT_ID}" \
+    --region "${REGION}" >/dev/null 2>&1; then
+  IMAGE=$(gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" \
+    --region "${REGION}" --format 'value(spec.template.spec.containers[0].image)')
+  echo ">> Repointing ${SNAPSHOT_JOB} to ${IMAGE}"
+  gcloud run jobs update "${SNAPSHOT_JOB}" --project "${PROJECT_ID}" \
+    --region "${REGION}" --image "${IMAGE}"
+else
+  echo ">> Skipping ${SNAPSHOT_JOB} update — job not found (run infra/gcp/snapshot-job.sh first)"
+fi
+```
+
+  Replacement:
+
+```bash
+SNAPSHOT_JOB="${SNAPSHOT_JOB:-pd-snapshot}"
+export CLOUDSDK_CORE_PROJECT="${PROJECT_ID}"
+STATUS=0
+./deploy/cloudrun/repoint-job.sh "${SERVICE}" "${SNAPSHOT_JOB}" "${REGION}" || STATUS=$?
+if (( STATUS == 3 )); then
+  echo ">> Skipping ${SNAPSHOT_JOB} update — job not found (run infra/gcp/snapshot-job.sh first)"
+elif (( STATUS != 0 )); then
+  exit "${STATUS}"
+fi
+
+# Run pending data migrations on the new image (DD-014 §7); skipped while the
+# job does not exist, and a failed step warns without failing the deploy.
+./deploy/cloudrun/run-migrations.sh "${SERVICE}" "${MIGRATE_JOB:-portfolio-dashboard-migrate}" "${REGION}"
+```
+
+* [ ] Document job creation (prod after a backup, dev on `portfolio_dev`) in
+  `docs/operations.md` § "On deploy (Cloud Run Jobs)", and update DD-014 §7
+  and PRD-014 §6 to the `portfolio-dashboard-migrate` name.
+* [ ] Verify: `bash deploy/cloudrun/test.sh`. Expected: `deploy script tests: 13 passed, 0 failed`.
+  Then `yamllint -c .yamllint .github/workflows/ && bash -n deploy/cloudrun/deploy.sh`. Expected: no output.
+* [ ] Verify after merge: the `Deploy backend to Cloud Run` run shows
+  `>> Repointing portfolio-dashboard-migrate to …` and then `>> Migrations
+  finished`. The job's log shows `"skipped":["20261116_01"]`.
+* [ ] Commit: `git add deploy/cloudrun/repoint-job.sh deploy/cloudrun/run-migrations.sh deploy/cloudrun/test.sh deploy/cloudrun/deploy.sh .github/workflows/deploy-cloudrun.yml .github/workflows/deploy-dev.yml .github/workflows/lint.yml docs/operations.md docs/designs/DD-014-tracked-migrations.md docs/prds/PRD-014-tracked-migrations.md docs/plans/PD-057-migration-runner.md`,
+  then `git commit -m "🔧 Run tracked migrations after each deploy"`.
+
 ## Task 7: End-to-end verification scenarios
 
 * [ ] **Exactly once**: run `migrate` twice on a throwaway DB. The second run skips every step.
@@ -1678,11 +1934,10 @@ func TestSectorBackfillNext(t *testing.T) {
 
 * `go run . migrate` runs pending steps with explicit per-step status, cursor
   resume and lease exclusivity.
-* Sector backfill is step `20261116_01` (PR2).
+* Sector backfill is step `20261116_01` (PR2). Prod ran it on 2026-11-16:
+  59 holdings, 45 resolved, 14 confirmed by the owner.
+* Every prod and dev deploy runs pending migrations on the image it just
+  deployed (PR3).
 
-**Next:** PR3, deploy wiring (DD-014 §7). Add `deploy/cloudrun/run-migrations.sh`
-(repoint `pd-migrate` to the service image, run `gcloud run jobs execute
---wait`, and warn on failure) and an `infra/gcp/migrate-job.sh` bootstrap.
-Add a step after the rollout in `deploy-cloudrun.yml` and `deploy-dev.yml`.
-Create `pd-migrate-dev` first. Create prod `pd-migrate` only after the owner
-takes a backup.
+**Next:** create `portfolio-dashboard-migrate-dev` (docs/operations.md). Until
+then, dev deploys skip the migrations step.
