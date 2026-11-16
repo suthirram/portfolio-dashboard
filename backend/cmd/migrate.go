@@ -25,7 +25,16 @@ var migrateOwner string
 
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
-	Short: "One-shot migrations for schema changes",
+	Short: "Run pending data migrations; subcommands are one-shot manual migrations",
+	Long: `Without a subcommand, runs every registered migration step not yet done,
+in version order, and records each step's status (in_progress, done, failed)
+in the migrations collection. A done step never runs again. A failed or
+interrupted step resumes from its saved cursor on the next run. A step held by
+another live run stops this run without error (DD-014).
+
+The subcommands below are manual, one-shot tools and are not tracked.`,
+	Args: cobra.NoArgs,
+	RunE: runMigratePending,
 }
 
 var migrateUsersCmd = &cobra.Command{
