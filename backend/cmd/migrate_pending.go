@@ -18,8 +18,10 @@ import (
 // migrationSteps is the registry `migrate` runs (DD-014 §2), in version
 // order. Add a step by appending it with a version dated the day it is
 // written ("YYYYMMDD_NN"); never change or remove a shipped version.
-func migrationSteps(_ *persistence.Store, _ *zap.Logger) []migration.Step {
-	return []migration.Step{}
+func migrationSteps(store *persistence.Store, logger *zap.Logger) []migration.Step {
+	return []migration.Step{
+		newSectorBackfillStep(store, logger), // 20261116_01
+	}
 }
 
 // runMigratePending runs every registered step not yet done, recording each
