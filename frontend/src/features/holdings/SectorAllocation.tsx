@@ -6,10 +6,14 @@ import { groupByCurrency } from './groupByCurrency'
 import { filterByView } from './holdingViews'
 import { sectorAllocation } from './sectorAllocationData'
 import type { SectorSelection } from './classification'
+import type { CurrencyCode } from './groupByCurrency'
+import type { SectorColorMap } from './sectorColors'
 
-export default function SectorAllocation({ holdings, onSelectSector }: {
+export default function SectorAllocation({ holdings, onSelectSector, sectorColors }: {
   holdings: HoldingWithPrice[]
   onSelectSector?: (selection: SectorSelection) => void
+  /** Per-currency sector colours, assigned in this pie's slice order (sectorColorsByCurrency). */
+  sectorColors?: Map<CurrencyCode, SectorColorMap>
 }) {
   const [currency, setCurrency] = useState<SupportedCurrency>(() => {
     const first = groupByCurrency(filterByView(holdings, 'active')).find(group => group.currency !== 'OTHER')?.currency
@@ -17,6 +21,7 @@ export default function SectorAllocation({ holdings, onSelectSector }: {
   })
   const allocation = sectorAllocation(holdings, currency)
   const select = (key: string) => onSelectSector?.({ currency, key })
+  const colorOf = (bucket: { key: string; color: string }) => sectorColors?.get(currency)?.get(bucket.key) ?? bucket.color
   return <section aria-label="Sector allocation">
     <div className="sector-allocation-header">
       <div><h3>Sector allocation</h3><p>Current market value · positive active positions</p></div>
@@ -34,7 +39,7 @@ export default function SectorAllocation({ holdings, onSelectSector }: {
             <PieChart>
               <Pie data={allocation.buckets} dataKey="value" nameKey="label" innerRadius={68} outerRadius={105} paddingAngle={2} isAnimationActive={false}
                 onClick={(_, index) => { const bucket = allocation.buckets[index]; if (bucket) select(bucket.key) }}>
-                {allocation.buckets.map(bucket => <Cell key={bucket.key} fill={bucket.color} />)}
+                {allocation.buckets.map(bucket => <Cell key={bucket.key} fill={colorOf(bucket)} />)}
               </Pie>
               <Tooltip formatter={value => typeof value === 'number' ? formatMoney(value, currency) : '—'}
                 contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8 }} />
@@ -45,7 +50,7 @@ export default function SectorAllocation({ holdings, onSelectSector }: {
         <ul className="sector-allocation-legend" aria-label="Sector allocation values">
           {allocation.buckets.map(bucket => <li key={bucket.key}>
             <button type="button" onClick={() => select(bucket.key)}>
-              <span className="sector-legend-label"><span aria-hidden="true" className="sector-dot" style={{ background: bucket.color }} />{bucket.label}
+              <span className="sector-legend-label"><span aria-hidden="true" className="sector-dot" style={{ background: colorOf(bucket) }} />{bucket.label}
                 <small>{bucket.count} {bucket.count === 1 ? 'holding' : 'holdings'}{['etf', 'mutual_fund'].includes(bucket.key) ? ' · underlying sectors not included' : ''}</small>
               </span>
               <span className="sector-legend-value"><strong>{bucket.share.toFixed(1)}%</strong><small>{formatMoney(bucket.value, currency)}</small></span>

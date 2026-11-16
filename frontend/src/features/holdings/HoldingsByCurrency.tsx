@@ -9,6 +9,7 @@ import { xirrNote, type XirrIndex } from './stockXirr'
 import { formatRate, rateTone } from '../../lib/rate'
 import { formatDate } from '../../lib/formDates'
 import { groupBySector, sectorSectionId, type SectorSelection } from './classification'
+import { SectorColorsContext, type SectorColorMap } from './sectorColors'
 
 export type HoldingsLayout = 'holding' | 'sector'
 
@@ -27,6 +28,8 @@ interface Props {
   onLayoutChange?: (layout: HoldingsLayout) => void
   sectorTarget?: SectorSelection | null
   onSectorTargetHandled?: () => void
+  /** Per-currency sector colours (sectorColorsByCurrency over the whole portfolio). */
+  sectorColors?: Map<CurrencyCode, SectorColorMap>
 }
 
 const CURRENCY_LABEL: Record<CurrencyCode, string> = {
@@ -49,7 +52,7 @@ const fmt = (amount: number, sym: string) => {
 
 
 export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, xirr, searchActive = false,
-  view: viewProp, onViewChange, layout: layoutProp, onLayoutChange, sectorTarget, onSectorTargetHandled }: Props) {
+  view: viewProp, onViewChange, layout: layoutProp, onLayoutChange, sectorTarget, onSectorTargetHandled, sectorColors }: Props) {
   const [internalView, setInternalView] = useState<HoldingView>('active')
   const [internalLayout, setInternalLayout] = useState<HoldingsLayout>('holding')
   const [targetMessage, setTargetMessage] = useState('')
@@ -139,9 +142,11 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         const dayChange = computeGroupDayChange(group.holdings)
         // OTHER groups have no XIRR bucket (the backend skips them).
         const bucket = group.currency === 'OTHER' ? undefined : xirr?.byCurrency[group.currency]
+        const colors = sectorColors?.get(group.currency)
 
         return (
-          <section key={group.currency} style={{ marginBottom: 24 }}>
+          <SectorColorsContext.Provider key={group.currency} value={colors}>
+          <section style={{ marginBottom: 24 }}>
             <header style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {CURRENCY_SYMBOL[group.currency]} {CURRENCY_LABEL[group.currency]}
@@ -187,7 +192,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               const sectionId = sectorSectionId(group.currency, sector.key)
               return <div key={sector.key} className="sector-group" aria-labelledby={sectionId}>
                 <h3 id={sectionId} tabIndex={-1} className="sector-heading">
-                  <span><span aria-hidden="true" className="sector-dot" style={{ background: sector.color }} />{sector.label}</span>
+                  <span><span aria-hidden="true" className="sector-dot" style={{ background: colors?.get(sector.key) ?? sector.color }} />{sector.label}</span>
                   <span className="sector-group-meta">{sector.holdings.length} {sector.holdings.length === 1 ? 'holding' : 'holdings'} · {fmt(current, nativeSym)} current value</span>
                 </h3>
                 <HoldingsTable holdings={sector.holdings} loading={loading} onEdit={onEdit} onDelete={onDelete}
@@ -196,6 +201,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               </div>
             })}
           </section>
+          </SectorColorsContext.Provider>
         )
       })}
     </>

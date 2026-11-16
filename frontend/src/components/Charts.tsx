@@ -8,6 +8,8 @@ import type { NameType, ValueType } from 'recharts/types/component/DefaultToolti
 import type { HoldingWithPrice } from '../types'
 import SectorAllocation from '../features/holdings/SectorAllocation'
 import type { SectorSelection } from '../features/holdings/classification'
+import type { CurrencyCode } from '../features/holdings/groupByCurrency'
+import type { SectorColorMap } from '../features/holdings/sectorColors'
 
 const COLORS = ['#4f8ef7', '#00c896', '#a78bfa', '#fbbf24', '#ff4d6d', '#38bdf8', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
 
@@ -44,9 +46,10 @@ type ChartView = 'allocation' | 'pnl' | 'exchange' | 'sectors'
 interface ChartsProps {
   holdings: HoldingWithPrice[]
   onSelectSector?: (selection: SectorSelection) => void
+  sectorColors?: Map<CurrencyCode, SectorColorMap>
 }
 
-export default function Charts({ holdings, onSelectSector }: ChartsProps) {
+export default function Charts({ holdings, onSelectSector, sectorColors }: ChartsProps) {
   const [view, setView] = useState<ChartView>('allocation')
 
   // Allocation by current value
@@ -91,7 +94,7 @@ export default function Charts({ holdings, onSelectSector }: ChartsProps) {
           {BTN('sectors', 'Sectors')}
         </div>
       </div>
-      {view === 'sectors' && <SectorAllocation holdings={holdings} onSelectSector={onSelectSector} />}
+      {view === 'sectors' && <SectorAllocation holdings={holdings} onSelectSector={onSelectSector} sectorColors={sectorColors} />}
 
       {view === 'allocation' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'center' }}>

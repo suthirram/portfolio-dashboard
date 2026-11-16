@@ -3,12 +3,30 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import HoldingsByCurrency from './HoldingsByCurrency'
 import type { HoldingWithPrice } from '../../types'
 import { indexXirr } from './stockXirr'
+import { sectorColorsByCurrency } from './sectorColors'
 
 const holding = (id: string, sector: string, cost: number, value: number): HoldingWithPrice => ({
   id, symbol: id, script: id, currency: 'INR', type: 'stock', stocks_owned: 2,
   current_price: value / 2, previous_close_price: cost / 2, cost_price: cost, current_value: value,
   unrealized_pnl: value - cost, realized_pnl: 7, total_dividends: 3,
   classification: { symbol: id, status: 'resolved', sector },
+})
+
+// jsdom normalises inline colours to rgb().
+const rgb = (hex: string) => `rgb(${[1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16)).join(', ')})`
+
+describe('sector colours in tables', () => {
+  it('paints each sector’s badges and heading with its own colour from the currency map', () => {
+    const rows = [holding('TCS', 'Technology', 100, 120), holding('ITC', 'FMCG', 200, 240)]
+    const colors = sectorColorsByCurrency(rows, 'dark')
+    const inr = colors.get('INR')!
+    render(<HoldingsByCurrency holdings={rows} loading={false} onEdit={vi.fn()} onDelete={vi.fn()} sectorColors={colors} />)
+    const dots = [...document.querySelectorAll<HTMLElement>('.sector-badge .sector-dot')].map(dot => dot.style.background)
+    expect(new Set(dots)).toEqual(new Set([rgb(inr.get('sector:technology')!), rgb(inr.get('sector:fmcg')!)]))
+    fireEvent.click(screen.getByRole('button', { name: 'By sector' }))
+    const heading = screen.getByRole('heading', { name: /Technology/ })
+    expect(heading.querySelector<HTMLElement>('.sector-dot')!.style.background).toBe(rgb(inr.get('sector:technology')!))
+  })
 })
 
 describe('sector tables', () => {

@@ -19,6 +19,7 @@ import ThemePicker from '../../components/ThemePicker'
 import type { Holding, HoldingWithPrice } from '../../types'
 import ClassificationReview from '../holdings/ClassificationReview'
 import { classificationBucket, type SectorSelection } from '../holdings/classification'
+import { sectorColorsByCurrency } from '../holdings/sectorColors'
 import { canonicalCurrency } from '../../lib/currency'
 import { computeGroupDayChange } from '../holdings/dashboardPriceMovement'
 import { groupByCurrency, type CurrencyCode } from '../holdings/groupByCurrency'
@@ -172,6 +173,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     return { INR: changeOf('INR'), EUR: changeOf('EUR') }
   }, [enriched])
   const income = useMemo(() => dividendIncome(enriched), [enriched])
+  // One sector-colour map per currency for the whole portfolio, shared by the
+  // tables and the pie, so a search or view filter never repaints sectors.
+  const sectorColors = useMemo(() => sectorColorsByCurrency(enriched, theme), [enriched, theme])
 
   const TAB = (key: Tab, label: string) => (
     <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
@@ -366,9 +370,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             // admin act-as variant yet), so hide the ledger in act-as mode.
             onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
             xirr={xirr}
+            sectorColors={sectorColors}
           />
         )}
-        {tab === 'charts' && <Charts holdings={enriched} onSelectSector={selection => {
+        {tab === 'charts' && <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={selection => {
           setHoldingsLayout('sector'); setSectorTarget(selection); setTab('table')
         }} />}
       </main>

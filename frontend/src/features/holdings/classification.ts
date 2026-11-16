@@ -4,15 +4,11 @@ import type { CurrencyCode } from './groupByCurrency'
 export interface ClassificationBucket { key: string; label: string; color: string }
 export interface SectorSelection { currency: CurrencyCode; key: string }
 type ClassifiedHolding = Pick<Holding, 'symbol' | 'type' | 'classification'>
-const PALETTE = ['var(--blue)', 'var(--green)', 'var(--purple)', 'var(--yellow)', 'var(--red)']
+// A sector's colour is assigned per currency by sectorColors.ts; this neutral
+// fallback only shows where no colour map is supplied.
+const SECTOR_FALLBACK_COLOR = 'var(--text-secondary)'
 const canonical = (symbol?: string | null) => (symbol ?? '').trim().toUpperCase()
 const cleanLabel = (label: string) => label.trim().replace(/\s+/g, ' ')
-
-export function sectorColor(label: string): string {
-  let hash = 0
-  for (const char of label.toLowerCase()) hash = (Math.imul(hash, 31) + char.codePointAt(0)!) >>> 0
-  return PALETTE[hash % PALETTE.length]
-}
 
 export function classificationBucket(holding: ClassifiedHolding): ClassificationBucket {
   const classification = holding.classification
@@ -24,7 +20,7 @@ export function classificationBucket(holding: ClassifiedHolding): Classification
   if (holding.type === 'mutual_fund') return { key: 'mutual_fund', label: 'Mutual fund', color: 'var(--purple)' }
   const label = cleanLabel(classification.sector ?? '')
   if (!label) return { key: 'unclassified', label: 'Unclassified stock', color: 'var(--text-muted)' }
-  return { key: `sector:${label.toLowerCase()}`, label, color: sectorColor(label) }
+  return { key: `sector:${label.toLowerCase()}`, label, color: SECTOR_FALLBACK_COLOR }
 }
 
 export function groupBySector<T extends ClassifiedHolding>(holdings: T[]): (ClassificationBucket & { holdings: T[] })[] {

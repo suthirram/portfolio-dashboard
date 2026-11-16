@@ -201,8 +201,14 @@ rounded `HoldingsTable`, matching the owner's grouped-table reference. Preserve
 consistent column widths across sections. Do not add sector-filter chips or
 hide sibling categories. Keep currency summaries over all rows in the position
 view; distinguish each sector table's own subtotal from the currency summary.
-Badges use theme tokens and readable labels; a color picked from a fixed palette
-by a stable hash of the case-folded label accompanies, never replaces, text. Layout buttons use `aria-pressed`; tables scroll within
+Badges use readable labels; a sector colour accompanies, never replaces, text.
+Colours are unique per currency section (owner, 2026-11-16, superseding a
+stable label hash that repeated colours). A 30-colour palette per theme, most
+distinguishable first, is assigned in pie order (largest slice first). Pie
+neighbours, including the wrap-around and the fixed-colour fund and review
+slices, differ by at least 40 degrees of hue. The tables and the pie share one
+map built from the whole portfolio. Colours may change between loads
+(`sectorColors.ts`, cookbook: sector-colors-repeat). Layout buttons use `aria-pressed`; tables scroll within
 their cards on narrow screens, without forcing page-wide overflow.
 Make the first header/body/footer cell sticky at `left: 0` within each table's
 scroll wrapper in both layouts and at all viewport sizes. Use opaque theme

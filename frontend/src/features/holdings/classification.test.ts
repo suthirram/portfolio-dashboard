@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classificationBucket, groupBySector, ownerSectorLabels, sectorColor } from './classification'
+import { classificationBucket, groupBySector, ownerSectorLabels } from './classification'
 import type { Holding } from '../../types'
 
 const stock = (sector: string | null): Holding => ({ currency: 'INR', symbol: 'TCS.NS', type: 'stock',
@@ -22,6 +22,5 @@ describe('classification buckets', () => {
     expect(groupBySector(holdings).find(group => group.key === 'sector:technology')?.holdings).toHaveLength(2)
     expect(ownerSectorLabels(holdings)).toEqual(['FMCG', 'Technology'])
     expect(ownerSectorLabels([stock('Banking')])).toEqual(['Banking'])
-    expect(sectorColor('Technology')).toBe(sectorColor('technology'))
   })
 })
