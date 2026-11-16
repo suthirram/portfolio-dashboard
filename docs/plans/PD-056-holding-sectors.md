@@ -328,6 +328,13 @@ DashboardPage, and tests listed in §3.
 
 ## 8. Environment and production rollout
 
+> **Superseded in part (owner, 2026-11-16).** The backfill is now tracked
+> migration step `20261116_01`, run by `go run . migrate`
+> ([PD-057](PD-057-migration-runner.md)). The deploy pipeline will run it
+> automatically after rollout, which reverses "do not run production migration
+> automatically" below. Production still gets the `pd-migrate` job only after
+> a backup. `migrate sectors` stays available for manual, bounded runs.
+
 No new environment variable, secret, paid plan, service account, image, or
 infrastructure resource. Backend egress must allow the exact Yahoo HTTPS hosts
 in DD §3. Existing no-tracing defaults and optional tracing remain unchanged.
