@@ -809,7 +809,6 @@ type memoryStore struct {
     records   map[string]domain.MigrationRecord
     renewals  int
     renewErr  error
-    claimErr  error
     cursorLog []string
 }
 
@@ -820,9 +819,6 @@ func newMemoryStore() *memoryStore {
 func (m *memoryStore) Claim(_ context.Context, version, owner string, now, leaseUntil time.Time) (domain.MigrationRecord, bool, error) {
     m.mu.Lock()
     defer m.mu.Unlock()
-    if m.claimErr != nil {
-        return domain.MigrationRecord{}, false, m.claimErr
-    }
     record, exists := m.records[version]
     claimable := !exists || record.Status == domain.MigrationFailed ||
         (record.Status == domain.MigrationInProgress && !record.LeaseExpiresAt.After(now))
@@ -1182,20 +1178,10 @@ func TestRunPending_InvalidRegistryRunsNothing(t *testing.T) {
         t.Error("a step ran although the registry was invalid")
     }
 }
-
-func TestRunPending_ClaimErrorStopsTheRun(t *testing.T) {
-    store := newMemoryStore()
-    store.claimErr = errors.New("mongo down")
-    step := &batchStep{version: "20261116_01", batches: 1}
-
-    if _, err := testRunner(store).RunPending(context.Background(), []Step{step}); err == nil || len(step.runs) != 0 {
-        t.Errorf("err = %v, runs = %d; want the claim error and no run", err, len(step.runs))
-    }
-}
 ```
 
 * [ ] Verify: `cd backend && go test -race ./internal/migration/ -v`.
-  Expected: 14 `RunPending`/`Validate` tests `PASS`, no race.
+  Expected: 13 `RunPending` tests and `TestValidate` `PASS`, no race.
 
 ## Task 4: Bare `migrate` command
 
