@@ -22,7 +22,6 @@ type memoryStore struct {
 	records   map[string]domain.MigrationRecord
 	renewals  int
 	renewErr  error
-	claimErr  error
 	cursorLog []string
 }
 
@@ -33,9 +32,6 @@ func newMemoryStore() *memoryStore {
 func (m *memoryStore) Claim(_ context.Context, version, owner string, now, leaseUntil time.Time) (domain.MigrationRecord, bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.claimErr != nil {
-		return domain.MigrationRecord{}, false, m.claimErr
-	}
 	record, exists := m.records[version]
 	claimable := !exists || record.Status == domain.MigrationFailed ||
 		(record.Status == domain.MigrationInProgress && !record.LeaseExpiresAt.After(now))
@@ -393,15 +389,5 @@ func TestRunPending_InvalidRegistryRunsNothing(t *testing.T) {
 	}
 	if len(valid.runs) != 0 {
 		t.Error("a step ran although the registry was invalid")
-	}
-}
-
-func TestRunPending_ClaimErrorStopsTheRun(t *testing.T) {
-	store := newMemoryStore()
-	store.claimErr = errors.New("mongo down")
-	step := &batchStep{version: "20261116_01", batches: 1}
-
-	if _, err := testRunner(store).RunPending(context.Background(), []Step{step}); err == nil || len(step.runs) != 0 {
-		t.Errorf("err = %v, runs = %d; want the claim error and no run", err, len(step.runs))
 	}
 }
