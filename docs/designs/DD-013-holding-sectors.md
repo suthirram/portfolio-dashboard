@@ -152,6 +152,14 @@ directly to Yahoo. Reject symbol control characters and URL delimiters; accept
 only 1–64 characters from ASCII letters/digits and `.`, `-`, `^`, `=`, `_`.
 Use URL path/query encoding even after validation.
 
+Construct requests from the server-owned endpoint first, then assign the
+validated ticker to `URL.Path` and encoded session parameters to `URL.RawQuery`.
+Never concatenate user-controlled text into the full URL passed to the request
+constructor. Reject the special path segments `.` and `..`, and reject URL
+userinfo/opaque URLs on both initial requests and redirects. The exact HTTPS
+host-and-port allowlist still applies; injected TLS test endpoints are confined
+to the private test constructor.
+
 Cache successful profiles per normalized symbol for 24 hours, missing profiles
 for 1 hour, and unavailable results for 1 minute; cap cache at 1,000 entries.
 Deduplicate in-flight lookups and serialize session refresh. On 401/403, discard

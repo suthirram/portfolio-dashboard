@@ -79,7 +79,8 @@ var profileSymbolPattern = regexp.MustCompile(`^[A-Za-z0-9.\-^=_]{1,64}$`)
 // NormalizeProfileSymbol trims and upper-cases a ticker, rejecting control
 // characters and URL delimiters (DD-013 §3).
 func NormalizeProfileSymbol(symbol string) (string, error) {
-	if !profileSymbolPattern.MatchString(strings.TrimSpace(symbol)) {
+	trimmed := strings.TrimSpace(symbol)
+	if trimmed == "." || trimmed == ".." || !profileSymbolPattern.MatchString(trimmed) {
 		return "", ErrInvalidSymbol
 	}
 	return domain.CanonicalSymbol(symbol), nil
@@ -104,7 +105,7 @@ type yahooSession struct {
 type CompanyProfileService struct {
 	cookieURL  string
 	crumbURL   string
-	summaryURL string // quoteSummary prefix; the escaped symbol is appended
+	summaryURL string // server-owned quoteSummary base; symbols only extend URL.Path
 	hosts      map[string]bool
 	transport  http.RoundTripper
 	timeout    time.Duration // whole-lookup budget, session refresh included
@@ -277,8 +278,7 @@ func (s *CompanyProfileService) fetchOnce(ctx context.Context, symbol string) (C
 		return CompanyProfile{}, fmt.Errorf("%w: %w", errSessionUnavailable, err)
 	}
 	query := url.Values{"modules": {"assetProfile,quoteType"}, "crumb": {session.crumb}}
-	endpoint := s.summaryURL + url.PathEscape(symbol) + "?" + query.Encode()
-	resp, err := s.get(ctx, session.client, endpoint, "application/json")
+	resp, err := s.get(ctx, session.client, s.summaryURL, symbol, query, "application/json")
 	if err != nil {
 		return CompanyProfile{}, err
 	}
@@ -385,7 +385,7 @@ func (s *CompanyProfileService) currentSession(ctx context.Context) (*yahooSessi
 	client := &http.Client{Transport: s.transport, Jar: jar, CheckRedirect: s.checkRedirect}
 	// fc.yahoo.com answers an error status while still setting the cookie, so
 	// its status is ignored, except 429; its body is never read.
-	resp, err := s.get(ctx, client, s.cookieURL, "*/*")
+	resp, err := s.get(ctx, client, s.cookieURL, "", nil, "*/*")
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func (s *CompanyProfileService) currentSession(ctx context.Context) (*yahooSessi
 		s.pause(resp.Header.Get("Retry-After"))
 		return nil, errRateLimited
 	}
-	resp, err = s.get(ctx, client, s.crumbURL, "*/*")
+	resp, err = s.get(ctx, client, s.crumbURL, "", nil, "*/*")
 	if err != nil {
 		return nil, err
 	}
@@ -440,21 +440,35 @@ func (s *CompanyProfileService) dropSession(session *yahooSession) {
 	}
 }
 
-// get issues a GET after checking the URL against the host allowlist. Every
-// outbound request passes here, so the 429 pause is enforced in one place:
-// lookups queued behind a session refresh, or between steps, send nothing.
+// get constructs a GET from a server-owned endpoint and checks its host.
+// User input is assigned only to the parsed path/query, never the request's
+// scheme or authority. Keep the endpoint separate from symbol/query so the
+// request destination remains independent of untrusted data (go/request-forgery).
+// The 429 pause is checked before each protocol step, including callers
+// queued behind a session refresh.
 // accept is the Accept header: the crumb is plain text and is refused (406)
 // when only JSON is acceptable.
-func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, rawURL, accept string) (*http.Response, error) {
+func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, endpoint, symbol string, query url.Values, accept string) (*http.Response, error) {
 	if s.paused() {
 		return nil, errRateLimited
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.checkURL(req.URL); err != nil {
 		return nil, err
+	}
+	if symbol != "" {
+		normalized, err := NormalizeProfileSymbol(symbol)
+		if err != nil {
+			return nil, err
+		}
+		req.URL.Path += normalized
+		req.URL.RawPath = "" // URL.EscapedPath encodes the final path at send time.
+	}
+	if query != nil {
+		req.URL.RawQuery = query.Encode()
 	}
 	req.Header.Set("User-Agent", yahooUserAgent)
 	req.Header.Set("Accept", accept)
@@ -468,7 +482,7 @@ func (s *CompanyProfileService) get(ctx context.Context, client *http.Client, ra
 }
 
 func (s *CompanyProfileService) checkURL(target *url.URL) error {
-	if target.Scheme != "https" || !s.hosts[target.Host] {
+	if target.Scheme != "https" || !s.hosts[target.Host] || target.User != nil || target.Opaque != "" {
 		return fmt.Errorf("host %q is not allowed", target.Host)
 	}
 	return nil

@@ -12,6 +12,7 @@ entry or update the relevant one before handoff, including unresolved work.
 * [Yahoo company profile lookups always unavailable (crumb 406)](yahoo-profile-session.md)
 * [Backend build fails on duplicate classification declarations](duplicate-classification-declarations.md)
 * [Reopening review restores a cleared stock sector](holding-classification-review.md)
+* [CodeQL flags Yahoo profile requests for request forgery](yahoo-profile-request-forgery.md)
 
 ## Writing an entry
 
