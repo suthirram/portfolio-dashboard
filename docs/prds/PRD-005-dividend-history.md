@@ -217,7 +217,7 @@ Dividends are ledger events (`type = dividend`). **One record, every view**:
 |---|---|---|
 | Holding position | `total_dividends` | derived from its dividend events (existing) |
 | Dashboard | per-holding **Dividends** column; per-currency **Dividend income** card | holding `total_dividends` |
-| History | per-currency **Dividends** column (received to date, with day change) and in the per-stock breakdown | same events, as of each row's date |
+| History | the per-stock breakdown (the month table's per-currency **Dividends** column was removed, owner 2026-11-02; rows still carry the overlay) | same events, as of each row's date |
 | All-transactions view | dividend rows | same events (existing) |
 | Per-holding ledger editor | dividend rows, add/edit/delete | same events (existing) |
 | Dividends page | everything above, per currency | same events |

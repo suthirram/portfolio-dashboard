@@ -38,6 +38,8 @@ as an on-read overlay, like gold: `GET /api/history` adds to each row a
 per-stock line, `dividends` received from that stock to date (matched by
 symbol). Nothing is snapshotted, so a dividend add, import or delete shows up
 at once — and dividend-only ledger writes never trigger the snapshot heal,
-since snapshots carry no dividend figures.
+since snapshots carry no dividend figures. The month table does not show
+them (owner, 2026-11-02); the per-currency Holdings modal shows each stock's
+dividends to date.
 
 See the [daily snapshot job](operations.md#daily-snapshot-job) for running it.
