@@ -24,6 +24,38 @@ go run . admin reset-lockout --username admin
 PD_NEW_PASSWORD='a-strong-password' go run . admin set-password --username admin
 ```
 
+## Tracked migrations (`migrate`)
+
+`go run . migrate` (no subcommand) runs every registered migration step not
+yet done in the database named by `MONGODB_DATABASE`, in version order
+([DD-014](designs/DD-014-tracked-migrations.md)). Each step's state is one
+document in the `migrations` collection: `status` is `in_progress`, `done` or
+`failed`, with `attempts`, `cursor`, `last_error` and timestamps.
+
+```bash
+cd backend
+go run . migrate                                  # local DB
+MONGODB_DATABASE=portfolio_dev go run . migrate   # another DB on the same URI
+
+# Inspect status
+docker exec portfolio_mongo_dev mongosh --quiet portfolio \
+  --eval 'db.migrations.find({}, {lease_owner: 0}).toArray()'
+```
+
+* A `done` step never runs again. A `failed` one is retried from its saved
+  cursor on the next run, and the command exits non-zero.
+* `migration held by another run` means a live run holds the step. This run
+  stops with exit 0. A run killed without recording its outcome is claimable
+  2 minutes after its last lease renewal.
+* To force a step to rerun, which is rare and must be deliberate, delete its
+  record: `db.migrations.deleteOne({_id: "YYYYMMDD_NN"})`.
+* Adding a migration: implement `migration.Step` (`Version()` is
+  `YYYYMMDD_NN`, the date it was written; `Run(ctx, cursor)` does one
+  idempotent batch) and append it to `migrationSteps` in
+  `backend/cmd/migrate_pending.go`. Never change a shipped version.
+
+The `migrate <name>` subcommands are separate, manual and untracked.
+
 ## Seeding a demo user (`seed-max.sh`)
 
 ```bash

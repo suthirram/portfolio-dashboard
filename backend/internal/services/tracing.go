@@ -1,17 +1,13 @@
 package services
 
 import (
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"portfolio-dashboard/internal/telemetry"
 )
 
-var tracer = otel.Tracer("portfolio-dashboard")
+var tracer = telemetry.Tracer
 
 func endSpan(span trace.Span, err *error) {
-	if err != nil && *err != nil {
-		span.RecordError(*err)
-		span.SetStatus(codes.Error, (*err).Error())
-	}
-	span.End()
+	telemetry.EndSpan(span, err)
 }

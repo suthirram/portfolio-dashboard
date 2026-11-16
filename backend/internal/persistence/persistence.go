@@ -41,6 +41,7 @@ type Store struct {
 	Sessions     *SessionStore
 	Snapshots    *SnapshotStore
 	Branding     *BrandingStore
+	Migrations   *MigrationStore
 
 	client *mongo.Client // for InTransaction
 
@@ -67,6 +68,7 @@ func New(db *mongo.Database) *Store {
 		Sessions:     &SessionStore{col: db.Collection("sessions")},
 		Snapshots:    &SnapshotStore{col: db.Collection("portfolio_snapshots")},
 		Branding:     &BrandingStore{col: db.Collection("app_branding")},
+		Migrations:   &MigrationStore{col: db.Collection("migrations")},
 		client:       db.Client(),
 	}
 }
