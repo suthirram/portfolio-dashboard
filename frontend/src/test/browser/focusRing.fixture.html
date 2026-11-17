@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Focus ring fixture</title>
+  </head>
+  <body>
+    <!-- Browser fixture for focusRing.browser.test.ts: controls in tab order.
+         The last input sets outline: none inline, as many app inputs do.
+         #tab-start is where each Tab sequence begins. -->
+    <span id="tab-start" tabindex="-1"></span>
+    <button id="button" class="btn">Button</button>
+    <input id="plain-input" aria-label="Plain input" />
+    <input id="inline-none-input" aria-label="Input with inline outline none" style="outline: none" />
+    <script type="module" src="./focusRing.fixture.ts"></script>
+  </body>
+</html>
