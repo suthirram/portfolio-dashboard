@@ -56,7 +56,7 @@ export function toWeekly(daily: { date: string; invested: number | null; current
 // using the FULL ISO date (unlike HistoryPage's perCurrencyChartData, which
 // formats to dd-MM — that collides across years on a multi-year view).
 export function fullSeries(rows: HistoryRow[], region: RegionKey) {
-  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   return oldestFirst.map(row => {
     const rs = row.regions[region]
     return {
@@ -71,7 +71,7 @@ export function fullSeries(rows: HistoryRow[], region: RegionKey) {
 // ISO date (unlike historyShared's goldChartData, which formats to dd-MM for
 // the History page's mini chart).
 export function goldFullSeries(rows: HistoryRow[]) {
-  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   return oldestFirst.map(row => ({
     date: row.date,
     invested: row.gold ? row.gold.invested : null,

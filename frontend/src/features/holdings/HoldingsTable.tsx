@@ -136,7 +136,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
   const counts = viewCounts(holdings)
   const visible = filterByView(holdings, view)
 
-  const sorted = [...visible].sort((left, right) => {
+  const sorted = visible.toSorted((left, right) => {
     const rawA = left[sortKey]
     const rawB = right[sortKey]
     // Strings get an empty-string fallback so missing values sort consistently
