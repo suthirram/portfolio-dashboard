@@ -23,7 +23,7 @@ interface FormState {
   chennai_rate: string
 }
 
-const num = (v: number | null | undefined) => (v == null ? '' : String(v))
+const num = (value: number | null | undefined) => (value == null ? '' : String(value))
 
 function initialForm(txn: GoldTransaction | null): FormState {
   if (!txn) {
@@ -54,18 +54,18 @@ function initialForm(txn: GoldTransaction | null): FormState {
 const weight = { singleSeparator: 'decimal' as const }
 
 /** Client-side mirror of the server's entered-field rules (PRD-003 §5). */
-export function validateGoldForm(f: FormState): string | null {
-  if (!f.date) return 'Date is required'
-  if (!(parseDecimalInput(f.gm_price) > 0)) return 'Per-gram price must be > 0'
-  if (!(parseDecimalInput(f.grams_bought, weight) > 0)) return 'Weight must be > 0'
+export function validateGoldForm(form: FormState): string | null {
+  if (!form.date) return 'Date is required'
+  if (!(parseDecimalInput(form.gm_price) > 0)) return 'Per-gram price must be > 0'
+  if (!(parseDecimalInput(form.grams_bought, weight) > 0)) return 'Weight must be > 0'
   // Empty parses to 0, which would pass the >= 0 rule and submit a zero-
   // rupee purchase; a required field must be explicitly present.
-  const paid = parseDecimalInput(f.actual_paid)
-  if (f.actual_paid.trim() === '' || !Number.isFinite(paid) || paid < 0) return 'Actual amount paid must be >= 0'
+  const paid = parseDecimalInput(form.actual_paid)
+  if (form.actual_paid.trim() === '' || !Number.isFinite(paid) || paid < 0) return 'Actual amount paid must be >= 0'
   for (const [name, value, opts] of [
-    ['Gold price in quote', f.quote_price, undefined],
-    ['Amount according to bill', f.bill_amount, undefined],
-    ['Billed weight', f.billed_weight, weight],
+    ['Gold price in quote', form.quote_price, undefined],
+    ['Amount according to bill', form.bill_amount, undefined],
+    ['Billed weight', form.billed_weight, weight],
   ] as const) {
     if (value.trim() !== '' && !Number.isFinite(parseDecimalInput(value, opts))) {
       return `${name} is not a number`
@@ -74,18 +74,18 @@ export function validateGoldForm(f: FormState): string | null {
   return null
 }
 
-function toInput(f: FormState): GoldTransactionInput {
-  const opt = (v: string, opts?: typeof weight) => (v.trim() === '' ? null : parseDecimalInput(v, opts))
+function toInput(form: FormState): GoldTransactionInput {
+  const opt = (value: string, opts?: typeof weight) => (value.trim() === '' ? null : parseDecimalInput(value, opts))
   return {
-    date: f.date,
-    gm_price: parseDecimalInput(f.gm_price),
-    grams_bought: parseDecimalInput(f.grams_bought, weight),
-    actual_paid: parseDecimalInput(f.actual_paid),
-    quote_price: opt(f.quote_price),
-    bill_amount: opt(f.bill_amount),
-    billed_weight: opt(f.billed_weight, weight),
+    date: form.date,
+    gm_price: parseDecimalInput(form.gm_price),
+    grams_bought: parseDecimalInput(form.grams_bought, weight),
+    actual_paid: parseDecimalInput(form.actual_paid),
+    quote_price: opt(form.quote_price),
+    bill_amount: opt(form.bill_amount),
+    billed_weight: opt(form.billed_weight, weight),
     // Free-text remark ("Ditto", a rate, a note) — sent verbatim, blank → null.
-    chennai_rate: f.chennai_rate.trim() === '' ? null : f.chennai_rate.trim(),
+    chennai_rate: form.chennai_rate.trim() === '' ? null : form.chennai_rate.trim(),
   }
 }
 
@@ -96,7 +96,7 @@ export default function GoldTxnModal({ txn, onClose, onSaved }: Props) {
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!busy) onClose() })
 
-  const set = (k: keyof FormState) => (v: string) => setForm(f => ({ ...f, [k]: v }))
+  const set = (key: keyof FormState) => (value: string) => setForm(previousForm => ({ ...previousForm, [key]: value }))
 
   const save = async () => {
     const invalid = validateGoldForm(form)

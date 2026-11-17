@@ -17,19 +17,19 @@ const LABEL: CSSProperties = { color: 'var(--text-secondary)', fontSize: 13 }
 // holdingInput rebuilds the HoldingInput the PUT expects from an existing
 // holding, carrying only the editable identity fields plus the opening date.
 // Position fields are derived server-side and deliberately omitted.
-function holdingInput(h: Holding, openingDate: string): HoldingInput {
+function holdingInput(holding: Holding, openingDate: string): HoldingInput {
   return {
-    script: h.script ?? '',
-    symbol: h.symbol,
-    exchange: h.exchange ?? 'OTHER',
-    type: h.type ?? 'stock',
+    script: holding.script ?? '',
+    symbol: holding.symbol,
+    exchange: holding.exchange ?? 'OTHER',
+    type: holding.type ?? 'stock',
     // Position fields are derived server-side and ignored by the holding PUT;
     // echo the current values to satisfy the input shape.
-    stocks_owned: h.stocks_owned ?? 0,
-    avg_cost_price: h.avg_cost_price ?? 0,
-    realized_pnl: h.realized_pnl ?? 0,
-    currency: h.currency,
-    notes: h.notes,
+    stocks_owned: holding.stocks_owned ?? 0,
+    avg_cost_price: holding.avg_cost_price ?? 0,
+    realized_pnl: holding.realized_pnl ?? 0,
+    currency: holding.currency,
+    notes: holding.notes,
     opening_date: openingDate,
   }
 }
@@ -47,24 +47,24 @@ interface Props {
 
 export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: Props) {
   const [dates, setDates] = useState<Record<string, string>>(() =>
-    Object.fromEntries(holdings.map(h => [h.id ?? '', h.opening_date || DEFAULT_OPENING_DATE])),
+    Object.fromEntries(holdings.map(holding => [holding.id ?? '', holding.opening_date || DEFAULT_OPENING_DATE])),
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!saving) onSkip() })
 
-  const setDate = (id: string, value: string) => setDates(d => ({ ...d, [id]: value }))
+  const setDate = (id: string, value: string) => setDates(previousDates => ({ ...previousDates, [id]: value }))
 
   const saveAll = async () => {
     setErr('')
     setSaving(true)
     try {
-      for (const h of holdings) {
-        const id = h.id ?? ''
+      for (const holding of holdings) {
+        const id = holding.id ?? ''
         const date = dates[id]
         if (!date) { setErr('Set a date for every holding'); setSaving(false); return }
-        await api.updateHolding(id, holdingInput(h, date), userId)
+        await api.updateHolding(id, holdingInput(holding, date), userId)
       }
       onSaved()
     } catch (e) {
@@ -90,14 +90,14 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {holdings.map(h => (
-            <div key={h.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span style={LABEL}>{h.script || h.symbol}</span>
+          {holdings.map(holding => (
+            <div key={holding.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span style={LABEL}>{holding.script || holding.symbol}</span>
               <input
                 type="date"
                 style={INPUT}
-                value={dates[h.id ?? ''] ?? DEFAULT_OPENING_DATE}
-                onChange={e => setDate(h.id ?? '', e.target.value)}
+                value={dates[holding.id ?? ''] ?? DEFAULT_OPENING_DATE}
+                onChange={e => setDate(holding.id ?? '', e.target.value)}
               />
             </div>
           ))}

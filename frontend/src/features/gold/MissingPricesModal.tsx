@@ -23,7 +23,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!saving) onSkip() })
 
-  const set = (date: string, v: string) => setPrices(p => ({ ...p, [date]: v }))
+  const set = (date: string, value: string) => setPrices(previousPrices => ({ ...previousPrices, [date]: value }))
 
   // Only the days the user actually filled are sent; blanks are left for a
   // later visit rather than rejected, so a long gap can be closed piecemeal.
@@ -38,9 +38,9 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   }
 
   const invalid = (): string | null => {
-    for (const p of filled()) {
-      if (!Number.isFinite(p.price_per_gram) || p.price_per_gram <= 0) {
-        return `Price for ${formatDate(p.date)} must be a number > 0`
+    for (const price of filled()) {
+      if (!Number.isFinite(price.price_per_gram) || price.price_per_gram <= 0) {
+        return `Price for ${formatDate(price.date)} must be a number > 0`
       }
     }
     return null
@@ -94,7 +94,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
             <div key={date} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <label htmlFor={`price-${date}`} style={{ fontSize: 13, color: 'var(--text-primary)' }}>{formatDate(date)}</label>
               <DecimalInput id={`price-${date}`} style={input} placeholder="₹ / gram"
-                value={prices[date] ?? ''} onValueChange={v => set(date, v)} />
+                value={prices[date] ?? ''} onValueChange={value => set(date, value)} />
             </div>
           ))}
         </div>
