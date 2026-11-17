@@ -37,10 +37,11 @@ const scrollbarStyles = () => page.evaluate(() =>
     return { width: style.scrollbarWidth, color: style.scrollbarColor }
   }))
 
-// The current theme's --border-light, resolved by the browser to rgb().
-const borderLight = () => page.evaluate(() => {
+// The current theme's thumb token, resolved by the browser to rgb(). An
+// undefined token leaves scrollbar-color at auto, so it still fails.
+const thumbColor = () => page.evaluate(() => {
   const probe = document.createElement('span')
-  probe.style.color = 'var(--border-light)'
+  probe.style.color = 'var(--scrollbar-thumb)'
   document.body.append(probe)
   const color = getComputedStyle(probe).color
   probe.remove()
@@ -69,16 +70,16 @@ describe.skipIf(!browser)('scrollbar styling in a real browser', () => {
 
   it.each(THEMES)('%s theme (glass UI: %s): thin, with the theme\'s thumb on a transparent track', async (theme, glass) => {
     await applyTheme(theme, glass)
-    const expected = { width: 'thin', color: `${await borderLight()} rgba(0, 0, 0, 0)` }
+    const expected = { width: 'thin', color: `${await thumbColor()} rgba(0, 0, 0, 0)` }
     expect(await scrollbarStyles()).toEqual([expected, expected])
   })
 
-  it('changing the theme changes the scrollbar colour', async () => {
-    const colors = new Set<string>()
-    for (const [theme, glass] of THEMES) {
-      await applyTheme(theme, glass)
-      colors.add((await scrollbarStyles())[0].color)
-    }
-    expect(colors.size).toBe(THEMES.length)
+  // Guards the per-theme cases: a theme switch that did nothing would leave
+  // both sides of their comparison unchanged and still pass.
+  it('switching between dark and light changes the scrollbar colour', async () => {
+    await applyTheme('dark', false)
+    const dark = (await scrollbarStyles())[0].color
+    await applyTheme('light', false)
+    expect((await scrollbarStyles())[0].color).not.toBe(dark)
   })
 })
