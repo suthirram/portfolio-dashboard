@@ -422,7 +422,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 }
 
 const Th = ({ children, style }: { children?: React.ReactNode; style?: CSSProperties }) => (
-  <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
+  <th scope="col" style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
 )
 const Td = ({ children, style, className }: { children?: React.ReactNode; style?: CSSProperties; className?: string }) => (
   <td className={className} style={{ padding: '9px 12px', textAlign: 'right', ...style }}>{children}</td>

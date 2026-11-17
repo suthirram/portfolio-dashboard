@@ -86,7 +86,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
               <CurrencyHeaderGroup key={region} region={region} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
             {hasGold && <GoldHeaderGroup />}
-            <th style={actionTh}></th>
+            <th scope="col" style={actionTh}></th>
           </tr>
         </thead>
         <tbody>
@@ -148,11 +148,11 @@ function CurrencyHeaderGroup({ region, last, theme }: { region: RegionKey; last:
   const hdr: React.CSSProperties = { ...th, background: tint }
   return (
     <>
-      <th style={hdr}>Amount invested</th>
-      <th style={hdr}>Actual value</th>
-      <th style={hdr}>Daily volatlity</th>
-      <th style={hdr}>P/L%</th>
-      <th style={{ ...hdr, ...sep }}>Dividends</th>
+      <th scope="col" style={hdr}>Amount invested</th>
+      <th scope="col" style={hdr}>Actual value</th>
+      <th scope="col" style={hdr}>Daily volatlity</th>
+      <th scope="col" style={hdr}>P/L%</th>
+      <th scope="col" style={{ ...hdr, ...sep }}>Dividends</th>
     </>
   )
 }
@@ -243,10 +243,10 @@ function GoldHeaderGroup() {
   const hdr: React.CSSProperties = { ...th, background: GOLD_TINT }
   return (
     <>
-      <th style={{ ...hdr, borderLeft: '2px solid var(--border)' }}>Gold invested</th>
-      <th style={hdr}>Gold value</th>
-      <th style={hdr}>Daily volatility</th>
-      <th style={hdr}>P/L%</th>
+      <th scope="col" style={{ ...hdr, borderLeft: '2px solid var(--border)' }}>Gold invested</th>
+      <th scope="col" style={hdr}>Gold value</th>
+      <th scope="col" style={hdr}>Daily volatility</th>
+      <th scope="col" style={hdr}>P/L%</th>
     </>
   )
 }
