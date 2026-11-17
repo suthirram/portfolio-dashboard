@@ -484,6 +484,19 @@ describe('buildLiveGoldOverlay', () => {
 // ---- HistoryTable (TDD §7.3) ----
 
 describe('HistoryTable', () => {
+  // PD-058 Task 7: the date header announces its sort direction.
+  it('marks the date header with its current sort direction', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}}
+      rows={[row({ date: '2026-06-16', regions: { INR: region(100, 198, 'cron') } })]} />)
+    const sortButton = screen.getByRole('button', { name: 'Sort by date' })
+    const dateHeader = sortButton.closest('th')!
+    expect(dateHeader).toHaveAttribute('scope', 'col')
+    expect(dateHeader).toHaveAttribute('aria-sort', 'ascending')
+
+    fireEvent.click(sortButton)
+    expect(dateHeader).toHaveAttribute('aria-sort', 'descending')
+  })
+
   it('renders currency-prefixed values per group (₹/€/$) with absent regions at 0', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}}
       rows={[row({

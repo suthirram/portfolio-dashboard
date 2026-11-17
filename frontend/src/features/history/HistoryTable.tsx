@@ -46,26 +46,26 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
   const [sortAsc, setSortAsc] = useState(true)
 
   const isAllManual = (regions: Record<string, RegionSnapshot>) =>
-    Object.values(regions).every(r => r.source === 'manual')
+    Object.values(regions).every(snapshot => snapshot.source === 'manual')
 
   // Canonical newest-first array drives the day-over-day math: the
   // volatility / invested-went-up helpers assume rows[i+1] is the prior
   // day. Display order is independent — ascending just reverses what we
   // render, while every cell still computes against the canonical index.
   const byDateDesc = useMemo(
-    () => [...rows].sort((a, b) => b.date.localeCompare(a.date)),
+    () => [...rows].sort((left, right) => right.date.localeCompare(left.date)),
     [rows],
   )
   const indexOfDate = useMemo(() => {
-    const m = new Map<string, number>()
-    byDateDesc.forEach((r, i) => m.set(r.date, i))
-    return m
+    const positionByDate = new Map<string, number>()
+    byDateDesc.forEach((row, i) => positionByDate.set(row.date, i))
+    return positionByDate
   }, [byDateDesc])
   const display = sortAsc ? [...byDateDesc].reverse() : byDateDesc
   // The gold column group appears only when the backend attached an overlay
   // to at least one row — i.e. a gold-enabled user with a valued position
   // (PRD-003 §8). Non-gold users never see it.
-  const hasGold = useMemo(() => rows.some(r => r.gold), [rows])
+  const hasGold = useMemo(() => rows.some(row => row.gold), [rows])
 
   return (
     <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)',
@@ -73,32 +73,34 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={{ ...th, borderRight: '2px solid var(--border)' }}>
-              <button onClick={() => setSortAsc(s => !s)} style={sortHeaderBtn}
+            {/* The date is always the sort column, so its th always carries aria-sort. */}
+            <th scope="col" aria-sort={sortAsc ? 'ascending' : 'descending'}
+              style={{ ...th, borderRight: '2px solid var(--border)' }}>
+              <button type="button" onClick={() => setSortAsc(ascending => !ascending)} style={sortHeaderBtn}
                 aria-label="Sort by date"
                 title={sortAsc ? 'Oldest first — click for newest' : 'Newest first — click for oldest'}>
                 Date {sortAsc ? '▲' : '▼'}
               </button>
             </th>
-            {REGIONS.map((r, idx) => (
-              <CurrencyHeaderGroup key={r} region={r} last={idx === REGIONS.length - 1} theme={theme} />
+            {REGIONS.map((region, idx) => (
+              <CurrencyHeaderGroup key={region} region={region} last={idx === REGIONS.length - 1} theme={theme} />
             ))}
             {hasGold && <GoldHeaderGroup />}
             <th style={actionTh}></th>
           </tr>
         </thead>
         <tbody>
-          {display.map((r) => {
-            const i = indexOfDate.get(r.date)!
-            const sources = new Set(Object.values(r.regions).map(rs => rs.source))
+          {display.map((row) => {
+            const i = indexOfDate.get(row.date)!
+            const sources = new Set(Object.values(row.regions).map(rs => rs.source))
             const sourceLabel = sources.size === 1 ? Array.from(sources)[0] : 'mixed'
             const prev = byDateDesc[i + 1] ?? null
             return (
-              <tr key={r.date}
-                className={r.tentative ? 'history-row-tentative' : undefined}
-                title={r.tentative ? 'Live — not yet snapshotted' : `Source: ${sourceLabel}`}>
+              <tr key={row.date}
+                className={row.tentative ? 'history-row-tentative' : undefined}
+                title={row.tentative ? 'Live — not yet snapshotted' : `Source: ${sourceLabel}`}>
                 <td style={{ ...td, borderRight: '2px solid var(--border)', fontWeight: 600 }}>
-                  {formatDate(r.date)}{r.tentative && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>(live)</span>}
+                  {formatDate(row.date)}{row.tentative && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>(live)</span>}
                 </td>
                 {REGIONS.map((region, idx) => (
                   <CurrencyRowCells
@@ -108,23 +110,23 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                     region={region}
                     last={idx === REGIONS.length - 1}
                     theme={theme}
-                    onSelectRegion={onSelectRegion ? () => onSelectRegion(r, prev, region) : undefined}
+                    onSelectRegion={onSelectRegion ? () => onSelectRegion(row, prev, region) : undefined}
                   />
                 ))}
-                {hasGold && <GoldRowCells gold={r.gold} prevGold={prev?.gold} />}
+                {hasGold && <GoldRowCells gold={row.gold} prevGold={prev?.gold} />}
                 <td style={actionTd}>
-                  {!r.tentative && (
+                  {!row.tentative && (
                     <div style={actionCell}>
                       {onEdit && (
-                        <button onClick={() => onEdit(r)} className="btn-row btn-row-accent"
-                          aria-label={`Edit row for ${formatDate(r.date)}`} title="Edit">
+                        <button onClick={() => onEdit(row)} className="btn-row btn-row-accent"
+                          aria-label={`Edit row for ${formatDate(row.date)}`} title="Edit">
                           <EditIcon size={16} />
                         </button>
                       )}
-                      {(isAllManual(r.regions) || canForceDelete) && (
-                        <button onClick={() => onDelete(r.date)} className="btn-row btn-row-danger"
-                          aria-label={`Delete row for ${formatDate(r.date)}`}
-                          title={isAllManual(r.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
+                      {(isAllManual(row.regions) || canForceDelete) && (
+                        <button onClick={() => onDelete(row.date)} className="btn-row btn-row-danger"
+                          aria-label={`Delete row for ${formatDate(row.date)}`}
+                          title={isAllManual(row.regions) ? 'Delete' : 'Delete (super-admin override of cron row)'}>
                           <TrashIcon size={16} />
                         </button>
                       )}
@@ -163,14 +165,14 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   theme: ThemeName
   onSelectRegion?: () => void
 }) {
-  const r = rows[i]
+  const row = rows[i]
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
-  const rs = r.regions[region]
-  const dividends = r.dividends?.[CURRENCY_BY_REGION[region]]
+  const rs = row.regions[region]
+  const dividends = row.dividends?.[CURRENCY_BY_REGION[region]]
   const invested = rs?.invested ?? 0
   const current  = rs?.current  ?? 0
   const vol      = regionDailyVolatility(rows, i, region)
-  const pnl      = regionPnLPct(r, region)
+  const pnl      = regionPnLPct(row, region)
   const wentUp   = regionInvestedWentUp(rows, i, region)
   const dir      = regionCurrentDirection(rows, i, region)
   const tint = REGION_TINTS[theme][region].cell
@@ -180,7 +182,7 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
   // mouse-clickable, but only the first cell carries the button semantics +
   // keyboard focus, so a screen reader hears one "View <currency> holdings"
   // button per group rather than four identical tab stops.
-  const hasHoldings = !!r.holdings?.some(h => holdingRegion(h) === region && h.quantity > 0)
+  const hasHoldings = !!row.holdings?.some(holding => holdingRegion(holding) === region && holding.quantity > 0)
   const selectable = !!onSelectRegion && hasHoldings
   const mouseProps = selectable ? { onClick: () => onSelectRegion!() } : {}
   const buttonProps = selectable
