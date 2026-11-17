@@ -13,6 +13,7 @@ entry or update the relevant one before handoff, including unresolved work.
 * [Backend build fails on duplicate classification declarations](duplicate-classification-declarations.md)
 * [Reopening review restores a cleared stock sector](holding-classification-review.md)
 * [CodeQL flags Yahoo profile requests for request forgery](yahoo-profile-request-forgery.md)
+* [Sector colours repeat across categories](sector-colors-repeat.md)
 
 ## Writing an entry
 

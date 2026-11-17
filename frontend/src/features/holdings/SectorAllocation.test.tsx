@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { HoldingWithPrice } from '../../types'
 import Charts from '../../components/Charts'
+import { sectorColorsByCurrency } from './sectorColors'
 
 const rows: HoldingWithPrice[] = [
   { symbol: 'TCS', script: 'TCS', currency: 'INR', stocks_owned: 1, current_price: 60, current_value: 60,
@@ -12,6 +13,16 @@ const rows: HoldingWithPrice[] = [
 ]
 
 describe('Sectors chart', () => {
+  it('colours legend dots from the per-currency sector map', () => {
+    const colors = sectorColorsByCurrency(rows, 'dark')
+    render(<Charts holdings={rows} sectorColors={colors} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sectors' }))
+    const legend = screen.getByRole('list', { name: 'Sector allocation values' })
+    const dot = within(legend).getByRole('button', { name: /Technology/ }).querySelector<HTMLElement>('.sector-dot')!
+    const hex = colors.get('INR')!.get('sector:technology')!
+    expect(dot.style.background).toBe(`rgb(${[1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16)).join(', ')})`)
+  })
+
   it('mounts only when selected and exposes native values and navigation in the legend', () => {
     const onSelectSector = vi.fn()
     render(<Charts holdings={rows} onSelectSector={onSelectSector} />)
