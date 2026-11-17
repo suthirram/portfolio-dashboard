@@ -5,7 +5,7 @@ import type { Holding, Transaction, TransactionInput, TransactionType } from '..
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import { currencySymbol } from '../../lib/currency'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 
@@ -36,9 +36,9 @@ interface FormState {
   notes: string
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
-
-const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
+// Dates default to the IST calendar day: a UTC slice shows yesterday between
+// 00:00 and 05:30 IST.
+const emptyForm = (): FormState => ({ type: 'buy', date: todayIST(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
   // Holding, not HoldingWithPrice: every field this editor reads
@@ -101,7 +101,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
     setEditingId(txn.id || null)
     setForm({
       type: (txn.type as TransactionType) || 'buy',
-      date: txn.date ? txn.date.slice(0, 10) : todayISO(),
+      date: txn.date ? txn.date.slice(0, 10) : todayIST(),
       quantity: txn.quantity != null ? String(txn.quantity) : '',
       price: '',
       amount: txn.amount != null ? String(txn.amount) : '',

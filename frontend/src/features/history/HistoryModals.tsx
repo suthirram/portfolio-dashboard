@@ -9,7 +9,7 @@ import type {
   PasteHistoryReport,
 } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
@@ -23,8 +23,7 @@ export function AddRowModal({ onSubmit, onCancel }: {
   onSubmit: (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => Promise<void>
   onCancel: () => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState(todayIST)
   const [form, setForm] = useState<RegionFormState>(emptyForm())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
