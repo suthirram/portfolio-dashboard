@@ -394,10 +394,14 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(txn)} title="Edit" className="btn-row btn-row-accent">
+                        <button onClick={() => startEdit(txn)} title="Edit"
+                          aria-label={`Edit ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete" className="btn-row btn-row-danger">
+                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete"
+                          aria-label={`Delete ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
                       </span>

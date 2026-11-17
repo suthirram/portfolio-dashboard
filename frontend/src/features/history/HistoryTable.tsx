@@ -234,6 +234,9 @@ function CurrencyRowCells({ rows, i, region, last, theme, onSelectRegion }: {
       <td {...mouseProps} style={divStyle}
         title={dividends && dividends.on_day > 0 ? `+${fmtCurrency(dividends.on_day, sym)} received this day` : undefined}>
         {dividends ? fmtCurrency(dividends.to_date, sym) : '—'}
+        {dividends && dividends.on_day > 0 && (
+          <span className="sr-only"> (+{fmtCurrency(dividends.on_day, sym)} received this day)</span>
+        )}
       </td>
     </>
   )

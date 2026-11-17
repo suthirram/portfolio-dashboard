@@ -99,6 +99,7 @@ function XirrCell({ rate, note, className }: { rate: number | null | undefined; 
   return (
     <TD className={`mono ${rateTone(rate)}${className ? ` ${className}` : ''}`}>
       <span title={note || undefined}>{formatRate(rate)}{note && rate != null ? '*' : ''}</span>
+      {note && <span className="sr-only"> ({note})</span>}
     </TD>
   )
 }
@@ -266,7 +267,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                     </div>
                   )}
                   {holding.price_error && (
-                    <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }} title={holding.price_error}><AlertTriangleIcon size={10} /> price unavail.</div>
+                    <div style={{ fontSize: 10, color: 'var(--red)', marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }} title={holding.price_error}><AlertTriangleIcon size={10} /> price unavail.<span className="sr-only">: {holding.price_error}</span></div>
                   )}
                 </TD>
 
@@ -353,16 +354,16 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
                     <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                       {onTransactions && (
                         <button onClick={() => onTransactions(holding)} disabled={!holding.id}
-                          title="Transactions (ledger)" className="btn-row">
+                          title="Transactions (ledger)" aria-label={`Transactions for ${holding.script}`} className="btn-row">
                           <ListIcon size={13} />
                         </button>
                       )}
                       <button onClick={() => onEdit(holding)} disabled={!holding.id}
-                        title="Edit holding" className="btn-row btn-row-accent">
+                        title="Edit holding" aria-label={`Edit ${holding.script}`} className="btn-row btn-row-accent">
                         <EditIcon size={13} />
                       </button>
                       <button onClick={() => holding.id && setConfirm(holding.id)} disabled={!holding.id}
-                        title="Delete holding" className="btn-row btn-row-danger">
+                        title="Delete holding" aria-label={`Delete ${holding.script}`} className="btn-row btn-row-danger">
                         <TrashIcon size={13} />
                       </button>
                     </span>

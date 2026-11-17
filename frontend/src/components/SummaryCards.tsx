@@ -38,7 +38,7 @@ function ChangeLine({row}: { row: ChangeRow }) {
                     <span style={{fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-muted)'}}>{row.name}</span>
                 </span>
                 <span title="A holding has no previous close yet"
-                      style={{fontSize: 15, fontWeight: 700, color: 'var(--text-muted)'}}>—</span>
+                      style={{fontSize: 15, fontWeight: 700, color: 'var(--text-muted)'}}>—<span className="sr-only">: a holding has no previous close yet</span></span>
             </div>
         )
     }
