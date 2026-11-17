@@ -45,11 +45,23 @@ h1, h2, h3, h4 {
 }
 
 /* Visible keyboard-focus ring; box-shadow is never set inline on inputs or
- * buttons, so this applies app-wide without component edits. */
+ * buttons, so this applies app-wide without component edits. The outline is
+ * transparent so it is invisible next to the shadow ring, but Forced Colors
+ * Mode (Windows High Contrast) drops box-shadows and repaints outlines in a
+ * system colour, so the ring still shows there. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
   box-shadow: var(--ring);
   border-radius: var(--radius-sm);
+}
+
+/* Several inputs set `outline: none` inline; inline styles beat the rule
+ * above, so forced-colors mode needs !important to win them back. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText !important;
+  }
 }
 
 /* Scrollbar */
