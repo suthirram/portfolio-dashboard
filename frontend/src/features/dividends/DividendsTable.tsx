@@ -21,13 +21,13 @@ export default function DividendsTable({ rows, currency, onEdit, onDelete }: Pro
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--bg-card)' }}>
-            <th style={{ ...th, width: 48 }}>#</th>
-            <th style={th}>Date</th>
-            <th style={th}>Holding</th>
-            <th style={numberTh}>Dividend</th>
-            <th style={numberTh}>Cumulative</th>
-            <th style={numberTh}>Holding cumulative</th>
-            {(onEdit || onDelete) && <th style={actionTh}>Actions</th>}
+            <th scope="col" style={{ ...th, width: 48 }}>#</th>
+            <th scope="col" style={th}>Date</th>
+            <th scope="col" style={th}>Holding</th>
+            <th scope="col" style={numberTh}>Dividend</th>
+            <th scope="col" style={numberTh}>Cumulative</th>
+            <th scope="col" style={numberTh}>Holding cumulative</th>
+            {(onEdit || onDelete) && <th scope="col" style={actionTh}>Actions</th>}
           </tr>
         </thead>
         <tbody>

@@ -275,7 +275,7 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
         </p>
         <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginBottom: 12 }}>
           <thead>
-            <tr><th style={th}>Region</th><th style={th}>Existing</th><th style={th}>Incoming</th><th style={th}>Keep incoming?</th></tr>
+            <tr><th scope="col" style={th}>Region</th><th scope="col" style={th}>Existing</th><th scope="col" style={th}>Incoming</th><th scope="col" style={th}>Keep incoming?</th></tr>
           </thead>
           <tbody>
             {REGIONS.map(region => {
@@ -344,12 +344,12 @@ export function HoldingsModal({ row, prev, region, onClose }: {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={th}>Script name</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Current price</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Change value</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Daily change</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Dividends to date</th>
+                  <th scope="col" style={th}>Script name</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Current price</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Change value</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Daily change</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Dividends to date</th>
                 </tr>
               </thead>
               <tbody>

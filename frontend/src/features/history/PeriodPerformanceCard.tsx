@@ -98,10 +98,10 @@ export function PeriodPerformanceCard({ rows, monthStart, monthLabel, theme }: {
         }}>
           <thead>
             <tr>
-              <th style={{ ...cellBase, width: '26%', textAlign: 'left', fontSize: 11, fontWeight: 500,
+              <th scope="col" style={{ ...cellBase, width: '26%', textAlign: 'left', fontSize: 11, fontWeight: 500,
                 letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Metric</th>
               {columns.map(perf => (
-                <th key={perf.column} style={{
+                <th key={perf.column} scope="col" style={{
                   ...cellBase, ...blockEdges, borderTop: '1px solid var(--border)', borderRadius: '8px 8px 0 0',
                   textAlign: 'center', background: columnTint(theme, perf.column).header,
                 }}>

@@ -38,7 +38,7 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
           </ResponsiveContainer>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead><tr><th style={th}>Year</th><th style={{ ...th, textAlign: 'right' }}>Dividends</th><th style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
+          <thead><tr><th scope="col" style={th}>Year</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Dividends</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
           <tbody>
             {[...view.by_year].reverse().map(year => (
               <tr key={year.period}>
@@ -53,7 +53,7 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
       <div style={panel}>
         <div style={title}><span>By holding · {currency}</span><span style={{ color: 'var(--text-muted)' }}>biggest first</span></div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead><tr><th style={th}>Holding</th><th style={th}>Share</th><th style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
+          <thead><tr><th scope="col" style={th}>Holding</th><th scope="col" style={th}>Share</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
           <tbody>
             {view.by_holding.map(holding => (
               <tr key={holding.holding_id}>

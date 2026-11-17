@@ -8,7 +8,7 @@ export interface InvalidLine { line: number; reason: string }
 export function ImportCounts({ counts, total }: { counts: [label: string, count: number][]; total: number }) {
   return (
     <table style={{ borderCollapse: 'collapse', fontSize: 13, maxWidth: 320 }}>
-      <thead><tr><th style={th}>Status</th><th style={{ ...th, textAlign: 'right' }}>Count</th></tr></thead>
+      <thead><tr><th scope="col" style={th}>Status</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Count</th></tr></thead>
       <tbody>
         {counts.map(([label, count]) => (
           <tr key={label}><td style={td}>{label}</td><td style={{ ...td, textAlign: 'right' }}>{count}</td></tr>
@@ -26,7 +26,7 @@ export function InvalidLines({ lines }: { lines: InvalidLine[] }) {
     <>
       <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}><strong>{lines.length} rows need fixing</strong> before you can import. Nothing has been saved.</p>
       <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead><tr><th style={th}>Line</th><th style={th}>Problem</th></tr></thead>
+        <thead><tr><th scope="col" style={th}>Line</th><th scope="col" style={th}>Problem</th></tr></thead>
         <tbody>{lines.map(invalidLine => <tr key={invalidLine.line}><td style={td}>{invalidLine.line}</td><td style={td}>{invalidLine.reason}</td></tr>)}</tbody>
       </table>
     </>
