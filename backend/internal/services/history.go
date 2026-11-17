@@ -411,19 +411,19 @@ func round(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
-func parseDateNotFuture(s string, now func() time.Time) (time.Time, error) {
-	d, err := time.Parse("2006-01-02", s)
+func parseDateNotFuture(raw string, now func() time.Time) (time.Time, error) {
+	date, err := time.Parse("2006-01-02", raw)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("%w: parse %q", ErrInvalidDate, s)
+		return time.Time{}, fmt.Errorf("%w: parse %q", ErrInvalidDate, raw)
 	}
-	d = domain.UTCDate(d)
+	date = domain.UTCDate(date)
 	// "Future" is judged on the IST calendar the UI defaults to: between
 	// 00:00 and 05:30 IST the UTC date still lags a day behind.
 	today := istDayOf(now())
-	if d.After(today) {
-		return time.Time{}, fmt.Errorf("%w: %s is in the future", ErrInvalidDate, s)
+	if date.After(today) {
+		return time.Time{}, fmt.Errorf("%w: %s is in the future", ErrInvalidDate, raw)
 	}
-	return d, nil
+	return date, nil
 }
 
 func validateRegions(in map[string]domain.RegionSnapshot) error {
