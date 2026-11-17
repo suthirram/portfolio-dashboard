@@ -12,7 +12,8 @@ const holding = (symbol: string, sector: string | null, value: number, overrides
 
 const YAHOO_SECTORS = ['Technology', 'Financial Services', 'Consumer Cyclical', 'Consumer Defensive', 'Energy',
   'Healthcare', 'Industrials', 'Basic Materials', 'Utilities', 'Communication Services', 'Real Estate']
-const darkHue = new Map(SECTOR_PALETTES.dark.map(slot => [slot.hex, slot.hue]))
+const THEMES = ['dark', 'light', 'cyberpunk'] as const
+const slotHue = (theme: typeof THEMES[number], hex: string) => SECTOR_PALETTES[theme].find(slot => slot.hex === hex)!.hue
 
 // Deterministic pseudo-random values, so failures reproduce.
 function random(seed: number) {
@@ -38,24 +39,40 @@ describe('sector colours', () => {
     expect(sectorColorsByCurrency(rows, 'dark').get('INR')!.get('sector:technology')).toBe(SECTOR_PALETTES.dark[0].hex)
   })
 
-  it('never puts the same hue family next to itself in a pie, including the wrap-around and status slices', () => {
+  it.each(THEMES)('never puts the same hue family next to itself in a %s pie, including the wrap-around and status slices', theme => {
     const next = random(7)
     const statusKinds: Partial<HoldingWithPrice>[] = [{ type: 'etf' }, { type: 'mutual_fund' },
       { classification: { status: 'needs_review' } }]
     for (let round = 0; round < 200; round++) {
-      const sectorCount = 2 + Math.floor(next() * 20)
+      const sectorCount = 1 + Math.floor(next() * 20)
       const rows = Array.from({ length: sectorCount }, (_, index) => holding(`S${index}`, `Sector ${index}`, 1 + next() * 1000))
       statusKinds.forEach((kind, index) => { if (next() < 0.5) rows.push(holding(`F${index}`, null, 1 + next() * 1000, kind)) })
-      const colors = sectorColorsByCurrency(rows, 'dark').get('INR')!
+      const colors = sectorColorsByCurrency(rows, theme).get('INR')!
       const slices = sectorAllocation(rows, 'INR').buckets
-      const hueOf = (key: string) => key.startsWith('sector:') ? darkHue.get(colors.get(key)!)! : STATUS_HUES.dark[key]
+      const hueOf = (key: string) => key.startsWith('sector:') ? slotHue(theme, colors.get(key)!) : STATUS_HUES[theme][key]
       slices.forEach((slice, index) => {
+        if (slices.length < 2) return
         const neighbour = slices[(index + 1) % slices.length]
-        if (slices.length < 3 && index === slices.length - 1) return
         if (!slice.key.startsWith('sector:') && !neighbour.key.startsWith('sector:')) return
         const [left, right] = [hueOf(slice.key), hueOf(neighbour.key)]
         if (left === null || right === null) return
         expect(hueDistance(left, right), `${slice.label} next to ${neighbour.label}, round ${round}`).toBeGreaterThanOrEqual(MIN_NEIGHBOUR_HUE)
+      })
+    }
+  })
+
+  // Regression (review of #303): in cyberpunk the first slot (136°) sat 35° from
+  // a trailing Needs review slice (101°) across the wrap-around.
+  it.each([
+    ['fixed-colour slice last', ['sector:a', 'sector:b', 'needs_review']],
+    ['fixed-colour slice first', ['needs_review', 'sector:a', 'sector:b']],
+  ])('keeps the wrap-around apart in every theme with the %s', (_, order) => {
+    for (const theme of THEMES) {
+      const colors = assignSectorColors(order, order.length, SECTOR_PALETTES[theme], STATUS_HUES[theme])
+      const hueOf = (key: string) => key.startsWith('sector:') ? slotHue(theme, colors.get(key)!) : STATUS_HUES[theme][key]!
+      order.forEach((key, index) => {
+        const neighbour = order[(index + 1) % order.length]
+        expect(hueDistance(hueOf(key), hueOf(neighbour)), `${theme}: ${key} next to ${neighbour}`).toBeGreaterThanOrEqual(MIN_NEIGHBOUR_HUE)
       })
     }
   })

@@ -29,9 +29,10 @@ export function hueDistance(left: number, right: number): number {
  * Gives each sector key in `order` its own colour, taking palette slots most
  * distinct first. The first `pieLength` keys are the pie's slices in drawing
  * order: a sector there takes the earliest unused slot whose hue is at least
- * MIN_NEIGHBOUR_HUE from the slice before it, from a fixed-colour slice after it,
- * and, for the last slice, from the first (the pie wraps around). Non-sector keys
- * (Needs review, ETF, Mutual fund, Unclassified) keep their own colours and only
+ * MIN_NEIGHBOUR_HUE from both slices beside it, counted around the circle (the
+ * first and last slices touch), wherever that neighbour's hue is already known:
+ * a fixed-colour slice always, a sector once assigned. Non-sector keys (Needs
+ * review, ETF, Mutual fund, Unclassified) keep their own colours and only
  * constrain their neighbours. Colours repeat only past the palette's length.
  */
 export function assignSectorColors(order: string[], pieLength: number, palette: SectorSlot[],
@@ -43,12 +44,9 @@ export function assignSectorColors(order: string[], pieLength: number, palette: 
     : key.startsWith('sector:') ? hues.get(key) ?? null : statusHues[key] ?? null
   order.forEach((key, index) => {
     if (!key.startsWith('sector:') || colors.has(key)) return
-    const neighbours: (number | null)[] = []
-    if (index < pieLength) {
-      if (index > 0) neighbours.push(hueOf(order[index - 1]))
-      if (index + 1 < pieLength && !order[index + 1].startsWith('sector:')) neighbours.push(hueOf(order[index + 1]))
-      if (index === pieLength - 1 && pieLength > 2) neighbours.push(hueOf(order[0]))
-    }
+    const neighbours = index < pieLength && pieLength > 1
+      ? [hueOf(order[(index - 1 + pieLength) % pieLength]), hueOf(order[(index + 1) % pieLength])]
+      : []
     const nearest = (slot: SectorSlot) => Math.min(360,
       ...neighbours.filter((hue): hue is number => hue !== null).map(hue => hueDistance(slot.hue, hue)))
     const free = palette.map((slot, slotIndex) => ({ slot, slotIndex })).filter(({ slotIndex }) => !used.has(slotIndex))
