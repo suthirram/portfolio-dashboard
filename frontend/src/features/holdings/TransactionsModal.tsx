@@ -231,7 +231,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Transactions — ${holding.script}`} className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 720,
         maxHeight: '90vh', overflowY: 'auto',

@@ -78,7 +78,7 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
     }}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Set opening dates" className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 520,
         maxHeight: '90vh', overflowY: 'auto',

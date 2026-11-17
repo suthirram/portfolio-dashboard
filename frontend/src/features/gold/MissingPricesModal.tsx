@@ -70,11 +70,11 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-label="Fill missing gold prices" style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Fill missing gold prices" className="modal-card" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 24, width: 440, maxWidth: '100%',
         maxHeight: '90dvh', display: 'flex', flexDirection: 'column',
