@@ -35,9 +35,18 @@ function readStored(): ThemeName {
   }
 }
 
+// Browser chrome colour per theme (the mobile address bar, the PWA title
+// bar). Mirrors each theme's --bg-primary in styles/tokens.css.
+export const THEME_COLOR: Record<ThemeName, string> = {
+  dark: '#0a0c16',
+  light: '#f5f7fb',
+  cyberpunk: '#06010f',
+}
+
 function applyTheme(theme: ThemeName) {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.theme = theme
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLOR[theme])
 }
 
 // In-memory shadow of the chosen marker so an explicit pick still sticks
