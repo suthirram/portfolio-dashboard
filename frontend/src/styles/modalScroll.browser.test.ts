@@ -6,28 +6,45 @@
 // page, a real app modal on top, real wheel input over the backdrop and at
 // the card's scroll boundary, then the page's scroll position is checked.
 //
-// Skips when Playwright's Chromium is not installed (CI does not install it
-// yet — issue #321). Install locally: npx playwright install chromium
+// Skips when Playwright's Chromium cannot launch. Set REQUIRE_BROWSER_TESTS=1
+// to fail instead (CI will, once it installs the browser — issue #321).
+// Install locally: npx playwright install chromium-headless-shell
 import { resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { chromium, type Browser, type Page } from 'playwright'
+import { chromium, type Page } from 'playwright'
 import { createServer, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const PAGE_SCROLL = 1000
-// A launch probe, not a path check: headless runs use Playwright's headless
-// shell, which may be installed without the full browser.
-const hasChromium = await chromium.launch().then(probe => probe.close().then(() => true), () => false)
+
+// One launch serves as both the availability probe and the test browser.
+const browser = await chromium.launch().catch((error: unknown) => {
+  if (process.env.REQUIRE_BROWSER_TESTS === '1') throw error
+  return null
+})
 
 let server: ViteDevServer
-let browser: Browser
 let baseUrl: string
 
-// Lets the wheel's scroll (and any smooth-scroll animation) finish.
-const settle = (page: Page) => page.evaluate(() => new Promise(done => setTimeout(done, 400)))
+// Resolves once the page has stopped scrolling: its scroll position held
+// steady for 10 consecutive frames (about 160ms), capped at 2s. A wheel's
+// scroll (smooth or not) starts within a frame or two, so a page that is
+// still at rest after this has not been scrolled.
+const settle = (page: Page) => page.evaluate(() => new Promise<void>(done => {
+  let last = window.scrollY
+  let steadyFrames = 0
+  const deadline = performance.now() + 2000
+  const tick = () => {
+    steadyFrames = window.scrollY === last ? steadyFrames + 1 : 0
+    last = window.scrollY
+    if (steadyFrames >= 10 || performance.now() > deadline) done()
+    else requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}))
 
-async function openOverScrolledPage(modal: string) {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 420 } })
+async function openOverScrolledPage(modal: string, height = 420) {
+  const page = await browser!.newPage({ viewport: { width: 1000, height } })
   await page.goto(`${baseUrl}/src/test/browser/modalScroll.fixture.html?modal=${modal}`)
   await page.getByRole('dialog').waitFor()
   await page.evaluate(top => window.scrollTo({ top, behavior: 'instant' }), PAGE_SCROLL)
@@ -35,7 +52,27 @@ async function openOverScrolledPage(modal: string) {
   return page
 }
 
-describe.skipIf(!hasChromium)('modal scroll containment in a real browser', () => {
+// Wheels down over a point and reports where the page ended up.
+async function wheelAt(page: Page, left: number, top: number) {
+  await page.mouse.move(left, top)
+  await page.mouse.wheel(0, 600)
+  await settle(page)
+  return page.evaluate(() => window.scrollY)
+}
+
+// The card is the modal's focus-trap root (tabindex="-1"). It is not always
+// the role="dialog" element: some modals put the role on the backdrop.
+const card = (page: Page) => page.locator('[tabindex="-1"]').first()
+
+async function cardCentre(page: Page) {
+  const box = (await card(page).boundingBox())!
+  return [box.x + box.width / 2, box.y + box.height / 2] as const
+}
+
+const cardOverflows = (page: Page) =>
+  card(page).evaluate(element => element.scrollHeight > element.clientHeight)
+
+describe.skipIf(!browser)('modal scroll containment in a real browser', () => {
   beforeAll(async () => {
     server = await createServer({
       root: resolve(process.cwd()),
@@ -46,7 +83,6 @@ describe.skipIf(!hasChromium)('modal scroll containment in a real browser', () =
     })
     await server.listen()
     baseUrl = server.resolvedUrls!.local[0].replace(/\/$/, '')
-    browser = await chromium.launch()
   }, 60_000)
 
   afterAll(async () => {
@@ -54,37 +90,31 @@ describe.skipIf(!hasChromium)('modal scroll containment in a real browser', () =
     await server?.close()
   })
 
-  it.each(['add-row', 'opening-date'])('%s: wheeling over the backdrop leaves the page where it was', async modal => {
-    const page = await openOverScrolledPage(modal)
-    await page.mouse.move(4, 4) // the dimmed backdrop corner, outside the card
-    await page.mouse.wheel(0, 600)
-    await settle(page)
-    expect(await page.evaluate(() => window.scrollY)).toBe(PAGE_SCROLL)
-    await page.close()
-  })
+  it.each(['delete-all', 'opening-date', 'add-row', 'palette'])(
+    '%s: wheeling over the backdrop leaves the page where it was', async modal => {
+      const page = await openOverScrolledPage(modal)
+      expect(await wheelAt(page, 4, 4)).toBe(PAGE_SCROLL) // the backdrop corner, outside the card
+      await page.close()
+    })
 
-  it('add-row: wheeling past the end of a scrolled card leaves the page where it was', async () => {
-    const page = await openOverScrolledPage('add-row')
-    const card = page.getByRole('dialog')
-    const overflows = await card.evaluate(element => element.scrollHeight > element.clientHeight)
-    expect(overflows).toBe(true) // the 420px viewport makes this card scroll
+  it.each([['delete-all', 220], ['add-row', 420]] as const)(
+    '%s: wheeling past the end of a scrolled card leaves the page where it was', async (modal, height) => {
+      const page = await openOverScrolledPage(modal, height)
+      expect(await cardOverflows(page)).toBe(true) // the short viewport makes this card scroll
+      await card(page).evaluate(element => { element.scrollTop = element.scrollHeight })
 
-    await card.evaluate(element => { element.scrollTop = element.scrollHeight })
-    const box = (await card.boundingBox())!
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.wheel(0, 600)
-    await settle(page)
-    expect(await page.evaluate(() => window.scrollY)).toBe(PAGE_SCROLL)
-    await page.close()
-  })
+      const [left, top] = await cardCentre(page)
+      expect(await wheelAt(page, left, top)).toBe(PAGE_SCROLL)
+      await page.close()
+    })
 
-  it('opening-date: wheeling over a card that does not overflow leaves the page where it was', async () => {
-    const page = await openOverScrolledPage('opening-date')
-    const box = (await page.getByRole('dialog').boundingBox())!
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.wheel(0, 600)
-    await settle(page)
-    expect(await page.evaluate(() => window.scrollY)).toBe(PAGE_SCROLL)
-    await page.close()
-  })
+  it.each(['delete-all', 'opening-date'])(
+    '%s: wheeling over a card that does not overflow leaves the page where it was', async modal => {
+      const page = await openOverScrolledPage(modal)
+      expect(await cardOverflows(page)).toBe(false)
+
+      const [left, top] = await cardCentre(page)
+      expect(await wheelAt(page, left, top)).toBe(PAGE_SCROLL)
+      await page.close()
+    })
 }, 60_000)
