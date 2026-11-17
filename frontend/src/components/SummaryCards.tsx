@@ -76,6 +76,24 @@ function ChangeLine({row}: { row: ChangeRow }) {
     )
 }
 
+// clickableCard makes a card that reacts to clicks reachable and operable by
+// keyboard: focusable, announced as a button, activated by Enter or Space.
+// The cards stay divs because their stacked block content is not allowed
+// inside a native <button>. No handler, no props: the card stays static.
+export function clickableCard(onClick?: () => void) {
+    if (!onClick) return {}
+    return {
+        role: 'button',
+        tabIndex: 0,
+        onClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return
+            e.preventDefault()
+            onClick()
+        },
+    }
+}
+
 interface CardProps {
     label: string
     inr: number
@@ -93,7 +111,7 @@ function Card({label, inr, eur, positive, negative, highlight, accent, onClick}:
 
     return (
         <div className={cardClass(highlight)} style={{...cardStyle, ...(onClick ? {cursor: 'pointer'} : {})}}
-             onClick={onClick}>
+             {...clickableCard(onClick)}>
             <div style={cardLabelStyle}>{label}</div>
             <div style={{
                 fontSize: accent ? 28 : 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
@@ -262,7 +280,7 @@ function PnLCard({unrealInr, unrealEur, realInr, realEur, onClick}: {
     unrealInr: number; unrealEur: number; realInr: number; realEur: number; onClick?: () => void
 }) {
     return (
-        <div className="card" style={{...cardStyle, ...(onClick ? {cursor: 'pointer'} : {})}} onClick={onClick}>
+        <div className="card" style={{...cardStyle, ...(onClick ? {cursor: 'pointer'} : {})}} {...clickableCard(onClick)}>
             <div style={cardLabelStyle}>Profit &amp; Loss</div>
             <PnLRow label="Unrealised" inr={unrealInr} eur={unrealEur}/>
             <PnLRow label="Realised" inr={realInr} eur={realEur}/>
@@ -318,7 +336,7 @@ function FlipCard({onFlip, children}: { onFlip: () => void; children: React.Reac
     return (
         <div className={cls}
              style={{flex: '1 1 174px', minWidth: 180, minHeight: 174, display: 'flex', flexDirection: 'column'}}
-             onClick={handleClick}>
+             {...clickableCard(handleClick)}>
             <div style={{flex: 1, display: 'flex', flexDirection: 'column'}}>{children}</div>
         </div>
     )
