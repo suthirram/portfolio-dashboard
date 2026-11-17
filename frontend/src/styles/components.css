@@ -539,6 +539,24 @@ a:hover .app-icon .icon-spark,
   animation: fade-in var(--speed) var(--ease);
 }
 
+/* Scroll containment: wheel and touch gestures over a modal's backdrop or
+ * inside its card must not scroll the page behind. Each overlay and card is
+ * a scroll container (overflow: auto) so overscroll-behavior applies even
+ * when nothing overflows. Never lock <body> overflow instead: that drops the
+ * page scrollbar and shifts the layout. The modalBackdrop / modalCard inline
+ * styles in historyShared carry the same two declarations. */
+.modal-overlay,
+.classification-overlay,
+.palette-overlay {
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.modal-card,
+.classification-card {
+  overscroll-behavior: contain;
+}
+
 .modal-card {
   animation: scale-in var(--speed-slow) var(--ease);
   box-shadow: var(--shadow-lg);

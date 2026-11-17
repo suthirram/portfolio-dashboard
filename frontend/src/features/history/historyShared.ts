@@ -839,12 +839,16 @@ export const chartTooltipProps = {
   labelStyle: { color: 'var(--text-secondary)' } as CSSProperties,
   itemStyle: { color: 'var(--text-primary)' } as CSSProperties,
 }
+// Scroll containment matches the .modal-overlay / .modal-card rules in
+// components.css: gestures over the backdrop or card never scroll the page.
 export const modalBackdrop: CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+  overflow: 'auto', overscrollBehavior: 'contain',
 }
 export const modalCard: CSSProperties = {
   background: 'var(--bg-secondary)', border: '1px solid var(--border)',
   borderRadius: 'var(--radius)', padding: 24,
   width: '90%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
+  overscrollBehavior: 'contain',
 }
