@@ -53,10 +53,25 @@ h1, h2, h3, h4 {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; border: 2px solid var(--bg-primary); }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+/* Standard properties first: scrollbar-color inherits, so the root rule
+ * themes every scroller; scrollbar-width does not inherit, hence `*`. */
+:root {
+  --scrollbar-thumb: var(--border-light);
+  --scrollbar-track: transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+* { scrollbar-width: thin; }
+
+/* WebKit fallback only where scrollbar-color is missing. scrollbar-width is
+ * reset there because a browser that knows scrollbar-width but not
+ * scrollbar-color would otherwise ignore the ::-webkit-scrollbar styling. */
+@supports not (scrollbar-color: auto) {
+  * { scrollbar-width: auto; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; border: 2px solid var(--bg-primary); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+}
 
 /* Utility */
 .pos { color: var(--green); }
