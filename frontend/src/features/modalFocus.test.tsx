@@ -1,6 +1,7 @@
-// Every modal keeps keyboard focus inside itself and closes on Escape
-// (PD-058 Task 1). One table so a new modal is one more row.
-import { fireEvent, render, waitFor } from '@testing-library/react'
+// Every modal keeps keyboard focus inside itself, closes on Escape (PD-058
+// Task 1) and is announced as a named modal dialog (Task 2). One table so a
+// new modal is one more row.
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { DividendRow, Holding, HoldingWithPrice } from '../types'
@@ -25,22 +26,22 @@ const historyRow = { date: '2026-11-03', regions: {}, holdings: [] } as unknown 
 const holding = { id: 'holding-1', script: 'VWCE', currency: 'EUR' } as Holding
 const dividendRow = { id: 'dividend-1', date: '2026-11-03', amount: 10, holding_id: 'holding-1' } as DividendRow
 
-const modals: Array<[string, (close: () => void) => ReactElement]> = [
-  ['AddRowModal', close => <AddRowModal onSubmit={async () => {}} onCancel={close} />],
-  ['EditRowModal', close => <EditRowModal row={historyRow} onSubmit={async () => {}} onCancel={close} />],
-  ['PasteModal', close => <PasteModal monthLabel="2026-11" onSubmit={async () => ({ applied: [], conflicts: [], rejected: [] })} onCancel={close} />],
-  ['ConflictDialog', close => <ConflictDialog conflict={{ date: '2026-11-03', existing: {}, incoming: {} }} onResolve={async () => {}} onSkip={close} />],
-  ['HoldingsModal', close => <HoldingsModal row={historyRow} prev={null} region="INR" onClose={close} />],
-  ['TransactionsModal', close => <TransactionsModal holding={holding as HoldingWithPrice} onClose={close} onChanged={() => {}} />],
-  ['OpeningDateModal', close => <OpeningDateModal holdings={[holding]} onSkip={close} onSaved={() => {}} />],
-  ['GoldTxnModal', close => <GoldTxnModal txn={null} onClose={close} onSaved={() => {}} />],
-  ['MissingPricesModal', close => <MissingPricesModal missing={['2026-11-01']} onSkip={close} onSaved={() => {}} />],
-  ['DividendModal', close => <DividendModal currency="INR" holdings={[]} editing={null} onClose={close} onSaved={() => {}} />],
-  ['DeleteDividendDialog', close => <DeleteDividendDialog row={dividendRow} currency="INR" onClose={close} onDeleted={() => {}} />],
-  ['DeleteAllDialog', close => <DeleteAllDialog currency="INR" count={2} onClose={close} onDeleted={() => {}} />],
-  ['DividendImportModal', close => <DividendImportModal currency="INR" holdings={[]} onClose={close} onImported={() => {}} />],
-  ['TradeImportModal', close => <TradeImportModal holdings={[]} onClose={close} onImported={() => {}} />],
-  ['NameConfirmDialog', close => <NameConfirmDialog names={[]} holdings={[]} heading="Confirm names" intro="" onBack={close} onConfirm={() => {}} />],
+const modals: Array<[string, RegExp, (close: () => void) => ReactElement]> = [
+  ['AddRowModal', /Add manual row/, close => <AddRowModal onSubmit={async () => {}} onCancel={close} />],
+  ['EditRowModal', /Edit row/, close => <EditRowModal row={historyRow} onSubmit={async () => {}} onCancel={close} />],
+  ['PasteModal', /Paste month — 2026-11/, close => <PasteModal monthLabel="2026-11" onSubmit={async () => ({ applied: [], conflicts: [], rejected: [] })} onCancel={close} />],
+  ['ConflictDialog', /Conflict/, close => <ConflictDialog conflict={{ date: '2026-11-03', existing: {}, incoming: {} }} onResolve={async () => {}} onSkip={close} />],
+  ['HoldingsModal', /Holdings/, close => <HoldingsModal row={historyRow} prev={null} region="INR" onClose={close} />],
+  ['TransactionsModal', /Transactions — VWCE/, close => <TransactionsModal holding={holding as HoldingWithPrice} onClose={close} onChanged={() => {}} />],
+  ['OpeningDateModal', /Set opening dates/, close => <OpeningDateModal holdings={[holding]} onSkip={close} onSaved={() => {}} />],
+  ['GoldTxnModal', /Add gold purchase/, close => <GoldTxnModal txn={null} onClose={close} onSaved={() => {}} />],
+  ['MissingPricesModal', /Fill missing gold prices/, close => <MissingPricesModal missing={['2026-11-01']} onSkip={close} onSaved={() => {}} />],
+  ['DividendModal', /Add dividend/, close => <DividendModal currency="INR" holdings={[]} editing={null} onClose={close} onSaved={() => {}} />],
+  ['DeleteDividendDialog', /Delete dividend/, close => <DeleteDividendDialog row={dividendRow} currency="INR" onClose={close} onDeleted={() => {}} />],
+  ['DeleteAllDialog', /Delete all INR dividends/, close => <DeleteAllDialog currency="INR" count={2} onClose={close} onDeleted={() => {}} />],
+  ['DividendImportModal', /Import dividends/, close => <DividendImportModal currency="INR" holdings={[]} onClose={close} onImported={() => {}} />],
+  ['TradeImportModal', /Import trades/, close => <TradeImportModal holdings={[]} onClose={close} onImported={() => {}} />],
+  ['NameConfirmDialog', /Confirm names/, close => <NameConfirmDialog names={[]} holdings={[]} heading="Confirm names" intro="" onBack={close} onConfirm={() => {}} />],
 ]
 
 // The focusable controls of the dialog that currently holds focus.
@@ -49,7 +50,12 @@ const dialogControls = () => {
   return Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'))
 }
 
-describe.each(modals)('%s', (_, renderModal) => {
+describe.each(modals)('%s', (_, name, renderModal) => {
+  it('is announced as a named modal dialog', () => {
+    render(renderModal(() => {}))
+    expect(screen.getByRole('dialog', { name })).toHaveAttribute('aria-modal', 'true')
+  })
+
   it('moves focus inside on open and closes on Escape', async () => {
     const close = vi.fn()
     render(renderModal(close))

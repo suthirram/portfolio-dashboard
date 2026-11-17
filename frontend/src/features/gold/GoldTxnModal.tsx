@@ -130,11 +130,11 @@ export default function GoldTxnModal({ txn, onClose, onSaved }: Props) {
   )
 
   return (
-    <div className="modal-overlay" role="dialog" aria-label={txn ? 'Edit gold purchase' : 'Add gold purchase'} style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={txn ? 'Edit gold purchase' : 'Add gold purchase'} className="modal-card" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 24, width: 520, maxWidth: '100%',
         maxHeight: '90dvh', overflowY: 'auto',
