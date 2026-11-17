@@ -210,6 +210,17 @@ describe('TransactionsPage', () => {
     await waitFor(() => expect(dateHeader.closest('th')).toHaveAttribute('aria-sort', 'ascending'))
   })
 
+  // PD-058 Task 7: aria-sort marks only the active column; the rest omit it.
+  it('puts aria-sort on the active column only', async () => {
+    renderPage()
+    await screen.findByText('SIP tranche')
+
+    const sorted = screen.getAllByRole('columnheader').filter(header => header.hasAttribute('aria-sort'))
+    expect(sorted).toHaveLength(1)
+    expect(sorted[0]).toHaveTextContent(/^Date/)
+    for (const header of screen.getAllByRole('columnheader')) expect(header).toHaveAttribute('scope', 'col')
+  })
+
   it('opens the owning holding\'s ledger editor from a row', async () => {
     renderPage()
     await screen.findByText('SIP tranche')
