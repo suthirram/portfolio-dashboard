@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
@@ -19,6 +20,8 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   const [prices, setPrices] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onSkip() })
 
   const set = (date: string, v: string) => setPrices(p => ({ ...p, [date]: v }))
 
@@ -71,7 +74,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }}>
-      <div className="modal-card" style={{
+      <div ref={root} tabIndex={-1} className="modal-card" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 24, width: 440, maxWidth: '100%',
         maxHeight: '90dvh', display: 'flex', flexDirection: 'column',

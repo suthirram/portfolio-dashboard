@@ -1,7 +1,7 @@
 // The History page's modals: manual add, edit-override, paste-month,
 // conflict resolution, and the per-currency holdings breakdown. Split out
 // of HistoryPage.tsx; HistoryPage re-exports them so imports keep working.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type {
   DateConflict,
   HistoryHolding,
@@ -10,6 +10,7 @@ import type {
 } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { formatDate } from '../../lib/formDates'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
   changedRegions, emptyForm, fmt,
@@ -40,10 +41,12 @@ export function AddRowModal({ onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Add manual row</h2>
         <label style={{ display: 'block', marginBottom: 12 }}>
           Date
@@ -114,10 +117,12 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {formatDate(row.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving overrides any cron-written value with the manual value below.
@@ -196,10 +201,12 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Paste month — {monthLabel}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Paste tab-separated rows (Google Sheets / Excel). Columns:
@@ -257,10 +264,12 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
     }
     await onResolve(conflict.date, chosen)
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, onSkip)
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {formatDate(conflict.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           For each region, tick to keep the incoming value (override). Leave unticked to keep what's already there.
@@ -319,10 +328,12 @@ export function HoldingsModal({ row, prev, region, onClose }: {
     (prev?.holdings ?? []).filter(inRegion).map(h => [keyFor(h), h]),
   )
   const priceFmt = (n: number) => fmtCurrency(n, sym)
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, onClose)
 
   return (
     <div className="modal-overlay" style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(row.date)} · {region}</span>

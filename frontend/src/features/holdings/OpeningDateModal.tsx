@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api } from '../../lib/api/client'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import type { Holding, HoldingInput } from '../../types'
 
 // The inception baseline shown as the default when a holding has no opening date.
@@ -50,6 +51,8 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
   )
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onSkip() })
 
   const setDate = (id: string, value: string) => setDates(d => ({ ...d, [id]: value }))
 
@@ -75,7 +78,7 @@ export default function OpeningDateModal({ holdings, userId, onSkip, onSaved }: 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
     }}>
-      <div className="modal-card" style={{
+      <div ref={root} tabIndex={-1} className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 520,
         maxHeight: '90vh', overflowY: 'auto',

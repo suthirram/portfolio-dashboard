@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
@@ -7,6 +7,7 @@ import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
 import { currencySymbol } from '../../lib/currency'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 
 // Ordered for the type picker; opening is managed via the holding's opening
 // balance, but is shown read-only in the list when present.
@@ -62,6 +63,8 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState<string | null>(null)
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onClose() })
 
   const load = useCallback(async () => {
     if (!holding.id) return
@@ -228,7 +231,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card" style={{
+      <div ref={root} tabIndex={-1} className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 720,
         maxHeight: '90vh', overflowY: 'auto',
