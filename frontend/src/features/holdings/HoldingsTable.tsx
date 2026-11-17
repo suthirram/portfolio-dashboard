@@ -12,6 +12,7 @@ import {
   type HoldingWithPreviousClose,
 } from './dashboardPriceMovement'
 import { currencySymbol } from '../../lib/currency'
+import { sortHeaderBtn } from '../history/historyShared'
 import { formatRate, rateTone } from '../../lib/rate'
 import { xirrNote, type XirrIndex } from './stockXirr'
 
@@ -51,8 +52,10 @@ interface CellProps {
   className?: string
 }
 
-const TH = ({ children, style, className }: CellProps) => (
-  <th className={className} style={{
+// Every header names a column (scope="col"); a sortable one carries aria-sort
+// only while it is the active sort column.
+const TH = ({ children, style, className, ariaSort }: CellProps & { ariaSort?: 'ascending' | 'descending' }) => (
+  <th scope="col" aria-sort={ariaSort} className={className} style={{
     padding: '10px 8px', textAlign: 'right', fontWeight: 500, fontSize: 11,
     color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
     whiteSpace: 'nowrap',
@@ -162,11 +165,16 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
 
   const SortIcon = ({ k }: { k: keyof HoldingWithPrice }) => <>{sortKey === k ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}</>
 
+  // A real button inside the header so the sort is reachable by keyboard and
+  // operable by screen readers; the th itself is not clickable.
   const colHead = (label: string, key: keyof HoldingWithPrice) => (
-    <TH style={{ cursor: 'pointer', userSelect: 'none' }}>
-      <span onClick={() => toggleSort(key)} style={{ color: sortKey === key ? 'var(--text-primary)' : undefined }}>
+    <TH ariaSort={sortKey === key ? (sortDir === 1 ? 'ascending' : 'descending') : undefined}>
+      <button type="button" onClick={() => toggleSort(key)} style={{
+        ...sortHeaderBtn, fontWeight: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
+        userSelect: 'none', color: sortKey === key ? 'var(--text-primary)' : 'inherit',
+      }}>
         {label}<SortIcon k={key} />
-      </span>
+      </button>
     </TH>
   )
 
@@ -204,7 +212,7 @@ export default function HoldingsTable({ holdings, loading, onEdit, onDelete, onT
             <TH style={{ textAlign: 'left' }}>Script</TH>
             {colHead('Shares', 'stocks_owned')}
             <TH>Cost Price</TH>
-            <TH>{(<span onClick={() => toggleSort('avg_cost_price')} style={{ cursor: 'pointer', userSelect: 'none', color: sortKey === 'avg_cost_price' ? 'var(--text-primary)' : undefined }}>Avg Cost/Sh<SortIcon k="avg_cost_price" /></span>)}</TH>
+            {colHead('Avg Cost/Sh', 'avg_cost_price')}
             {colHead('Share Price', 'current_price')}
             <TH>Current Value</TH>
             <TH>Day Gain</TH>
