@@ -1,7 +1,7 @@
 // The History page's modals: manual add, edit-override, paste-month,
 // conflict resolution, and the per-currency holdings breakdown. Split out
 // of HistoryPage.tsx; HistoryPage re-exports them so imports keep working.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type {
   DateConflict,
   HistoryHolding,
@@ -10,6 +10,7 @@ import type {
 } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { formatDate } from '../../lib/formDates'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
   changedRegions, emptyForm, fmt,
@@ -40,32 +41,34 @@ export function AddRowModal({ onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Add manual row</h2>
         <label style={{ display: 'block', marginBottom: 12 }}>
           Date
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ display: 'block', marginTop: 4, padding: 6, width: '100%' }}/>
         </label>
-        {REGIONS.map(r => (
-          <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
-            <legend style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{REGION_LABELS[r]}</legend>
+        {REGIONS.map(region => (
+          <fieldset key={region} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
+            <legend style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{REGION_LABELS[region]}</legend>
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <DecimalInput value={form[r].invested}
-                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
-                  onBlur={regroup(r, 'invested')}
+                <DecimalInput value={form[region].invested}
+                  onValueChange={value => setForm(previousForm => ({ ...previousForm, [region]: { ...previousForm[region], invested: value } }))}
+                  onBlur={regroup(region, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <DecimalInput value={form[r].current}
-                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
-                  onBlur={regroup(r, 'current')}
+                <DecimalInput value={form[region].current}
+                  onValueChange={value => setForm(previousForm => ({ ...previousForm, [region]: { ...previousForm[region], current: value } }))}
+                  onBlur={regroup(region, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
@@ -114,10 +117,12 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {formatDate(row.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving overrides any cron-written value with the manual value below.
@@ -125,24 +130,24 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
           value. A region left exactly as it was (both fields untouched) is not
           re-saved.
         </p>
-        {REGIONS.map(r => (
-          <fieldset key={r} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
+        {REGIONS.map(region => (
+          <fieldset key={region} style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
             <legend style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {REGION_LABELS[r]} ({CURRENCY_SYMBOL[CURRENCY_BY_REGION[r]]})
+              {REGION_LABELS[region]} ({CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]})
             </legend>
             <div style={{ display: 'flex', gap: 8 }}>
               <label style={{ flex: 1 }}>
                 Invested
-                <DecimalInput value={form[r].invested}
-                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], invested: value } }))}
-                  onBlur={regroup(r, 'invested')}
+                <DecimalInput value={form[region].invested}
+                  onValueChange={value => setForm(previousForm => ({ ...previousForm, [region]: { ...previousForm[region], invested: value } }))}
+                  onBlur={regroup(region, 'invested')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
               <label style={{ flex: 1 }}>
                 Current
-                <DecimalInput value={form[r].current}
-                  onValueChange={value => setForm(f => ({ ...f, [r]: { ...f[r], current: value } }))}
-                  onBlur={regroup(r, 'current')}
+                <DecimalInput value={form[region].current}
+                  onValueChange={value => setForm(previousForm => ({ ...previousForm, [region]: { ...previousForm[region], current: value } }))}
+                  onBlur={regroup(region, 'current')}
                   style={{ display: 'block', width: '100%', padding: 6, marginTop: 4 }}/>
               </label>
             </div>
@@ -174,7 +179,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
     setReport(null)
     setClientSkipped(0)
     try {
-      const inputLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).length
+      const inputLines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean).length
       const rows = parsePasteText(text)
       const skipped = inputLines - rows.length
       setClientSkipped(skipped)
@@ -185,9 +190,9 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
         )
         return
       }
-      const r = await onSubmit({ month: monthLabel, rows })
-      setReport(r)
-      if (r.applied.length === 0 && r.conflicts.length === 0 && r.rejected.length === 0) {
+      const submitted = await onSubmit({ month: monthLabel, rows })
+      setReport(submitted)
+      if (submitted.applied.length === 0 && submitted.conflicts.length === 0 && submitted.rejected.length === 0) {
         alert('Server accepted no rows. They were likely all outside the selected month.')
       }
     } catch (e) {
@@ -196,10 +201,12 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onCancel() })
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Paste month — {monthLabel}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Paste tab-separated rows (Google Sheets / Excel). Columns:
@@ -223,7 +230,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
             )}
             {report.rejected.length > 0 && (
               <ul style={{ marginTop: 4, paddingLeft: 18, fontSize: 12 }}>
-                {report.rejected.map(r => <li key={r.date}>{formatDate(r.date)}: {r.reason}</li>)}
+                {report.rejected.map(rejected => <li key={rejected.date}>{formatDate(rejected.date)}: {rejected.reason}</li>)}
               </ul>
             )}
           </div>
@@ -246,21 +253,23 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
     INR: false, EUR: false,
   })
 
-  const toggle = (r: RegionKey) => setPicks(p => ({ ...p, [r]: !p[r] }))
+  const toggle = (region: RegionKey) => setPicks(previousPicks => ({ ...previousPicks, [region]: !previousPicks[region] }))
 
   const submit = async () => {
     const chosen: Record<string, { invested: number; current: number }> = {}
-    for (const r of REGIONS) {
-      if (picks[r] && conflict.incoming[r]) {
-        chosen[r] = conflict.incoming[r]
+    for (const region of REGIONS) {
+      if (picks[region] && conflict.incoming[region]) {
+        chosen[region] = conflict.incoming[region]
       }
     }
     await onResolve(conflict.date, chosen)
   }
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, onSkip)
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {formatDate(conflict.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           For each region, tick to keep the incoming value (override). Leave unticked to keep what's already there.
@@ -270,17 +279,17 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
             <tr><th style={th}>Region</th><th style={th}>Existing</th><th style={th}>Incoming</th><th style={th}>Keep incoming?</th></tr>
           </thead>
           <tbody>
-            {REGIONS.map(r => {
-              const ex = conflict.existing[r]
-              const inc = conflict.incoming[r]
+            {REGIONS.map(region => {
+              const ex = conflict.existing[region]
+              const inc = conflict.incoming[region]
               if (!ex && !inc) return null
               return (
-                <tr key={r}>
-                  <td style={td}>{REGION_LABELS[r]}</td>
+                <tr key={region}>
+                  <td style={td}>{REGION_LABELS[region]}</td>
                   <td style={td}>{ex ? `${fmt(ex.invested)} / ${fmt(ex.current)} (${ex.source})` : '—'}</td>
                   <td style={td}>{inc ? `${fmt(inc.invested)} / ${fmt(inc.current)}` : '—'}</td>
                   <td style={td}>
-                    <input type="checkbox" checked={!!picks[r]} disabled={!inc} onChange={() => toggle(r)} />
+                    <input type="checkbox" checked={!!picks[region]} disabled={!inc} onChange={() => toggle(region)} />
                   </td>
                 </tr>
               )
@@ -309,20 +318,22 @@ export function HoldingsModal({ row, prev, region, onClose }: {
   onClose: () => void
 }) {
   const sym = CURRENCY_SYMBOL[CURRENCY_BY_REGION[region]]
-  const inRegion = (h: HistoryHolding) => holdingRegion(h) === region
+  const inRegion = (holding: HistoryHolding) => holdingRegion(holding) === region
   // Key by symbol+script so two holdings that share a symbol (e.g. a dual
   // listing) don't collide on the React key or the yesterday-price lookup.
-  const keyFor = (h: HistoryHolding) => `${h.symbol} ${h.script}`
+  const keyFor = (holding: HistoryHolding) => `${holding.symbol} ${holding.script}`
   // Only real (positive-quantity) holdings in this currency.
-  const holdings = (row.holdings ?? []).filter(h => inRegion(h) && h.quantity > 0)
+  const holdings = (row.holdings ?? []).filter(holding => inRegion(holding) && holding.quantity > 0)
   const prevByKey = new Map(
-    (prev?.holdings ?? []).filter(inRegion).map(h => [keyFor(h), h]),
+    (prev?.holdings ?? []).filter(inRegion).map(holding => [keyFor(holding), holding]),
   )
-  const priceFmt = (n: number) => fmtCurrency(n, sym)
+  const priceFmt = (value: number) => fmtCurrency(value, sym)
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, onClose)
 
   return (
     <div className="modal-overlay" style={modalBackdrop} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
+      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard} role="dialog" aria-modal="true" aria-label="Holdings">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Holdings</h2>
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{formatDate(row.date)} · {region}</span>
@@ -343,10 +354,9 @@ export function HoldingsModal({ row, prev, region, onClose }: {
                 </tr>
               </thead>
               <tbody>
-                {holdings.map(h => {
-                  const cur = h.close_price
-                  const y = prevByKey.get(keyFor(h))?.close_price
-                  const yesterday = y ?? null
+                {holdings.map(holding => {
+                  const cur = holding.close_price
+                  const yesterday = prevByKey.get(keyFor(holding))?.close_price ?? null
                   const change = yesterday === null ? null : cur - yesterday
                   const pct = yesterday === null || yesterday === 0 ? null : ((cur - yesterday) / yesterday) * 100
                   // Green up, red down, blue unchanged; neutral only when there
@@ -358,13 +368,13 @@ export function HoldingsModal({ row, prev, region, onClose }: {
                     : 'var(--blue, #2563eb)'
                   const num: React.CSSProperties = { ...td, textAlign: 'right' }
                   return (
-                    <tr key={keyFor(h)}>
-                      <td style={td}>{h.script || h.symbol}</td>
+                    <tr key={keyFor(holding)}>
+                      <td style={td}>{holding.script || holding.symbol}</td>
                       <td style={num}>{yesterday === null ? '—' : priceFmt(yesterday)}</td>
                       <td style={num}>{priceFmt(cur)}</td>
                       <td style={{ ...num, color }}>{change === null ? '—' : priceFmt(change)}</td>
                       <td style={{ ...num, color }}>{pct === null ? '—' : `${pct.toFixed(2)}%`}</td>
-                      <td style={num}>{h.dividends ? priceFmt(h.dividends) : '—'}</td>
+                      <td style={num}>{holding.dividends ? priceFmt(holding.dividends) : '—'}</td>
                     </tr>
                   )
                 })}

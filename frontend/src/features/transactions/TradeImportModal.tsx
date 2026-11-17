@@ -1,10 +1,11 @@
 // The trades CSV import (PD-051): choose a broker export → confirm unknown
 // symbols (map, create or leave) → preview → one atomic commit. Built from
 // the dividend import's shared pieces (features/imports).
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { canonicalCurrency } from '../../lib/currency'
 import { todayIST } from '../../lib/formDates'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import type { Holding, TradeImportPreview, TradeImportResult, TradeImportRow } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
 import { ImportCounts, InvalidLines, type InvalidLine } from '../imports/ImportTables'
@@ -32,6 +33,14 @@ export default function TradeImportModal({ holdings, userId, onClose, onImported
   const [result, setResult] = useState<TradeImportResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  // Escape on the result step behaves like Done so the page refreshes. The
+  // names step renders its own dialog, which owns the keys meanwhile.
+  useDialogFocus(root, () => {
+    if (busy) return
+    if (step === 'result') onImported()
+    onClose()
+  }, step !== 'names' || !preview)
   // Trades import into INR holdings only (NSE / BSE).
   const inrHoldings = useMemo(() => holdings.filter(holding => canonicalCurrency(holding.currency) === 'INR'), [holdings])
 
@@ -109,7 +118,7 @@ export default function TradeImportModal({ holdings, userId, onClose, onImported
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label="Import trades">
-      <div style={{ ...modalCard, width: 'min(720px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(720px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ fontSize: 15, margin: 0 }}>{step === 'result' ? 'Import complete' : step === 'preview' ? 'Preview import' : 'Import trades'}</h2>
         <p style={{ margin: 0, padding: '8px 12px', border: '1px solid var(--blue)', background: 'var(--blue-dim)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}>
           Buys and sells into <strong>₹ INR</strong> holdings · dates read as <strong>DD/MM/YYYY</strong> (1/11/2024 = 1 Nov 2024), a time like 03:30 PM is optional{fileName && ` · ${fileName}`}

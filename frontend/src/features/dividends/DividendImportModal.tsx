@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { canonicalCurrency, currencySymbol, formatMoney } from '../../lib/currency'
 import { formatDate, todayIST } from '../../lib/formDates'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import type { DividendCurrency, DividendImportPreview, DividendImportResult, DividendImportRow, Holding } from '../../types'
 import { modalBackdrop, modalCard, td, th } from '../history/historyShared'
 import { parseDividendCsv, type DividendCsvError } from './dividendCsv'
@@ -26,6 +27,14 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
   const [result, setResult] = useState<DividendImportResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  // Escape on the result step behaves like Done so the page refreshes. The
+  // names step renders its own dialog, which owns the keys meanwhile.
+  useDialogFocus(root, () => {
+    if (busy) return
+    if (step === 'result') onImported()
+    onClose()
+  }, step !== 'names' || !preview)
   const inTab = useMemo(() => holdings.filter(holding => canonicalCurrency(holding.currency) === currency), [holdings, currency])
   const label = `${currencySymbol(currency)} ${currency}`
 
@@ -100,7 +109,7 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label="Import dividends">
-      <div style={{ ...modalCard, width: 'min(720px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(720px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ fontSize: 15, margin: 0 }}>{step === 'result' ? 'Import complete' : step === 'preview' ? 'Preview import' : 'Import dividends'}</h2>
         <p style={{ margin: 0, padding: '8px 12px', border: '1px solid var(--blue)', background: 'var(--blue-dim)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}>
           Importing into <strong>{label}</strong> · dates read as <strong>DD/MM/YYYY</strong> (1/2/2020 = 1 Feb 2020){fileName && ` · ${fileName}`}
