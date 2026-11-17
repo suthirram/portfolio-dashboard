@@ -14,7 +14,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--brand-font-family);
-  font-size: 14px;
+  font-size: 0.875rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'cv02', 'cv03', 'cv04';
@@ -111,7 +111,7 @@ button {
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   border-radius: var(--radius-sm);
   transition: filter var(--speed) var(--ease), transform var(--speed) var(--ease),
     box-shadow var(--speed) var(--ease), background var(--speed) var(--ease),
@@ -127,7 +127,7 @@ button:disabled { cursor: default; }
 
 input, select, textarea {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   transition: border-color var(--speed) var(--ease), box-shadow var(--speed) var(--ease);
 }
 
