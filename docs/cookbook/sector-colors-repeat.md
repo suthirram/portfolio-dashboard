@@ -69,6 +69,23 @@ its text label, as PRD-013 already requires.
   colours, no adjacent pinks or greens, and tables matching the pie. The
   throwaway user and its data were deleted afterwards.
 
+### Review follow-ups (2026-11-17)
+
+* **Wrap-around with a fixed-colour last slice.** In cyberpunk, a pie of
+  `[sector, sector, Needs review]` gave the first sector 136° next to Needs
+  review's 101°: 35°, under the 40° rule. The wrap check only ran when the
+  *last* slice was a sector. Each sector slice now checks both circular
+  neighbours whose hue is known. The property test, which had only run the
+  dark theme (where slot 1 happens to sit 48° away), now runs every theme.
+  Deterministic tests cover a fixed-colour slice first and last; both failed
+  before the fix.
+* **Unreadable pie tooltip in dark and cyberpunk.** The Sectors tooltip set
+  `background: var(--bg-primary)` (near black) and no text colour, so Recharts
+  drew black text (`rgb(0, 0, 0)` on `rgb(10, 12, 22)`, measured in Chrome). It
+  now uses the shared `chartTooltipProps` (card surface, primary text) like the
+  other charts. `SectorAllocationTooltip.test.tsx` pins the styles, and a
+  Chrome check showed `rgb(238, 241, 248)` text on `rgb(23, 27, 46)`.
+
 ## Follow-up
 
 None. If an owner ever exceeds 30 sectors, colours repeat from slot 1.

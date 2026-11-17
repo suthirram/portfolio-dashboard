@@ -5,6 +5,7 @@ import { SUPPORTED_CURRENCIES, formatMoney, type SupportedCurrency } from '../..
 import { groupByCurrency } from './groupByCurrency'
 import { filterByView } from './holdingViews'
 import { sectorAllocation } from './sectorAllocationData'
+import { chartTooltipProps } from '../history/historyShared'
 import type { SectorSelection } from './classification'
 import type { CurrencyCode } from './groupByCurrency'
 import type { SectorColorMap } from './sectorColors'
@@ -41,8 +42,7 @@ export default function SectorAllocation({ holdings, onSelectSector, sectorColor
                 onClick={(_, index) => { const bucket = allocation.buckets[index]; if (bucket) select(bucket.key) }}>
                 {allocation.buckets.map(bucket => <Cell key={bucket.key} fill={colorOf(bucket)} />)}
               </Pie>
-              <Tooltip formatter={value => typeof value === 'number' ? formatMoney(value, currency) : '—'}
-                contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8 }} />
+              <Tooltip {...chartTooltipProps} formatter={value => typeof value === 'number' ? formatMoney(value, currency) : '—'} />
             </PieChart>
           </ResponsiveContainer>
           <p className="sector-allocation-total">Priced value: {formatMoney(allocation.total, currency)}</p>
