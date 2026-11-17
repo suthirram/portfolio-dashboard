@@ -16,6 +16,7 @@ import { useAuth } from '../auth/AuthContext'
 import { api, type Region } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
+import { useLightDismiss } from '../../lib/useLightDismiss'
 import type { Holding, HoldingWithPrice } from '../../types'
 import ClassificationReview from '../holdings/ClassificationReview'
 import { classificationBucket, type SectorSelection } from '../holdings/classification'
@@ -82,6 +83,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const clearSectorTarget = useCallback(() => setSectorTarget(null), [])
   const [filter, setFilter] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  // Escape and a press outside close the user menu, so keyboard and touch
+  // users are not left with it open (mouse users also close it on leave).
+  const userMenuRoot = useRef<HTMLDivElement>(null)
+  useLightDismiss(userMenuRoot, menuOpen, () => setMenuOpen(false))
   const [regionLabel, setRegionLabel] = useState<string>('')
   const [openingPromptSkipped, setOpeningPromptSkipped] = useState(false)
   const revamp = useUiRevamp()
@@ -255,8 +260,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
             <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
           </button>
-          <div className="dash-nav-user shell-dup" style={{ position: 'relative' }}>
+          <div ref={userMenuRoot} className="dash-nav-user shell-dup" style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(wasOpen => !wasOpen)} className="btn dash-nav-btn"
+              aria-expanded={menuOpen}
               style={{ padding: '6px 12px', color: 'var(--text-primary)' }}>
               <UserIcon size={14} /> <span className="dash-nav-label-sm">{user?.name || user?.username}</span>
             </button>
