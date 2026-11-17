@@ -417,9 +417,7 @@ func parseDateNotFuture(s string, now func() time.Time) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("%w: parse %q", ErrInvalidDate, s)
 	}
 	d = domain.UTCDate(d)
-	// "Future" is judged on the IST calendar the UI defaults to: between
-	// 00:00 and 05:30 IST the UTC date still lags a day behind.
-	today := istDayOf(now())
+	today := domain.UTCDate(now())
 	if d.After(today) {
 		return time.Time{}, fmt.Errorf("%w: %s is in the future", ErrInvalidDate, s)
 	}
