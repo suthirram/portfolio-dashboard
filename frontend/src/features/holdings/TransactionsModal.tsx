@@ -179,7 +179,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
   // Replay the ledger (mirrors backend RecomputePosition) and return a map of
   // transaction id → avg cost per share after that event executes.
   const runningAvgCosts = (() => {
-    const sorted = [...txns].sort((left, right) => {
+    const sorted = txns.toSorted((left, right) => {
       const leftOpening = left.type === 'opening', rightOpening = right.type === 'opening'
       if (leftOpening !== rightOpening) return leftOpening ? -1 : 1
       return (left.date || '').localeCompare(right.date || '')
