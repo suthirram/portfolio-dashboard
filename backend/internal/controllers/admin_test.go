@@ -658,6 +658,9 @@ func TestAdminSetUserUiRevamp(t *testing.T) {
 				if enabled, ok := set.Lookup("ui_revamp").BooleanOK(); !ok || !enabled {
 					t.Errorf("update $set = %v; want ui_revamp true", set)
 				}
+				if mode, _ := set.Lookup("ui_mode").StringValueOK(); mode != domain.UiModeGlass {
+					t.Errorf("update $set = %v; want ui_mode glass kept in step", set)
+				}
 			}
 		}
 		if !updated {
@@ -690,6 +693,100 @@ func TestAdminSetUserUiRevamp(t *testing.T) {
 			t.Fatalf("AdminSetUserUiRevamp: %v", err)
 		}
 		if _, ok := resp.(api.AdminSetUserUiRevamp404JSONResponse); !ok {
+			t.Fatalf("response = %T, want 404", resp)
+		}
+	})
+}
+
+// PD-059: the per-account interface writes ui_mode and keeps ui_revamp in step.
+func TestAdminSetUserUiMode(t *testing.T) {
+	t.Parallel()
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	setOf := func(mt *mtest.T) bson.Raw {
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "update" {
+				return event.Command.Lookup("updates").Array().Index(0).Value().Document().Lookup("u", "$set").Document()
+			}
+		}
+		mt.Fatal("no update command sent")
+		return nil
+	}
+
+	for _, testCase := range []struct {
+		mode      api.UiModeRequestMode
+		wantGlass bool
+	}{
+		{mode: api.UiModeRequestModeUi2, wantGlass: false},
+		{mode: api.UiModeRequestModeGlass, wantGlass: true},
+		{mode: api.UiModeRequestModeClassic, wantGlass: false},
+	} {
+		mt.Run("super admin sets "+string(testCase.mode), func(mt *mtest.T) {
+			target := userDocument(t, primitive.NewObjectID(), "bob", "irrelevant1", domain.RoleUser, "europe", nil)
+			mt.AddMockResponses(
+				mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
+				mtest.CreateSuccessResponse(),
+			)
+			h := newIntegrationHandler(mt, &mockPriceFetcher{})
+			resp, err := h.AdminSetUserUiMode(userCtx(superAdmin()), api.AdminSetUserUiModeRequestObject{
+				Id:   primitive.NewObjectID().Hex(),
+				Body: &api.UiModeRequest{Mode: testCase.mode},
+			})
+			if err != nil {
+				t.Fatalf("AdminSetUserUiMode: %v", err)
+			}
+			if _, ok := resp.(api.AdminSetUserUiMode204Response); !ok {
+				t.Fatalf("response = %T, want 204", resp)
+			}
+			set := setOf(mt)
+			if mode, _ := set.Lookup("ui_mode").StringValueOK(); mode != string(testCase.mode) {
+				t.Errorf("$set ui_mode = %q; want %q", mode, testCase.mode)
+			}
+			if glass, _ := set.Lookup("ui_revamp").BooleanOK(); glass != testCase.wantGlass {
+				t.Errorf("$set ui_revamp = %v; want %v", glass, testCase.wantGlass)
+			}
+		})
+	}
+
+	mt.Run("an unknown mode is a 400", func(mt *mtest.T) {
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiMode(userCtx(superAdmin()), api.AdminSetUserUiModeRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UiModeRequest{Mode: "neon"},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiMode: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiMode400JSONResponse); !ok {
+			t.Fatalf("response = %T, want 400", resp)
+		}
+	})
+
+	mt.Run("regional admins cannot set it", func(mt *mtest.T) {
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiMode(userCtx(regionalAdmin("india")), api.AdminSetUserUiModeRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UiModeRequest{Mode: api.UiModeRequestModeUi2},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiMode: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiMode403JSONResponse); !ok {
+			t.Fatalf("response = %T, want 403", resp)
+		}
+	})
+
+	mt.Run("unknown target is a 404", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch))
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminSetUserUiMode(userCtx(superAdmin()), api.AdminSetUserUiModeRequestObject{
+			Id:   primitive.NewObjectID().Hex(),
+			Body: &api.UiModeRequest{Mode: api.UiModeRequestModeUi2},
+		})
+		if err != nil {
+			t.Fatalf("AdminSetUserUiMode: %v", err)
+		}
+		if _, ok := resp.(api.AdminSetUserUiMode404JSONResponse); !ok {
 			t.Fatalf("response = %T, want 404", resp)
 		}
 	})

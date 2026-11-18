@@ -75,6 +75,21 @@ func (s *UserStore) Update(ctx context.Context, id primitive.ObjectID, set bson.
 	return nil
 }
 
+// StampGlassUiMode sets ui_mode = glass on every account that has the legacy
+// glass switch and no ui_mode yet (PD-059). Idempotent; returns the count.
+func (s *UserStore) StampGlassUiMode(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	result, err := s.col.UpdateMany(ctx,
+		bson.M{"ui_revamp": true, "ui_mode": bson.M{"$exists": false}},
+		bson.M{"$set": bson.M{"ui_mode": domain.UiModeGlass}},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
+}
+
 // IncLoginFailures bumps the login-failure counter after a wrong password.
 func (s *UserStore) IncLoginFailures(ctx context.Context, id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)

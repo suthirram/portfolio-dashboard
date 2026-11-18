@@ -314,7 +314,8 @@ func UserToAPI(u *domain.User, includeQuestionIDs bool) api.User {
 		GoldEnabled:        u.GoldEnabled,
 		Premium:            u.Premium,
 		DeltaFromHistory:   u.DeltaFromHistory,
-		UiRevamp:           u.UiRevamp,
+		UiRevamp:           u.EffectiveUiMode() == domain.UiModeGlass,
+		UiMode:             api.UserUiMode(u.EffectiveUiMode()),
 		MustChangePassword: u.MustChangePassword,
 	}
 	if out.Username == "" {

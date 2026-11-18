@@ -308,6 +308,33 @@ users_id_ui_revamp:
       "404":
         $ref: "../portfolio-api.yaml#/components/responses/NotFound"
 
+users_id_ui_mode:
+  put:
+    tags: [Admin]
+    summary: Set an account's interface (super admin only)
+    description: |
+      PD-059. classic, glass or ui2. Also keeps the legacy ui_revamp in step
+      (glass ⇔ true). Super admin only; the super admin may switch their
+      own account.
+    operationId: adminSetUserUiMode
+    parameters:
+      - $ref: "../portfolio-api.yaml#/components/parameters/UserID"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/UiModeRequest"
+    responses:
+      "204":
+        description: Interface updated
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+      "403":
+        $ref: "../portfolio-api.yaml#/components/responses/Forbidden"
+      "404":
+        $ref: "../portfolio-api.yaml#/components/responses/NotFound"
+
 users_id_holdings:
   parameters:
     - $ref: "../portfolio-api.yaml#/components/parameters/UserID"

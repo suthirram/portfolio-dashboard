@@ -21,6 +21,7 @@ import (
 func migrationSteps(store *persistence.Store, logger *zap.Logger) []migration.Step {
 	return []migration.Step{
 		newSectorBackfillStep(store, logger), // 20261116_01
+		newUiModeStep(store, logger),         // 20261118_01
 	}
 }
 

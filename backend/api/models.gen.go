@@ -534,6 +534,27 @@ func (e TransactionWithHoldingType) Valid() bool {
 	}
 }
 
+// Defines values for UiModeRequestMode.
+const (
+	UiModeRequestModeClassic UiModeRequestMode = "classic"
+	UiModeRequestModeGlass   UiModeRequestMode = "glass"
+	UiModeRequestModeUi2     UiModeRequestMode = "ui2"
+)
+
+// Valid indicates whether the value is a known member of the UiModeRequestMode enum.
+func (e UiModeRequestMode) Valid() bool {
+	switch e {
+	case UiModeRequestModeClassic:
+		return true
+	case UiModeRequestModeGlass:
+		return true
+	case UiModeRequestModeUi2:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for UserRole.
 const (
 	UserRoleAdmin      UserRole = "admin"
@@ -549,6 +570,27 @@ func (e UserRole) Valid() bool {
 	case UserRoleSuperadmin:
 		return true
 	case UserRoleUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UserUiMode.
+const (
+	UserUiModeClassic UserUiMode = "classic"
+	UserUiModeGlass   UserUiMode = "glass"
+	UserUiModeUi2     UserUiMode = "ui2"
+)
+
+// Valid indicates whether the value is a known member of the UserUiMode enum.
+func (e UserUiMode) Valid() bool {
+	switch e {
+	case UserUiModeClassic:
+		return true
+	case UserUiModeGlass:
+		return true
+	case UserUiModeUi2:
 		return true
 	default:
 		return false
@@ -1603,6 +1645,15 @@ type TransactionWithHolding struct {
 // TransactionWithHoldingType defines model for TransactionWithHolding.Type.
 type TransactionWithHoldingType string
 
+// UiModeRequest defines model for UiModeRequest.
+type UiModeRequest struct {
+	// Mode The account's interface (PD-059)
+	Mode UiModeRequestMode `json:"mode"`
+}
+
+// UiModeRequestMode The account's interface (PD-059)
+type UiModeRequestMode string
+
 // UpdateProfileRequest defines model for UpdateProfileRequest.
 type UpdateProfileRequest struct {
 	CurrentPassword string  `json:"current_password"`
@@ -1650,7 +1701,10 @@ type User struct {
 	// SecurityQuestionIds The catalogue keys of the account's chosen questions (own account only)
 	SecurityQuestionIds *[]string `json:"security_question_ids,omitempty"`
 
-	// UiRevamp The account sees the glass UI (super-admin toggled, PD-054)
+	// UiMode The account's interface (super-admin set, PD-059)
+	UiMode UserUiMode `json:"ui_mode"`
+
+	// UiRevamp The account sees the glass UI (super-admin toggled, PD-054). Derived from ui_mode == glass
 	UiRevamp bool `json:"ui_revamp"`
 
 	// Username Username as originally typed (uniqueness is case-insensitive)
@@ -1659,6 +1713,9 @@ type User struct {
 
 // UserRole defines model for User.Role.
 type UserRole string
+
+// UserUiMode The account's interface (super-admin set, PD-059)
+type UserUiMode string
 
 // UserFlagToggleRequest defines model for UserFlagToggleRequest.
 type UserFlagToggleRequest struct {

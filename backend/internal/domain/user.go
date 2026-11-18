@@ -31,8 +31,11 @@ type User struct {
 	// to History rows (PD-052); omitted = false = computed from the ledger.
 	DeltaFromHistory bool `bson:"delta_from_history,omitempty" json:"delta_from_history"`
 	// UiRevamp opts an account into the glass UI (PD-054); omitted = false =
-	// the current UI.
+	// the current UI. Kept in step with UiMode until the UI_2.0 cutover.
 	UiRevamp bool `bson:"ui_revamp,omitempty" json:"ui_revamp"`
+	// UiMode is the account's interface (PD-059): classic, glass or ui2.
+	// Omitted = derived from UiRevamp; read it through EffectiveUiMode.
+	UiMode string `bson:"ui_mode,omitempty" json:"ui_mode"`
 
 	LoginFailures            int  `bson:"login_failures" json:"-"`
 	SecurityQuestionFailures int  `bson:"security_question_failures" json:"-"`
@@ -74,4 +77,29 @@ func (u *User) Oversees(target *User) bool {
 	default:
 		return false
 	}
+}
+
+// The account interfaces (PD-059). Classic goes away at the UI_2.0 cutover.
+const (
+	UiModeClassic = "classic"
+	UiModeGlass   = "glass"
+	UiModeUi2     = "ui2"
+)
+
+// ValidUiMode reports whether mode is one of the interfaces.
+func ValidUiMode(mode string) bool {
+	return mode == UiModeClassic || mode == UiModeGlass || mode == UiModeUi2
+}
+
+// EffectiveUiMode is the account's interface: the stored UiMode, or, for an
+// account the PD-059 migration has not stamped yet, glass when the legacy
+// UiRevamp switch is on and classic otherwise.
+func (u *User) EffectiveUiMode() string {
+	if ValidUiMode(u.UiMode) {
+		return u.UiMode
+	}
+	if u.UiRevamp {
+		return UiModeGlass
+	}
+	return UiModeClassic
 }

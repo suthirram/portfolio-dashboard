@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"time"
 
@@ -447,7 +448,12 @@ func (h *Controller) AdminSetUserDeltaFromHistory(ctx context.Context, request a
 // (default) keeps the current UI. Super admin only; like gold and premium,
 // the super admin may switch their own account.
 func (h *Controller) AdminSetUserUiRevamp(ctx context.Context, request api.AdminSetUserUiRevampRequestObject) (api.AdminSetUserUiRevampResponseObject, error) {
-	allowed, found, err := h.setUserFlag(ctx, request.Id, "ui_revamp", request.Body.Enabled)
+	// PD-059: the legacy switch keeps ui_mode in step, so the two never disagree.
+	mode := domain.UiModeClassic
+	if request.Body.Enabled {
+		mode = domain.UiModeGlass
+	}
+	allowed, found, err := h.setUserFields(ctx, request.Id, bson.M{"ui_revamp": request.Body.Enabled, "ui_mode": mode})
 	switch {
 	case err != nil:
 		return nil, err
@@ -459,11 +465,38 @@ func (h *Controller) AdminSetUserUiRevamp(ctx context.Context, request api.Admin
 	return api.AdminSetUserUiRevamp204Response{}, nil
 }
 
+// AdminSetUserUiMode sets an account's interface (PD-059): classic, glass or
+// ui2. ui_revamp is written alongside (glass ⇔ true) so a rolled-back binary
+// still shows Glass correctly. Super admin only; may switch their own account.
+func (h *Controller) AdminSetUserUiMode(ctx context.Context, request api.AdminSetUserUiModeRequestObject) (api.AdminSetUserUiModeResponseObject, error) {
+	if request.Body == nil || !domain.ValidUiMode(string(request.Body.Mode)) {
+		return api.AdminSetUserUiMode400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("mode must be classic, glass or ui2")}}, nil
+	}
+	mode := string(request.Body.Mode)
+	allowed, found, err := h.setUserFields(ctx, request.Id, bson.M{"ui_mode": mode, "ui_revamp": mode == domain.UiModeGlass})
+	switch {
+	case err != nil:
+		return nil, err
+	case !allowed:
+		return api.AdminSetUserUiMode403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
+		return api.AdminSetUserUiMode404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	return api.AdminSetUserUiMode204Response{}, nil
+}
+
 // setUserFlag is the super-admin per-user switch shared by the gold,
 // premium and delta-source toggles: load the target in the caller's scope,
 // set field to enabled (and updated_at), log it. allowed=false: the caller
 // is not the super admin (403); found=false: no such user (404).
 func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, enabled bool) (allowed, found bool, err error) {
+	return h.setUserFields(ctx, userIdHex, bson.M{field: enabled})
+}
+
+// setUserFields is the super-admin per-user switch body: load the target in
+// the caller's scope, $set fields (and updated_at), log it. allowed=false:
+// the caller is not the super admin (403); found=false: no such user (404).
+func (h *Controller) setUserFields(ctx context.Context, userIdHex string, fields bson.M) (allowed, found bool, err error) {
 	caller, ok := superAdminCaller(ctx)
 	if !ok {
 		return false, false, nil
@@ -473,11 +506,13 @@ func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, e
 		return true, found, err
 	}
 	logger := h.reqLog(ctx)
-	if err := h.store.Users.Update(ctx, target.ID, bson.M{field: enabled, "updated_at": time.Now()}); err != nil {
-		logger.Error("user flag toggle failed", zap.String("flag", field), zap.Error(err))
+	set := bson.M{"updated_at": time.Now()}
+	maps.Copy(set, fields)
+	if err := h.store.Users.Update(ctx, target.ID, set); err != nil {
+		logger.Error("user switch update failed", zap.Any("fields", fields), zap.Error(err))
 		return true, true, err
 	}
-	logger.Info("user flag toggled", zap.String("flag", field), zap.String("target", target.ID.Hex()), zap.Bool("enabled", enabled))
+	logger.Info("user switch updated", zap.String("target", target.ID.Hex()), zap.Any("fields", fields))
 	return true, true, nil
 }
 
