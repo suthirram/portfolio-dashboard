@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -73,6 +74,17 @@ func (s *UserStore) Update(ctx context.Context, id primitive.ObjectID, set bson.
 		return err
 	}
 	return nil
+}
+
+// SetUiMode sets one account's interface (PD-059) and keeps the legacy
+// glass switch in step (ui_revamp = mode is glass), so a rolled-back binary
+// still shows Glass to Glass accounts. One atomic update.
+func (s *UserStore) SetUiMode(ctx context.Context, id primitive.ObjectID, mode string) error {
+	return s.Update(ctx, id, bson.M{
+		"ui_mode":    mode,
+		"ui_revamp":  mode == domain.UiModeGlass,
+		"updated_at": time.Now(),
+	})
 }
 
 // StampGlassUiMode sets ui_mode = glass on every account that has the legacy

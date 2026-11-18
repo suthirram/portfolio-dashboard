@@ -94,6 +94,18 @@ Never pair a dev image with `MONGODB_DATABASE=portfolio`. The job must live in
 the service's region: `run-migrations.sh` looks it up there. To run it by hand:
 `./deploy/cloudrun/run-migrations.sh portfolio-dashboard-api portfolio-dashboard-migrate europe-west1`.
 
+### Registered steps
+
+| Version | What it does | Verify | Roll back |
+| --- | --- | --- | --- |
+| `20261116_01` | PD-056 sector backfill | see PD-056 | n/a |
+| `20261118_01` | PD-059: sets `ui_mode: "glass"` on accounts with `ui_revamp: true` and no `ui_mode` yet; one idempotent `updateMany` | `db.users.countDocuments({ui_revamp: true, ui_mode: {$exists: false}})` is `0`; `GET /api/admin/users` shows `ui_mode` on every account | Not needed: `ui_revamp` is never unset, and accounts without `ui_mode` derive it (`glass` when `ui_revamp`, else `classic`). To undo: `db.users.updateMany({ui_mode: "glass"}, {$unset: {ui_mode: ""}})` and delete the step's `migrations` record |
+
+Ordering: the step ships with the backend that reads `ui_mode`
+(`domain.User.EffectiveUiMode`), so the deploy can run it in any order with
+the rollout; until it runs, every account already reports the right mode.
+Plan: PD-059 (`docs/plans/PD-059-ui-2.md`, docs PR #332).
+
 ## Seeding a demo user (`seed-max.sh`)
 
 ```bash
