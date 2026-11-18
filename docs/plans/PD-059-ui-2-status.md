@@ -70,6 +70,7 @@ shared piece.
 | `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (planned) |
 | `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
 | `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (planned) |
+| `OverallPerformance` | `frontend/src/ui2/overview/OverallPerformance.tsx` | standalone daily overall chart; stays unmounted until Overview slices 4–7 land | slice 10 (#342) |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 `useHoldings`, `useAllTransactions`, `useDividends`, `usePagination`,
