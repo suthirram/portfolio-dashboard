@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, type OverallPoint } from '../../lib/api/client'
-import { formatDate, todayIST } from '../../lib/formDates'
+import { formatDate, formatDayMonthName, todayIST } from '../../lib/formDates'
 import {
   flowAdjustedReturnPct, fmtCurrency, pnlPct,
 } from '../../features/history/historyShared'
+import { weekKey } from '../../features/history/HistoryChartPage'
 import './overallPerformance.css'
 
 type Period = '1W' | '1M' | '3M' | '1Y' | 'All'
@@ -41,13 +42,6 @@ function rangeFor(period: Period, today: string): { from: string; to: string; re
   // Fetch one preceding day so the first visible movement uses the same
   // previous-close definition as subsequent points.
   return { from, to: today, requestFrom: addDays(from, -1) }
-}
-
-function weekKey(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`)
-  const mondayOffset = (date.getUTCDay() + 6) % 7
-  date.setUTCDate(date.getUTCDate() - mondayOffset)
-  return date.toISOString().slice(0, 10)
 }
 
 export function overallDisplayPoints(points: OverallPoint[], currency: DisplayCurrency): OverallChartPoint[] {
@@ -173,8 +167,8 @@ function OverallGraph({ points, currency, metric }: {
       cx={xPosition(index)} cy={yPosition(value)} r="4" className="point-marker invested-marker" />)}
     {currentIsolated.map(({ index, value }) => <circle key={`current-${points[index].date}`}
       cx={xPosition(index)} cy={yPosition(value)} r="4" className="point-marker current-marker" />)}
-    {firstDate && <text x="65" y="218">{formatDate(firstDate)}</text>}
-    {lastDate && <text x="630" y="218" textAnchor="end">{formatDate(lastDate)}</text>}
+    {firstDate && <text x="65" y="218">{formatDayMonthName(firstDate)}</text>}
+    {lastDate && <text x="630" y="218" textAnchor="end">{formatDayMonthName(lastDate)}</text>}
   </svg>
 }
 
@@ -285,7 +279,7 @@ export default function OverallPerformance({ isActingAs = false }: { isActingAs?
       <p className="ui2-overall__note">
         {period === '1Y' || period === 'All'
           ? 'Weekly drawing points; daily movement is computed before thinning.'
-          : 'Daily sample points.'} Gaps are unavailable values.
+          : 'Daily points.'} Gaps are unavailable values.
       </p>
 
       {!loading && !error && visibleDaily.length > 0 && <details className="ui2-overall__data">
