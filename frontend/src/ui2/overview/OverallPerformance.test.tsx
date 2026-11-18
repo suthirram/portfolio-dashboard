@@ -84,6 +84,26 @@ describe('OverallPerformance', () => {
     expect(screen.getByText('View chart data')).toBeInTheDocument()
   })
 
+  it('computes daily movement before reducing 1Y data to the final point of each week', async () => {
+    vi.mocked(api.getOverallHistory).mockResolvedValue({
+      points: [
+        point('2026-01-02', 1000, 1100),
+        point('2026-01-03', 1500, 1650),
+        point('2026-01-04', 1550, 1700),
+      ],
+      gold_unavailable: false,
+    })
+    render(<OverallPerformance />)
+    await screen.findByRole('img', { name: /in INR/ })
+
+    fireEvent.click(screen.getByRole('button', { name: '1Y' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Daily movement' }))
+    expect(await screen.findByRole('img', { name: /daily movement percentage in INR, 04-01-2026 to 04-01-2026/ }))
+      .toBeInTheDocument()
+    fireEvent.click(screen.getByText('View chart data'))
+    expect(screen.getAllByRole('row')).toHaveLength(4)
+  })
+
   it('never charts partial totals when the Gold service is unavailable', async () => {
     vi.mocked(api.getOverallHistory).mockResolvedValue({ points: series, gold_unavailable: true })
     render(<OverallPerformance />)
