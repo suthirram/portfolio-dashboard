@@ -24,7 +24,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | merged |
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
-| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `docs/PD-059-wave2` (amendment) | #338 (amendment) | amendment in review |
+| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | merged |
 | 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | | | | needs amendment |
 | 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | | | | needs amendment |
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
@@ -55,9 +55,9 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 merge before the slice starts.
 
 Slice 3's independent [Wave 2a amendment](PD-059-wave2-cyber-entrance.md)
-contains complete draft code and tests. Its dependency (#334) is merged;
-slice 8 is not a dependency. Codex owns this amendment and the following
-slice 3 implementation. Slices 4–7 still need their own amendment.
+contains its implementation and test plan. It is merged as #338, and the
+slice 3 implementation is merged as #339 (`feat/PD-059-cyber-entrance`).
+Slices 4–7 still need their own amendment.
 
 ## UI_2.0 components registry
 
@@ -79,8 +79,8 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 
 * The handoff mockup (`docs/visuals/PD-059-ui-2-reference.html`, from
   `/handoff/design.html`) is the single source of truth for layout and
-  style: every screen matches it 1:1. Claude's own visual spec was
-  withdrawn.
+  style: every screen matches it 1:1. Treat deviations as bugs to fix, not
+  redesign opportunities. Claude's own visual spec was withdrawn.
 * Type follows Branding: UI_2.0 uses the super admin's Branding font
   (`--brand-font-family`), never a hard-coded face (#334). The mockup's
   DM Sans and Manrope become Branding choices in slice 24 (needs the
@@ -92,6 +92,8 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 * Claude drives; Codex takes tasks by claiming rows. No fixed area owners.
 * Themes Light / Dark / Cyber; Cyber premium-gated. No ⌘K. No Ambient
   toggle (maybe last). Currency sprinkle as today.
+* UI_2.0 typography follows the font selected on Branding. DM Sans and
+  Manrope are added to Branding's font choices in slice 24.
 * Overview: overall chart (INR + EUR + gold, INR/EUR toggle, 1W–All,
   existing volatility); Holding details dialog holds metrics + actions; keep
   AddEdit fields; keep and restyle sector review, opening prompt, badges.
