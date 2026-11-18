@@ -1,4 +1,6 @@
 :root[data-ui="ui2"] .ui2-overall {
+  container-name: ui2-overall;
+  container-type: inline-size;
   min-width: 0;
   padding: 22px;
   border: 1px solid var(--u2-border);
@@ -239,12 +241,7 @@
   color: var(--u2-muted);
 }
 
-@media (max-width: 640px) {
-  :root[data-ui="ui2"] .ui2-overall {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
+@container ui2-overall (max-width: 640px) {
   :root[data-ui="ui2"] .ui2-overall__header {
     align-items: flex-start;
   }
