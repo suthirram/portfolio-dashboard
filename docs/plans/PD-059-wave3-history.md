@@ -36,7 +36,8 @@ Kept exactly: month data (`include_previous`), the live today row and its
 cut-over handling, the charts-on-top preference (`pd_history_charts_top`),
 add / edit / paste / conflict queue, per-stock breakdown, delete rules and
 confirm, the period-performance maths, dividends cells. Classic and Glass
-render the unchanged classic page.
+render the classic page unchanged apart from the approved Gold tint fix
+(the first gold purchase is now purple, Task 2 Step 3).
 
 ## 2. File map
 
@@ -2424,13 +2425,13 @@ Sign up a user, set `ui_mode: "ui2"` in Mongo, seed a month of snapshots
 * [ ] A value opens the per-stock breakdown; a value chart opens `/history/chart/INR`.
 * [ ] Charts on top reorders and persists across reload.
 * [ ] 390 px: no horizontal page scroll; the table scrolls inside its panel.
-* [ ] Switch the account to Glass: the classic page renders unchanged.
+* [ ] Switch the account to Glass: the classic page renders as before, except the first gold purchase is now purple.
 * [ ] Drop the throwaway database and stop both servers.
 
 ## 5. Done
 
 * [ ] UI_2.0 History renders the handoff page with all of today's data and actions.
-* [ ] Classic and Glass History unchanged; existing History tests unchanged and passing.
+* [ ] Classic and Glass History unchanged apart from the Gold tint fix; existing History tests pass untouched, plus the new first-gold test.
 * [ ] Shared primitives and `useHistoryMonth` registered for reuse.
 
 **Next:** slice 14 amendment (History dialogs restyle, Full-history charts
