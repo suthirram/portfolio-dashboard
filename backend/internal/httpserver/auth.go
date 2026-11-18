@@ -84,6 +84,7 @@ var routeTiers = map[string]routeTier{
 	"PUT /api/admin/users/:id/premium":            tierSuperAdmin,
 	"PUT /api/admin/users/:id/delta-from-history": tierSuperAdmin,
 	"PUT /api/admin/users/:id/ui-revamp":          tierSuperAdmin,
+	"PUT /api/admin/users/:id/ui-mode":            tierSuperAdmin,
 	"PUT /api/admin/branding":                     tierSuperAdmin,
 
 	// Admin or super-admin — every other /api/admin/... route.

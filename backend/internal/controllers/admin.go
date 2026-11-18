@@ -447,7 +447,12 @@ func (h *Controller) AdminSetUserDeltaFromHistory(ctx context.Context, request a
 // (default) keeps the current UI. Super admin only; like gold and premium,
 // the super admin may switch their own account.
 func (h *Controller) AdminSetUserUiRevamp(ctx context.Context, request api.AdminSetUserUiRevampRequestObject) (api.AdminSetUserUiRevampResponseObject, error) {
-	allowed, found, err := h.setUserFlag(ctx, request.Id, "ui_revamp", request.Body.Enabled)
+	// PD-059: the legacy switch keeps ui_mode in step, so the two never disagree.
+	mode := domain.UiModeClassic
+	if request.Body.Enabled {
+		mode = domain.UiModeGlass
+	}
+	allowed, found, err := h.setUserUiMode(ctx, request.Id, mode)
 	switch {
 	case err != nil:
 		return nil, err
@@ -459,18 +464,33 @@ func (h *Controller) AdminSetUserUiRevamp(ctx context.Context, request api.Admin
 	return api.AdminSetUserUiRevamp204Response{}, nil
 }
 
+// AdminSetUserUiMode sets an account's interface (PD-059): classic, glass or
+// ui2. ui_revamp is written alongside (glass ⇔ true) so a rolled-back binary
+// still shows Glass correctly. Super admin only; may switch their own account.
+func (h *Controller) AdminSetUserUiMode(ctx context.Context, request api.AdminSetUserUiModeRequestObject) (api.AdminSetUserUiModeResponseObject, error) {
+	if request.Body == nil || !domain.ValidUiMode(string(request.Body.Mode)) {
+		return api.AdminSetUserUiMode400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("mode must be classic, glass or ui2")}}, nil
+	}
+	allowed, found, err := h.setUserUiMode(ctx, request.Id, string(request.Body.Mode))
+	switch {
+	case err != nil:
+		return nil, err
+	case !allowed:
+		return api.AdminSetUserUiMode403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
+	case !found:
+		return api.AdminSetUserUiMode404JSONResponse{NotFoundJSONResponse: notFoundUser()}, nil
+	}
+	return api.AdminSetUserUiMode204Response{}, nil
+}
+
 // setUserFlag is the super-admin per-user switch shared by the gold,
 // premium and delta-source toggles: load the target in the caller's scope,
 // set field to enabled (and updated_at), log it. allowed=false: the caller
 // is not the super admin (403); found=false: no such user (404).
 func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, enabled bool) (allowed, found bool, err error) {
-	caller, ok := superAdminCaller(ctx)
-	if !ok {
-		return false, false, nil
-	}
-	target, found, err := h.loadTargetUser(ctx, caller, userIdHex)
-	if err != nil || !found {
-		return true, found, err
+	target, allowed, found, err := h.superAdminTarget(ctx, userIdHex)
+	if !allowed || !found || err != nil {
+		return allowed, found, err
 	}
 	logger := h.reqLog(ctx)
 	if err := h.store.Users.Update(ctx, target.ID, bson.M{field: enabled, "updated_at": time.Now()}); err != nil {
@@ -479,6 +499,35 @@ func (h *Controller) setUserFlag(ctx context.Context, userIdHex, field string, e
 	}
 	logger.Info("user flag toggled", zap.String("flag", field), zap.String("target", target.ID.Hex()), zap.Bool("enabled", enabled))
 	return true, true, nil
+}
+
+// setUserUiMode is the per-account interface switch (PD-059), with the same
+// super-admin scope rules as setUserFlag; the store writes ui_mode and the
+// legacy ui_revamp together.
+func (h *Controller) setUserUiMode(ctx context.Context, userIdHex, mode string) (allowed, found bool, err error) {
+	target, allowed, found, err := h.superAdminTarget(ctx, userIdHex)
+	if !allowed || !found || err != nil {
+		return allowed, found, err
+	}
+	logger := h.reqLog(ctx)
+	if err := h.store.Users.SetUiMode(ctx, target.ID, mode); err != nil {
+		logger.Error("ui mode update failed", zap.String("mode", mode), zap.Error(err))
+		return true, true, err
+	}
+	logger.Info("ui mode updated", zap.String("target", target.ID.Hex()), zap.String("mode", mode))
+	return true, true, nil
+}
+
+// superAdminTarget loads the switch target in the super admin's scope.
+// allowed=false: the caller is not the super admin (403); found=false: no
+// such user (404).
+func (h *Controller) superAdminTarget(ctx context.Context, userIdHex string) (_ *domain.User, allowed, found bool, err error) {
+	caller, ok := superAdminCaller(ctx)
+	if !ok {
+		return nil, false, false, nil
+	}
+	target, found, err := h.loadTargetUser(ctx, caller, userIdHex)
+	return target, true, found, err
 }
 
 // Act on a user's portfolio (region-scoped).

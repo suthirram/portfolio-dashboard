@@ -69,7 +69,7 @@ components:
 
     User:
       type: object
-      required: [id, username, name, role, region, disabled, locked, gold_enabled, premium, delta_from_history, ui_revamp, must_change_password]
+      required: [id, username, name, role, region, disabled, locked, gold_enabled, premium, delta_from_history, ui_revamp, ui_mode, must_change_password]
       properties:
         id:
           type: string
@@ -102,7 +102,11 @@ components:
           description: The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052)
         ui_revamp:
           type: boolean
-          description: The account sees the glass UI (super-admin toggled, PD-054)
+          description: The account sees the glass UI (super-admin toggled, PD-054). Derived from ui_mode == glass
+        ui_mode:
+          type: string
+          enum: [classic, glass, ui2]
+          description: The account's interface (super-admin set, PD-059)
         must_change_password:
           type: boolean
           description: Forced onboarding pending (bootstrap super admin)
@@ -261,6 +265,15 @@ components:
         enabled:
           type: boolean
           description: Turn the per-user switch on or off for the account
+
+    UiModeRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [classic, glass, ui2]
+          description: The account's interface (PD-059)
 
     BrandingFont:
       type: string

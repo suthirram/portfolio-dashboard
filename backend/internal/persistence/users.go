@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -73,6 +74,32 @@ func (s *UserStore) Update(ctx context.Context, id primitive.ObjectID, set bson.
 		return err
 	}
 	return nil
+}
+
+// SetUiMode sets one account's interface (PD-059) and keeps the legacy
+// glass switch in step (ui_revamp = mode is glass), so a rolled-back binary
+// still shows Glass to Glass accounts. One atomic update.
+func (s *UserStore) SetUiMode(ctx context.Context, id primitive.ObjectID, mode string) error {
+	return s.Update(ctx, id, bson.M{
+		"ui_mode":    mode,
+		"ui_revamp":  mode == domain.UiModeGlass,
+		"updated_at": time.Now(),
+	})
+}
+
+// StampGlassUiMode sets ui_mode = glass on every account that has the legacy
+// glass switch and no ui_mode yet (PD-059). Idempotent; returns the count.
+func (s *UserStore) StampGlassUiMode(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	result, err := s.col.UpdateMany(ctx,
+		bson.M{"ui_revamp": true, "ui_mode": bson.M{"$exists": false}},
+		bson.M{"$set": bson.M{"ui_mode": domain.UiModeGlass}},
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
 }
 
 // IncLoginFailures bumps the login-failure counter after a wrong password.
