@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { User } from '../../lib/api/client'
@@ -86,14 +86,40 @@ describe('Ui2Shell', () => {
     ['the backdrop', () => fireEvent.click(document.querySelector('.ui2-backdrop')!)],
     ['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
   ])('closes the drawer from %s and returns focus to the menu button', (_, close) => {
-    renderShell({ role: 'user' })
+    const { container } = renderShell({ role: 'user' })
     const menu = screen.getByRole('button', { name: 'Toggle navigation' })
+    // A real browser refuses focus inside an inert subtree (jsdom does not),
+    // so record whether ☰ was still inert when it got focus.
+    let inertAtFocus: boolean | null = null
+    menu.addEventListener('focus', () => { inertAtFocus = Boolean(container.querySelector('.ui2-main')?.hasAttribute('inert')) })
     fireEvent.click(menu)
     close()
     expect(screen.getByRole('complementary', { name: 'Sidebar' })).not.toHaveClass('open')
     expect(menu).toHaveAttribute('aria-expanded', 'false')
     expect(document.querySelector('.ui2-backdrop')).toBeNull()
     expect(menu).toHaveFocus()
+    expect(inertAtFocus).toBe(false)
+  })
+
+  it('resets an open drawer when the window widens to desktop', () => {
+    const listeners: ((e: { matches: boolean }) => void)[] = []
+    const matchMedia = vi.fn(() => ({
+      matches: false,
+      addEventListener: (_: string, listener: (e: { matches: boolean }) => void) => { listeners.push(listener) },
+      removeEventListener: vi.fn(),
+    }))
+    vi.stubGlobal('matchMedia', matchMedia)
+    try {
+      const { container } = renderShell({ role: 'user' })
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }))
+      expect(container.querySelector('.ui2-main')).toHaveAttribute('inert')
+      act(() => listeners.forEach(listener => listener({ matches: true })))
+      expect(screen.getByRole('complementary', { name: 'Sidebar' })).not.toHaveClass('open')
+      expect(container.querySelector('.ui2-main')).not.toHaveAttribute('inert')
+      expect(matchMedia).toHaveBeenCalledWith('(min-width: 761px)')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('reaches profile, administration and log out from the account menu', () => {

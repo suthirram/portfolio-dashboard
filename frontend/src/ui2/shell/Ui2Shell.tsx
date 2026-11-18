@@ -69,27 +69,45 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   }, [menuOpen])
 
   // The open drawer covers the ☰ button, so it closes from its own ✕, the
-  // backdrop or Escape, and focus goes back to ☰.
+  // backdrop or Escape, and focus goes back to ☰ (restoreFocusRef asks the
+  // effect below to do it once ☰ is no longer inert).
+  const restoreFocusRef = useRef(false)
   const closeDrawer = () => {
+    restoreFocusRef.current = true
     setDrawerOpen(false)
-    menuButtonRef.current?.focus()
   }
   useEffect(() => {
     if (!drawerOpen) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      restoreFocusRef.current = true
       setDrawerOpen(false)
-      menuButtonRef.current?.focus()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [drawerOpen])
 
+  // Widening past the drawer breakpoint shows the sidebar in place, so an
+  // open drawer is reset rather than leaving the page inert.
+  useEffect(() => {
+    const desktop = window.matchMedia?.('(min-width: 761px)')
+    if (!desktop) return
+    const onChange = (e: MediaQueryListEvent) => { if (e.matches) setDrawerOpen(false) }
+    desktop.addEventListener('change', onChange)
+    return () => desktop.removeEventListener('change', onChange)
+  }, [])
+
   // While the drawer is open the page behind it is inert and focus starts
   // on the drawer's ✕; a closed drawer is hidden from focus by ui2.css.
+  // Focus returns to ☰ only after inert is lifted, or it would land on body.
   useEffect(() => {
     mainRef.current?.toggleAttribute('inert', drawerOpen)
-    if (drawerOpen) closeButtonRef.current?.focus()
+    if (drawerOpen) {
+      closeButtonRef.current?.focus()
+    } else if (restoreFocusRef.current) {
+      restoreFocusRef.current = false
+      menuButtonRef.current?.focus()
+    }
   }, [drawerOpen])
 
   const go = (to: string) => { setMenuOpen(false); setDrawerOpen(false); navigate(to) }
