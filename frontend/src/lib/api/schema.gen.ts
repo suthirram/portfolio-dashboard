@@ -948,28 +948,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/users/{id}/ui-mode": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set an account's interface (super admin only)
-         * @description PD-059. classic, glass or ui2. Also keeps the legacy ui_revamp in step
-         *     (glass ⇔ true). Super admin only; the super admin may switch their
-         *     own account.
-         */
-        put: operations["adminSetUserUiMode"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/branding": {
         parameters: {
             query?: never;
@@ -2191,13 +2169,8 @@ export interface components {
             premium: boolean;
             /** @description The Transactions page's investment delta reads History rows instead of the ledger (super-admin toggled, PD-052) */
             delta_from_history: boolean;
-            /** @description The account sees the glass UI (super-admin toggled, PD-054). Derived from ui_mode == glass */
+            /** @description The account sees the glass UI (super-admin toggled, PD-054) */
             ui_revamp: boolean;
-            /**
-             * @description The account's interface (super-admin set, PD-059)
-             * @enum {string}
-             */
-            ui_mode: "classic" | "glass" | "ui2";
             /** @description Forced onboarding pending (bootstrap super admin) */
             must_change_password: boolean;
             /** @description The catalogue keys of the account's chosen questions (own account only) */
@@ -2252,13 +2225,6 @@ export interface components {
         UserFlagToggleRequest: {
             /** @description Turn the per-user switch on or off for the account */
             enabled: boolean;
-        };
-        UiModeRequest: {
-            /**
-             * @description The account's interface (PD-059)
-             * @enum {string}
-             */
-            mode: "classic" | "glass" | "ui2";
         };
         BrandingUpdateRequest: {
             font: components["schemas"]["BrandingFont"];
@@ -3952,34 +3918,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    adminSetUserUiMode: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description MongoDB ObjectID of the target user */
-                id: components["parameters"]["UserID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UiModeRequest"];
-            };
-        };
-        responses: {
-            /** @description Interface updated */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
