@@ -60,6 +60,18 @@ describe('AdminManageAdmins in the glass UI', () => {
     expect(screen.queryByRole('table')).toBeNull()
   })
 
+  it('keeps UI_2.0 disabled for the owner and for other administrators', async () => {
+    renderPage()
+    const list = await screen.findByRole('complementary', { name: 'Administrators' })
+    const ownerPlaceholder = within(settings()).getByRole('switch', { name: 'UI_2.0' })
+    expect(ownerPlaceholder).toBeDisabled()
+    expect(ownerPlaceholder).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(within(list).getByRole('button', { name: /Erik Lund/ }))
+    const adminPlaceholder = within(settings()).getByRole('switch', { name: 'UI_2.0' })
+    expect(adminPlaceholder).toBeDisabled()
+    expect(adminPlaceholder).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('demotes, moves the region and flips features for the picked admin', async () => {
     renderPage()
     const list = await screen.findByRole('complementary', { name: 'Administrators' })

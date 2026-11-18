@@ -239,6 +239,12 @@ export default function AdminUserList() {
                             {listedUser.ui_revamp ? 'Glass UI off' : 'Glass UI on'}
                           </button>
                         )}
+                        {isSuper && (
+                          <button type="button" className="btn btn-sm" disabled aria-pressed={false}
+                            title="The new UI variant is not available yet.">
+                            UI_2.0 (coming soon)
+                          </button>
+                        )}
                         {!isRowSuper && !isSelf && (
                           <button className="btn btn-sm btn-danger" disabled={busy === listedUser.id}
                             onClick={() => runAction(listedUser.id, () => api.adminDeleteUser(listedUser.id), `Permanently delete ${listedUser.username} and all their holdings? This cannot be undone.`)}>
