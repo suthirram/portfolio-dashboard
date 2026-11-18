@@ -170,6 +170,55 @@ func TestHistoryService_Add_RejectsFutureDate(t *testing.T) {
 	})
 }
 
+func TestHistoryService_Add_AcceptsISTTodayBeforeUTCRollover(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("ist today", func(mt *mtest.T) {
+		svc := newHistorySvc(mt)
+		// 20:00Z on 17 Nov is 01:30 IST on 18 Nov.
+		svc.Now = func() time.Time { return time.Date(2026, 11, 17, 20, 0, 0, 0, time.UTC) }
+		// Get (no row) → Upsert's FindOne (no row) → insert.
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch),
+			mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch),
+			mtest.CreateSuccessResponse(),
+		)
+		row, err := svc.Add(context.Background(), primitive.NewObjectID(), AddRowInput{
+			Date: "2026-11-18",
+			Regions: map[string]domain.RegionSnapshot{
+				"INR": {Invested: 1, Current: 1},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err = %v, want IST today accepted", err)
+		}
+		if row.Date != "2026-11-18" {
+			t.Errorf("row.Date = %q, want 2026-11-18", row.Date)
+		}
+	})
+}
+
+func TestParseDateNotFuture_UsesISTCalendar(t *testing.T) {
+	cases := []struct {
+		name    string
+		now     time.Time
+		date    string
+		wantErr bool
+	}{
+		{"ist today after utc lag", time.Date(2026, 11, 17, 20, 0, 0, 0, time.UTC), "2026-11-18", false},
+		{"ist tomorrow after utc lag", time.Date(2026, 11, 17, 20, 0, 0, 0, time.UTC), "2026-11-19", true},
+		{"before ist rollover", time.Date(2026, 11, 17, 18, 29, 0, 0, time.UTC), "2026-11-18", true},
+		{"utc today", time.Date(2026, 11, 17, 18, 29, 0, 0, time.UTC), "2026-11-17", false},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			_, err := parseDateNotFuture(testCase.date, func() time.Time { return testCase.now })
+			if gotErr := errors.Is(err, ErrInvalidDate); gotErr != testCase.wantErr {
+				t.Errorf("parseDateNotFuture(%q) err = %v, wantErr %v", testCase.date, err, testCase.wantErr)
+			}
+		})
+	}
+}
+
 func TestHistoryService_Add_RejectsUnknownRegion(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("bad region", func(mt *mtest.T) {
