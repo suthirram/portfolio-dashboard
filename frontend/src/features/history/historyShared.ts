@@ -259,7 +259,7 @@ export function fmtCurrency(amount: number, sym: string): string {
 // shape as perCurrencyChartData). Rows without an overlay emit nulls so the
 // line bridges the gap rather than plunging to zero.
 export function goldChartData(rows: HistoryRow[]) {
-  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   return oldestFirst.map(row => ({
     // dd-MM: the app renders every date day-first (see lib/formDates), and a
     // raw `.slice(5)` here printed MM-DD — the one place the mini charts
@@ -283,7 +283,7 @@ export function goldChartData(rows: HistoryRow[]) {
 // (which filters non-finite) ignore it and the Line connectNulls bridge
 // the gap. The table still renders absent regions as 0 (CurrencyRowCells).
 export function perCurrencyChartData(rows: HistoryRow[], region: RegionKey) {
-  const oldestFirst = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   // daily_vol is the per-currency day-over-day % change of the current
   // value vs the previous data point, net of the change in invested so a
   // contribution/withdrawal doesn't read as a market move. null on the
@@ -500,7 +500,7 @@ const round2OrNull = (value: number | null) => value === null ? null : round2(va
 // unrounded −6.73. Performance is the flow-adjusted return, so money added
 // during the month is not mistaken for gains.
 export function periodPerformance(rows: HistoryRow[], monthStart: string): PeriodPerformance[] {
-  const byDate = [...rows].sort((left, right) => left.date.localeCompare(right.date))
+  const byDate = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   const before = byDate.filter(row => row.date < monthStart)
   const opening = before.length ? before[before.length - 1] : byDate[0]
   const closing = byDate[byDate.length - 1]
@@ -839,12 +839,16 @@ export const chartTooltipProps = {
   labelStyle: { color: 'var(--text-secondary)' } as CSSProperties,
   itemStyle: { color: 'var(--text-primary)' } as CSSProperties,
 }
+// Scroll containment matches the .modal-overlay / .modal-card rules in
+// components.css: gestures over the backdrop or card never scroll the page.
 export const modalBackdrop: CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+  overflow: 'auto', overscrollBehavior: 'contain',
 }
 export const modalCard: CSSProperties = {
   background: 'var(--bg-secondary)', border: '1px solid var(--border)',
   borderRadius: 'var(--radius)', padding: 24,
   width: '90%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto',
+  overscrollBehavior: 'contain',
 }

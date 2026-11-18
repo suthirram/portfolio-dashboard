@@ -9,7 +9,7 @@ import type {
   PasteHistoryReport,
 } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
@@ -23,8 +23,7 @@ export function AddRowModal({ onSubmit, onCancel }: {
   onSubmit: (input: { date: string; regions: Record<string, { invested: number; current: number }> }) => Promise<void>
   onCancel: () => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
-  const [date, setDate] = useState(today)
+  const [date, setDate] = useState(todayIST)
   const [form, setForm] = useState<RegionFormState>(emptyForm())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -46,7 +45,7 @@ export function AddRowModal({ onSubmit, onCancel }: {
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Add manual row" className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Add manual row</h2>
         <label style={{ display: 'block', marginBottom: 12 }}>
           Date
@@ -122,7 +121,7 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Edit row — ${formatDate(row.date)}`} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: 18 }}>Edit row — {formatDate(row.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving overrides any cron-written value with the manual value below.
@@ -206,7 +205,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Paste month — ${monthLabel}`} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Paste month — {monthLabel}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           Paste tab-separated rows (Google Sheets / Excel). Columns:
@@ -269,14 +268,14 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
 
   return (
     <div className="modal-overlay" style={modalBackdrop}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={modalCard}>
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Conflict — ${formatDate(conflict.date)}`} className="modal-card" style={modalCard}>
         <h2 style={{ margin: '0 0 8px 0', fontSize: 18 }}>Conflict — {formatDate(conflict.date)}</h2>
         <p style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
           For each region, tick to keep the incoming value (override). Leave unticked to keep what's already there.
         </p>
         <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginBottom: 12 }}>
           <thead>
-            <tr><th style={th}>Region</th><th style={th}>Existing</th><th style={th}>Incoming</th><th style={th}>Keep incoming?</th></tr>
+            <tr><th scope="col" style={th}>Region</th><th scope="col" style={th}>Existing</th><th scope="col" style={th}>Incoming</th><th scope="col" style={th}>Keep incoming?</th></tr>
           </thead>
           <tbody>
             {REGIONS.map(region => {
@@ -345,12 +344,12 @@ export function HoldingsModal({ row, prev, region, onClose }: {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={th}>Script name</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Current price</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Change value</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Daily change</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Dividends to date</th>
+                  <th scope="col" style={th}>Script name</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Yesterday price</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Current price</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Change value</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Daily change</th>
+                  <th scope="col" style={{ ...th, textAlign: 'right' }}>Dividends to date</th>
                 </tr>
               </thead>
               <tbody>

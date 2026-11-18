@@ -5,7 +5,7 @@ import type { Holding, Transaction, TransactionInput, TransactionType } from '..
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import { currencySymbol } from '../../lib/currency'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 
@@ -36,9 +36,9 @@ interface FormState {
   notes: string
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
-
-const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
+// Dates default to the IST calendar day: a UTC slice shows yesterday between
+// 00:00 and 05:30 IST.
+const emptyForm = (): FormState => ({ type: 'buy', date: todayIST(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
   // Holding, not HoldingWithPrice: every field this editor reads
@@ -101,7 +101,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
     setEditingId(txn.id || null)
     setForm({
       type: (txn.type as TransactionType) || 'buy',
-      date: txn.date ? txn.date.slice(0, 10) : todayISO(),
+      date: txn.date ? txn.date.slice(0, 10) : todayIST(),
       quantity: txn.quantity != null ? String(txn.quantity) : '',
       price: '',
       amount: txn.amount != null ? String(txn.amount) : '',
@@ -179,7 +179,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
   // Replay the ledger (mirrors backend RecomputePosition) and return a map of
   // transaction id → avg cost per share after that event executes.
   const runningAvgCosts = (() => {
-    const sorted = [...txns].sort((left, right) => {
+    const sorted = txns.toSorted((left, right) => {
       const leftOpening = left.type === 'opening', rightOpening = right.type === 'opening'
       if (leftOpening !== rightOpening) return leftOpening ? -1 : 1
       return (left.date || '').localeCompare(right.date || '')
@@ -231,7 +231,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={root} tabIndex={-1} className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Transactions — ${holding.script}`} className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 720,
         maxHeight: '90vh', overflowY: 'auto',
@@ -394,10 +394,14 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(txn)} title="Edit" className="btn-row btn-row-accent">
+                        <button onClick={() => startEdit(txn)} title="Edit"
+                          aria-label={`Edit ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete" className="btn-row btn-row-danger">
+                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete"
+                          aria-label={`Delete ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
                       </span>
@@ -422,7 +426,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 }
 
 const Th = ({ children, style }: { children?: React.ReactNode; style?: CSSProperties }) => (
-  <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
+  <th scope="col" style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
 )
 const Td = ({ children, style, className }: { children?: React.ReactNode; style?: CSSProperties; className?: string }) => (
   <td className={className} style={{ padding: '9px 12px', textAlign: 'right', ...style }}>{children}</td>

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ThemeName } from '../lib/useTheme'
+import { useLightDismiss } from '../lib/useLightDismiss'
 
 // ThemePicker: direct one-click theme selection (no cycling). Rendered
 // inside the dashboard's user menu. Page headers use the inline variant,
@@ -23,6 +24,8 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
   variant?: 'menu' | 'inline'
 }) {
   const [open, setOpen] = useState(false)
+  const inlineRoot = useRef<HTMLDivElement>(null)
+  useLightDismiss(inlineRoot, open, () => setOpen(false))
   const options = OPTIONS.filter(option => !option.premiumOnly || premium)
   const current = OPTIONS.find(option => option.id === theme) ?? OPTIONS[0]
   const buttons = (
@@ -50,6 +53,7 @@ export default function ThemePicker({ theme, premium, onSelect, variant = 'menu'
   if (variant === 'inline') {
     return (
       <div
+        ref={inlineRoot}
         className="theme-picker-inline"
         onBlur={e => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)

@@ -148,7 +148,7 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
               <>
                 <p role="status" style={{ color: 'var(--yellow)', margin: 0 }}>⚠ <strong>{result.duplicates.length} duplicates are discarded</strong> — already saved.</p>
                 <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr><th style={th}>Line</th><th style={th}>Date</th><th style={th}>Share</th><th style={{ ...th, textAlign: 'right' }}>Dividend</th></tr></thead>
+                  <thead><tr><th scope="col" style={th}>Line</th><th scope="col" style={th}>Date</th><th scope="col" style={th}>Share</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Dividend</th></tr></thead>
                   <tbody>{result.duplicates.map(duplicate => (
                     <tr key={duplicate.line}><td style={td}>{duplicate.line}</td><td style={td}>{formatDate(duplicate.date)}</td><td style={td}>{duplicate.share_name}</td><td style={{ ...td, textAlign: 'right' }}>{formatMoney(duplicate.amount, currency)}</td></tr>
                   ))}</tbody>

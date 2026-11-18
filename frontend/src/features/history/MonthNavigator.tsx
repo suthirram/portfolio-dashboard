@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useLightDismiss } from '../../lib/useLightDismiss'
 import { MONTHS } from './historyShared'
 
 // The History page's month navigator: ‹ / › step one month, the label opens
@@ -35,20 +36,7 @@ export function MonthNavigator({ value, min, max, onChange }: {
   // The year the grid shows; it follows the selection each time it opens.
   const [gridYear, setGridYear] = useState(value.year)
   const rootRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onPointer = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointer)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  useLightDismiss(rootRef, open, () => setOpen(false))
 
   const atMin = index(value) <= index(min)
   const atMax = index(value) >= index(max)

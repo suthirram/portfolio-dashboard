@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Opt into the OS text-size setting: supporting browsers scale 1rem
+         with it, so rem-sized stylesheet text follows. Never set a root
+         font-size, or the scaling is overridden. -->
+    <meta name="text-scale" content="scale" />
+    <!-- Both schemes are supported; dark is the default before the stored
+         theme applies, so the first paint never flashes white. -->
+    <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0a0c16" />
     <title>Portfolio Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

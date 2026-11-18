@@ -239,6 +239,7 @@ function Stat({ label, primary, secondary, tone, title }: {
       <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap' }}>
         ({secondary})
       </div>
+      {title && <span className="sr-only">{title}</span>}
     </div>
   )
 }

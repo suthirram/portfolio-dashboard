@@ -204,7 +204,7 @@ export default function HistoryPage() {
       // PRD-002 §7.3: dialogs open in date order. Backend may return
       // conflicts in non-deterministic order because the per-row map
       // iteration order is undefined; sort here.
-      const sorted = [...report.conflicts].sort((left, right) => left.date.localeCompare(right.date))
+      const sorted = report.conflicts.toSorted((left, right) => left.date.localeCompare(right.date))
       setConflictQueue(sorted)
     }
     if (report.applied.length) await reload()

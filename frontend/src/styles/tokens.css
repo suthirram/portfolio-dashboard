@@ -2,9 +2,14 @@
  * inline style={{}} objects across the app reference them — only values
  * change. New tokens are additive and suffixed below the legacy block. */
 
+/* color-scheme tells the browser which palette its own UI uses — date
+ * pickers, <select> menus, checkboxes, scrollbars and the canvas behind the
+ * page. It must sit on :root so viewport-wide controls follow it; each
+ * theme block below sets its own. */
 :root {
+  color-scheme: dark;
   --bg-primary: #0a0c16;
-  --brand-font-family: Roboto, Arial, sans-serif;
+  --brand-font-family: Roboto, "Roboto Fallback", Arial, sans-serif;
   --bg-secondary: #121524;
   --bg-card: #171b2e;
   --bg-card-hover: #1d2238;
@@ -56,6 +61,7 @@
 /* Cyberpunk theme — premium-only (PD-046), opt-in via
  * <html data-theme="cyberpunk">. Neon magenta/cyan on violet-black. */
 :root[data-theme="cyberpunk"] {
+  color-scheme: dark;
   --bg-primary: #06010f;
   --bg-secondary: #0d0519;
   --bg-card: #120826;
@@ -97,6 +103,7 @@
 
 /* Light theme — opt-in via <html data-theme="light"> (PD-042 PR7). */
 :root[data-theme="light"] {
+  color-scheme: light;
   --bg-primary: #f5f7fb;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
