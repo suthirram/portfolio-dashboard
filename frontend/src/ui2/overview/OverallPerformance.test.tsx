@@ -100,8 +100,25 @@ describe('OverallPerformance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Daily movement' }))
     expect(await screen.findByRole('img', { name: /daily movement percentage in INR, 04-01-2026 to 04-01-2026/ }))
       .toBeInTheDocument()
+    expect(screen.getByRole('img').querySelector('.point-marker')).toBeInTheDocument()
     fireEvent.click(screen.getByText('View chart data'))
     expect(screen.getAllByRole('row')).toHaveLength(4)
+  })
+
+  it('draws markers for valid chart points surrounded by unavailable values', async () => {
+    vi.mocked(api.getOverallHistory).mockResolvedValue({
+      points: [
+        point('2026-01-08', undefined, undefined, { missing_rate: true }),
+        point('2026-01-09', 1000, 1100),
+        point('2026-01-10', undefined, undefined, { gold_unvalued: true }),
+      ],
+      gold_unavailable: false,
+    })
+    render(<OverallPerformance />)
+
+    const chart = await screen.findByRole('img', { name: /in INR/ })
+    expect(chart.querySelectorAll('.point-marker')).toHaveLength(2)
+    expect(chart.querySelector('.value-path')?.getAttribute('d')).toMatch(/^M/)
   })
 
   it('never charts partial totals when the Gold service is unavailable', async () => {

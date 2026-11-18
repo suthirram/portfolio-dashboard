@@ -111,6 +111,19 @@ function svgPath(points: OverallChartPoint[], key: keyof OverallChartPoint, xPos
   }).filter(Boolean).join(' ')
 }
 
+function isolatedIndices(points: OverallChartPoint[], key: keyof OverallChartPoint): { index: number; value: number }[] {
+  const isValid = (point: OverallChartPoint | undefined) => {
+    const value = point?.[key]
+    return typeof value === 'number' && Number.isFinite(value)
+  }
+  return points.flatMap((point, index) => {
+    const value = point[key]
+    if (typeof value !== 'number' || !Number.isFinite(value)) return []
+    if (isValid(points[index - 1]) || isValid(points[index + 1])) return []
+    return [{ index, value }]
+  })
+}
+
 function OverallGraph({ points, currency, metric }: {
   points: OverallChartPoint[]; currency: DisplayCurrency; metric: Metric
 }) {
@@ -136,6 +149,8 @@ function OverallGraph({ points, currency, metric }: {
     ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
     : `${value.toFixed(1)}%`
   const currentKey: keyof OverallChartPoint = metric === 'value' ? 'current' : metric === 'pl' ? 'pnl_pct' : 'movement_pct'
+  const investedIsolated = isValue ? isolatedIndices(points, 'invested') : []
+  const currentIsolated = isolatedIndices(points, currentKey)
   const ariaMetric = metric === 'value' ? 'invested amount and current value'
     : metric === 'pl' ? 'profit and loss percentage' : 'daily movement percentage'
   const firstDate = points[0]?.date
@@ -154,6 +169,10 @@ function OverallGraph({ points, currency, metric }: {
     })}
     {isValue && <path d={svgPath(points, 'invested', xPosition, yPosition)} className="invested-path" />}
     <path d={svgPath(points, currentKey, xPosition, yPosition)} className="value-path" />
+    {investedIsolated.map(({ index, value }) => <circle key={`invested-${points[index].date}`}
+      cx={xPosition(index)} cy={yPosition(value)} r="4" className="point-marker invested-marker" />)}
+    {currentIsolated.map(({ index, value }) => <circle key={`current-${points[index].date}`}
+      cx={xPosition(index)} cy={yPosition(value)} r="4" className="point-marker current-marker" />)}
     {firstDate && <text x="65" y="218">{formatDate(firstDate)}</text>}
     {lastDate && <text x="630" y="218" textAnchor="end">{formatDate(lastDate)}</text>}
   </svg>
