@@ -30,7 +30,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
 | 7 | 2 | FE | Allocation by holding / sector / currency | 2 | | | | needs amendment |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | | | in progress |
-| 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Codex | `docs/PD-059-backfill-prep` (preparation) | | reserved; awaits slice 8 |
+| 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Codex | `docs/PD-059-backfill-prep` (preparation) | #335 (preparation) | reserved; awaits slice 8 |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
 | 10 | 3 | FE | Overview overall performance chart | 2, 8 | | | | needs amendment |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
