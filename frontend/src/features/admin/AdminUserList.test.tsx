@@ -19,7 +19,7 @@ vi.mock('../../lib/api/client', () => ({
     adminListUsers: vi.fn().mockImplementation(() => Promise.resolve([rowUser])),
     getRegions: vi.fn().mockResolvedValue([{ id: 'india', label: 'India' }]),
     adminSetUserDeltaFromHistory: vi.fn().mockResolvedValue(undefined),
-    adminSetUserUiRevamp: vi.fn().mockResolvedValue(undefined),
+    adminSetUserUiMode: vi.fn().mockResolvedValue(undefined),
     adminSetUserGold: vi.fn().mockResolvedValue(undefined),
     adminSetUserRegion: vi.fn().mockResolvedValue(undefined),
     adminPromoteUser: vi.fn().mockResolvedValue(undefined),
@@ -52,7 +52,7 @@ describe('AdminUserList action buttons', () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
 
     // All plain actions share the same class set (uniform size/colour).
-    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium', 'Delta from History', 'Glass UI on']) {
+    for (const name of ['Unlock', 'Hide', 'Promote', 'Move region', 'Enable gold', 'Enable premium', 'Delta from History']) {
       const el = await screen.findByRole('button', { name })
       expect(el, `${name} button`).toHaveClass('btn', 'btn-sm')
     }
@@ -91,45 +91,37 @@ describe('AdminUserList action buttons', () => {
     expect(api.adminSetUserDeltaFromHistory).toHaveBeenCalledWith('sa1', { enabled: true })
   })
 
-  // PD-054: the glass UI is opt-in per account.
-  it('switches an account to the glass UI and back', async () => {
+  // PD-059: one interface per account, picked from Classic, Glass or UI_2.0.
+  it('sets an account to UI_2.0 and back to Glass', async () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
-    const on = await screen.findByRole('button', { name: 'Glass UI on' })
-    expect(on).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(on)
-    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: true }))
+    const picker = await screen.findByRole('combobox', { name: 'Interface for alice' })
+    expect(picker).toHaveValue('classic')
+    fireEvent.change(picker, { target: { value: 'ui2' } })
+    await waitFor(() => expect(api.adminSetUserUiMode).toHaveBeenCalledWith('u1', { mode: 'ui2' }))
+    // The picker is disabled while the change saves and the list reloads.
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Interface for alice' })).toBeEnabled())
+    fireEvent.change(screen.getByRole('combobox', { name: 'Interface for alice' }), { target: { value: 'glass' } })
+    await waitFor(() => expect(api.adminSetUserUiMode).toHaveBeenCalledWith('u1', { mode: 'glass' }))
     expect(refreshCaller).not.toHaveBeenCalled()
   })
 
-  it('turns the glass UI off for an account that has it', async () => {
-    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_revamp: true }])
+  it('shows the interface the account has', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_mode: 'glass' }])
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Glass UI off' }))
-    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: false }))
+    expect(await screen.findByRole('combobox', { name: 'Interface for alice' })).toHaveValue('glass')
   })
 
-  it('reserves UI_2.0 as an off, disabled placeholder beside the usable Glass UI button', async () => {
-    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
-    const placeholder = await screen.findByRole('button', { name: 'UI_2.0 (coming soon)' })
-    expect(placeholder).toBeDisabled()
-    expect(placeholder).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(placeholder)
-    expect(api.adminSetUserUiRevamp).not.toHaveBeenCalled()
-    expect(refreshCaller).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Glass UI on' })).toBeEnabled()
-  })
-
-  it('does not offer the UI_2.0 placeholder to a regional admin in the current UI', async () => {
+  it('does not offer the interface picker to a regional admin', async () => {
     session.caller = { id: 'a1', username: 'asha', name: 'Asha', role: 'admin', region: 'india' } as User
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
     await screen.findByRole('link', { name: 'Open' })
-    expect(screen.queryByRole('button', { name: /UI_2\.0/ })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: /Interface/ })).toBeNull()
   })
 
-  it('refreshes the signed-in user after switching their own look', async () => {
-    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...superAdmin, ui_revamp: false }])
+  it('refreshes the signed-in user after switching their own interface', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...superAdmin, ui_mode: 'classic' }])
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Glass UI on' }))
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Interface for root' }), { target: { value: 'ui2' } })
     await waitFor(() => expect(refreshCaller).toHaveBeenCalledTimes(1))
   })
 })
@@ -179,22 +171,16 @@ describe('AdminUserList in the glass UI', () => {
     expect(gold).toHaveAttribute('aria-checked', 'false')
     fireEvent.click(gold)
     await waitFor(() => expect(api.adminSetUserGold).toHaveBeenCalledWith('u1', { enabled: true }))
-    fireEvent.click(within(settings()).getByRole('switch', { name: 'Glass UI' }))
-    await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: true }))
+    fireEvent.change(within(settings()).getByRole('combobox', { name: 'Interface' }), { target: { value: 'ui2' } })
+    await waitFor(() => expect(api.adminSetUserUiMode).toHaveBeenCalledWith('u1', { mode: 'ui2' }))
   })
 
-  it('keeps UI_2.0 off and disabled when Glass UI is already on', async () => {
-    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_revamp: true }])
+  it('shows the account’s interface in its settings', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_mode: 'glass' }])
     renderPage()
-    const placeholder = await screen.findByRole('switch', { name: 'UI_2.0' })
-    expect(placeholder).toBeDisabled()
-    expect(placeholder).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByText('Coming soon. The new UI variant is not available yet.')).toBeInTheDocument()
-    fireEvent.click(placeholder)
-    expect(api.adminSetUserUiRevamp).not.toHaveBeenCalled()
-    expect(refreshCaller).not.toHaveBeenCalled()
-    expect(screen.getByRole('switch', { name: 'Glass UI' })).toBeEnabled()
-    expect(screen.getByRole('switch', { name: 'Glass UI' })).toHaveAttribute('aria-checked', 'true')
+    await screen.findByRole('complementary', { name: 'Users' })
+    expect(within(settings()).getByRole('combobox', { name: 'Interface' })).toHaveValue('glass')
+    expect(within(settings()).queryByRole('switch', { name: 'Glass UI' })).toBeNull()
   })
 
   it('asks before turning a feature off, and keeps it on when declined', async () => {

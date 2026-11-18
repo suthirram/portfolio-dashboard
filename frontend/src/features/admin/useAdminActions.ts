@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { api, ApiError, type User } from '../../lib/api/client'
 import { useAuth } from '../auth/AuthContext'
 import { notify, toast } from '../../lib/toast'
+import { UI_MODE_LABELS, type UiMode } from '../../lib/uiMode'
 import type { FeatureSwitch } from './AdminUserSettings'
 
 // The admin pages' account actions, shared by Users and Admins: runAction
@@ -24,10 +25,9 @@ export function useAdminActions(reload: () => Promise<void>) {
     }
   }
 
-  // One path for the four per-account switches, shared by the table's
-  // buttons and the glass settings' switches. On the caller's own account
-  // the session user is refreshed, so the delta panel and the look follow
-  // without a page reload.
+  // One path for the per-account switches, shared by the table's buttons and
+  // the glass settings' switches. On the caller's own account the session
+  // user is refreshed, so the delta panel follows without a page reload.
   const toggleFeature = (listedUser: User, feature: FeatureSwitch) => {
     const enabled = !listedUser[feature.key]
     const body = { enabled }
@@ -35,14 +35,21 @@ export function useAdminActions(reload: () => Promise<void>) {
       gold_enabled: () => api.adminSetUserGold(listedUser.id, body),
       premium: () => api.adminSetUserPremium(listedUser.id, body),
       delta_from_history: () => api.adminSetUserDeltaFromHistory(listedUser.id, body),
-      ui_revamp: () => api.adminSetUserUiRevamp(listedUser.id, body),
     }
     return runAction(listedUser.id, async () => {
       await calls[feature.key]()
-      if (listedUser.id === caller?.id && (feature.key === 'delta_from_history' || feature.key === 'ui_revamp')) await refreshCaller()
-      if (feature.key === 'ui_revamp') toast(`${enabled ? 'Glass UI' : 'Current UI'} on for ${listedUser.username}`, 'success')
+      if (listedUser.id === caller?.id && feature.key === 'delta_from_history') await refreshCaller()
     }, !enabled && feature.offConfirm ? feature.offConfirm(listedUser.username) : undefined)
   }
 
-  return { caller, busy, runAction, toggleFeature }
+  // setUiMode sets the account's interface (PD-059). On the caller's own
+  // account the session is refreshed, so the look follows at once.
+  const setUiMode = (listedUser: User, mode: UiMode) =>
+    runAction(listedUser.id, async () => {
+      await api.adminSetUserUiMode(listedUser.id, { mode })
+      if (listedUser.id === caller?.id) await refreshCaller()
+      toast(`${UI_MODE_LABELS[mode]} on for ${listedUser.username}`, 'success')
+    })
+
+  return { caller, busy, runAction, toggleFeature, setUiMode }
 }

@@ -29,7 +29,7 @@ export default function AdminManageAdmins() {
   useEffect(() => { void load() }, [load])
   useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])
 
-  const { caller, busy, runAction, toggleFeature } = useAdminActions(load)
+  const { caller, busy, runAction, toggleFeature, setUiMode } = useAdminActions(load)
   const regionLabel = (id: string) => regions.find(region => region.id === id)?.label ?? id
 
   const setRegionFor = async (listedAdmin: User) => {
@@ -58,7 +58,7 @@ export default function AdminManageAdmins() {
           <div style={{ padding: 32, textAlign: 'center' }}><span className="spinner" /></div>
         ) : (
           <AdminUserSettings users={admins} regions={regions} caller={caller} busy={busy}
-            runAction={runAction} onFeature={toggleFeature} listLabel="Administrators" />
+            runAction={runAction} onFeature={toggleFeature} onUiMode={setUiMode} listLabel="Administrators" />
         )}
       </AdminShell>
     )

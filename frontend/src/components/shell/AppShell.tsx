@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuthOptional } from '../../features/auth/AuthContext'
-import { useUiRevamp } from '../../lib/uiMode'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import ThemePicker from '../ThemePicker'
-import {
-  ChartLineIcon, CoinsIcon, HomeIcon, ListIcon, LogOutIcon, MenuIcon, PlusIcon, SearchIcon, ShieldIcon, UserIcon,
-} from '../Icon'
+import { ChartLineIcon, LogOutIcon, MenuIcon, PlusIcon, SearchIcon, UserIcon } from '../Icon'
+import { Ui2Shell } from '../../ui2/shell/Ui2Shell'
 import { CommandPalette, type Command } from './CommandPalette'
+import { navItems } from './navItems'
 import { Toaster } from './Toaster'
+
+export { navItems } from './navItems'
 
 // The glass UI's app shell (PD-054): a sticky glass sidebar with the page
 // navigation, search (⌘K), theme and account, a bottom tab bar on narrow
@@ -18,26 +20,6 @@ import { Toaster } from './Toaster'
 // shell already offers (brand, page links, theme picker, user menu) carry
 // .shell-dup so glass.css hides them here.
 
-interface NavItem {
-  to: string
-  label: string
-  icon: ReactNode
-  end?: boolean
-  keywords?: string
-}
-
-export function navItems(goldEnabled: boolean, isAdmin: boolean): NavItem[] {
-  const items: NavItem[] = [
-    { to: '/', label: 'Dashboard', icon: <HomeIcon size={16} />, end: true, keywords: 'home holdings portfolio' },
-    { to: '/history', label: 'History', icon: <ChartLineIcon size={16} />, keywords: 'snapshots charts month' },
-    { to: '/transactions', label: 'Transactions', icon: <ListIcon size={16} />, keywords: 'ledger trades buys sells import' },
-    { to: '/dividends', label: 'Dividends', icon: <CoinsIcon size={16} />, keywords: 'income payouts' },
-  ]
-  if (goldEnabled) items.push({ to: '/gold', label: 'Gold', icon: <CoinsIcon size={16} />, keywords: 'physical jeweler' })
-  if (isAdmin) items.push({ to: '/admin', label: 'Admin', icon: <ShieldIcon size={16} />, keywords: 'users panel switches' })
-  return items
-}
-
 // The sidebar's collapsed state, kept per browser like the theme.
 const SIDEBAR_KEY = 'pd_sidebar'
 
@@ -45,10 +27,13 @@ function readCollapsed(): boolean {
   try { return window.localStorage?.getItem(SIDEBAR_KEY) === 'collapsed' } catch { return false }
 }
 
-// ShellLayout wraps the signed-in routes: the shell for glass accounts, the
-// page alone (the current UI) for everyone else.
+// ShellLayout wraps the signed-in routes, and is the one place the
+// interface is chosen (PD-059): the UI_2.0 shell for ui2 accounts, the glass
+// shell for glass accounts, the page alone (classic) for everyone else.
 export function ShellLayout() {
+  const mode = useUiMode()
   const revamp = useUiRevamp()
+  if (mode === 'ui2') return <Ui2Shell><Outlet /></Ui2Shell>
   if (!revamp) return <Outlet />
   return <AppShell><Outlet /></AppShell>
 }

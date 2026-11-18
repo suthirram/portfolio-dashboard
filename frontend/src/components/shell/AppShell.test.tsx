@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { navItems, ShellLayout } from './AppShell'
 
 const session = vi.hoisted(() => ({
-  user: { id: 'u1', username: 'alice', name: 'Alice', role: 'user', gold_enabled: false, premium: false, ui_revamp: true },
+  user: { id: 'u1', username: 'alice', name: 'Alice', role: 'user', gold_enabled: false, premium: false, ui_revamp: true, ui_mode: 'glass' },
   logout: vi.fn(),
 }))
 vi.mock('../../features/auth/AuthContext', () => ({
@@ -30,7 +30,7 @@ function renderShell(path = '/history') {
 }
 
 afterEach(() => {
-  session.user = { ...session.user, role: 'user', gold_enabled: false, ui_revamp: true }
+  session.user = { ...session.user, role: 'user', gold_enabled: false, ui_revamp: true, ui_mode: 'glass' }
 })
 
 describe('navItems', () => {
@@ -41,8 +41,17 @@ describe('navItems', () => {
 })
 
 describe('ShellLayout', () => {
+  // PD-059: ShellLayout is the one place the interface is chosen.
+  it('renders the page inside the UI_2.0 shell for a ui2 account', () => {
+    session.user = { ...session.user, ui_revamp: false, ui_mode: 'ui2' }
+    renderShell('/history')
+    expect(screen.getByRole('complementary', { name: 'Sidebar' })).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Main navigation' })).toBeNull()
+    expect(screen.getByTestId('where')).toHaveTextContent('/history')
+  })
+
   it('renders the page alone for an account without the glass UI', () => {
-    session.user = { ...session.user, ui_revamp: false }
+    session.user = { ...session.user, ui_revamp: false, ui_mode: 'classic' }
     renderShell()
     expect(screen.queryByRole('complementary', { name: 'Main navigation' })).toBeNull()
     expect(screen.getByTestId('where')).toHaveTextContent('/history')
