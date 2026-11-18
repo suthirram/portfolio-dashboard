@@ -1,0 +1,835 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>UI_2.0 Visual Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a reading column of numbered frames; each frame holds a live
+   mock of one UI_2.0 screen (mockup palette, switchable Light/Dark/Cyber)
+   beside the owner decisions it realises. */
+:root {
+  /* spec chrome (follows the viewer's theme) */
+  --bg: #f3f5f9;
+  --fg: #172238;
+  --muted: #5f6c82;
+  --rule: #dde3ec;
+  --paper: #ffffff;
+  --accent: #4b5fd0;
+  --note: #fff7e0;
+  --note-fg: #6b4b00;
+  --font-display: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141d; --fg: #e9eef7; --muted: #9aa7bc; --rule: #2a3446; --paper: #161d2a;
+    --accent: #a1adff; --note: #2f2a17; --note-fg: #f2d98b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141d; --fg: #e9eef7; --muted: #9aa7bc; --rule: #2a3446; --paper: #161d2a;
+  --accent: #a1adff; --note: #2f2a17; --note-fg: #f2d98b; color-scheme: dark;
+}
+
+/* Mock app palettes: copied from the owner's mockup (docs/visuals/PD-059-ui-2-reference.html). */
+.mk {
+  --m-bg: #f4f6fa; --m-panel: #ffffff; --m-text: #172238; --m-muted: #637188; --m-border: #e3e8f0;
+  --m-accent: #5265d8; --m-accentsoft: #edf0ff; --m-green: #087d61; --m-greensoft: #e7f6ef;
+  --m-red: #c34153; --m-redsoft: #fff0f1; --m-blue: #2f6bdb; --m-bluesoft: #e8f0ff;
+  --m-purple: #7c3aed; --m-purplesoft: #f1eaff; --m-line: #dce3ed; --m-wash: #eef2fc; --m-warn: #9a6700; --m-warnsoft: #fff4d6;
+  color-scheme: light;
+}
+.mk[data-mk="dark"] {
+  --m-bg: #10151f; --m-panel: #1b2331; --m-text: #eef2fa; --m-muted: #a1aec2; --m-border: #303c50;
+  --m-accent: #a1adff; --m-accentsoft: #2c3654; --m-green: #65d6b1; --m-greensoft: #183d36;
+  --m-red: #ff94a2; --m-redsoft: #442a36; --m-blue: #8db4ff; --m-bluesoft: #1f2e4d;
+  --m-purple: #c4a6ff; --m-purplesoft: #2d2547; --m-line: #354156; --m-wash: #172034; --m-warn: #f2c766; --m-warnsoft: #3a3018;
+  color-scheme: dark;
+}
+.mk[data-mk="cyber"] {
+  --m-bg: #100f20; --m-panel: #1d1932; --m-text: #f5efff; --m-muted: #b5a9cc; --m-border: #42345d;
+  --m-accent: #6ee7ef; --m-accentsoft: #243648; --m-green: #74edc3; --m-greensoft: #183b39;
+  --m-red: #ff95bb; --m-redsoft: #49243e; --m-blue: #6ee7ef; --m-bluesoft: #1c3446;
+  --m-purple: #d29bff; --m-purplesoft: #33204d; --m-line: #43375c; --m-wash: #2c1944; --m-warn: #ffe27a; --m-warnsoft: #3d3420;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 30px; font-weight: 800; }
+h2 { font-size: 21px; font-weight: 750; }
+h3 { font-size: 15px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lede { display: grid; gap: 10px; }
+.lede p { color: var(--muted); }
+.eyebrow { font: 600 11px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.controls {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px;
+}
+.controls label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--fg); font: 500 13px var(--font-body); padding: 5px 11px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--paper); }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
+
+.frame { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; scroll-margin-top: 80px; }
+.frame > header { grid-column: 1 / -1; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.frame > header .num { font: 700 13px var(--font-mono); color: var(--accent); }
+.frame > header .slices { font: 500 12px var(--font-mono); color: var(--muted); }
+.notes { display: grid; gap: 10px; font-size: 13.5px; }
+.notes ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.notes .flag { background: var(--note); color: var(--note-fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+@media (max-width: 900px) { .frame { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- mock app ---------- */
+.mk { background: var(--m-bg); color: var(--m-text); border: 1px solid var(--m-border); border-radius: 14px; overflow: hidden; font: 13px/1.45 var(--font-body); min-width: 0; position: relative; }
+.mk .bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 10px 14px; background: var(--m-panel); border-bottom: 1px solid var(--m-border); }
+.mk .brand { font: 800 14px var(--font-display); display: inline-flex; gap: 6px; align-items: center; }
+.mk .brand i { width: 22px; height: 22px; border-radius: 6px; background: var(--m-accent); display: inline-block; }
+.mk nav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; }
+.mk nav a { color: var(--m-muted); text-decoration: none; padding: 5px 9px; border-radius: 7px; white-space: nowrap; font-weight: 500; }
+.mk nav a[aria-current="page"] { color: var(--m-text); background: var(--m-accentsoft); }
+.mk .body { padding: 14px; display: grid; gap: 12px; }
+.mk .panel { background: var(--m-panel); border: 1px solid var(--m-border); border-radius: 11px; padding: 12px; min-width: 0; }
+.mk .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mk .spacer { flex: 1; }
+.mk .muted { color: var(--m-muted); }
+.mk .num { font-variant-numeric: tabular-nums; }
+.mk .btn { border: 1px solid var(--m-border); background: var(--m-panel); color: var(--m-text); border-radius: 8px; padding: 5px 10px; font: 500 12.5px var(--font-body); cursor: pointer; }
+.mk .btn.primary { background: var(--m-accent); border-color: var(--m-accent); color: var(--m-panel); }
+.mk .btn[aria-pressed="true"] { background: var(--m-accentsoft); border-color: var(--m-accent); }
+.mk .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.mk select, .mk input, .mk textarea { background: var(--m-panel); color: var(--m-text); border: 1px solid var(--m-border); border-radius: 7px; padding: 5px 8px; font: 13px var(--font-body); }
+.mk textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; }
+.mk .pill { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; background: var(--m-wash); color: var(--m-muted); }
+.mk .up { color: var(--m-green); } .mk .down { color: var(--m-red); } .mk .flat { color: var(--m-blue); }
+.mk .rate { font: 800 15px var(--font-display); }
+.mk .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.mk .card { background: var(--m-panel); border: 1px solid var(--m-border); border-radius: 10px; padding: 10px; text-align: left; color: var(--m-text); font: inherit; cursor: pointer; display: grid; gap: 3px; }
+.mk .card:hover { border-color: var(--m-accent); }
+.mk .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--m-muted); }
+.mk .card .val { font: 700 16px var(--font-display); font-variant-numeric: tabular-nums; }
+.mk .tscroll { overflow-x: auto; }
+.mk table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.mk th, .mk td { padding: 6px 8px; border-bottom: 1px solid var(--m-line); text-align: right; white-space: nowrap; }
+.mk th { font-size: 11px; font-weight: 600; color: var(--m-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.mk th:first-child, .mk td:first-child { text-align: left; }
+.mk tr.grp td { background: var(--m-wash); font-weight: 700; }
+.mk tr.sub td { color: var(--m-muted); font-weight: 600; }
+.mk tr.click { cursor: pointer; }
+.mk tr.click:hover td { background: var(--m-accentsoft); }
+.mk td.calc, .mk th.calc { background: var(--m-wash); }
+.mk .t-up { background: var(--m-greensoft); color: var(--m-green); }
+.mk .t-down { background: var(--m-redsoft); color: var(--m-red); }
+.mk .t-flat { background: var(--m-bluesoft); color: var(--m-blue); }
+.mk .t-new { background: var(--m-purplesoft); color: var(--m-purple); }
+.mk .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; }
+.mk .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: currentColor; }
+.mk .banner { border-radius: 9px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mk .banner.warn { background: var(--m-warnsoft); color: var(--m-warn); }
+.mk .banner.info { background: var(--m-accentsoft); color: var(--m-text); }
+.mk .actas { background: var(--m-purplesoft); color: var(--m-purple); font-weight: 600; }
+.mk .dialog-back { position: absolute; inset: 0; background: color-mix(in srgb, var(--m-bg) 70%, transparent); display: grid; place-items: center; padding: 16px; z-index: 3; }
+.mk .dialog { background: var(--m-panel); border: 1px solid var(--m-border); border-radius: 12px; padding: 14px; width: min(460px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 10px; box-shadow: 0 20px 50px rgba(10, 20, 40, 0.25); }
+.mk .dialog h4 { margin: 0; font: 750 15px var(--font-display); }
+.mk .kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-variant-numeric: tabular-nums; }
+.mk .kv dt { color: var(--m-muted); } .mk .kv dd { margin: 0; text-align: right; font-weight: 600; }
+.mk .drop { position: relative; }
+.mk .drop .menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 2; background: var(--m-panel); border: 1px solid var(--m-border); border-radius: 9px; padding: 6px; display: grid; gap: 2px; min-width: 170px; box-shadow: 0 10px 30px rgba(10, 20, 40, 0.18); }
+.mk .drop .menu label { display: flex; gap: 6px; align-items: center; padding: 3px 4px; }
+.mk .bars { display: grid; gap: 6px; }
+.mk .bars .b { display: grid; grid-template-columns: 110px minmax(0, 1fr) 54px; gap: 8px; align-items: center; }
+.mk .bars .track { height: 10px; background: var(--m-wash); border-radius: 5px; overflow: hidden; }
+.mk .bars .fill { height: 100%; background: var(--m-accent); }
+.mk svg text { fill: var(--m-muted); font: 10.5px var(--font-body); }
+.mk .gap-note { font-size: 12px; color: var(--m-warn); }
+.mk .tag { font: 600 10.5px var(--font-mono); padding: 1px 6px; border-radius: 5px; background: var(--m-wash); }
+.mk[data-mk="cyber"] .card, .mk[data-mk="cyber"] .panel { box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-accent) 18%, transparent); }
+.mk.enter .card, .mk.enter .panel { animation: cyberIn 520ms ease-out both; }
+.mk.enter .panel:nth-child(2), .mk.enter .card:nth-child(2) { animation-delay: 70ms; }
+.mk.enter .panel:nth-child(3), .mk.enter .card:nth-child(3) { animation-delay: 140ms; }
+.mk.enter .card:nth-child(4) { animation-delay: 210ms; }
+@keyframes cyberIn { from { opacity: 0.2; transform: translateY(6px); box-shadow: 0 0 18px var(--m-accent); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mk.enter .card, .mk.enter .panel { animation: none; } }
+.mk .sprinkle { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.mk .sprinkle span { position: absolute; color: var(--m-muted); opacity: 0.12; font-weight: 700; }
+.mk > *:not(.sprinkle):not(.dialog-back) { position: relative; z-index: 1; }
+
+.map { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+.map table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.map th, .map td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.map th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <section class="lede">
+    <span class="eyebrow">PD-059 · PRD-015 · DD-015 · visual spec, not production markup</span>
+    <h1>UI_2.0 visual spec</h1>
+    <p>Every UI_2.0 screen drawn from the owner's mockup and the decisions made on 18 November 2026. Each frame is a working mock: click cards, rows, toggles and dialogs. Figures are illustrative sample data, not your portfolio. The note column lists what the frame decides and which PD-059 slice builds it.</p>
+  </section>
+
+  <div class="controls" role="group" aria-label="Mock controls">
+    <label>Theme <span class="seg" id="theme-seg"><button type="button" data-v="light" aria-pressed="true">Light</button><button type="button" data-v="dark" aria-pressed="false">Dark</button><button type="button" data-v="cyber" aria-pressed="false">Cyber</button></span></label>
+    <label><input type="checkbox" id="opt-premium" checked> Premium (Cyber allowed)</label>
+    <label><input type="checkbox" id="opt-gold" checked> Gold enabled</label>
+    <label>Role <select id="opt-role"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin" selected>Super admin</option></select></label>
+    <nav class="toc" aria-label="Frames">
+      <a href="#f1">1 Shell</a><a href="#f2">2 Interface</a><a href="#f3">3 Summary</a><a href="#f4">4 Holdings</a><a href="#f5">5 Allocation</a><a href="#f6">6 Overall</a><a href="#f7">7 History</a><a href="#f8">8 Transactions</a><a href="#f9">9 Import</a><a href="#f10">10 Dividends</a><a href="#f11">11 Gold</a><a href="#f12">12 Act-as</a><a href="#f13">13 Profile</a><a href="#f14">14 Sign-up</a><a href="#map">Map</a>
+    </nav>
+  </div>
+
+  <!-- Frames are rendered by the script below into these slots. -->
+  <div id="frames" style="display:grid;gap:34px"></div>
+
+  <section id="map" class="frame" style="grid-template-columns:minmax(0,1fr)">
+    <header><span class="num">MAP</span><h2>Frame to slice</h2></header>
+    <div class="map"><table>
+      <thead><tr><th>Frame</th><th>Slices</th><th>Wave</th><th>Owner decision sources</th></tr></thead>
+      <tbody>
+        <tr><td>1 Shell, themes, Cyber entrance</td><td>2, 3</td><td>1, 2</td><td>A3 themes; C5 sprinkle as today; C7 no ⌘K</td></tr>
+        <tr><td>2 Interface picker</td><td>1, 2</td><td>1</td><td><code>ui_mode</code> enum, super admin per account</td></tr>
+        <tr><td>3 Summary cards + dialogs</td><td>4</td><td>2</td><td>Handoff: dialogs not expansion, one bold rate, dividend dialog INR/EUR only</td></tr>
+        <tr><td>4 Holdings grouping + Holding details</td><td>5, 6</td><td>2</td><td>C2 actions in dialog; C3 keep fields; C6 keep sector review, opening prompt</td></tr>
+        <tr><td>5 Allocation</td><td>7</td><td>2</td><td>Handoff: by holding / sector / currency</td></tr>
+        <tr><td>6 Overall performance</td><td>8, 9a, 9b, 10</td><td>1, 3</td><td>C1 overall INR+EUR+gold; F1 no USD; C1.8 re-fetch; gold unvalued / unavailable (owner, b + b)</td></tr>
+        <tr><td>7 History + rate re-fetch</td><td>11–14</td><td>3, 4</td><td>C8 paste format; C9 keep chart page and cards; colour legend below</td></tr>
+        <tr><td>8 Transactions</td><td>15, 16, 27</td><td>4, 6</td><td>B1 delta inline, later sub-route; B2 multi-select dropdown; B3 shared ledger; B7 15 rows</td></tr>
+        <tr><td>9 Import</td><td>17, 19</td><td>4, 5</td><td>B4/B5 upload + paste + example (header only), UI_2.0 only</td></tr>
+        <tr><td>10 Dividends</td><td>18</td><td>5</td><td>Handoff: tabs, cumulative columns, scoped delete-all</td></tr>
+        <tr><td>11 Gold</td><td>20, 21</td><td>5</td><td>B6 15 columns + Details; B9 daily + 30 + all months</td></tr>
+        <tr><td>12 Act-as</td><td>22, 23, 24</td><td>6</td><td>B8 act-as in UI_2.0; gold outside act-as; C10 admin pages</td></tr>
+        <tr><td>13 Profile, 14 Sign-up</td><td>25, 26</td><td>6</td><td>C11 restyle profile; C12 Light theme, login stays #330</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const state = { theme: 'light', premium: true, gold: true, role: 'superadmin' };
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const esc = value => String(value).replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+  const money = (value, currency) => {
+    if (value === null || value === undefined) return '—';
+    const symbol = currency === 'EUR' ? '€' : '₹';
+    const locale = currency === 'EUR' ? 'de-DE' : 'en-IN';
+    return symbol + Number(value).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const pct = value => value === null || value === undefined ? '—' : (value >= 0 ? '+' : '') + value.toFixed(2) + '%';
+  const tone = value => value === null || value === undefined ? '' : value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
+
+  // ---------- illustrative sample data ----------
+  const EUR_INR = 98.42;
+  const holdings = [
+    { symbol: 'TCS.NS', name: 'Tata Consultancy', currency: 'INR', sector: 'Information Technology', shares: 12, avg: 3412.5, price: 3561.2, prev: 3540.0, realised: 4200, dividends: 1380, xirr: 11.4 },
+    { symbol: 'INFY.NS', name: 'Infosys', currency: 'INR', sector: 'Information Technology', shares: 25, avg: 1486.0, price: 1462.3, prev: 1480.9, realised: 0, dividends: 925, xirr: -2.1 },
+    { symbol: 'HDFCBANK.NS', name: 'HDFC Bank', currency: 'INR', sector: 'Financials', shares: 30, avg: 1590.0, price: 1688.4, prev: 1688.4, realised: 1250, dividends: 585, xirr: 7.9 },
+    { symbol: 'RELIANCE.NS', name: 'Reliance Industries', currency: 'INR', sector: 'Energy', shares: 18, avg: 2405.0, price: 2511.6, prev: null, realised: 0, dividends: 180, xirr: 5.6 },
+    { symbol: 'GOLDBEES.NS', name: 'Nippon Gold BeES', currency: 'INR', sector: 'Commodities', shares: 200, avg: 61.2, price: 66.85, prev: 66.1, realised: 0, dividends: 0, xirr: 14.2 },
+    { symbol: 'SAP.DE', name: 'SAP', currency: 'EUR', sector: 'Information Technology', shares: 8, avg: 182.4, price: 214.15, prev: 211.9, realised: 120, dividends: 17.6, xirr: 18.3 },
+    { symbol: 'ASML.AS', name: 'ASML Holding', currency: 'EUR', sector: 'Information Technology', shares: 2, avg: 712.0, price: 668.3, prev: 671.0, realised: 0, dividends: 12.8, xirr: -4.4 },
+    { symbol: 'ALV.DE', name: 'Allianz', currency: 'EUR', sector: 'Financials', shares: 4, avg: 251.0, price: 292.6, prev: 292.6, realised: 0, dividends: 45.6, xirr: 9.1 },
+  ];
+  const GOLD = { invested: 194430, current: 196800, grams: 24 };
+  const sumBy = (rows, pick) => rows.reduce((total, row) => total + pick(row), 0);
+  const byCurrency = currency => holdings.filter(holding => holding.currency === currency);
+
+  function sprinkle() {
+    // jittered grid: one glyph per cell, random offset, size and rotation
+    const glyphs = ['₹', '€', '$', '£', '¥'];
+    let html = '';
+    for (let col = 0; col < 6; col++) for (let rowIndex = 0; rowIndex < 4; rowIndex++) {
+      const left = (col + 0.15 + Math.random() * 0.7) / 6 * 100;
+      const top = (rowIndex + 0.15 + Math.random() * 0.7) / 4 * 100;
+      html += `<span style="left:${left.toFixed(1)}%;top:${top.toFixed(1)}%;font-size:${12 + Math.round(Math.random() * 14)}px;transform:rotate(${Math.round(Math.random() * 60 - 30)}deg)">${glyphs[(col + rowIndex) % glyphs.length]}</span>`;
+    }
+    return `<div class="sprinkle" aria-hidden="true">${html}</div>`;
+  }
+
+  function shellBar(active) {
+    const items = [['Overview', '#f3'], ['History', '#f7'], ['Transactions', '#f8'], ['Dividends', '#f10']];
+    if (state.gold) items.push(['Gold', '#f11']);
+    if (state.role !== 'user') items.push(['Admin', '#f12']);
+    return `<div class="bar"><span class="brand"><i></i>Portfolio</span>
+      <nav aria-label="Main navigation">${items.map(([label, href]) => `<a href="${href}" ${label === active ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
+      <select aria-label="Theme" class="mk-theme">${['light', 'dark', 'cyber'].map(theme => `<option value="${theme}" ${theme === state.theme ? 'selected' : ''} ${theme === 'cyber' && !state.premium ? 'disabled' : ''}>${theme === 'cyber' ? 'Cyber' + (state.premium ? '' : ' (premium)') : theme[0].toUpperCase() + theme.slice(1)}</option>`).join('')}</select>
+      <span class="muted">Asha ▾</span></div>`;
+  }
+
+  // ---------- frames ----------
+  const frames = [];
+  const frame = (id, num, title, slices, notes, render, bind) => frames.push({ id, num, title, slices, notes, render, bind });
+
+  frame('f1', '1', 'Shell, themes and Cyber entrance', 'slices 2, 3', [
+    'Top bar: Overview, History, Transactions, Dividends, Gold (gold accounts), Admin (admins). Toggle Gold and Role above to see the bar change.',
+    'Theme picker offers Light, Dark, Cyber. Cyber stays premium-gated (PD-046): untick Premium and it is disabled.',
+    'Switching to Cyber plays a short staggered entrance, then the page sits still. Skipped under reduced motion.',
+    'Currency symbols in the background, as today. No Ambient toggle, no ⌘K palette.',
+    'A page not yet rebuilt renders inside this shell, so nothing is ever a dead page.',
+  ], () => `${sprinkle()}${shellBar('Overview')}<div class="body">
+      <div class="cards">${['Invested', 'Current', 'Today', 'Unrealised'].map(label => `<div class="card"><span class="label">${label}</span><span class="val">—</span></div>`).join('')}</div>
+      <div class="panel muted">Page content renders here. Profile and Log out sit in the account menu (Asha ▾).</div></div>`);
+
+  frame('f2', '2', 'Interface picker in Admin', 'slices 1, 2', [
+    'One select per account: Classic, Glass or UI_2.0. It replaces the Glass switch and the reserved UI_2.0 placeholder, so an account is never in two interfaces.',
+    'Super admin only. Changing your own account applies at once; others see it on their next load.',
+    'At cutover Classic is removed, Glass stays as it is now, UI_2.0 becomes the default for new accounts.',
+  ], () => {
+    const accounts = [['Root (you)', 'root', 'superadmin', 'glass'], ['Asha Rao', 'asha', 'admin', 'classic'], ['Bob Builder', 'bob', 'user', 'ui2']];
+    return `${shellBar('Admin')}<div class="body"><div class="panel tscroll"><table><thead><tr><th>User</th><th>Role</th><th>Interface</th></tr></thead><tbody>
+      ${accounts.map(([name, username, role, mode]) => `<tr><td>${name} <span class="muted">@${username}</span></td><td><span class="pill">${role}</span></td><td>${state.role === 'superadmin'
+        ? `<select aria-label="Interface for ${username}" data-ui-mode="${username}">${[['classic', 'Classic'], ['glass', 'Glass'], ['ui2', 'UI_2.0']].map(([value, label]) => `<option value="${value}" ${value === mode ? 'selected' : ''}>${label}</option>`).join('')}</select>`
+        : '<span class="muted">Super admin only</span>'}</td></tr>`).join('')}
+      </tbody></table></div><div class="banner info" id="mode-toast" hidden></div></div>`;
+  }, root => {
+    $$('[data-ui-mode]', root).forEach(select => select.addEventListener('change', () => {
+      const toast = $('#mode-toast', root);
+      toast.hidden = false;
+      toast.textContent = `${select.selectedOptions[0].textContent} on for ${select.dataset.uiMode}` + (select.dataset.uiMode === 'root' ? '. Your look changes now.' : '. Applies on their next page load.');
+    }));
+  });
+
+  frame('f3', '3', 'Overview summary and breakdown dialogs', 'slice 4', [
+    'Compact cards: invested, current, today vs previous close, unrealised, realised, combined P/L, dividends. P/L % sits under its value.',
+    'Click a card: its breakdown opens in a dialog (INR, EUR, Gold rows). Cards never expand in place.',
+    'The Dividends dialog shows INR and EUR totals only, never per stock.',
+    'One bold conversion rate, shown once. Display currency toggle switches every card.',
+  ], () => {
+    const toInr = (value, currency) => currency === 'EUR' ? value * EUR_INR : value;
+    const totals = { invested: 0, current: 0, today: 0, realised: 0, dividends: 0 };
+    holdings.forEach(holding => {
+      totals.invested += toInr(holding.shares * holding.avg, holding.currency);
+      totals.current += toInr(holding.shares * holding.price, holding.currency);
+      totals.today += holding.prev ? toInr(holding.shares * (holding.price - holding.prev), holding.currency) : 0;
+      totals.realised += toInr(holding.realised, holding.currency);
+      totals.dividends += toInr(holding.dividends, holding.currency);
+    });
+    totals.invested += GOLD.invested; totals.current += GOLD.current;
+    const display = state.displayEur ? 'EUR' : 'INR';
+    const show = value => money(display === 'EUR' ? value / EUR_INR : value, display);
+    const unrealised = totals.current - totals.invested;
+    const cards = [
+      ['invested', 'Total invested', show(totals.invested), ''],
+      ['current', 'Current value', show(totals.current), ''],
+      ['today', 'Today vs previous close', show(totals.today), pct(totals.today / (totals.current - totals.today) * 100)],
+      ['unrealised', 'Unrealised P/L', show(unrealised), pct(unrealised / totals.invested * 100)],
+      ['realised', 'Realised P/L', show(totals.realised), ''],
+      ['combined', 'Combined P/L', show(unrealised + totals.realised), ''],
+      ['dividends', 'Dividend income', show(totals.dividends), ''],
+    ];
+    return `${sprinkle()}${shellBar('Overview')}<div class="body">
+      <div class="row"><span class="rate">1 EUR = ₹${EUR_INR.toFixed(2)}</span><span class="muted">EURINR=X · 18 Nov 2026 17:30 IST</span><span class="spacer"></span>
+        <span class="seg"><button type="button" class="btn" data-disp="INR" aria-pressed="${display === 'INR'}">₹ INR</button> <button type="button" class="btn" data-disp="EUR" aria-pressed="${display === 'EUR'}">€ EUR</button></span></div>
+      <div class="cards">${cards.map(([key, label, value, sub]) => `<button type="button" class="card" data-card="${key}"><span class="label">${label}</span><span class="val">${value}</span>${sub ? `<span class="num ${tone(parseFloat(sub))}">${sub}</span>` : ''}</button>`).join('')}</div>
+    </div><div class="dialog-back" id="sum-dlg" hidden></div>`;
+  }, root => {
+    $$('[data-disp]', root).forEach(button => button.addEventListener('click', () => { state.displayEur = button.dataset.disp === 'EUR'; rerender('f3'); }));
+    $$('[data-card]', root).forEach(card => card.addEventListener('click', () => {
+      const key = card.dataset.card;
+      const back = $('#sum-dlg', root);
+      const field = { invested: holding => holding.shares * holding.avg, current: holding => holding.shares * holding.price, today: holding => holding.prev ? holding.shares * (holding.price - holding.prev) : 0, realised: holding => holding.realised, dividends: holding => holding.dividends };
+      let rows;
+      if (key === 'dividends') {
+        rows = [['INR dividends', money(sumBy(byCurrency('INR'), field.dividends), 'INR')], ['EUR dividends', money(sumBy(byCurrency('EUR'), field.dividends), 'EUR')]];
+      } else {
+        const pick = field[key] || field.current;
+        rows = [['India · INR', money(sumBy(byCurrency('INR'), pick), 'INR')], ['Europe · EUR', money(sumBy(byCurrency('EUR'), pick), 'EUR')]];
+        if (state.gold && (key === 'invested' || key === 'current')) rows.push(['Physical gold · INR', money(key === 'invested' ? GOLD.invested : GOLD.current, 'INR')]);
+        if (key === 'today') rows.push(['Physical gold', 'today’s behaviour kept']);
+      }
+      back.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(card.querySelector('.label').textContent)}"><h4>${esc(card.querySelector('.label').textContent)}</h4>
+        <dl class="kv">${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}</dl>
+        <p class="muted">Native currencies; nothing converted here.${key === 'dividends' ? ' Per-stock detail lives on the Dividends page.' : ''}</p>
+        <div class="row"><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`;
+      back.hidden = false;
+      $('[data-close]', back).focus();
+      $('[data-close]', back).addEventListener('click', () => { back.hidden = true; card.focus(); });
+    }));
+  });
+
+  frame('f4', '4', 'Holdings by currency, then sector; Holding details', 'slices 5, 6', [
+    'Currency is always the outer group with a native-currency subtotal. By sector is a grouping inside each currency, never a filter: every holding stays.',
+    'Share price colour vs previous close: green up, red down, blue unchanged. No previous close shows — (RELIANCE). Never compared with average cost.',
+    'Rows carry no action buttons. Click a row: Holding details opens with cost, realised, dividends, XIRR and the actions Edit, Ledger, Delete.',
+    'Add holding keeps today’s fields. Sector review queue, opening-date prompt and sector badges stay, restyled.',
+  ], () => {
+    const grouping = state.grouping || 'holding';
+    const filter = state.holdFilter || '';
+    let body = '';
+    ['INR', 'EUR'].forEach(currency => {
+      const rows = byCurrency(currency).filter(holding => !filter || (holding.name + holding.symbol).toLowerCase().includes(filter.toLowerCase()));
+      if (!rows.length) return;
+      body += `<tr class="grp"><td colspan="5">${currency === 'INR' ? 'India · INR' : 'Europe · EUR'}</td><td>${money(sumBy(rows, holding => holding.shares * holding.price), currency)}</td><td></td></tr>`;
+      const groups = grouping === 'sector' ? [...new Set(rows.map(holding => holding.sector))].map(sector => [sector, rows.filter(holding => holding.sector === sector)]) : [[null, rows]];
+      groups.forEach(([sector, list]) => {
+        if (sector) body += `<tr class="sub"><td colspan="5">${esc(sector)} · ${list.length}</td><td>${money(sumBy(list, holding => holding.shares * holding.price), currency)}</td><td></td></tr>`;
+        list.forEach(holding => {
+          const move = holding.prev === null ? null : holding.price - holding.prev;
+          const ret = (holding.price - holding.avg) / holding.avg * 100;
+          body += `<tr class="click" data-hold="${holding.symbol}" tabindex="0"><td><strong>${esc(holding.name)}</strong> <span class="muted">${holding.symbol}</span></td><td>${holding.shares}</td><td>${money(holding.avg, currency)}</td>
+            <td class="${tone(move)}">${money(holding.price, currency)}</td><td class="${tone(move)}">${move === null ? '—' : money(move * holding.shares, currency)}</td><td>${money(holding.shares * holding.price, currency)}</td><td class="${tone(ret)}">${pct(ret)}</td></tr>`;
+        });
+      });
+    });
+    return `${shellBar('Overview')}<div class="body"><div class="panel">
+      <div class="row"><input aria-label="Search holdings" placeholder="Search holdings" value="${esc(filter)}" data-hold-search>
+        <span class="seg"><button type="button" class="btn" data-group="holding" aria-pressed="${grouping === 'holding'}">By holding</button> <button type="button" class="btn" data-group="sector" aria-pressed="${grouping === 'sector'}">By sector</button></span>
+        <span class="spacer"></span><button type="button" class="btn primary">＋ Add holding</button></div>
+      <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Holding</th><th>Shares</th><th>Avg cost</th><th>Share price</th><th>Today</th><th>Current value</th><th>Unrealised</th></tr></thead><tbody>${body}</tbody></table></div>
+    </div></div><div class="dialog-back" id="hold-dlg" hidden></div>`;
+  }, root => {
+    $$('[data-group]', root).forEach(button => button.addEventListener('click', () => { state.grouping = button.dataset.group; rerender('f4'); }));
+    const search = $('[data-hold-search]', root);
+    search.addEventListener('change', () => { state.holdFilter = search.value; rerender('f4'); });
+    $$('[data-hold]', root).forEach(row => {
+      const open = () => {
+        const holding = holdings.find(candidate => candidate.symbol === row.dataset.hold);
+        const back = $('#hold-dlg', root);
+        back.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(holding.name)}"><h4>${esc(holding.name)} <span class="muted">${holding.symbol}</span></h4>
+          <dl class="kv"><dt>Cost</dt><dd>${money(holding.shares * holding.avg, holding.currency)}</dd><dt>Realised P/L</dt><dd>${money(holding.realised, holding.currency)}</dd>
+          <dt>Dividends</dt><dd>${money(holding.dividends, holding.currency)}</dd><dt>XIRR</dt><dd class="${tone(holding.xirr)}">${pct(holding.xirr)}</dd><dt>Sector</dt><dd>${esc(holding.sector)}</dd></dl>
+          <div class="row"><button type="button" class="btn">Edit</button><button type="button" class="btn">Ledger</button><button type="button" class="btn">Delete</button><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div>
+          <p class="muted">Edit and Ledger open the existing modals (Ledger = the shared ledger hook, slice 15). Delete asks first, in the dialog.</p></div>`;
+        back.hidden = false;
+        $('[data-close]', back).focus();
+        $('[data-close]', back).addEventListener('click', () => { back.hidden = true; row.focus(); });
+      };
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', event => { if (event.key === 'Enter') open(); });
+    });
+  });
+
+  frame('f5', '5', 'Equity allocation', 'slice 7', [
+    'By holding, by sector or by currency. Independent of the holdings grouping above.',
+    'Shares of current value converted to INR at the day’s rate for comparison only. Gold stays out unless the owner says otherwise (the handoff forbids including it silently).',
+  ], () => {
+    const view = state.alloc || 'sector';
+    const value = holding => holding.shares * holding.price * (holding.currency === 'EUR' ? EUR_INR : 1);
+    const key = { holding: holding => holding.name, sector: holding => holding.sector, currency: holding => holding.currency }[view];
+    const buckets = {};
+    holdings.forEach(holding => { buckets[key(holding)] = (buckets[key(holding)] || 0) + value(holding); });
+    const total = Object.values(buckets).reduce((sum, part) => sum + part, 0);
+    const rows = Object.entries(buckets).sort((first, second) => second[1] - first[1]);
+    return `${shellBar('Overview')}<div class="body"><div class="panel"><div class="row"><h3 style="font:700 14px var(--font-display)">Equity allocation</h3><span class="spacer"></span>
+      <span class="seg">${['holding', 'sector', 'currency'].map(option => `<button type="button" class="btn" data-alloc="${option}" aria-pressed="${view === option}">By ${option}</button>`).join(' ')}</span></div>
+      <div class="bars" style="margin-top:10px">${rows.map(([label, part]) => `<div class="b"><span>${esc(label)}</span><span class="track"><span class="fill" style="width:${(part / total * 100).toFixed(1)}%"></span></span><span class="num">${(part / total * 100).toFixed(1)}%</span></div>`).join('')}</div></div></div>`;
+  }, root => $$('[data-alloc]', root).forEach(button => button.addEventListener('click', () => { state.alloc = button.dataset.alloc; rerender('f5'); })));
+
+  // ----- overall performance: 400 illustrative days with gaps the user can simulate
+  const overallDays = (() => {
+    const days = [];
+    const start = Date.UTC(2025, 9, 15);
+    let stocks = 410000, invested = 395000;
+    for (let index = 0; index < 400; index++) {
+      const date = new Date(start + index * 86400000);
+      if (index % 45 === 10) invested += 25000, stocks += 25000;
+      stocks *= 1 + Math.sin(index / 9) * 0.004 + (index % 7 === 3 ? -0.006 : 0.0025);
+      const rate = 96 + Math.sin(index / 40) * 2.2;
+      const goldHeld = index >= 60;
+      const goldPriced = index >= 80;
+      const goldInvested = goldHeld ? 194430 : 0;
+      const goldCurrent = goldPriced ? 188000 + index * 22 : null;
+      days.push({ date, stocksInv: invested, stocksCur: stocks, rate, carried: index === 371, goldHeld, goldInvested, goldCurrent });
+    }
+    return days;
+  })();
+
+  function overallPoints() {
+    const scenario = state.scenario || 'normal';
+    return overallDays.map((day, index) => {
+      const point = { date: day.date, fxCarried: day.carried, missingRate: scenario === 'missing' && index > 330 && index < 338, goldUnvalued: false };
+      if (point.missingRate) return point;
+      if (state.gold && scenario === 'unavailable') return point;
+      let invested = day.stocksInv, current = day.stocksCur;
+      if (state.gold && day.goldHeld) {
+        if (day.goldCurrent === null) { point.goldUnvalued = true; return point; }
+        invested += day.goldInvested; current += day.goldCurrent;
+      }
+      point.invested = state.overallEur ? invested / day.rate : invested;
+      point.current = state.overallEur ? current / day.rate : current;
+      return point;
+    });
+  }
+
+  // port of features/history/historyShared.ts flowAdjustedReturnPct
+  function flowAdjusted(prevCurrent, current, prevInvested, invested) {
+    if (!prevCurrent) return null;
+    const delta = invested - prevInvested;
+    let flow = delta;
+    if (delta < 0) { if (invested === 0) return null; flow = delta * (current / invested); }
+    return (current - flow - prevCurrent) / prevCurrent * 100;
+  }
+
+  function drawChart(points, series) {
+    const width = 640, height = 220, left = 56, right = 12, top = 12, bottom = 26;
+    const valid = points.filter(point => point.current !== undefined);
+    const valuesOf = point => series === 'value' ? [point.invested, point.current] : [point[series]];
+    const all = valid.flatMap(valuesOf).filter(value => value !== null && value !== undefined);
+    if (!all.length) return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="No data"><text x="${width / 2}" y="${height / 2}" text-anchor="middle">No complete totals in this period</text></svg>`;
+    let min = Math.min(...all), max = Math.max(...all);
+    if (series !== 'value') { min = Math.min(min, 0); max = Math.max(max, 0); }
+    const pad = (max - min) * 0.08 || 1; min -= pad; max += pad;
+    const x = index => left + index / Math.max(1, points.length - 1) * (width - left - right);
+    const y = value => top + (max - value) / (max - min) * (height - top - bottom);
+    const path = key => {
+      let d = '', pen = false;
+      points.forEach((point, index) => {
+        const value = point[key];
+        if (value === undefined || value === null) { pen = false; return; }
+        d += (pen ? 'L' : 'M') + x(index).toFixed(1) + ' ' + y(value).toFixed(1) + ' ';
+        pen = true;
+      });
+      return d;
+    };
+    const ticks = 4;
+    let grid = '';
+    for (let tick = 0; tick <= ticks; tick++) {
+      const value = min + (max - min) * tick / ticks;
+      const label = series === 'value' ? (state.overallEur ? '€' : '₹') + (Math.abs(value) >= 100000 ? (value / 100000).toFixed(1) + 'L' : Math.round(value / 1000) + 'k') : value.toFixed(1) + '%';
+      grid += `<line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" stroke="var(--m-line)" stroke-width="1"/><text x="${left - 6}" y="${y(value) + 3}" text-anchor="end">${label}</text>`;
+    }
+    let gaps = '';
+    points.forEach((point, index) => {
+      if (point.current === undefined) gaps += `<rect x="${(x(index) - 1.5).toFixed(1)}" y="${top}" width="3" height="${height - top - bottom}" fill="var(--m-warnsoft)"/>`;
+      if (point.fxCarried) gaps += `<circle cx="${x(index).toFixed(1)}" cy="${height - bottom + 8}" r="3" fill="var(--m-warn)"/>`;
+    });
+    const first = points[0].date, last = points[points.length - 1].date;
+    const fmt = date => date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'UTC' });
+    const lines = series === 'value'
+      ? `<path d="${path('invested')}" fill="none" stroke="var(--m-muted)" stroke-width="1.6" stroke-dasharray="4 3"/><path d="${path('current')}" fill="none" stroke="var(--m-accent)" stroke-width="2.2"/>`
+      : `<line x1="${left}" x2="${width - right}" y1="${y(0)}" y2="${y(0)}" stroke="var(--m-muted)" stroke-dasharray="3 3"/><path d="${path(series)}" fill="none" stroke="var(--m-accent)" stroke-width="2"/>`;
+    return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Overall ${series} chart" style="width:100%;height:auto;display:block">${grid}${gaps}${lines}
+      <text x="${left}" y="${height - 4}">${fmt(first)}</text><text x="${width - right}" y="${height - 4}" text-anchor="end">${fmt(last)}</text></svg>`;
+  }
+
+  frame('f6', '6', 'Overall performance (INR + EUR + gold)', 'slices 8, 9a, 9b, 10', [
+    'One series: INR bucket + EUR bucket × that day’s stored EUR→INR rate + physical gold. Toggle INR / EUR. No USD.',
+    'Periods 1W, 1M, 3M, 1Y, All. 1Y and All draw one point per week; volatility is computed from daily rows first (existing flow-adjusted definition).',
+    'Shaded bars are gaps, never a partial number: a day missing its rate; gold held but not priced yet (before the first price, here the first weeks of gold); or gold unreadable (banner, no totals).',
+    'A day without a gold price copies the previous day’s price and heals when you enter it. Amber dots mark a carried rate; History offers to fetch it again.',
+  ], () => {
+    const period = state.period || '1Y';
+    const series = state.series || 'value';
+    const all = overallPoints();
+    const spans = { '1W': 7, '1M': 30, '3M': 91, '1Y': 365, All: all.length };
+    let points = all.slice(-spans[period]);
+    // derived series on daily points, before thinning
+    points = points.map((point, index) => {
+      const previous = points[index - 1];
+      const derived = { ...point };
+      if (point.current !== undefined) {
+        derived.pnl = (point.current - point.invested) / point.invested * 100;
+        derived.vol = previous && previous.current !== undefined ? flowAdjusted(previous.current, point.current, previous.invested, point.invested) : null;
+      }
+      return derived;
+    });
+    if (period === '1Y' || period === 'All') points = points.filter((point, index) => point.date.getUTCDay() === 0 || index === points.length - 1);
+    const unavailable = state.gold && state.scenario === 'unavailable';
+    const lastPoint = [...points].reverse().find(point => point.current !== undefined);
+    return `${shellBar('Overview')}<div class="body"><div class="panel" style="display:grid;gap:8px">
+      <div class="row"><h3 style="font:700 14px var(--font-display)">Portfolio performance</h3><span class="spacer"></span>
+        <span class="seg">${['1W', '1M', '3M', '1Y', 'All'].map(option => `<button type="button" class="btn" data-period="${option}" aria-pressed="${period === option}">${option}</button>`).join(' ')}</span>
+        <span class="seg"><button type="button" class="btn" data-ocur="INR" aria-pressed="${!state.overallEur}">₹</button> <button type="button" class="btn" data-ocur="EUR" aria-pressed="${!!state.overallEur}">€</button></span></div>
+      <div class="row"><span class="seg">${[['value', 'Invested vs current'], ['pnl', 'P/L %'], ['vol', 'Daily volatility']].map(([value, label]) => `<button type="button" class="btn" data-series="${value}" aria-pressed="${series === value}">${label}</button>`).join(' ')}</span>
+        <span class="spacer"></span><label class="muted">Simulate <select data-scenario aria-label="Simulate a state"><option value="normal">Normal</option><option value="missing" ${state.scenario === 'missing' ? 'selected' : ''}>Missing rate (EUR held)</option><option value="unavailable" ${state.scenario === 'unavailable' ? 'selected' : ''}>Gold unreadable</option></select></label></div>
+      ${unavailable ? '<div class="banner warn">Gold could not be read, so no overall total is shown. Stocks alone are on the History page.</div>' : ''}
+      ${drawChart(points, series)}
+      <div class="row muted"><span>Latest: <strong class="num" style="color:var(--m-text)">${lastPoint ? money(lastPoint.current, state.overallEur ? 'EUR' : 'INR') : '—'}</strong></span><span class="spacer"></span>
+        <span class="legend"><span style="color:var(--m-accent)">Current</span><span style="color:var(--m-muted)">Invested</span><span style="color:var(--m-warn)">Gap / carried rate</span></span></div>
+    </div></div>`;
+  }, root => {
+    $$('[data-period]', root).forEach(button => button.addEventListener('click', () => { state.period = button.dataset.period; rerender('f6'); }));
+    $$('[data-ocur]', root).forEach(button => button.addEventListener('click', () => { state.overallEur = button.dataset.ocur === 'EUR'; rerender('f6'); }));
+    $$('[data-series]', root).forEach(button => button.addEventListener('click', () => { state.series = button.dataset.series; rerender('f6'); }));
+    $('[data-scenario]', root).addEventListener('change', event => { state.scenario = event.target.value; rerender('f6'); });
+  });
+
+  frame('f7', '7', 'History ledger and the rate re-fetch prompt', 'slices 11, 12, 13, 14', [
+    'The month ledger stays the point of the page: month picker, INR / EUR / Gold columns, add, edit, paste (current format), per-stock breakdown, full-history chart page.',
+    'Tints compare with the prior chronological row: green up, red down, blue unchanged, purple new investment (invested). A negative P/L that improves is green. Legend below the table.',
+    'Days whose rate fell back get a prompt: Fetch rates again (you trigger the Yahoo call), Not now hides it for this visit, failed days are offered again. Own portfolio only, never in act-as.',
+  ], () => {
+    const rows = [
+      ['16 Nov', 812400, 835210, 3600, 3720, 194430, 196800],
+      ['15 Nov', 812400, 829880, 3600, 3720, 194430, 196800],
+      ['14 Nov', 787400, 820150, 3600, 3698, 194430, 195100],
+      ['13 Nov', 787400, 824930, 3600, 3698, 194430, 195100],
+      ['12 Nov', 787400, 817330, 3600, 3640, 194430, 194900],
+    ];
+    const tint = (index, column, isInvested) => {
+      const next = rows[index + 1];
+      if (!next) return '';
+      const delta = rows[index][column] - next[column];
+      if (isInvested && delta > 0) return 't-new';
+      return delta > 0 ? 't-up' : delta < 0 ? 't-down' : 't-flat';
+    };
+    const pending = state.fxPending === undefined ? ['2026-11-09', '2026-11-10'] : state.fxPending;
+    const prompt = pending.length && !state.fxSkipped
+      ? `<div class="banner warn"><span>${pending.length} day${pending.length > 1 ? 's use' : ' uses'} a carried EUR→INR rate: ${pending.join(', ')}.${state.fxFailed ? ' Yahoo had no rate for these yet.' : ''}</span><span class="spacer"></span><button type="button" class="btn primary" data-fx="fetch">Fetch rates again</button><button type="button" class="btn" data-fx="skip">Not now</button></div>`
+      : state.fxDone ? '<div class="banner info">Rates fetched; the overall chart is healed from 9 Nov.</div>' : '';
+    return `${shellBar('History')}<div class="body">${prompt}<div class="panel">
+      <div class="row"><button type="button" class="btn">‹</button><strong>November 2026</strong><button type="button" class="btn">›</button><span class="spacer"></span><button type="button" class="btn">＋ Add record</button><button type="button" class="btn">Paste month</button></div>
+      <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Date</th><th>INR invested</th><th>INR value</th><th>EUR invested</th><th>EUR value</th>${state.gold ? '<th>Gold invested</th><th>Gold value</th>' : ''}</tr></thead><tbody>
+        ${rows.map((row, index) => `<tr><td>${row[0]}</td><td class="${tint(index, 1, true)}">${money(row[1], 'INR')}</td><td class="${tint(index, 2)}">${money(row[2], 'INR')}</td><td class="${tint(index, 3, true)}">${money(row[3], 'EUR')}</td><td class="${tint(index, 4)}">${money(row[4], 'EUR')}</td>${state.gold ? `<td class="${tint(index, 5, true)}">${money(row[5], 'INR')}</td><td class="${tint(index, 6)}">${money(row[6], 'INR')}</td>` : ''}</tr>`).join('')}
+      </tbody></table></div>
+      <div class="legend" style="margin-top:8px"><span class="up">Up vs prior row</span><span class="down">Down</span><span class="flat">Unchanged</span><span style="color:var(--m-purple)">New investment</span></div></div></div>`;
+  }, root => {
+    $$('[data-fx]', root).forEach(button => button.addEventListener('click', () => {
+      if (button.dataset.fx === 'skip') { state.fxSkipped = true; rerender('f7'); return; }
+      const pending = state.fxPending === undefined ? ['2026-11-09', '2026-11-10'] : state.fxPending;
+      // first click: one date heals, one stays (Yahoo has no close yet); second click heals the rest
+      if (!state.fxTried) { state.fxTried = true; state.fxPending = pending.slice(1); state.fxFailed = true; }
+      else { state.fxPending = []; state.fxDone = true; state.fxFailed = false; }
+      rerender('f7');
+    }));
+  });
+
+  const txns = [
+    ['18 Nov 2026', 'Tata Consultancy', 'TCS.NS', 'buy', 2, 7110.4, 'INR', ''],
+    ['14 Nov 2026', 'SAP', 'SAP.DE', 'dividend', 0, 17.6, 'EUR', 'FY25 final'],
+    ['10 Nov 2026', 'Infosys', 'INFY.NS', 'sell', 5, 7420.0, 'INR', 'rebalance'],
+    ['03 Nov 2026', 'HDFC Bank', 'HDFCBANK.NS', 'bonus', 0, 0, 'INR', 'ratio 1:1'],
+    ['28 Oct 2026', 'ASML Holding', 'ASML.AS', 'buy', 1, 671.0, 'EUR', ''],
+    ['21 Oct 2026', 'Infosys', 'INFY.NS', 'dividend', 0, 925.0, 'INR', ''],
+    ['01 Jun 2026', 'Reliance Industries', 'RELIANCE.NS', 'opening', 18, 43290.0, 'INR', 'opening balance'],
+  ];
+  const TYPES = ['opening', 'buy', 'sell', 'dividend', 'split', 'bonus', 'merger'];
+
+  frame('f8', '8', 'Transactions', 'slices 15, 16, 27', [
+    'Event type and currency filters are multi-select dropdowns: the button shows a count (Types (2)) and each menu has Clear. Reset clears everything.',
+    'Bought / Sold / Dividends subtotals per currency over the filtered rows; opening excluded; never combined across currencies, never P/L.',
+    '15 rows per page, reset on filter or sort. Optional columns (ratio, notes, opening date) appear when any filtered row needs them.',
+    'Investment delta stays inline below the filters for now; moving it to its own route is a late, tentative slice.',
+    'Open ledger opens the per-holding ledger with every event type (shared hook, slice 15).',
+  ], () => {
+    const types = state.types || [];
+    const currencies = state.currencies || [];
+    const visible = txns.filter(txn => (!types.length || types.includes(txn[3])) && (!currencies.length || currencies.includes(txn[6])));
+    const subtotal = (currency, type) => sumBy(visible.filter(txn => txn[6] === currency && txn[3] === type), txn => txn[5]);
+    const menu = (key, options, chosen, label) => `<span class="drop"><button type="button" class="btn" data-drop="${key}" aria-expanded="${state.open === key}">${label}${chosen.length ? ` (${chosen.length})` : ''} ▾</button>
+      ${state.open === key ? `<span class="menu">${options.map(option => `<label><input type="checkbox" data-pick="${key}" value="${option}" ${chosen.includes(option) ? 'checked' : ''}> ${option}</label>`).join('')}<button type="button" class="btn" data-clear="${key}">Clear</button></span>` : ''}</span>`;
+    return `${shellBar('Transactions')}<div class="body">
+      <div class="row"><h3 style="font:700 15px var(--font-display)">All transactions <span class="pill">${visible.length}</span></h3><span class="spacer"></span><button type="button" class="btn primary" data-import-open>Import CSV</button></div>
+      <div class="cards">${['INR', 'EUR'].map(currency => `<div class="panel"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em">${currency} · filtered totals</div>
+        <dl class="kv"><dt>Bought</dt><dd>${money(subtotal(currency, 'buy'), currency)}</dd><dt>Sold</dt><dd>${money(subtotal(currency, 'sell'), currency)}</dd><dt>Dividends</dt><dd>${money(subtotal(currency, 'dividend'), currency)}</dd></dl></div>`).join('')}</div>
+      <div class="panel"><div class="row"><input aria-label="Search transactions" placeholder="Search holding, symbol or notes"><select aria-label="Holding"><option>All holdings</option></select>
+        ${menu('types', TYPES, types, 'Types')}${menu('currencies', ['INR', 'EUR'], currencies, 'Currencies')}
+        <label class="muted">From <input type="date" aria-label="From"></label><label class="muted">To <input type="date" aria-label="To"></label><button type="button" class="btn" data-reset>Reset</button></div>
+        <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Date ↓</th><th>Holding</th><th>Event</th><th>Shares</th><th>Amount</th><th>Implied cost/sh</th><th>Notes</th><th></th></tr></thead><tbody>
+          ${visible.map(txn => `<tr><td>${txn[0]}</td><td><strong>${txn[1]}</strong> <span class="muted">${txn[2]}</span></td><td><span class="tag">${txn[3]}</span></td><td>${txn[4] || '—'}</td><td>${money(txn[5], txn[6])}</td><td>${txn[4] && txn[3] !== 'bonus' ? money(txn[5] / txn[4], txn[6]) : '—'}</td><td class="muted">${esc(txn[7])}</td><td><button type="button" class="btn">Open ledger</button></td></tr>`).join('') || '<tr><td colspan="8" class="muted">No transactions match these filters.</td></tr>'}
+        </tbody></table></div>
+        <div class="row muted" style="margin-top:6px"><span>${visible.length} matching events · newest first · 15 per page</span><span class="spacer"></span><button type="button" class="btn" disabled>←</button><span>1 / 1</span><button type="button" class="btn" disabled>→</button></div></div>
+      <div class="panel"><div class="row"><strong>Investment delta</strong><span class="muted">monthly buys and sales, month-end invested line</span><span class="spacer"></span><select aria-label="Year"><option>2026</option></select><button type="button" class="btn">Expand</button></div></div>
+    </div>`;
+  }, root => {
+    $$('[data-drop]', root).forEach(button => button.addEventListener('click', () => { state.open = state.open === button.dataset.drop ? null : button.dataset.drop; rerender('f8'); }));
+    $$('[data-pick]', root).forEach(box => box.addEventListener('change', () => {
+      const key = box.dataset.pick;
+      const list = new Set(state[key] || []);
+      box.checked ? list.add(box.value) : list.delete(box.value);
+      state[key] = [...list]; rerender('f8');
+    }));
+    $$('[data-clear]', root).forEach(button => button.addEventListener('click', () => { state[button.dataset.clear] = []; state.open = null; rerender('f8'); }));
+    $('[data-reset]', root).addEventListener('click', () => { state.types = []; state.currencies = []; state.open = null; rerender('f8'); });
+    $('[data-import-open]', root).addEventListener('click', () => { location.hash = 'f9'; });
+  });
+
+  frame('f9', '9', 'Import: upload, paste or load the example', 'slices 17, 19', [
+    'Trade (Groww) and Dividend imports each offer three ways in: upload a file, paste the CSV text, or Load example.',
+    'Load example fills in the header line and a format hint only, never sample rows.',
+    'Pasted text goes through the same parser, 5,000-row limit and server validation as a file. UI_2.0 only; Glass may get it later.',
+  ], () => {
+    const kind = state.importKind || 'dividend';
+    const mode = state.importMode || 'paste';
+    const example = kind === 'dividend'
+      ? 'Date,Share Name,Dividend,CUMULATIVE\n# One row per payment. Date as DD-MM-YYYY, Share Name as on your statement,\n# Dividend in the currency of the tab. CUMULATIVE is optional.'
+      : 'Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status\n# Paste the Groww "Order history" export as it is.';
+    const text = state.importText || '';
+    const rows = text.split('\n').filter(line => line.trim() && !line.startsWith('#')).length;
+    return `${shellBar(kind === 'dividend' ? 'Dividends' : 'Transactions')}<div class="body"><div class="panel" style="display:grid;gap:10px">
+      <div class="row"><span class="seg"><button type="button" class="btn" data-kind="trade" aria-pressed="${kind === 'trade'}">Trades (Groww)</button> <button type="button" class="btn" data-kind="dividend" aria-pressed="${kind === 'dividend'}">Dividends</button></span></div>
+      <div class="row" role="tablist" aria-label="How to provide the CSV">${[['upload', 'Upload file'], ['paste', 'Paste CSV']].map(([value, label]) => `<button type="button" role="tab" class="btn" data-mode="${value}" aria-selected="${mode === value}" aria-pressed="${mode === value}">${label}</button>`).join('')}<span class="spacer"></span><button type="button" class="btn" data-example>Load example</button></div>
+      ${mode === 'upload' ? '<div class="banner info"><input type="file" aria-label="Choose CSV" accept=".csv"> <span class="muted">CSV, up to 5,000 rows</span></div>'
+        : `<textarea rows="6" aria-label="CSV text" data-import-text placeholder="Paste the CSV here">${esc(text)}</textarea>`}
+      <div class="row"><span class="muted">${mode === 'paste' ? `${rows} data row${rows === 1 ? '' : 's'} · comment lines (#) are ignored` : 'No file chosen'}</span><span class="spacer"></span><button type="button" class="btn primary" ${rows || mode === 'upload' ? '' : 'disabled'}>Validate and preview</button></div>
+      <p class="muted">Validate runs the existing preview: matching, duplicates, ambiguity, then commit. Unknown holdings are never created or mapped without you.</p>
+    </div></div>`;
+  }, root => {
+    $$('[data-kind]', root).forEach(button => button.addEventListener('click', () => { state.importKind = button.dataset.kind; state.importText = ''; rerender('f9'); }));
+    $$('[data-mode]', root).forEach(button => button.addEventListener('click', () => { state.importMode = button.dataset.mode; rerender('f9'); }));
+    $('[data-example]', root).addEventListener('click', () => {
+      state.importMode = 'paste';
+      state.importText = (state.importKind || 'dividend') === 'dividend'
+        ? 'Date,Share Name,Dividend,CUMULATIVE\n# One row per payment. Date as DD-MM-YYYY, Share Name as on your statement,\n# Dividend in the currency of the tab. CUMULATIVE is optional.'
+        : 'Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status\n# Paste the Groww "Order history" export as it is.';
+      rerender('f9');
+    });
+    const area = $('[data-import-text]', root);
+    if (area) area.addEventListener('change', () => { state.importText = area.value; rerender('f9'); });
+  });
+
+  frame('f10', '10', 'Dividends', 'slices 18, 19', [
+    'Currency tabs; summary (total, payments, holdings paying, date range) and charts cover the whole currency. Search and holding filter narrow the table only, and the page says so.',
+    'Table: date, holding, dividend, currency cumulative, holding cumulative, actions. Server order and tie rules kept. 15 rows.',
+    'Add, edit, delete, and Delete all scoped to this currency with an in-page confirmation. Monthly / yearly chart, year totals, by-holding contribution.',
+  ], () => {
+    const currency = state.divCur || 'INR';
+    const payments = currency === 'INR'
+      ? [['21 Oct 2026', 'Infosys', 925], ['08 Aug 2026', 'Tata Consultancy', 690], ['19 Jul 2026', 'HDFC Bank', 585], ['14 May 2026', 'Tata Consultancy', 690], ['02 May 2026', 'Reliance Industries', 180]]
+      : [['14 Nov 2026', 'SAP', 17.6], ['20 May 2026', 'Allianz', 45.6], ['29 Apr 2026', 'ASML Holding', 12.8]];
+    const chronological = [...payments].reverse();
+    let running = 0; const perHolding = {};
+    const withCumulative = chronological.map(([date, name, amount]) => { running += amount; perHolding[name] = (perHolding[name] || 0) + amount; return [date, name, amount, running, perHolding[name]]; }).reverse();
+    return `${shellBar('Dividends')}<div class="body">
+      <div class="row"><span class="seg"><button type="button" class="btn" data-divcur="INR" aria-pressed="${currency === 'INR'}">INR</button> <button type="button" class="btn" data-divcur="EUR" aria-pressed="${currency === 'EUR'}">EUR</button></span><span class="spacer"></span><button type="button" class="btn">＋ Add dividend</button><button type="button" class="btn" data-import-div>Import</button><button type="button" class="btn" data-delall>Delete all ${currency}</button></div>
+      ${state.delAll ? `<div class="banner warn">Delete all ${payments.length} ${currency} dividends? EUR stays untouched.<span class="spacer"></span><button type="button" class="btn" data-delall-no>Keep them</button><button type="button" class="btn primary" data-delall-no>Delete ${payments.length}</button></div>` : ''}
+      <div class="cards"><div class="card"><span class="label">Total received</span><span class="val">${money(running, currency)}</span></div><div class="card"><span class="label">Payments</span><span class="val">${payments.length}</span></div><div class="card"><span class="label">Holdings paying</span><span class="val">${Object.keys(perHolding).length}</span></div><div class="card"><span class="label">Range</span><span class="val" style="font-size:13px">${payments[payments.length - 1][0]} – ${payments[0][0]}</span></div></div>
+      <div class="panel"><div class="row"><input aria-label="Search dividends" placeholder="Search holding"><span class="muted">Filters narrow the table only; totals and charts cover all ${currency}.</span></div>
+        <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Date</th><th>Holding</th><th>Dividend</th><th>${currency} cumulative</th><th>Holding cumulative</th><th></th></tr></thead><tbody>
+        ${withCumulative.map(([date, name, amount, total, holdingTotal]) => `<tr><td>${date}</td><td>${name}</td><td>${money(amount, currency)}</td><td>${money(total, currency)}</td><td>${money(holdingTotal, currency)}</td><td><button type="button" class="btn">Edit</button></td></tr>`).join('')}
+        </tbody></table></div></div></div>`;
+  }, root => {
+    $$('[data-divcur]', root).forEach(button => button.addEventListener('click', () => { state.divCur = button.dataset.divcur; state.delAll = false; rerender('f10'); }));
+    $('[data-delall]', root).addEventListener('click', () => { state.delAll = true; rerender('f10'); });
+    $$('[data-delall-no]', root).forEach(button => button.addEventListener('click', () => { state.delAll = false; rerender('f10'); }));
+    $('[data-import-div]', root).addEventListener('click', () => { state.importKind = 'dividend'; rerender('f9'); location.hash = 'f9'; });
+  });
+
+  const goldRows = [
+    { date: '12 Mar 2026', gm: 7980, weight: 8, quote: 66080, bill: 65800, paid: 65500, billed: 8.02, chennai: '7,985 (22K)' },
+    { date: '30 Jun 2026', gm: 8125, weight: 8, quote: 67200, bill: 67000, paid: 66480, billed: 8.0, chennai: 'GRT rate board' },
+    { date: '14 Sep 2026', gm: 7710, weight: 8, quote: null, bill: 63100, paid: 62450, billed: 7.98, chennai: '' },
+  ].map(row => {
+    const cost = row.gm * row.weight;
+    return { ...row, cost, gst: cost * 0.03, expected: cost * 1.03, gstQuote: row.quote === null ? null : row.quote * 0.03, nett: row.paid / row.weight, reduction: row.bill - row.paid, nimmi: row.paid - cost };
+  });
+  const GOLD_COLUMNS = [
+    ['date', 'Date', false], ['gm', 'gm Price', false], ['weight', 'Weight', false], ['cost', 'Gold cost', true], ['gst', '3%', true], ['expected', 'Total expected', true],
+    ['quote', 'Price in quote', false], ['gstQuote', '3% (quote)', true], ['bill', 'Amt per bill', false], ['paid', 'Actual paid', false], ['nett', 'Nett per gram', true],
+    ['reduction', 'Nett reduction', true], ['billed', 'Billed weight', false], ['nimmi', 'LOSS due to NIMMI', true], ['chennai', 'Chennai rate', false],
+  ];
+  const goldCell = (row, key) => {
+    const value = row[key];
+    if (key === 'date' || key === 'chennai') return esc(value || '—');
+    if (key === 'weight' || key === 'billed') return value === null ? '—' : value.toFixed(2) + ' g';
+    return money(value, 'INR');
+  };
+
+  frame('f11', '11', 'Gold', 'slices 20, 21', [
+    'All 15 columns in the table by default, in the original order, shaded where computed; the table scrolls sideways on narrow screens. Details shows the same 15, grouped Entered / Computed, plus Edit and Delete. The table may lose columns later; Details keeps all.',
+    'Eight metrics from the server; a null renders —, never 0.',
+    'Prices: enter today’s rate (INR per gram), see the last 30 dates, and open every month with View all months. Same-date entry overwrites.',
+    'The missing-price prompt stays: save some, skip for this visit, re-prompt for what is left. Gold stays outside act-as.',
+  ], () => {
+    if (!state.gold) return `${shellBar('Overview')}<div class="body"><div class="panel muted">Gold is off for this account. Tick Gold enabled above.</div></div>`;
+    const metrics = [['Total invested', money(194430, 'INR')], ['Current value', money(196800, 'INR')], ['Total grams', '24.00 g'], ['Avg cost / gram', money(8101.25, 'INR')], ['GOLDBEES P/L (ex tax)', money(1130, 'INR')], ['Physical net P/L', money(2370, 'INR')], ['Combined net P/L', money(3500, 'INR')], ['Physical XIRR', '—']];
+    const prices = ['18 Nov', '17 Nov', '16 Nov', '15 Nov', '14 Nov'].map((date, index) => [date, 8200 - index * 12]);
+    return `${shellBar('Gold')}<div class="body">
+      <div class="cards">${metrics.map(([label, value]) => `<div class="card"><span class="label">${label}</span><span class="val">${value}</span></div>`).join('')}</div>
+      ${state.goldPrompt !== false ? `<div class="banner warn"><span>Missing prices for 3 days: 9, 10, 11 Nov.</span><span class="spacer"></span><button type="button" class="btn primary" data-gp="review">Review missing prices</button><button type="button" class="btn" data-gp="skip">Skip for now</button></div>` : ''}
+      <div class="panel"><div class="row"><strong>Purchase ledger</strong><span class="spacer"></span><button type="button" class="btn primary">＋ Add purchase</button></div>
+        <div class="tscroll" style="margin-top:8px"><table><thead><tr>${GOLD_COLUMNS.map(([, label, calc]) => `<th class="${calc ? 'calc' : ''}">${label}</th>`).join('')}<th>Actions</th></tr></thead><tbody>
+        ${goldRows.map((row, index) => `<tr>${GOLD_COLUMNS.map(([key, , calc]) => `<td class="${calc ? 'calc' : ''}">${goldCell(row, key)}</td>`).join('')}<td><button type="button" class="btn" data-gdetail="${index}">Details</button></td></tr>`).join('')}
+        </tbody></table></div><p class="muted" style="margin-top:6px">Shaded = computed by the server. Scroll sideways for all 15 columns.</p></div>
+      <div class="panel"><div class="row"><strong>Daily gold price</strong><span class="spacer"></span><input type="date" aria-label="Price date" value="2026-11-18"><input aria-label="Price per gram INR" placeholder="₹ per gram" inputmode="decimal" style="width:110px"><button type="button" class="btn primary">Save</button></div>
+        <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Date</th><th>₹ per gram</th></tr></thead><tbody>${prices.map(([date, rate]) => `<tr><td>${date}</td><td>${money(rate, 'INR')}</td></tr>`).join('')}<tr><td class="muted">… last 30 dates</td><td></td></tr></tbody></table></div>
+        <div class="row" style="margin-top:6px"><span class="spacer"></span><button type="button" class="btn" data-allmonths>View all months</button></div></div>
+    </div><div class="dialog-back" id="gold-dlg" hidden></div>`;
+  }, root => {
+    $$('[data-gp]', root).forEach(button => button.addEventListener('click', () => { state.goldPrompt = false; rerender('f11'); }));
+    const back = $('#gold-dlg', root);
+    const show = html => { back.innerHTML = html; back.hidden = false; $('[data-close]', back).focus(); $('[data-close]', back).addEventListener('click', () => { back.hidden = true; }); };
+    $$('[data-gdetail]', root).forEach(button => button.addEventListener('click', () => {
+      const row = goldRows[Number(button.dataset.gdetail)];
+      const group = calc => GOLD_COLUMNS.filter(column => column[2] === calc).map(([key, label]) => `<dt>${label}</dt><dd>${goldCell(row, key)}</dd>`).join('');
+      show(`<div class="dialog" role="dialog" aria-modal="true" aria-label="Purchase details"><h4>Purchase · ${row.date}</h4><strong class="muted">Entered</strong><dl class="kv">${group(false)}</dl><strong class="muted">Computed</strong><dl class="kv">${group(true)}</dl>
+        <div class="row"><button type="button" class="btn">Edit</button><button type="button" class="btn">Delete</button><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`);
+    }));
+    const all = $('[data-allmonths]', root);
+    if (all) all.addEventListener('click', () => show(`<div class="dialog" role="dialog" aria-modal="true" aria-label="All months"><h4>All months</h4><p class="muted">Today's monthly jeweler-rate table (GoldPricesPanel), restyled, one month per section.</p><dl class="kv"><dt>November 2026</dt><dd>16 days</dd><dt>October 2026</dt><dd>31 days</dd><dt>September 2026</dt><dd>30 days</dd></dl><div class="row"><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`));
+  });
+
+  frame('f12', '12', 'Act-as and Admin', 'slices 22, 23, 24', [
+    'Opening a user’s portfolio shows a banner on every act-as page (Overview, Transactions, Dividends) naming the account and you, with Exit act-as back to Users.',
+    'Admins see their region’s users; super-admin-only controls (promote, region, Interface, feature switches, Manage admins, Branding) stay super-admin only.',
+    'Gold is not offered in act-as; your own Profile and Admin stay outside act-as.',
+    'Admin pages are restyled without an accurate mockup; their detailed visuals come with wave 6.',
+  ], () => `<div class="bar actas"><span>Viewing <strong>Bob Builder</strong> (@bob) as ${state.role === 'superadmin' ? 'Root' : 'Asha'}</span><span class="spacer"></span><button type="button" class="btn">Exit act-as</button></div>
+    <div class="bar"><span class="brand"><i></i>Portfolio</span><nav aria-label="Act-as navigation"><a href="#f12" aria-current="page">Overview</a><a href="#f12">Transactions</a><a href="#f12">Dividends</a></nav></div>
+    <div class="body"><div class="cards">${['Invested', 'Current', 'Today', 'Unrealised'].map((label, index) => `<div class="card"><span class="label">${label}</span><span class="val">${['₹2,41,800.00', '₹2,58,960.00', '+₹1,240.00', '+₹17,160.00'][index]}</span></div>`).join('')}</div>
+    <div class="panel muted">Bob's holdings render with the same Overview components, scoped to /admin/users/:id.</div></div>`);
+
+  frame('f13', '13', 'Profile', 'slice 25', [
+    'Name and username, saved with your current password.',
+    'Change password: current, new, confirm.',
+    'Security questions: replace all three at once from the existing catalogue, confirmed with your current password. Answers are never shown again.',
+  ], () => `${shellBar('')}<div class="body"><div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="panel" style="display:grid;gap:6px"><strong>Profile details</strong><input aria-label="Name" value="Asha Rao"><input aria-label="Username" value="asha"><input type="password" aria-label="Current password" placeholder="Current password"><button type="button" class="btn primary">Save profile</button></div>
+      <div class="panel" style="display:grid;gap:6px"><strong>Change password</strong><input type="password" aria-label="Current password for change" placeholder="Current password"><input type="password" aria-label="New password" placeholder="New password"><input type="password" aria-label="Confirm new password" placeholder="Confirm new password"><button type="button" class="btn primary">Change password</button></div>
+      <div class="panel" style="display:grid;gap:6px"><strong>Security questions</strong>${[1, 2, 3].map(index => `<select aria-label="Question ${index}"><option>Question ${index} from the catalogue</option></select><input aria-label="Answer ${index}" placeholder="Answer">`).join('')}<input type="password" aria-label="Current password for questions" placeholder="Current password"><button type="button" class="btn primary">Replace all three</button></div>
+    </div></div>`);
+
+  frame('f14', '14', 'Sign-up, forgot password, onboarding', 'slice 26', [
+    'These three screens use UI_2.0’s Light look whatever theme you pick.',
+    'Login stays exactly as #330 (the sunrise design).',
+  ], () => `<div class="body" style="place-items:center;padding:28px"><div class="panel" style="width:min(360px,100%);display:grid;gap:8px">
+      <span class="brand" style="font:800 16px var(--font-display)"><i style="width:22px;height:22px;border-radius:6px;background:var(--m-accent);display:inline-block"></i> Portfolio</span>
+      <strong style="font:750 18px var(--font-display)">Create your account</strong><input aria-label="Name" placeholder="Name"><input aria-label="Username" placeholder="Username"><input type="password" aria-label="Password" placeholder="Password">
+      <select aria-label="Region"><option>India</option><option>Europe</option><option>United States</option></select><button type="button" class="btn primary">Sign up</button><span class="muted">Already registered? Log in (the #330 screen).</span></div></div>`, null, 'light');
+
+  // ---------- render ----------
+  const host = document.getElementById('frames');
+  host.innerHTML = frames.map(item => `<section class="frame" id="${item.id}" aria-labelledby="${item.id}-h">
+      <header><span class="num">FRAME ${item.num}</span><h2 id="${item.id}-h">${item.title}</h2><span class="slices">${item.slices}</span></header>
+      <div class="mk" data-slot="${item.id}"></div>
+      <aside class="notes"><ol>${item.notes.map(note => `<li>${note}</li>`).join('')}</ol></aside></section>`).join('');
+
+  function rerender(id, entering) {
+    const item = frames.find(candidate => candidate.id === id);
+    const slot = host.querySelector(`[data-slot="${id}"]`);
+    slot.dataset.mk = item.forceTheme || state.theme;
+    slot.innerHTML = item.render();
+    slot.classList.toggle('enter', Boolean(entering) && state.theme === 'cyber' && !item.forceTheme);
+    const theme = slot.querySelector('.mk-theme');
+    if (theme) theme.addEventListener('change', () => setTheme(theme.value));
+    if (item.bind) item.bind(slot);
+  }
+  // frame 14 is pinned to Light (owner C12)
+  frames.find(item => item.id === 'f14').forceTheme = 'light';
+  const renderAll = entering => frames.forEach(item => rerender(item.id, entering));
+
+  function setTheme(theme) {
+    if (theme === 'cyber' && !state.premium) theme = 'dark';
+    const entering = theme === 'cyber' && state.theme !== 'cyber';
+    state.theme = theme;
+    $$('#theme-seg button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.v === theme)));
+    renderAll(entering);
+  }
+  $$('#theme-seg button').forEach(button => button.addEventListener('click', () => setTheme(button.dataset.v)));
+  $('#opt-premium').addEventListener('change', event => {
+    state.premium = event.target.checked;
+    $('#theme-seg [data-v="cyber"]').disabled = !state.premium;
+    if (!state.premium && state.theme === 'cyber') setTheme('dark'); else renderAll(false);
+  });
+  $('#opt-gold').addEventListener('change', event => { state.gold = event.target.checked; renderAll(false); });
+  $('#opt-role').addEventListener('change', event => { state.role = event.target.value; renderAll(false); });
+  renderAll(false);
+})();
+</script>
