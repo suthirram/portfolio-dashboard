@@ -213,7 +213,8 @@ func (s *SnapshotService) priceFor(
 	}
 
 	dateStr := date.UTC().Format("2006-01-02")
-	p, cur, perr := s.prices.GetPrice(ctx, holding.Symbol)
+	quote, perr := holdingQuote(ctx, s.prices, holding)
+	p, cur := quote.Price, quote.Currency
 	switch {
 	case perr != nil:
 		logger.Warn("snapshot: price fetch failed; assuming current price 0",

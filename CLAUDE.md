@@ -141,6 +141,7 @@ Go service using **echo** router and **cobra** CLI with structured logging via `
 * `internal/services/history.go` — `HistoryService`: list/add/patch-regions/delete/paste over `SnapshotStore`; `HistoryRow` carries per-currency buckets, totals, and the per-stock `Holdings` lines.
 * `internal/services/portfolio.go` — `PortfolioService`: composes holdings + live prices + the INR↔EUR rate for `/prices` and `/summary` (own portfolio and admin act-as).
 * `internal/services/price.go` — `PriceService` hits Yahoo Finance v8 API with an in-memory TTL cache (5 min, `sync.RWMutex`)
+* `internal/services/holding_quote.go` — `holdingQuote`: a holding's live quote in the holding's own currency (USD quote on a EUR holding → EUR at the live rate); every holding valuation (`/prices`, `/summary`, snapshot, stock XIRR) prices through it
 * `internal/services/gold.go` — `GoldService`: gold use cases (DD-003 §2) — owner-scoped transaction CRUD over the Postgres store with derived columns (GST 3%, nett per gram) computed at read time; constructed only when Postgres is up.
 * `internal/services/gold_prices.go` — daily gold price series (owner-entered jeweler rate); IST calendar bounds the missing-day window.
 * `internal/services/gold_metrics.go` — live metrics table: ledger totals, valuation at the latest price, GOLDBEES ETF P&L folded in from the stock holdings, XIRR of the physical flows.

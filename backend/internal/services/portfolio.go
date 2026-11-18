@@ -166,8 +166,8 @@ func (s *PortfolioService) Summary(ctx context.Context, userId primitive.ObjectI
 			// loss. Keeps the dashboard in lock-step with the cron snapshot
 			// (SnapshotService.BuildSnapshot).
 			var native float64
-			if price, _, pErr := s.priceService.GetPrice(ctx, holding.Symbol); pErr == nil && price > 0 {
-				native = holding.StocksOwned * price
+			if quote, pErr := holdingQuote(ctx, s.priceService, holding); pErr == nil && quote.Price > 0 {
+				native = holding.StocksOwned * quote.Price
 			}
 			nativeCurrent[currencyOf(holding.Currency)] += native
 			var cv float64

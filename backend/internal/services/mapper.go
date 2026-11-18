@@ -177,7 +177,7 @@ func HoldingWithPriceToAPI(ctx context.Context, holding domain.Holding, ps Price
 	}
 
 	if holding.Symbol != "" {
-		quote, priceErr := ps.GetQuote(ctx, holding.Symbol)
+		quote, priceErr := holdingQuote(ctx, ps, holding)
 		price := quote.Price
 		if priceErr == nil {
 			hwp.PreviousClosePrice = quote.PreviousClosePrice

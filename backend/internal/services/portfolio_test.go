@@ -21,6 +21,8 @@ type stubPriceFetcher struct {
 	priceErr      error
 	rate          float64
 	rateErr       error
+	// rates, when set, answers GetForexRate per "FROM/TO" pair instead of rate.
+	rates map[string]float64
 }
 
 func (s *stubPriceFetcher) GetPrice(_ context.Context, _ string) (float64, string, error) {
@@ -31,7 +33,10 @@ func (s *stubPriceFetcher) GetQuote(_ context.Context, _ string) (Quote, error) 
 	return Quote{Price: s.price, Currency: s.priceCur, PreviousClosePrice: s.previousClose}, s.priceErr
 }
 
-func (s *stubPriceFetcher) GetForexRate(_ context.Context, _, _ string) (float64, error) {
+func (s *stubPriceFetcher) GetForexRate(_ context.Context, from, to string) (float64, error) {
+	if s.rates != nil {
+		return s.rates[from+"/"+to], s.rateErr
+	}
 	return s.rate, s.rateErr
 }
 

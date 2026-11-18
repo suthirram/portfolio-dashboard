@@ -62,13 +62,13 @@ func (s *StockXirrService) View(ctx context.Context, userId primitive.ObjectID) 
 	// the XIRR agrees with the Current Value card beside it.
 	marketValues := make(map[primitive.ObjectID]float64, len(active))
 	for _, holding := range active {
-		price, _, priceErr := s.prices.GetPrice(ctx, holding.Symbol)
-		if priceErr != nil || price <= 0 {
+		quote, priceErr := holdingQuote(ctx, s.prices, holding)
+		if priceErr != nil || quote.Price <= 0 {
 			logger.Warn("stock xirr: quote unavailable, valuing at 0",
 				zap.String("symbol", holding.Symbol), zap.Error(priceErr))
 			continue
 		}
-		marketValues[holding.ID] = holding.StocksOwned * price
+		marketValues[holding.ID] = holding.StocksOwned * quote.Price
 	}
 	return buildStockXirr(holdings, txns, marketValues, s.Today()), nil
 }
