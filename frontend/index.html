@@ -8,8 +8,9 @@
          with it, so rem-sized stylesheet text follows. Never set a root
          font-size, or the scaling is overridden. -->
     <meta name="text-scale" content="scale" />
-    <!-- Both schemes are supported; dark is the default before the stored
-         theme applies, so the first paint never flashes white. -->
+    <!-- Both schemes are supported, so until the stylesheet loads the
+         canvas follows the OS preference: dark for a dark OS, white for a
+         light one. tokens.css then sets each theme's own scheme. -->
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0a0c16" />
     <title>Portfolio Dashboard</title>
