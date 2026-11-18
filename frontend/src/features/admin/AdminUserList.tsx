@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
 import { useUiRevamp } from '../../lib/uiMode'
 import { AdminShell } from './AdminShell'
-import { AdminUserSettings, FEATURE_SWITCHES, type FeatureSwitch } from './AdminUserSettings'
+import { AdminUserSettings, FEATURE_SWITCHES, UiModeSelect, type FeatureSwitch } from './AdminUserSettings'
 import { useAdminActions } from './useAdminActions'
 
 type StatusFilter = 'active' | 'all'
@@ -45,7 +45,7 @@ export default function AdminUserList() {
     })
   }, [users, filter])
 
-  const { caller, busy, runAction, toggleFeature } = useAdminActions(load)
+  const { caller, busy, runAction, toggleFeature, setUiMode } = useAdminActions(load)
   const isSuper = caller?.role === 'superadmin'
   const featureNamed = (key: FeatureSwitch['key']) => FEATURE_SWITCHES.find(feature => feature.key === key)!
 
@@ -75,7 +75,7 @@ export default function AdminUserList() {
         ) : (
           <AdminUserSettings users={users} regions={regions} caller={caller} busy={busy}
             includeHidden={status === 'all'} onIncludeHidden={includeHidden => setStatus(includeHidden ? 'all' : 'active')}
-            runAction={runAction} onFeature={toggleFeature} />
+            runAction={runAction} onFeature={toggleFeature} onUiMode={setUiMode} />
         )}
       </AdminShell>
     )
@@ -232,18 +232,9 @@ export default function AdminUserList() {
                           </button>
                         )}
                         {isSuper && (
-                          // PD-054: the glass UI is opt-in per account.
-                          <button className="btn btn-sm" disabled={busy === listedUser.id}
-                            aria-pressed={Boolean(listedUser.ui_revamp)}
-                            onClick={() => toggleFeature(listedUser, featureNamed('ui_revamp'))}>
-                            {listedUser.ui_revamp ? 'Glass UI off' : 'Glass UI on'}
-                          </button>
-                        )}
-                        {isSuper && (
-                          <button type="button" className="btn btn-sm" disabled aria-pressed={false}
-                            title="The new UI variant is not available yet.">
-                            UI_2.0 (coming soon)
-                          </button>
+                          // PD-059: one interface per account (Classic, Glass or UI_2.0).
+                          <UiModeSelect listedUser={listedUser} label={`Interface for ${listedUser.username}`}
+                            disabled={busy === listedUser.id} onChange={setUiMode} />
                         )}
                         {!isRowSuper && !isSelf && (
                           <button className="btn btn-sm btn-danger" disabled={busy === listedUser.id}

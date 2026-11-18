@@ -14,7 +14,7 @@ vi.mock('../../lib/api/client', async importOriginal => ({
 const user = {
   id: 'demo', name: 'Demo', username: 'demo', role: 'user' as const, region: 'india',
   must_change_password: false, disabled: false, locked: false,
-  gold_enabled: false, premium: false, delta_from_history: false, ui_revamp: false,
+  gold_enabled: false, premium: false, delta_from_history: false, ui_revamp: false, ui_mode: 'classic' as const,
 }
 
 function LocationProbe() {

@@ -52,6 +52,7 @@ export type RegionUpdateRequest = Schemas['RegionUpdateRequest']
 export type GoldToggleRequest = Schemas['GoldToggleRequest']
 export type PremiumToggleRequest = Schemas['PremiumToggleRequest']
 export type UserFlagToggleRequest = Schemas['UserFlagToggleRequest']
+export type UiModeRequest = Schemas['UiModeRequest']
 export type InvestmentDelta = Schemas['InvestmentDelta']
 export type BrandingFont = Schemas['BrandingFont']
 export type BrandingSettings = Schemas['BrandingSettings']
@@ -213,6 +214,8 @@ export const api = {
     request<void>('PUT', `/admin/users/${id}/delta-from-history`, body),
   adminSetUserUiRevamp: (id: string, body: UserFlagToggleRequest) =>
     request<void>('PUT', `/admin/users/${id}/ui-revamp`, body),
+  adminSetUserUiMode:   (id: string, body: UiModeRequest) =>
+    request<void>('PUT', `/admin/users/${id}/ui-mode`, body),
   adminUpdateBranding:  (body: BrandingUpdateRequest) => request<BrandingSettings>('PUT', '/admin/branding', body),
 
   listGoldTransactions:  () => request<GoldTransaction[]>('GET', '/gold/transactions'),

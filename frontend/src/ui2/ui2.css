@@ -1,0 +1,436 @@
+/* UI_2.0 (PD-059). Every rule is scoped under :root[data-ui="ui2"], so the
+ * classic and glass UIs never see it. Values are ported 1:1 from the owner's
+ * handoff mockup (docs/visuals/PD-059-ui-2-reference.html); its palette
+ * lives under --u2-* so it never overrides the app tokens that pages not yet
+ * rebuilt still read. The app's "cyberpunk" theme is the mockup's "cyber". */
+
+:root[data-ui="ui2"] {
+  --u2-bg: #f4f6fa;
+  --u2-panel: rgba(255, 255, 255, 0.88);
+  --u2-side: rgba(255, 255, 255, 0.78);
+  --u2-text: #172238;
+  --u2-muted: #637188;
+  --u2-border: #e3e8f0;
+  --u2-accent: #5265d8;
+  --u2-accentsoft: #edf0ff;
+  --u2-green: #087d61;
+  --u2-greensoft: #e7f6ef;
+  --u2-red: #c34153;
+  --u2-redsoft: #fff0f1;
+  --u2-shadow: 0 8px 30px #20366605;
+  --u2-line: #dce3ed;
+  --u2-chart: #5265d8;
+  --u2-wash: #eef2fc;
+  /* Type follows the super admin's Branding font (useBranding sets
+   * --brand-font-family). The mockup's DM Sans / Manrope become choices in
+   * Branding with slice 24 (owner, 2026-11-18). */
+  --u2-font: var(--brand-font-family);
+  --u2-font-display: var(--brand-font-family);
+}
+
+:root[data-ui="ui2"][data-theme="dark"] {
+  --u2-bg: #10151f;
+  --u2-panel: rgba(27, 35, 49, 0.92);
+  --u2-side: rgba(22, 29, 41, 0.94);
+  --u2-text: #eef2fa;
+  --u2-muted: #a1aec2;
+  --u2-border: #303c50;
+  --u2-accent: #a1adff;
+  --u2-accentsoft: #2c3654;
+  --u2-green: #65d6b1;
+  --u2-greensoft: #183d36;
+  --u2-red: #ff94a2;
+  --u2-redsoft: #442a36;
+  --u2-shadow: 0 8px 30px #00000012;
+  --u2-line: #354156;
+  --u2-chart: #a1adff;
+  --u2-wash: #172034;
+}
+
+:root[data-ui="ui2"][data-theme="cyberpunk"] {
+  --u2-bg: #100f20;
+  --u2-panel: rgba(29, 25, 50, 0.92);
+  --u2-side: rgba(21, 18, 39, 0.96);
+  --u2-text: #f5efff;
+  --u2-muted: #b5a9cc;
+  --u2-border: #42345d;
+  --u2-accent: #6ee7ef;
+  --u2-accentsoft: #243648;
+  --u2-green: #74edc3;
+  --u2-greensoft: #183b39;
+  --u2-red: #ff95bb;
+  --u2-redsoft: #49243e;
+  --u2-shadow: 0 8px 35px #a332e709;
+  --u2-line: #43375c;
+  --u2-chart: #6ee7ef;
+  --u2-wash: #2c1944;
+}
+
+:root[data-ui="ui2"] body {
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  font: 14px var(--u2-font);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* Only the shell's own controls; page components keep their button styles. */
+:root[data-ui="ui2"] .ui2-sidebar button,
+:root[data-ui="ui2"] .ui2-topbar button {
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+/* ---------- sidebar ---------- */
+
+:root[data-ui="ui2"] .ui2-sidebar {
+  width: 224px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  padding: 30px 18px 20px;
+  background: var(--u2-side);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--u2-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+  /* Short screens: Appearance and the account stay reachable. */
+  overflow-y: auto;
+}
+
+:root[data-ui="ui2"] .ui2-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 800 20px var(--u2-font-display);
+  padding: 0 12px 34px;
+  letter-spacing: -0.7px;
+  color: var(--u2-text);
+  text-decoration: none;
+}
+
+:root[data-ui="ui2"] .ui2-brand-dot {
+  color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .ui2-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #5265d8;
+  color: white;
+}
+
+:root[data-ui="ui2"][data-theme="cyberpunk"] .ui2-brand-mark {
+  background: linear-gradient(135deg, #25c7d8, #a350e7);
+}
+
+:root[data-ui="ui2"] .ui2-brand-mark svg {
+  width: 21px;
+}
+
+:root[data-ui="ui2"] .ui2-nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--u2-muted);
+  margin: 0 14px 12px;
+}
+
+:root[data-ui="ui2"] .ui2-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:root[data-ui="ui2"] .ui2-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 9px;
+  color: var(--u2-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+:root[data-ui="ui2"] .ui2-nav a svg {
+  width: 19px;
+  height: 19px;
+}
+
+:root[data-ui="ui2"] .ui2-nav a:hover {
+  background: var(--u2-accentsoft);
+}
+
+:root[data-ui="ui2"] .ui2-nav a.active {
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  font-weight: 700;
+}
+
+:root[data-ui="ui2"] .ui2-sidebar-bottom {
+  margin-top: auto;
+}
+
+:root[data-ui="ui2"] .ui2-theme-title {
+  padding: 0 7px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-themes {
+  display: flex;
+  padding: 4px;
+  border: 1px solid var(--u2-border);
+  border-radius: 10px;
+  gap: 2px;
+}
+
+:root[data-ui="ui2"] .ui2-themes button {
+  flex: 1;
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  font-size: 11px;
+  padding: 9px 3px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-themes button.selected {
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  box-shadow: 0 1px 5px #00000012;
+}
+
+:root[data-ui="ui2"] .ui2-themes button[hidden] {
+  display: none !important;
+}
+
+:root[data-ui="ui2"] .ui2-account {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 6px 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--u2-border);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .ui2-account:focus-visible {
+  outline: 2px solid var(--u2-accent);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+:root[data-ui="ui2"] .ui2-account small {
+  display: block;
+  color: var(--u2-muted);
+  margin-top: 3px;
+}
+
+:root[data-ui="ui2"] .ui2-account-caret {
+  margin-left: auto;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--u2-accentsoft);
+  display: grid;
+  place-items: center;
+  color: var(--u2-accent);
+  font-weight: 700;
+}
+
+:root[data-ui="ui2"] .ui2-account-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--u2-panel);
+  border: 1px solid var(--u2-border);
+  box-shadow: var(--u2-shadow);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 40;
+}
+
+:root[data-ui="ui2"] .ui2-account-menu button {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 12px;
+  border-radius: 6px;
+  color: var(--u2-text);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .ui2-account-menu button:hover {
+  background: var(--u2-accentsoft);
+}
+
+/* ---------- main column + breadcrumb ---------- */
+
+:root[data-ui="ui2"] .ui2-main {
+  margin-left: 224px;
+  max-width: 1800px;
+  padding: 0 36px 30px;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+:root[data-ui="ui2"] .ui2-topbar {
+  height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--u2-border);
+  gap: 16px;
+}
+
+:root[data-ui="ui2"] .ui2-breadcrumb {
+  color: var(--u2-muted);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .ui2-breadcrumb span {
+  color: var(--u2-text);
+  margin-left: 14px;
+}
+
+:root[data-ui="ui2"] .ui2-breadcrumb b {
+  font-weight: 500;
+}
+
+:root[data-ui="ui2"] .ui2-mobile-menu,
+:root[data-ui="ui2"] .ui2-drawer-close,
+:root[data-ui="ui2"] .ui2-backdrop {
+  display: none;
+}
+
+:root[data-ui="ui2"] .ui2-topbar {
+  position: relative;
+  z-index: 2;
+}
+
+/* Pages not rebuilt yet carry copies of the shell's chrome — .shell-dup,
+ * their header theme picker and back-to-dashboard link (PD-054 marks them
+ * the same way for the glass shell); the shell already offers them. The
+ * mockup has no page artwork, so the classic page-art layers are dropped. */
+:root[data-ui="ui2"] .ui2-shell .shell-dup,
+:root[data-ui="ui2"] .ui2-shell .page-nav .theme-picker-inline,
+:root[data-ui="ui2"] .ui2-shell .page-nav a.btn-icon[href="/"] {
+  display: none !important;
+}
+
+:root[data-ui="ui2"] .page-art::before,
+:root[data-ui="ui2"] .page-art::after {
+  display: none;
+}
+
+:root[data-ui="ui2"] .page-art {
+  background: transparent;
+}
+
+@media (min-width: 1500px) {
+  :root[data-ui="ui2"] .ui2-main {
+    padding-left: 50px;
+    padding-right: 50px;
+  }
+}
+
+@media (max-width: 1200px) {
+  :root[data-ui="ui2"] .ui2-sidebar {
+    width: 194px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  :root[data-ui="ui2"] .ui2-main {
+    margin-left: 194px;
+    padding: 0 24px 25px;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Closed, the drawer is hidden from focus and screen readers too, after
+   * its slide-out; open, it is visible at once. */
+  :root[data-ui="ui2"] .ui2-sidebar {
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.2s, visibility 0s linear 0.2s;
+    width: 224px;
+    box-shadow: 10px 0 50px #0003;
+  }
+  :root[data-ui="ui2"] .ui2-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.2s;
+  }
+  /* The open drawer covers the ☰ button, so it carries its own close
+   * control and a backdrop that closes it. */
+  :root[data-ui="ui2"] .ui2-drawer-close {
+    display: block;
+    position: absolute;
+    top: 26px;
+    right: 12px;
+    z-index: 1;
+    border: 0;
+    background: none;
+    color: var(--u2-muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  :root[data-ui="ui2"] .ui2-drawer-close:hover {
+    background: var(--u2-accentsoft);
+  }
+  :root[data-ui="ui2"] .ui2-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    border: 0;
+    padding: 0;
+    background: #0003;
+  }
+  :root[data-ui="ui2"] .ui2-main {
+    margin-left: 0;
+    padding: 0 18px 25px;
+  }
+  :root[data-ui="ui2"] .ui2-topbar {
+    height: 66px;
+  }
+  :root[data-ui="ui2"] .ui2-mobile-menu {
+    display: block;
+    border: 0;
+    background: none;
+    color: var(--u2-text);
+    font-size: 22px;
+  }
+  :root[data-ui="ui2"] .ui2-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  :root[data-ui="ui2"] .ui2-breadcrumb span {
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ui="ui2"] .ui2-sidebar {
+    transition: none;
+  }
+}

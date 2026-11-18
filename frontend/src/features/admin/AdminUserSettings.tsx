@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Region, type User } from '../../lib/api/client'
+import { UI_MODE_LABELS, type UiMode } from '../../lib/uiMode'
 
 // The glass UI's Admin → Users (PD-054): a searchable list of accounts in a
 // side pane and, for the selected account, its settings grouped as a
@@ -12,7 +13,7 @@ import { api, type Region, type User } from '../../lib/api/client'
 export type RunAction = (id: string, action: () => Promise<unknown>, confirmMsg?: string) => Promise<void>
 
 export interface FeatureSwitch {
-  key: 'gold_enabled' | 'premium' | 'delta_from_history' | 'ui_revamp'
+  key: 'gold_enabled' | 'premium' | 'delta_from_history'
   label: string
   description: string
   // Asked before turning the feature off (data or look the user loses).
@@ -29,8 +30,27 @@ export const FEATURE_SWITCHES: FeatureSwitch[] = [
     offConfirm: username => `Disable premium for ${username}? Their theme falls back to dark.`,
   },
   { key: 'delta_from_history', label: 'Investment delta from History', description: 'Off: computed from the ledger (default).' },
-  { key: 'ui_revamp', label: 'Glass UI', description: 'The glass look with sidebar, ⌘K palette and toasts.' },
 ]
+
+export type SetUiMode = (listedUser: User, mode: UiMode) => Promise<void>
+
+// UiModeSelect picks an account's interface (PD-059): one value, so an
+// account is never in two interfaces at once.
+export function UiModeSelect({ listedUser, label, disabled, onChange }: {
+  listedUser: User
+  label: string
+  disabled: boolean
+  onChange: SetUiMode
+}) {
+  return (
+    <select aria-label={label} className="admin-select" value={listedUser.ui_mode ?? 'classic'} disabled={disabled}
+      onChange={e => void onChange(listedUser, e.target.value as UiMode)}>
+      {(Object.keys(UI_MODE_LABELS) as UiMode[]).map(mode => (
+        <option key={mode} value={mode}>{UI_MODE_LABELS[mode]}</option>
+      ))}
+    </select>
+  )
+}
 
 export const initials = (listedUser: User) =>
   (listedUser.name || listedUser.username).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('')
@@ -42,7 +62,7 @@ function statusOf(listedUser: User): { label: string; tone: 'ok' | 'warn' | 'off
 }
 
 export function AdminUserSettings({
-  users, regions, caller, busy, includeHidden = false, onIncludeHidden, runAction, onFeature, listLabel = 'Users',
+  users, regions, caller, busy, includeHidden = false, onIncludeHidden, runAction, onFeature, onUiMode, listLabel = 'Users',
 }: {
   users: User[]
   regions: Region[]
@@ -53,6 +73,7 @@ export function AdminUserSettings({
   onIncludeHidden?: (includeHidden: boolean) => void
   runAction: RunAction
   onFeature: (listedUser: User, feature: FeatureSwitch) => Promise<void>
+  onUiMode: SetUiMode
   listLabel?: string
 }) {
   const [query, setQuery] = useState('')
@@ -105,14 +126,14 @@ export function AdminUserSettings({
           <div className="glass-panel admin-md-placeholder">Select a user to see their settings.</div>
         ) : (
           <UserDetail key={selected.id} listedUser={selected} caller={caller} isSuper={isSuper} regions={regions}
-            regionLabel={regionLabel} busy={busy === selected.id} runAction={runAction} onFeature={onFeature} />
+            regionLabel={regionLabel} busy={busy === selected.id} runAction={runAction} onFeature={onFeature} onUiMode={onUiMode} />
         )}
       </section>
     </div>
   )
 }
 
-function UserDetail({ listedUser, caller, isSuper, regions, regionLabel, busy, runAction, onFeature }: {
+function UserDetail({ listedUser, caller, isSuper, regions, regionLabel, busy, runAction, onFeature, onUiMode }: {
   listedUser: User
   caller: User | null
   isSuper: boolean
@@ -121,6 +142,7 @@ function UserDetail({ listedUser, caller, isSuper, regions, regionLabel, busy, r
   busy: boolean
   runAction: RunAction
   onFeature: (listedUser: User, feature: FeatureSwitch) => Promise<void>
+  onUiMode: SetUiMode
 }) {
   const isSelf = listedUser.id === caller?.id
   const isRowSuper = listedUser.role === 'superadmin'
@@ -174,11 +196,8 @@ function UserDetail({ listedUser, caller, isSuper, regions, regionLabel, busy, r
               </button>
             </SettingRow>
           ))}
-          <SettingRow label="UI_2.0" description="Coming soon. The new UI variant is not available yet.">
-            <button type="button" role="switch" aria-checked={false} aria-label="UI_2.0"
-              className="admin-switch" disabled title="Coming soon">
-              <span className="admin-switch-knob" />
-            </button>
+          <SettingRow label="Interface" description="Classic, Glass or UI_2.0 for this account.">
+            <UiModeSelect listedUser={listedUser} label="Interface" disabled={busy} onChange={onUiMode} />
           </SettingRow>
         </SettingsSection>
       )}
