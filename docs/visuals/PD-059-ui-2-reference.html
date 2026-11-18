@@ -67,6 +67,18 @@ body{isolation:isolate}.main{position:relative;z-index:1}.currency-atmosphere{po
 .perspective-font-card { display: flex; align-items: center; gap: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: pointer; }
 .perspective-font-card strong, .perspective-font-card span span { display: block; margin: 8px 0; }
 .perspective-font-card:has(input:checked) { border-color: var(--accent); background: var(--accentsoft); }
+.perspective-brand-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.perspective-brand-heading h2 { font-size: 24px; margin-top: 12px; }
+.perspective-applied { padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--accentsoft); font-size: 12px; }
+.perspective-fonts .perspective-font-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; }
+.perspective-font-choice { display: flex; align-items: center; gap: 9px; }
+.perspective-font-description { color: var(--muted); font-size: 11px; }
+.perspective-font-sample { display: grid; gap: 10px; padding-top: 10px; font-size: 15px; font-variant-numeric: tabular-nums; font-size-adjust: from-font; overflow-wrap: anywhere; }
+.perspective-font-card .perspective-font-sample span { margin: 0; }
+.perspective-font-alphabet { font-size: 30px; font-weight: 600; }
+body[data-preview-brand-font],
+body[data-preview-brand-font] :is(h1,h2,h3,.brand,.summary-value,.big-value,.metric-amount) { font-family: var(--preview-brand-font); font-size-adjust: from-font; }
+.perspective-font-card:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
 .nav button[hidden], .themes button[hidden], .account-menu button[hidden] { display: none !important; }
 .perspective-features .compactselect { max-width: 170px; }
 @media (pointer: coarse) {
@@ -720,7 +732,18 @@ adminDemoUsers.forEach(user => {
   user.uiMode ||= 'ui2'; user.goldEnabled ??= true;
   user.premium ??= user.role !== 'user'; user.deltaFromHistory ??= false;
 });
-let previewPerspective = 'superadmin', previewAdminPage = 'users', previewBrandFont = 'roboto';
+let previewPerspective = 'superadmin', previewAdminPage = 'users', previewBrandFont = 'dm_sans';
+const previewBrandFonts = [
+  { id: 'dm_sans', label: 'DM Sans', google: 'DM Sans:wght@400;600;700', family: '"DM Sans", Arial, sans-serif', description: 'Original mockup body font' },
+  { id: 'manrope', label: 'Manrope', google: 'Manrope:wght@400;600;700', family: '"Manrope", Arial, sans-serif', description: 'Original mockup heading font' },
+  { id: 'inter', label: 'Inter', google: 'Inter:wght@400;600;700', family: '"Inter", Arial, sans-serif', description: 'Sans serif' },
+  { id: 'roboto', label: 'Roboto', google: 'Roboto:wght@400;600;700', family: '"Roboto", Arial, sans-serif', description: 'Existing application choice' },
+  { id: 'source_sans_3', label: 'Source Sans 3', google: 'Source Sans 3:wght@400;600;700', family: '"Source Sans 3", Arial, sans-serif', description: 'Sans serif' },
+  { id: 'lato', label: 'Lato', google: 'Lato:wght@400;700', family: '"Lato", Arial, sans-serif', description: 'Sans serif' },
+  { id: 'nunito_sans', label: 'Nunito Sans', google: 'Nunito Sans:wght@400;600;700', family: '"Nunito Sans", Arial, sans-serif', description: 'Sans serif' },
+  { id: 'ibm_plex_sans', label: 'IBM Plex Sans', google: 'IBM Plex Sans:wght@400;600;700', family: '"IBM Plex Sans", Arial, sans-serif', description: 'Sans serif' },
+  { id: 'jetbrains_mono', label: 'JetBrains Mono', google: 'JetBrains Mono:wght@400;600;700', family: '"JetBrains Mono", ui-monospace, monospace', description: 'Existing application choice · monospace' },
+];
 const previewRegions = ['India', 'Europe', 'US'];
 const previewModes = [['classic','Classic'],['glass','Glass'],['ui2','UI_2.0']];
 const originalProfilePreview = renderProfile;
@@ -744,8 +767,62 @@ function perspectiveAdminTabs() {
 
 function bindPerspectiveAdminTabs() {
   document.querySelectorAll('[data-admin-section]').forEach(button => button.onclick = () => {
-    previewAdminPage = button.dataset.adminSection; adminQuery = ''; renderAdmin();
+    openPerspectiveAdminSection(button.dataset.adminSection);
   });
+}
+
+function openPerspectiveAdminSection(section) {
+  if (section !== 'users' && perspectiveViewer().role !== 'superadmin') return;
+  previewAdminPage = section; adminQuery = '';
+  adminOpen('Administration');
+  if (section === 'branding') {
+    document.getElementById('crumb').textContent = 'Branding';
+    document.getElementById('page-title').textContent = 'Make Portfolio feel like yours.';
+    document.getElementById('page-subtitle').textContent = 'Choose a typeface for the shared application look.';
+    document.querySelectorAll('[data-nav]').forEach(button => button.classList.toggle('active', button.dataset.nav === 'Branding'));
+    location.hash = 'branding'; document.title = 'Branding · UI_2.0 design preview';
+  }
+}
+
+function loadPreviewBrandFonts() {
+  if (document.getElementById('preview-google-fonts')) return;
+  const stylesheet = document.createElement('link');
+  stylesheet.id = 'preview-google-fonts'; stylesheet.rel = 'stylesheet';
+  stylesheet.href = 'https://fonts.googleapis.com/css2?' + previewBrandFonts
+    .map(font => 'family=' + encodeURIComponent(font.google)).join('&') + '&display=swap';
+  stylesheet.referrerPolicy = 'no-referrer';
+  stylesheet.onerror = () => {
+    const status = document.getElementById('preview-font-status');
+    if (status) status.textContent = 'Google Fonts could not load. Previews are using their fallback fonts.';
+  };
+  document.head.append(stylesheet);
+}
+
+function renderBrandingPreview(root) {
+  loadPreviewBrandFonts();
+  const applied = document.body.dataset.previewBrandFont;
+  root.innerHTML = perspectiveAdminTabs() + `<section class="panel admin-section perspective-branding">
+    <div class="perspective-brand-heading"><div><span class="eyebrow">SUPER ADMIN · BRANDING</span><h2>Find your portfolio’s typeface</h2><p class="asset-note">Select a font, compare its letters and financial figures, then apply it to this local mockup.</p></div><span class="badge">${previewBrandFonts.length} FONTS</span></div>
+    <p class="perspective-applied" id="preview-applied-font" role="status">Applied: ${applied ? previewBrandFonts.find(font=>font.id===applied).label : 'Original mockup · DM Sans / Manrope'}</p>
+    <form id="perspective-brand-form" aria-label="Brand font settings"><fieldset class="perspective-fonts"><legend>Brand font</legend>
+      ${previewBrandFonts.map(font=>`<label class="perspective-font-card" for="brand-${font.id}"><span class="perspective-font-choice"><input type="radio" name="font" id="brand-${font.id}" value="${font.id}" ${previewBrandFont===font.id?'checked':''}><strong>${font.label}</strong></span><span class="perspective-font-description">${font.description}</span><span class="perspective-font-sample" style="font-family:${assetEscape(font.family)}"><span class="perspective-font-alphabet">Aa Bb 0123</span><span>Portfolio performance</span><span>₹1,23,456.78 · €2,610.50</span><span>+12.34% · −0.56%</span></span></label>`).join('')}
+    </fieldset><p class="asset-note" id="preview-font-status">Google Fonts load when you are online. If unavailable, readable system-font fallbacks remain. These additional choices are local design options; production still uses its existing font catalogue.</p>
+    <div class="asset-modal-actions"><button class="btn" type="button" id="preview-font-reset">Restore original typography</button><button class="btn primary" type="submit">Apply font to preview</button></div></form></section>`;
+  bindPerspectiveAdminTabs();
+  document.getElementById('perspective-brand-form').onsubmit = event => {
+    event.preventDefault();
+    const font = previewBrandFonts.find(option=>option.id===event.target.elements.font.value);
+    if (!font) return;
+    previewBrandFont=font.id;
+    document.body.style.setProperty('--preview-brand-font',font.family);
+    document.body.dataset.previewBrandFont=font.id;
+    document.getElementById('preview-applied-font').textContent='Applied: '+font.label+' · local preview only';
+    toast(font.label+' applied to this mockup · no production branding changed');
+  };
+  document.getElementById('preview-font-reset').onclick = () => {
+    previewBrandFont='dm_sans';document.body.style.removeProperty('--preview-brand-font');
+    delete document.body.dataset.previewBrandFont;renderAdmin();toast('Original mockup typography restored');
+  };
 }
 
 function perspectiveFeature(user, key, label, description) {
@@ -761,13 +838,7 @@ renderAdmin = function () {
   const root = adminRoot();
   document.getElementById('page-subtitle').textContent = superadmin ? 'Manage accounts, features and interface settings across regions.' : 'Manage the accounts in your region.';
   if (previewAdminPage === 'branding') {
-    root.innerHTML = perspectiveAdminTabs() + `<section class="panel admin-section"><h2>Branding</h2><p class="asset-note">Global font setting · super admin only. These are the existing font choices; changes here affect this session’s sample selection.</p>
-      <form id="perspective-brand-form"><fieldset class="perspective-fonts"><legend>Brand font</legend>${[['roboto','Roboto','Arial, sans-serif'],['jetbrains_mono','JetBrains Mono','ui-monospace, monospace']].map(([value,label,family])=>`<label class="perspective-font-card" for="brand-${value}"><input type="radio" name="font" id="brand-${value}" value="${value}" ${previewBrandFont===value?'checked':''}><span style="font-family:${family}"><strong>${label}</strong><span>Aa · ₹1,23,456.78</span></span></label>`).join('')}</fieldset><div class="asset-modal-actions"><button class="btn primary" type="submit">Save sample branding</button></div></form></section>`;
-    bindPerspectiveAdminTabs();
-    document.getElementById('perspective-brand-form').onsubmit = event => {
-      event.preventDefault(); previewBrandFont = event.target.elements.font.value;
-      toast('Sample branding saved · no global setting changed');
-    };
+    renderBrandingPreview(root);
     return;
   }
   const scoped = adminDemoUsers.filter(user => superadmin || (user.role !== 'superadmin' && user.region === viewer.region));
@@ -877,6 +948,7 @@ function setPreviewPerspective(value) {
   previewPerspective=value;actingUser=null;adminUpdateBanner();previewAdminPage='users';adminQuery='';adminSelected='demo-alex';
   const viewer=perspectiveViewer(), isAdmin=['admin','superadmin'].includes(viewer.role);
   document.querySelector('[data-nav="Administration"]').hidden=!isAdmin;
+  document.querySelector('[data-nav="Branding"]').hidden=viewer.role!=='superadmin';
   document.getElementById('admin-users-open').hidden=!isAdmin;
   document.querySelector('[data-nav="Gold"]').hidden=!viewer.goldEnabled;
   account.querySelector('.avatar').textContent=adminInitials(viewer);
@@ -887,6 +959,11 @@ function setPreviewPerspective(value) {
   if(!viewer.premium&&document.documentElement.dataset.theme==='cyber')setTheme('dark');
   const page=document.getElementById('crumb').textContent;
   if(page==='Profile')renderProfile();
+  else if(page==='Branding'){
+    if(viewer.role==='superadmin')openPerspectiveAdminSection('branding');
+    else if(isAdmin)openPerspectiveAdminSection('users');
+    else document.querySelector('[data-nav="Overview"]').click();
+  }
   else if(page==='Administration'){if(isAdmin)renderAdmin();else document.querySelector('[data-nav="Overview"]').click();}
   else if(page==='Gold'&&!viewer.goldEnabled)document.querySelector('[data-nav="Overview"]').click();
   if(location.hash==='#admin'&&isAdmin)adminOpen('Administration');
@@ -906,6 +983,13 @@ const perspectiveControl=document.createElement('div');perspectiveControl.classN
 perspectiveControl.innerHTML='<label for="preview-perspective">Preview as</label><select id="preview-perspective" name="perspective" class="compactselect"><option value="superadmin">Super admin</option><option value="admin">Admin · Europe</option><option value="user">User · standard</option><option value="premium">User · premium</option></select>';
 document.querySelector('.topright').append(perspectiveControl);
 document.getElementById('preview-perspective').onchange=event=>setPreviewPerspective(event.target.value);
+const brandingSidebarButton=previewButton('Branding',()=>{
+  if(perspectiveViewer().role==='superadmin')openPerspectiveAdminSection('branding');
+},'');
+brandingSidebarButton.dataset.nav='Branding';
+brandingSidebarButton.innerHTML='<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 19 6-14 6 14M6 14h8M18 9h3m-1.5 0v10"/></svg><span>Branding</span>';
+document.querySelector('.nav').append(brandingSidebarButton);
 setPreviewPerspective('superadmin');
+if(location.hash==='#branding')openPerspectiveAdminSection('branding');
 
 </script></body></html>

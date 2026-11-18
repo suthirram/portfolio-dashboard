@@ -1,0 +1,190 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD-059: UI_2.0 visual specification</title>
+<style>
+/* Palettes copied verbatim from frontend/src/styles/tokens.css. */
+{{TOKENS}}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-primary); color: var(--text-primary); font: 15px/1.6 system-ui, sans-serif; }
+button, select { font: inherit; color: var(--text-primary); background: var(--bg-input); border: 1px solid var(--border-light); border-radius: var(--radius-sm); padding: 8px 12px; }
+button { cursor: pointer; }
+button:hover { background: var(--bg-card-hover); }
+button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+button[aria-pressed="true"] { background: var(--blue-dim); border-color: var(--blue); }
+a { color: var(--blue); }
+main { max-width: 1440px; padding: 36px 24px 70px; margin-inline: auto; }
+h1 { font-size: clamp(25px,4vw,38px); line-height: 1.2; letter-spacing: -.03em; margin: 10px 0 16px; }
+h2 { font-size: 21px; margin: 34px 0 12px; }
+h3 { font-size: 17px; margin: 0 0 8px; }
+p, li { color: var(--text-secondary); }
+.metadata { font-size: 13px; }
+.eyebrow { color: var(--blue); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.scope-note, .decision, .frame-doc { padding: 18px 22px; border: 1px solid var(--border); background: var(--bg-card); border-radius: var(--radius); }
+.scope-note { border-inline-start: 4px solid var(--yellow); }
+.decision-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,290px),1fr)); gap: 14px; }
+.decision strong { display: block; margin-bottom: 8px; }
+.decision p { margin: 0; font-size: 13px; }
+.spec-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 14px 24px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-secondary); }
+.control { display: grid; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.control select { max-width: 100%; }
+.button-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.frame-doc { margin-top: 18px; }
+.frame-meta { font-size: 12px; color: var(--text-secondary); }
+.annotations { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 10px 30px; padding-inline-start: 24px; margin-block: 14px; }
+.annotations li { padding-inline-start: 4px; font-size: 13px; }
+.annotations li::marker { color: var(--blue); font-weight: 700; }
+.stage { overflow: auto; padding: 12px; margin-top: 16px; border: 1px solid var(--border); background: var(--bg-primary); border-radius: var(--radius-sm); max-width: 100%; }
+.stage iframe { display: block; width: 1280px; height: 880px; margin-inline: auto; border: 0; background: var(--bg-secondary); color: var(--text-primary); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13px; background: var(--bg-card); }
+caption { text-align: left; padding: 12px; font-weight: 600; }
+th, td { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--text-primary); background: var(--bg-secondary); }
+td { color: var(--text-secondary); }
+td button { font-size: 12px; white-space: nowrap; }
+.state { display: inline-block; font-size: 11px; border: 1px solid var(--border-light); border-radius: 5px; padding: 2px 7px; color: var(--yellow); }
+code { font-size: 12px; padding: 2px 5px; background: var(--blue-dim); border-radius: 4px; }
+.skip { position: absolute; inset: 0 auto auto -9999px; }
+.skip:focus { inset: 8px auto auto 8px; padding: 8px; background: var(--bg-secondary); z-index: 5; }
+footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
+@media (max-width: 640px) { main { padding: 24px 14px 48px; } .frame-doc { padding: 14px; } .control { width: 100%; } }
+@media print { .spec-controls, .stage, .table-scroll button { display: none; } main { max-width: none; } }
+</style>
+<a class="skip" href="#frames">Skip to visual frames</a>
+<main>
+  <header>
+    <div class="eyebrow">Visual specification · local review</div>
+    <h1>PD-059: UI_2.0 portfolio revamp</h1>
+    <ul class="metadata">
+      <li><strong>Status:</strong> Draft annotated visual companion · 18 November 2026</li>
+      <li><strong>Owner:</strong> project owner</li>
+      <li><strong>Spec:</strong> <a href="../prds/PRD-015-ui-2.md">PRD-015</a> → <a href="../designs/DD-015-ui-2.md">DD-015</a> → <a href="../plans/PD-059-ui-2.md">PD-059</a> · <a href="../plans/PD-059-ui-2-status.md">status board</a></li>
+      <li><strong>Companions:</strong> <a href="PD-059-ui-2-guide.md">visual review guide</a> · <a href="PD-059-ui-2-reference.html">original reference</a> · <a href="README.md">visual index</a></li>
+    </ul>
+    <p>This is a numbered, annotated view of the local handoff, not production markup. Use the frame selector to inspect the existing sidebar, the portfolio flows and the three permission levels. Every embedded figure and action is fictional.</p>
+    <div class="scope-note"><strong>Offline, self-contained review.</strong><p>No build or server is needed to open this file. Fonts use local system fallbacks; the separate handoff preview loads Google Fonts online. The additional Branding fonts are design options, not a production catalogue change. Pending admin/auth visual approvals and plan amendments remain pending.</p></div>
+  </header>
+
+  <section>
+    <h2>1. Owner decisions reflected here</h2>
+    <div class="decision-grid">
+      <div class="decision"><strong>Keep the original sidebar</strong><p>Retain its position, proportions, appearance and mobile drawer. This later owner decision supersedes the draft shell’s top-navigation illustration. No Ambient control or command palette.</p></div>
+      <div class="decision"><strong>One interface per account</strong><p>Super admin chooses Classic, Glass or UI_2.0. User and regional Admin views do not gain feature, role or Branding controls. Cyber remains premium-only.</p></div>
+      <div class="decision"><strong>Complete overall valuation</strong><p>INR + EUR converted at the stored daily rate + physical gold. Missing required FX or gold valuation is unavailable, never zero or a cost-price substitute. Re-fetch is user-triggered.</p></div>
+      <div class="decision"><strong>Keep financial workflows</strong><p>Dialogs hold breakdowns and holding actions. Investment delta stays inline. Imports keep their parsers and load header-only examples. All 15 Gold columns remain visible by default.</p></div>
+    </div>
+  </section>
+
+  <section id="frames" tabindex="-1">
+    <h2>2. Numbered interactive frames</h2>
+    <div class="spec-controls" role="group" aria-label="Visual specification controls">
+      <label class="control" for="frame-choice">Frame<select id="frame-choice"></select></label>
+      <div class="control"><span>Theme</span><div class="button-group" role="group" aria-label="Frame theme"><button type="button" data-doc-theme="light" aria-pressed="true">Light</button><button type="button" data-doc-theme="dark" aria-pressed="false">Dark</button><button type="button" data-doc-theme="cyberpunk" aria-pressed="false">Cyber</button></div></div>
+      <div class="control"><span>Artboard width</span><div class="button-group" role="group" aria-label="Artboard width"><button type="button" data-width="1280" aria-pressed="true">Desktop · 1280</button><button type="button" data-width="768" aria-pressed="false">Tablet · 768</button><button type="button" data-width="390" aria-pressed="false">Phone · 390</button></div></div>
+      <button type="button" id="reset-frame">Reset frame</button>
+    </div>
+    <article class="frame-doc" aria-labelledby="frame-title">
+      <h3 id="frame-title">Frame 01 · Shared shell and Overview</h3>
+      <p id="frame-meta" class="frame-meta"></p>
+      <ol id="frame-notes" class="annotations"></ol>
+      <p id="frame-status" class="frame-meta" role="status">Preparing the offline artboard…</p>
+      <div class="stage"><iframe id="app-artboard" title="UI_2.0 interactive visual frame"></iframe></div>
+    </article>
+  </section>
+
+  <section>
+    <h2>3. Frames → plan slices</h2>
+    <div class="table-scroll"><table><caption>Visual coverage, reused paths and implementation dependencies</caption><thead><tr><th scope="col">Frame</th><th scope="col">Surface</th><th scope="col">Plan slices</th><th scope="col">Reuse / behavior</th><th scope="col">Open</th></tr></thead><tbody id="frame-map"></tbody></table></div>
+    <p>These frame numbers are review identifiers, not implementation claims. Slices marked “needs amendment” in the status board still need their detailed plan amendment before work starts. Auth screens in slice 26 are not newly mocked here; login stays as #330, and the remaining auth screens require their Light-theme visual review.</p>
+  </section>
+
+  <section>
+    <h2>4. Edge-state and permission contract</h2>
+    <div class="table-scroll"><table><caption>Required behavior independent of presentation</caption><thead><tr><th scope="col">Condition</th><th scope="col">Required result</th><th scope="col">Inspect</th></tr></thead><tbody>
+      <tr><td>First FX fetch fails, no prior rate</td><td>Required converted amounts unavailable; flag the date for re-fetch.</td><td>Frame 04 → Preview data state</td></tr>
+      <tr><td>FX fetch fails, prior rate exists</td><td>Carry the known rate and flag it. Keep its actual FX date.</td><td>Frame 03 → Previous FX rate carried</td></tr>
+      <tr><td>Gold held, no earlier price</td><td>That day’s overall amounts unavailable; entering a price heals the read.</td><td>Frame 04 → Gold held, no price yet</td></tr>
+      <tr><td>Gold service unavailable</td><td>All overall amounts unavailable. Never show a stock-only figure as the overall total.</td><td>Frame 04 → Gold service unavailable</td></tr>
+      <tr><td>Re-fetch fails / Not now</td><td>Failed dates remain flagged; Not now skips the prompt for the visit. No manual FX entry.</td><td>Frame 05</td></tr>
+      <tr><td>Standard User / regional Admin</td><td>No super-admin feature, interface, role or Branding controls. Admin is region-scoped.</td><td>Frames 10–11</td></tr>
+      <tr><td>Own / super-admin account</td><td>No hiding/deleting the protected account, own-role change or reassignment.</td><td>Frame 09 → Portfolio Owner</td></tr>
+      <tr><td>Act-as</td><td>Banner persists through Overview, Transactions and Dividends. Gold stays outside scope; exit clears the viewed user.</td><td>Frame 09 → Open portfolio</td></tr>
+      <tr><td>Historical snapshot / manual History addition</td><td>Past dates use historical FX; good stored rates are preserved. New dates create an overall document, even before a rate exists.</td><td>DD-015 §2.3–2.4; backend tests, not this mockup</td></tr>
+      <tr><td>Backfill / repair</td><td>Additive and resumable; dry-run previews writes; preserve rated documents; repair with stored rates works without Yahoo.</td><td>DD-015 §2.6; backend verification, not this mockup</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <section>
+    <h2>5. Review and verification limits</h2>
+    <ul>
+      <li>Shipped palette tokens are embedded verbatim. The original mockup layout is retained, and theme selection is passed explicitly into the artboard.</li>
+      <li>No automatic external requests, account writes, production data, historical-rate fetching, migrations or backend calculations run from this file.</li>
+      <li>The embedded preview uses Sep–Nov 2026 fixtures, simplified import validation and the original small Gold price-gap example. These are not normative financial logic or production window sizes.</li>
+      <li>Additional Google Fonts are named for design review. Offline samples use system fallbacks; use the online-capable local handoff to compare downloaded faces.</li>
+      <li>Browser-session interactions and JavaScript syntax can be checked independently. Native browser appearance, focus return, reduced-motion rendering and live API behavior are not claimed as verified when browser permission is unavailable.</li>
+      <li>Production implementation must reuse existing hooks, parsers, the Go ledger, permissions and the shared component registry, rather than copying demo calculations or arrays.</li>
+    </ul>
+  </section>
+  <footer>PD-059 visual companion · owner decisions through 18 November 2026 · base plan reviewed through PR #332 / 70e8ff3 · local review, not published</footer>
+</main>
+<script>
+const frames = [
+  { id:'01', title:'Shared shell and Overview', role:'superadmin', page:'Overview', slices:'2–7', spec:'PRD-015 §4.2–4.3', reuse:'ThemePicker, CurrencySprinkle, SummaryCards, holdings hooks', notes:['Keep the original fixed sidebar and responsive drawer; do not replace it with a top nav.','Compact summary cards open breakdown dialogs. Keep one prominent conversion rate.','The preview-role selector is a review control; it does not change an actual account’s permissions.'] },
+  { id:'02', title:'Holding details and actions', role:'superadmin', page:'Overview', action:'holding', slices:'5–6, 15', spec:'PRD-015 §4.3', reuse:'AddEditModal fields, ledger hook, opening-date prompt, sector review', notes:['Click a holding row or its native name button; rows carry no separate action button.','Cost, realised P/L, dividends and XIRR stay available in the detail dialog.','Edit, ledger, opening date and delete remain in this workflow. Production ledger replay stays authoritative.'] },
+  { id:'03', title:'Overall performance and carried FX', role:'superadmin', page:'Overview', view:'performance', valuation:'carried-fx', slices:'8–10', spec:'PRD-015 §4.4; DD-015 §2', reuse:'portfolio_overall, flowAdjustedReturnPct, pnlPct, HistoryOverlay', notes:['One INR + EUR + gold series; INR/EUR display and 1W/1M/3M/1Y/All periods.','Invested/current, P/L % and flow-adjusted daily movement are separate views. Compute daily movement before weekly thinning.','A carried known FX rate remains valued but flagged. Chart calculations here use fictional fixtures only.'] },
+  { id:'04', title:'Unavailable overall valuation', role:'superadmin', page:'Overview', view:'performance', valuation:'unpriced-gold', slices:'8, 10–12', spec:'DD-015 §2.4–2.7', reuse:'OverallService missing-rate/gold-unavailable flags', notes:['Use Preview data state to inspect missing first FX, unpriced gold and unavailable Gold service.','Unknown required inputs produce gaps or unavailable amounts, never fabricated zeros or gold-at-cost.','Chart data is available in a table so the visual is not the only way to inspect a point.'] },
+  { id:'05', title:'History and user-triggered FX re-fetch', role:'superadmin', page:'History', action:'fx', slices:'11–14', spec:'PRD-015 §4.4–4.5; DD-015 §2.7', reuse:'History page, PeriodPerformanceCard, HoldingsModal, current paste format', notes:['History stays a snapshot ledger with its month view, tables, drill-down and charts.','Re-fetch is own-account only, not act-as. Failed dates remain flagged; Not now skips for the visit.','The legend stays below the table: green up, red down, blue unchanged, purple new investment.'] },
+  { id:'06', title:'Transactions, facets and inline delta', role:'superadmin', page:'Transactions', slices:'15–17', spec:'PRD-015 §4.6', reuse:'useAllTransactions, transactionFilters, usePagination, Groww parser, ledger hook', notes:['Event-type and currency filters allow multiple selections, with a count and Clear selection.','The shared page size is 15, and filter/sort changes reset paging. Totals remain native-currency bought/sold/dividend totals.','Investment delta stays inline. Event forms retain buy, sell, dividend, split, bonus and merger fields; opening remains holding-managed.'] },
+  { id:'07', title:'Dividend import and currency scope', role:'superadmin', page:'Dividends', action:'dividend-import', slices:'18–19', spec:'PRD-015 §4.7', reuse:'useDividends, existing CSV parser and server matching, cumulative rules', notes:['Upload and paste share validation; Load example inserts a header and hint only, never payment rows.','The 5,000-row limit, matching decisions and currency-scoped delete-all confirmation remain.','Closing the dialog reveals native-currency summaries and analytics. Table filters do not redefine whole-currency chart scope.'] },
+  { id:'08', title:'Gold ledger, details and prices', role:'superadmin', page:'Gold', slices:'20–21', spec:'PRD-015 §4.8', reuse:'Gold metrics API, derived columns, purchase/price flows, missing-price prompt', notes:['All 15 original columns stay in the main table, in order, plus Actions; Details also contains all 15.','All eight metric surfaces remain. Null values are unknown; no ETF or XIRR zero is invented.','Daily price entry and the last 30 dates remain visible; View all months opens a monthly review. Existing partial-save and skip behavior stays.'] },
+  { id:'09', title:'Super admin account settings', role:'superadmin', page:'Administration', slices:'1–2, 22–24', spec:'PRD-015 §4.1, §4.9; DD-015 §1', reuse:'AdminUserSettings, current role/region/feature endpoints', notes:['Features & interface contains Gold, Premium, delta source and the mutually exclusive Classic / Glass / UI_2.0 picker.','Administrators and Branding are separate sections. Self/super-admin protection remains, and one-admin-per-region behavior is retained.','Open portfolio demonstrates the persistent act-as banner on supported routes. The settings here modify sample selections only.'] },
+  { id:'10', title:'Regional administrator perspective', role:'admin', page:'Administration', slices:'22–23', spec:'PRD-015 §4.9', reuse:'Existing region-scoped account management and act-as routing', notes:['Max is a regional admin, not the owner. Only Europe-scoped sample accounts are listed.','No feature/interface switches, role promotion, administrator-management or Branding access are granted.','Unlock, hide/reactivate, confirmation and portfolio access retain their existing permission boundaries.'] },
+  { id:'11', title:'Standard user perspective', role:'user', page:'Overview', slices:'2–7, 25', spec:'PRD-015 §4.2–4.3, §4.9', reuse:'Auth guards, own portfolio hooks, premium eligibility', notes:['The user sees their portfolio and account menu; Administration and Branding are absent.','Cyber is unavailable without Premium. Light/Dark remain, and an ineligible Cyber choice falls back to Dark.','Profile is own-account only. Review scenarios must not become production role-switch controls.'] },
+  { id:'12', title:'Premium user and Cyber entrance', role:'premium', page:'Overview', theme:'cyber', slices:'2–3', spec:'PRD-015 §4.2; DD-015 §1.5', reuse:'useTheme, ThemePicker, CurrencySprinkle, reduced-motion preference', notes:['Premium unlocks Cyber; it does not unlock Administration or Branding.','Cyber entrance plays briefly on load/selection, settles into a readable layout and respects reduced motion.','The original sidebar and financial content stay in place across theme changes.'] },
+  { id:'13', title:'Branding and font selection', role:'superadmin', page:'Branding', slices:'24', spec:'PRD-015 §4.9; later owner font-review request', reuse:'Existing Branding setting path; additional fonts are local design options', notes:['Branding is directly discoverable in the original sidebar for Super admin only.','Nine font choices show letters, amounts and percentages. Apply changes the local mockup; Restore returns to the original typography.','Roboto and JetBrains Mono are current production choices. Additional Google Fonts require the later implementation amendment; offline frame samples use system fallbacks.'] },
+  { id:'14', title:'Own Profile and account security', role:'user', page:'Profile', slices:'25', spec:'PRD-015 §4.9', reuse:'Current identity/password/security-question paths and validations', notes:['The identity follows the selected viewer, including the standard User perspective.','Profile, password and all-three security-question update surfaces remain separate and own-account scoped.','No real credential should be entered into a mockup. Auth screen visuals in slice 26 remain a separate review.'] },
+];
+const appSource = {{APP_JSON}};
+const artboard = document.getElementById('app-artboard');
+const picker = document.getElementById('frame-choice');
+let chosenFrame = frames.find(frame=>'frame-'+frame.id===location.hash.slice(1)) || frames[0];
+let theme = 'light', width = 1280;
+document.documentElement.lang = 'en'; document.documentElement.dataset.theme = theme;
+picker.innerHTML = frames.map(frame=>`<option value="${frame.id}">${frame.id} · ${frame.title}</option>`).join('');
+document.getElementById('frame-map').innerHTML = frames.map(frame=>`<tr><td>${frame.id}</td><td>${frame.title}</td><td>${frame.slices}</td><td>${frame.reuse}</td><td><button type="button" data-open-frame="${frame.id}">Frame ${frame.id}</button></td></tr>`).join('');
+
+function applyArtboard() {
+  const controller = artboard.contentWindow?.visualSpec;
+  if (!controller) return;
+  controller.show(chosenFrame, theme);
+  artboard.style.width = width + 'px';
+  artboard.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+  document.getElementById('frame-status').textContent = `Frame ${chosenFrame.id} · ${width}px · offline fictional sample. Standard-user Cyber selection falls back to Dark.`;
+}
+function chooseFrame(id) {
+  chosenFrame = frames.find(frame=>frame.id===id) || frames[0];
+  picker.value = chosenFrame.id;
+  document.getElementById('frame-title').textContent = `Frame ${chosenFrame.id} · ${chosenFrame.title}`;
+  document.getElementById('frame-meta').textContent = `${chosenFrame.spec} · Plan slices ${chosenFrame.slices} · ${chosenFrame.role} perspective`;
+  document.getElementById('frame-notes').replaceChildren(...chosenFrame.notes.map(note=>{const item=document.createElement('li');item.textContent=note;return item;}));
+  document.getElementById('frame-status').textContent = 'Loading the offline frame…';
+  location.hash = 'frame-' + chosenFrame.id;
+  artboard.srcdoc = appSource;
+}
+artboard.addEventListener('load',applyArtboard);
+picker.onchange = ()=>chooseFrame(picker.value);
+document.querySelectorAll('[data-open-frame]').forEach(button=>button.onclick=()=>{chooseFrame(button.dataset.openFrame);document.getElementById('frames').focus();});
+document.querySelectorAll('[data-doc-theme]').forEach(button=>button.onclick=()=>{
+  theme=button.dataset.docTheme;document.documentElement.dataset.theme=theme;
+  document.querySelectorAll('[data-doc-theme]').forEach(option=>option.setAttribute('aria-pressed',String(option===button)));
+  applyArtboard();
+});
+document.querySelectorAll('[data-width]').forEach(button=>button.onclick=()=>{
+  width=Number(button.dataset.width);
+  document.querySelectorAll('[data-width]').forEach(option=>option.setAttribute('aria-pressed',String(option===button)));
+  artboard.style.width=width+'px';
+});
+document.getElementById('reset-frame').onclick=()=>chooseFrame(chosenFrame.id);
+chooseFrame(chosenFrame.id);
+</script>
