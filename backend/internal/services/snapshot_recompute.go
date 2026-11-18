@@ -130,17 +130,15 @@ func (r *SnapshotRecomputer) RecomputeFrom(ctx context.Context, uid primitive.Ob
 
 // linesAsOf builds the per-stock lines for one snapshot date: each holding's
 // ledger replayed as-of that date, valued at the close stored on the existing
-// line for the symbol (carry-forward at average cost when none exists).
+// line for the symbol in the holding's currency (carry-forward at average
+// cost when none exists).
 func (r *SnapshotRecomputer) linesAsOf(
 	holdings []domain.Holding,
 	byHolding map[primitive.ObjectID][]domain.Transaction,
 	existing domain.PortfolioSnapshot,
 ) []domain.HoldingSnapshot {
 	logger := r.log()
-	priorClose := make(map[string]domain.HoldingSnapshot, len(existing.Lines))
-	for _, ln := range existing.Lines {
-		priorClose[ln.Symbol] = ln
-	}
+	priorClose := newStoredLines(existing.Lines)
 	// As-of cutoff: include events dated on or before this snapshot's day.
 	cutoff := domain.UTCDate(existing.Date).Add(24 * time.Hour)
 
@@ -163,7 +161,7 @@ func (r *SnapshotRecomputer) linesAsOf(
 				zap.String("date", existing.Date.UTC().Format("2006-01-02")),
 			)
 		}
-		prior, hadPrior := priorClose[h.Symbol]
+		prior, hadPrior := priorClose.find(h.Symbol, cur)
 		if pos.StocksOwned == 0 && !hadPrior {
 			continue
 		}

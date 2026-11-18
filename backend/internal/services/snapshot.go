@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -79,6 +80,44 @@ func CurrencyOf(h domain.Holding) (string, bool) {
 	return "unknown", false
 }
 
+// storedLines finds a holding's line in a stored snapshot by symbol and
+// currency bucket. One symbol can be held in both EUR and INR, and
+// holdingQuote converts each holding's close into its own currency, so a
+// symbol-only lookup would hand one bucket the other's close.
+type storedLines struct {
+	byKey map[string]domain.HoldingSnapshot
+	// legacy holds lines from a bucket no longer in use (old USD rows) by
+	// symbol, only when the symbol has exactly one line in the snapshot.
+	legacy map[string]domain.HoldingSnapshot
+}
+
+func storedLineKey(symbol, currency string) string { return symbol + "|" + currency }
+
+func newStoredLines(lines []domain.HoldingSnapshot) storedLines {
+	index := storedLines{byKey: make(map[string]domain.HoldingSnapshot, len(lines)), legacy: map[string]domain.HoldingSnapshot{}}
+	linesPerSymbol := map[string]int{}
+	for _, line := range lines {
+		index.byKey[storedLineKey(line.Symbol, line.Currency)] = line
+		linesPerSymbol[line.Symbol]++
+	}
+	for _, line := range lines {
+		if !slices.Contains(domain.AllCurrencies, line.Currency) && linesPerSymbol[line.Symbol] == 1 {
+			index.legacy[line.Symbol] = line
+		}
+	}
+	return index
+}
+
+// find returns the line for symbol in currency, or the symbol's sole legacy
+// line, whose close predates per-currency buckets.
+func (index storedLines) find(symbol, currency string) (domain.HoldingSnapshot, bool) {
+	if line, ok := index.byKey[storedLineKey(symbol, currency)]; ok {
+		return line, true
+	}
+	line, ok := index.legacy[symbol]
+	return line, ok
+}
+
 // BuildSnapshot computes the (user, date) snapshot for userId.
 //
 // On a trading day the position is marked to the live current price
@@ -102,14 +141,12 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, userId primitive.Ob
 	// On a weekend, load the most recent prior snapshot once and re-use its
 	// per-stock prices rather than fetching a closed-market quote.
 	weekend := isWeekend(date)
-	priorBySymbol := map[string]domain.HoldingSnapshot{}
+	prior := newStoredLines(nil)
 	if weekend {
 		prev, perr := s.snapshots.LatestBefore(ctx, userId, date)
 		switch {
 		case perr == nil:
-			for _, ln := range prev.Lines {
-				priorBySymbol[ln.Symbol] = ln
-			}
+			prior = newStoredLines(prev.Lines)
 			logger.Info("snapshot: weekend; re-valuing current positions at prior close",
 				zap.String("user_id", userId.Hex()),
 				zap.String("date", date.UTC().Format("2006-01-02")),
@@ -135,7 +172,7 @@ func (s *SnapshotService) BuildSnapshot(ctx context.Context, userId primitive.Ob
 			continue
 		}
 		invested := holding.StocksOwned * holding.AvgCostPrice
-		price, priceCur, priceDate := s.priceFor(ctx, logger, userId, holding, date, priorBySymbol)
+		price, priceCur, priceDate := s.priceFor(ctx, logger, userId, holding, cur, date, prior)
 		current := 0.0
 		if price > 0 {
 			current = holding.StocksOwned * price
@@ -203,17 +240,19 @@ func (s *SnapshotService) priceFor(
 	logger *zap.Logger,
 	userId primitive.ObjectID,
 	holding domain.Holding,
+	bucket string,
 	date time.Time,
-	prior map[string]domain.HoldingSnapshot,
+	prior storedLines,
 ) (price float64, currency, priceDate string) {
-	if pl, ok := prior[holding.Symbol]; ok {
+	if pl, ok := prior.find(holding.Symbol, bucket); ok {
 		// Weekend carry-forward: current position re-valued at the prior
 		// stored price. PriceDate keeps the trading day that price belonged to.
 		return pl.ClosePrice, holding.Currency, pl.PriceDate
 	}
 
 	dateStr := date.UTC().Format("2006-01-02")
-	p, cur, perr := s.prices.GetPrice(ctx, holding.Symbol)
+	quote, perr := holdingQuote(ctx, s.prices, holding)
+	p, cur := quote.Price, quote.Currency
 	switch {
 	case perr != nil:
 		logger.Warn("snapshot: price fetch failed; assuming current price 0",

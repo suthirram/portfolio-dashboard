@@ -226,3 +226,53 @@ func TestLinesAsOf_WorthlessStoredCloseStaysWorthless(t *testing.T) {
 		t.Errorf("invested = %v, want 500", ln.Invested)
 	}
 }
+
+func TestLinesAsOf_SameSymbolInTwoCurrenciesKeepsEachClose(t *testing.T) {
+	eurId, inrId := primitive.NewObjectID(), primitive.NewObjectID()
+	holdings := []domain.Holding{
+		{ID: eurId, Symbol: "NVDA", Script: "NVDA", Currency: "EUR"},
+		{ID: inrId, Symbol: "NVDA", Script: "NVDA", Currency: "INR"},
+	}
+	byHolding := map[primitive.ObjectID][]domain.Transaction{
+		eurId: {{HoldingID: eurId, Type: domain.TxnBuy, Date: utcDay(6, 10), Quantity: 2, Amount: 300}},
+		inrId: {{HoldingID: inrId, Type: domain.TxnBuy, Date: utcDay(6, 10), Quantity: 3, Amount: 450}},
+	}
+	// The EUR holding's close was converted from USD; the INR one was not.
+	existing := domain.PortfolioSnapshot{
+		Date: utcDay(6, 15),
+		Lines: []domain.HoldingSnapshot{
+			{Symbol: "NVDA", Currency: "EUR", ClosePrice: 180},
+			{Symbol: "NVDA", Currency: "INR", ClosePrice: 200},
+		},
+	}
+
+	r := &SnapshotRecomputer{}
+	lines := r.linesAsOf(holdings, byHolding, existing)
+	closes := map[string]float64{}
+	for _, line := range lines {
+		closes[line.Currency] = line.ClosePrice
+	}
+	if closes["EUR"] != 180 || closes["INR"] != 200 {
+		t.Errorf("closes = %v, want EUR 180 and INR 200 (each bucket keeps its own close)", closes)
+	}
+}
+
+func TestLinesAsOf_LegacyUSDLineStillReused(t *testing.T) {
+	hid := primitive.NewObjectID()
+	holdings := []domain.Holding{{ID: hid, Symbol: "AAPL", Script: "AAPL", Currency: "INR"}}
+	byHolding := map[primitive.ObjectID][]domain.Transaction{
+		hid: {{HoldingID: hid, Type: domain.TxnBuy, Date: utcDay(6, 10), Quantity: 2, Amount: 200}},
+	}
+	// Old rows bucketed US listings as USD. Recompute must keep that stored
+	// close, not drop to average cost because the bucket no longer matches.
+	existing := domain.PortfolioSnapshot{
+		Date:  utcDay(6, 15),
+		Lines: []domain.HoldingSnapshot{{Symbol: "AAPL", Currency: "USD", ClosePrice: 150}},
+	}
+
+	r := &SnapshotRecomputer{}
+	lines := r.linesAsOf(holdings, byHolding, existing)
+	if len(lines) != 1 || lines[0].ClosePrice != 150 {
+		t.Fatalf("lines = %+v, want one line at the stored close 150", lines)
+	}
+}
