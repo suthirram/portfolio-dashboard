@@ -4,6 +4,8 @@ import { useAuthOptional } from '../../features/auth/AuthContext'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
 import { navItems, type NavItem } from '../../components/shell/navItems'
 import '../ui2.css'
+import '../cyberEntrance.css'
+import { useCyberEntrance } from './useCyberEntrance'
 
 // Ui2Shell is the UI_2.0 app frame (PD-059), built 1:1 from the owner's
 // handoff mockup (docs/visuals/PD-059-ui-2-reference.html): a fixed sidebar
@@ -43,6 +45,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
+  const entranceRef = useCyberEntrance(theme, Boolean(user?.premium))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
@@ -113,7 +116,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   const go = (to: string) => { setMenuOpen(false); setDrawerOpen(false); navigate(to) }
 
   return (
-    <div className="ui2-shell">
+    <div ref={entranceRef} className="ui2-shell">
       <aside id="ui2-sidebar" className={drawerOpen ? 'ui2-sidebar open' : 'ui2-sidebar'} aria-label="Sidebar">
         <button ref={closeButtonRef} type="button" className="ui2-drawer-close" aria-label="Close navigation" onClick={closeDrawer}>✕</button>
         <Link to="/" className="ui2-brand" aria-label="Portfolio home">

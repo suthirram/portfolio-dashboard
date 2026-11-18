@@ -24,7 +24,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | in review |
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | | | | open |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | | | | open |
-| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `docs/PD-059-wave2` (amendment) | #338 (amendment) | amendment in review |
+| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | implementation PR | in progress |
 | 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | | | | needs amendment |
 | 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | | | | needs amendment |
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
@@ -55,9 +55,10 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 merge before the slice starts.
 
 Slice 3's independent [Wave 2a amendment](PD-059-wave2-cyber-entrance.md)
-contains complete draft code and tests. Its dependency (#334) is merged;
-slice 8 is not a dependency. Codex owns this amendment and the following
-slice 3 implementation. Slices 4–7 still need their own amendment.
+contains its implementation and test plan. It is merged as #338; slice 3
+implementation is in progress on `feat/PD-059-cyber-entrance`. Its dependency
+(#334) is merged; slice 8 is not a dependency. Slices 4–7 still need their own
+amendment.
 
 ## UI_2.0 components registry
 
