@@ -21,15 +21,15 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 
 | # | Wave | Layer | Slice | Depends on | Owner | Branch | PR | State |
 |---|---|---|---|---|---|---|---|---|
-| 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | in review |
-| 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | | | | open |
-| 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | | | | open |
+| 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | merged |
+| 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | | `feat/PD-059-ui-mode` | #333 | merged |
+| 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | | `feat/PD-059-ui2-shell` | #334 | merged |
 | 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | in review |
 | 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | | | | needs amendment |
 | 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | | | | needs amendment |
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
 | 7 | 2 | FE | Allocation by holding / sector / currency | 2 | | | | needs amendment |
-| 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | | | | open |
+| 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | in review |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | | | | open |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
 | 10 | 3 | FE | Overview overall performance chart | 2, 8 | | | | needs amendment |
@@ -80,8 +80,8 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 
 * The handoff mockup (`docs/visuals/PD-059-ui-2-reference.html`, from
   `/handoff/design.html`) is the single source of truth for layout and
-  style: every screen matches it 1:1. Claude's own visual spec was
-  withdrawn.
+  style: every screen matches it 1:1. Treat deviations as bugs to fix, not
+  redesign opportunities. Claude's own visual spec was withdrawn.
 * Slices merge to `main` behind the switch; label `ui-2.0`; revert by
   switching accounts or deleting `ui2/` + the `ShellLayout` branch.
 * `ui_mode` enum `classic | glass | ui2`; super admin sets it per account.
@@ -89,6 +89,8 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 * Claude drives; Codex takes tasks by claiming rows. No fixed area owners.
 * Themes Light / Dark / Cyber; Cyber premium-gated. No ⌘K. No Ambient
   toggle (maybe last). Currency sprinkle as today.
+* UI_2.0 typography follows the font selected on Branding. DM Sans and
+  Manrope are added to Branding's font choices in slice 24.
 * Overview: overall chart (INR + EUR + gold, INR/EUR toggle, 1W–All,
   existing volatility); Holding details dialog holds metrics + actions; keep
   AddEdit fields; keep and restyle sector review, opening prompt, badges.
