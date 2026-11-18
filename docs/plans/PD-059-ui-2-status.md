@@ -61,7 +61,7 @@ shared piece.
 
 | Component / hook | Path | Purpose / props | Added in |
 |---|---|---|---|
-| `Ui2Shell` | `frontend/src/ui2/shell/Ui2Shell.tsx` | app frame: nav, theme, account | slice 2 (planned) |
+| `Ui2Shell` | `frontend/src/ui2/shell/Ui2Shell.tsx` | app frame (mockup layout): sidebar nav, Appearance, account, breadcrumb | slice 2 (planned) |
 | `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (planned) |
 | `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
 | `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (planned) |

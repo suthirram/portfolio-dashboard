@@ -170,6 +170,59 @@ a { color: var(--accent); }
 .mk .sprinkle span { position: absolute; color: var(--m-muted); opacity: 0.12; font-weight: 700; }
 .mk > *:not(.sprinkle):not(.dialog-back) { position: relative; z-index: 1; }
 
+/* handoff shell: sidebar + breadcrumb */
+.mk .shell { display: grid; grid-template-columns: 172px minmax(0, 1fr); min-height: 100%; }
+.mk .side { background: var(--m-panel); border-right: 1px solid var(--m-border); padding: 14px 10px; display: flex; flex-direction: column; gap: 6px; }
+.mk .side nav { flex-direction: column; flex: 0; overflow: visible; }
+.mk .side nav a { display: block; }
+.mk .navlabel { font: 600 10px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--m-muted); margin-top: 10px; }
+.mk .sidebottom { margin-top: auto; display: grid; gap: 6px; }
+.mk .themes { display: grid; gap: 3px; }
+.mk .themes button { text-align: left; border: 1px solid transparent; background: none; color: var(--m-text); border-radius: 7px; padding: 4px 7px; font: 12px var(--font-body); cursor: pointer; }
+.mk .themes button[aria-pressed="true"] { background: var(--m-accentsoft); border-color: var(--m-accent); }
+.mk .themes button:disabled { opacity: 0.45; cursor: not-allowed; }
+.mk .account { display: flex; gap: 7px; align-items: center; border-top: 1px solid var(--m-border); padding-top: 8px; }
+.mk .account small { display: block; color: var(--m-muted); font-size: 11px; }
+.mk .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--m-accentsoft); color: var(--m-accent); display: grid; place-items: center; font: 700 11px var(--font-display); flex-shrink: 0; }
+.mk .main { min-width: 0; }
+.mk .topbar { display: flex; gap: 6px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--m-border); }
+.mk .topbar .menu { display: none; }
+.mk .intro { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mk .ptitle { font: 800 18px var(--font-display); margin: 0; }
+.mk .sctx { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.mk .sgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.mk .scard { background: var(--m-panel); border: 1px solid var(--m-border); border-radius: 12px; padding: 12px 12px 0; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.mk .eyebrow-m { font: 600 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--m-muted); }
+.mk .sval { font: 800 18px var(--font-display); font-variant-numeric: tabular-nums; }
+.mk .ssec { color: var(--m-muted); font-size: 12px; } .mk .ssec strong { color: var(--m-text); }
+.mk .daily { display: flex; gap: 14px; flex-wrap: wrap; } .mk .daily div { display: grid; } .mk .daily span { font-size: 11px; color: var(--m-muted); }
+.mk .comp { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 12px; } .mk .comp span { color: var(--m-muted); }
+.mk .breakdown { margin-top: 6px; border: 0; border-top: 1px solid var(--m-line); background: none; color: var(--m-accent); font: 600 12px var(--font-body); text-align: left; padding: 8px 0 2px; cursor: pointer; display: flex; justify-content: space-between; }
+.mk .hint { font-size: 11px; color: var(--m-muted); padding-bottom: 10px; }
+.mk .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--m-border); }
+.mk .tabs button { border: 0; border-bottom: 2px solid transparent; background: none; color: var(--m-muted); font: 600 13px var(--font-body); padding: 7px 10px; cursor: pointer; }
+.mk .tabs button[aria-selected="true"] { color: var(--m-text); border-bottom-color: var(--m-accent); }
+.mk .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 12px; align-items: start; }
+.mk .oaside { display: grid; gap: 12px; }
+.mk .mhead { display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; align-items: center; padding: 10px 2px 4px; }
+.mk .msym { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--m-accentsoft); color: var(--m-accent); font-weight: 700; margin-right: 6px; }
+.mk .donut { width: 120px; aspect-ratio: 1; max-width: 100%; margin: 12px auto; border-radius: 50%; display: grid; place-items: center; }
+.mk .donut span { width: 64%; aspect-ratio: 1; border-radius: 50%; background: var(--m-panel); display: grid; place-content: center; text-align: center; font: 800 18px var(--font-display); }
+.mk .donut small { font: 500 10px var(--font-body); color: var(--m-muted); }
+.mk .dlegend { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; }
+.mk .dlegend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.mk .mix { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 10px 0 6px; }
+@container (max-width: 760px) {
+  .mk .workspace { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 640px) {
+  .mk .shell { grid-template-columns: minmax(0, 1fr); }
+  .mk .side { display: none; }
+  .mk .shell.open .side { display: flex; border-right: 0; border-bottom: 1px solid var(--m-border); }
+  .mk .topbar .menu { display: inline-block; }
+}
+.frame > .mk { container-type: inline-size; }
+
 .map { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
 .map table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .map th, .map td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
@@ -189,7 +242,7 @@ a { color: var(--accent); }
     <label><input type="checkbox" id="opt-gold" checked> Gold enabled</label>
     <label>Role <select id="opt-role"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin" selected>Super admin</option></select></label>
     <nav class="toc" aria-label="Frames">
-      <a href="#f1">1 Shell</a><a href="#f2">2 Interface</a><a href="#f3">3 Summary</a><a href="#f4">4 Holdings</a><a href="#f5">5 Allocation</a><a href="#f6">6 Overall</a><a href="#f7">7 History</a><a href="#f8">8 Transactions</a><a href="#f9">9 Import</a><a href="#f10">10 Dividends</a><a href="#f11">11 Gold</a><a href="#f12">12 Act-as</a><a href="#f13">13 Profile</a><a href="#f14">14 Sign-up</a><a href="#map">Map</a>
+      <a href="#f1">1 Shell</a><a href="#f2">2 Interface</a><a href="#f3">3 Overview</a><a href="#f4">4 Performance</a><a href="#f5">5 History</a><a href="#f6">6 Transactions</a><a href="#f7">7 Import</a><a href="#f8">8 Dividends</a><a href="#f9">9 Gold</a><a href="#f10">10 Act-as</a><a href="#f11">11 Profile</a><a href="#f12">12 Sign-up</a><a href="#map">Map</a>
     </nav>
   </div>
 
@@ -201,19 +254,17 @@ a { color: var(--accent); }
     <div class="map"><table>
       <thead><tr><th>Frame</th><th>Slices</th><th>Wave</th><th>Owner decision sources</th></tr></thead>
       <tbody>
-        <tr><td>1 Shell, themes, Cyber entrance</td><td>2, 3</td><td>1, 2</td><td>A3 themes; C5 sprinkle as today; C7 no ⌘K</td></tr>
+        <tr><td>1 Shell, themes, Cyber entrance</td><td>2, 3</td><td>1, 2</td><td>Handoff sidebar layout; A3 themes; C5 sprinkle as today; C7 no ⌘K</td></tr>
         <tr><td>2 Interface picker</td><td>1, 2</td><td>1</td><td><code>ui_mode</code> enum, super admin per account</td></tr>
-        <tr><td>3 Summary cards + dialogs</td><td>4</td><td>2</td><td>Handoff: dialogs not expansion, one bold rate, dividend dialog INR/EUR only</td></tr>
-        <tr><td>4 Holdings grouping + Holding details</td><td>5, 6</td><td>2</td><td>C2 actions in dialog; C3 keep fields; C6 keep sector review, opening prompt</td></tr>
-        <tr><td>5 Allocation</td><td>7</td><td>2</td><td>Handoff: by holding / sector / currency</td></tr>
-        <tr><td>6 Overall performance</td><td>8, 9a, 9b, 10</td><td>1, 3</td><td>C1 overall INR+EUR+gold; F1 no USD; C1.8 re-fetch; gold unvalued / unavailable (owner, b + b)</td></tr>
-        <tr><td>7 History + rate re-fetch</td><td>11–14</td><td>3, 4</td><td>C8 paste format; C9 keep chart page and cards; colour legend below</td></tr>
-        <tr><td>8 Transactions</td><td>15, 16, 27</td><td>4, 6</td><td>B1 delta inline, later sub-route; B2 multi-select dropdown; B3 shared ledger; B7 15 rows</td></tr>
-        <tr><td>9 Import</td><td>17, 19</td><td>4, 5</td><td>B4/B5 upload + paste + example (header only), UI_2.0 only</td></tr>
-        <tr><td>10 Dividends</td><td>18</td><td>5</td><td>Handoff: tabs, cumulative columns, scoped delete-all</td></tr>
-        <tr><td>11 Gold</td><td>20, 21</td><td>5</td><td>B6 15 columns + Details; B9 daily + 30 + all months</td></tr>
-        <tr><td>12 Act-as</td><td>22, 23, 24</td><td>6</td><td>B8 act-as in UI_2.0; gold outside act-as; C10 admin pages</td></tr>
-        <tr><td>13 Profile, 14 Sign-up</td><td>25, 26</td><td>6</td><td>C11 restyle profile; C12 Light theme, login stays #330</td></tr>
+        <tr><td>3 Overview, Holdings tab</td><td>4, 5, 6, 7</td><td>2</td><td>Handoff layout; dialogs not expansion; one bold rate; dividend dialog INR/EUR only; C2 actions in Holding details; C3 keep fields; C6 keep sector review, opening prompt</td></tr>
+        <tr><td>4 Overview, Performance tab</td><td>8, 9a, 9b, 10</td><td>1, 3</td><td>C1 overall INR+EUR+gold; F1 no USD; C1.8 re-fetch; gold unvalued / unavailable (owner, b + b)</td></tr>
+        <tr><td>5 History + rate re-fetch</td><td>11–14</td><td>3, 4</td><td>C8 paste format; C9 keep chart page and cards; colour legend below</td></tr>
+        <tr><td>6 Transactions</td><td>15, 16, 27</td><td>4, 6</td><td>B1 delta inline, later sub-route; B2 multi-select dropdown; B3 shared ledger; B7 15 rows</td></tr>
+        <tr><td>7 Import</td><td>17, 19</td><td>4, 5</td><td>B4/B5 upload + paste + example (header only), UI_2.0 only</td></tr>
+        <tr><td>8 Dividends</td><td>18</td><td>5</td><td>Handoff: tabs, cumulative columns, scoped delete-all</td></tr>
+        <tr><td>9 Gold</td><td>20, 21</td><td>5</td><td>B6 15 columns + Details; B9 daily + 30 + all months</td></tr>
+        <tr><td>10 Act-as</td><td>22, 23, 24</td><td>6</td><td>B8 act-as in UI_2.0; gold outside act-as; C10 admin pages</td></tr>
+        <tr><td>11 Profile, 12 Sign-up</td><td>25, 26</td><td>6</td><td>C11 restyle profile; C12 Light theme, login stays #330</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -263,14 +314,32 @@ a { color: var(--accent); }
     return `<div class="sprinkle" aria-hidden="true">${html}</div>`;
   }
 
-  function shellBar(active) {
-    const items = [['Overview', '#f3'], ['History', '#f7'], ['Transactions', '#f8'], ['Dividends', '#f10']];
-    if (state.gold) items.push(['Gold', '#f11']);
-    if (state.role !== 'user') items.push(['Admin', '#f12']);
-    return `<div class="bar"><span class="brand"><i></i>Portfolio</span>
-      <nav aria-label="Main navigation">${items.map(([label, href]) => `<a href="${href}" ${label === active ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
-      <select aria-label="Theme" class="mk-theme">${['light', 'dark', 'cyber'].map(theme => `<option value="${theme}" ${theme === state.theme ? 'selected' : ''} ${theme === 'cyber' && !state.premium ? 'disabled' : ''}>${theme === 'cyber' ? 'Cyber' + (state.premium ? '' : ' (premium)') : theme[0].toUpperCase() + theme.slice(1)}</option>`).join('')}</select>
-      <span class="muted">Asha ▾</span></div>`;
+  // shellBar marks where the app shell wraps a frame; rerender builds the
+  // handoff layout around everything after the marker.
+  const shellBar = active => `<!--SHELL:${active}-->`;
+  const NAV = () => {
+    const items = [['Overview', '#f3'], ['History', '#f5'], ['Transactions', '#f6'], ['Dividends', '#f8']];
+    if (state.gold) items.push(['Gold', '#f9']);
+    if (state.role !== 'user') items.push(['Admin', '#f2']);
+    return items;
+  };
+  function shell(active, content) {
+    const themes = [['light', '☀ Light'], ['dark', '☾ Dark'], ['cyber', 'ϟ Cyber']];
+    return `<div class="shell">
+      <aside class="side" aria-label="Sidebar">
+        <span class="brand"><i></i>Portfolio<b style="color:var(--m-accent)">.</b></span>
+        <div class="navlabel">Workspace</div>
+        <nav aria-label="Main navigation">${NAV().map(([label, href]) => `<a href="${href}" ${label === active ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>
+        <div class="sidebottom">
+          <div class="navlabel">Appearance</div>
+          <div class="themes" role="group" aria-label="Choose theme">${themes.map(([value, label]) => `<button type="button" class="mk-theme" data-theme-choice="${value}" aria-pressed="${value === state.theme}" ${value === 'cyber' && !state.premium ? 'disabled title="Premium only"' : ''}>${label}</button>`).join('')}</div>
+          <div class="account"><span class="avatar">AR</span><span><strong>Asha Rao</strong><small>Profile · Log out</small></span></div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="topbar"><button type="button" class="btn menu" aria-label="Toggle navigation">☰</button><span class="muted">Workspace / </span><b>${active || 'Profile'}</b></div>
+        ${content}
+      </div></div>`;
   }
 
   // ---------- frames ----------
@@ -278,14 +347,15 @@ a { color: var(--accent); }
   const frame = (id, num, title, slices, notes, render, bind) => frames.push({ id, num, title, slices, notes, render, bind });
 
   frame('f1', '1', 'Shell, themes and Cyber entrance', 'slices 2, 3', [
-    'Top bar: Overview, History, Transactions, Dividends, Gold (gold accounts), Admin (admins). Toggle Gold and Role above to see the bar change.',
-    'Theme picker offers Light, Dark, Cyber. Cyber stays premium-gated (PD-046): untick Premium and it is disabled.',
+    'Handoff layout: a left sidebar (Workspace: Overview, History, Transactions, Dividends, Gold for gold accounts, Admin for admins), a breadcrumb bar, the page below. Toggle Gold and Role above.',
+    'Appearance in the sidebar: Light, Dark, Cyber. Cyber stays premium-gated (PD-046): untick Premium and it is disabled. The account (profile, log out) sits at the bottom.',
+    'Below 720px the sidebar folds behind the ☰ button in the breadcrumb bar.',
     'Switching to Cyber plays a short staggered entrance, then the page sits still. Skipped under reduced motion.',
     'Currency symbols in the background, as today. No Ambient toggle, no ⌘K palette.',
     'A page not yet rebuilt renders inside this shell, so nothing is ever a dead page.',
   ], () => `${sprinkle()}${shellBar('Overview')}<div class="body">
       <div class="cards">${['Invested', 'Current', 'Today', 'Unrealised'].map(label => `<div class="card"><span class="label">${label}</span><span class="val">—</span></div>`).join('')}</div>
-      <div class="panel muted">Page content renders here. Profile and Log out sit in the account menu (Asha ▾).</div></div>`);
+      <div class="panel muted">Page content renders here. A page not rebuilt yet renders here unchanged.</div></div>`);
 
   frame('f2', '2', 'Interface picker in Admin', 'slices 1, 2', [
     'One select per account: Classic, Glass or UI_2.0. It replaces the Glass switch and the reserved UI_2.0 placeholder, so an account is never in two interfaces.',
@@ -305,132 +375,6 @@ a { color: var(--accent); }
       toast.textContent = `${select.selectedOptions[0].textContent} on for ${select.dataset.uiMode}` + (select.dataset.uiMode === 'root' ? '. Your look changes now.' : '. Applies on their next page load.');
     }));
   });
-
-  frame('f3', '3', 'Overview summary and breakdown dialogs', 'slice 4', [
-    'Compact cards: invested, current, today vs previous close, unrealised, realised, combined P/L, dividends. P/L % sits under its value.',
-    'Click a card: its breakdown opens in a dialog (INR, EUR, Gold rows). Cards never expand in place.',
-    'The Dividends dialog shows INR and EUR totals only, never per stock.',
-    'One bold conversion rate, shown once. Display currency toggle switches every card.',
-  ], () => {
-    const toInr = (value, currency) => currency === 'EUR' ? value * EUR_INR : value;
-    const totals = { invested: 0, current: 0, today: 0, realised: 0, dividends: 0 };
-    holdings.forEach(holding => {
-      totals.invested += toInr(holding.shares * holding.avg, holding.currency);
-      totals.current += toInr(holding.shares * holding.price, holding.currency);
-      totals.today += holding.prev ? toInr(holding.shares * (holding.price - holding.prev), holding.currency) : 0;
-      totals.realised += toInr(holding.realised, holding.currency);
-      totals.dividends += toInr(holding.dividends, holding.currency);
-    });
-    totals.invested += GOLD.invested; totals.current += GOLD.current;
-    const display = state.displayEur ? 'EUR' : 'INR';
-    const show = value => money(display === 'EUR' ? value / EUR_INR : value, display);
-    const unrealised = totals.current - totals.invested;
-    const cards = [
-      ['invested', 'Total invested', show(totals.invested), ''],
-      ['current', 'Current value', show(totals.current), ''],
-      ['today', 'Today vs previous close', show(totals.today), pct(totals.today / (totals.current - totals.today) * 100)],
-      ['unrealised', 'Unrealised P/L', show(unrealised), pct(unrealised / totals.invested * 100)],
-      ['realised', 'Realised P/L', show(totals.realised), ''],
-      ['combined', 'Combined P/L', show(unrealised + totals.realised), ''],
-      ['dividends', 'Dividend income', show(totals.dividends), ''],
-    ];
-    return `${sprinkle()}${shellBar('Overview')}<div class="body">
-      <div class="row"><span class="rate">1 EUR = ₹${EUR_INR.toFixed(2)}</span><span class="muted">EURINR=X · 18 Nov 2026 17:30 IST</span><span class="spacer"></span>
-        <span class="seg"><button type="button" class="btn" data-disp="INR" aria-pressed="${display === 'INR'}">₹ INR</button> <button type="button" class="btn" data-disp="EUR" aria-pressed="${display === 'EUR'}">€ EUR</button></span></div>
-      <div class="cards">${cards.map(([key, label, value, sub]) => `<button type="button" class="card" data-card="${key}"><span class="label">${label}</span><span class="val">${value}</span>${sub ? `<span class="num ${tone(parseFloat(sub))}">${sub}</span>` : ''}</button>`).join('')}</div>
-    </div><div class="dialog-back" id="sum-dlg" hidden></div>`;
-  }, root => {
-    $$('[data-disp]', root).forEach(button => button.addEventListener('click', () => { state.displayEur = button.dataset.disp === 'EUR'; rerender('f3'); }));
-    $$('[data-card]', root).forEach(card => card.addEventListener('click', () => {
-      const key = card.dataset.card;
-      const back = $('#sum-dlg', root);
-      const field = { invested: holding => holding.shares * holding.avg, current: holding => holding.shares * holding.price, today: holding => holding.prev ? holding.shares * (holding.price - holding.prev) : 0, realised: holding => holding.realised, dividends: holding => holding.dividends };
-      let rows;
-      if (key === 'dividends') {
-        rows = [['INR dividends', money(sumBy(byCurrency('INR'), field.dividends), 'INR')], ['EUR dividends', money(sumBy(byCurrency('EUR'), field.dividends), 'EUR')]];
-      } else {
-        const pick = field[key] || field.current;
-        rows = [['India · INR', money(sumBy(byCurrency('INR'), pick), 'INR')], ['Europe · EUR', money(sumBy(byCurrency('EUR'), pick), 'EUR')]];
-        if (state.gold && (key === 'invested' || key === 'current')) rows.push(['Physical gold · INR', money(key === 'invested' ? GOLD.invested : GOLD.current, 'INR')]);
-        if (key === 'today') rows.push(['Physical gold', 'today’s behaviour kept']);
-      }
-      back.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(card.querySelector('.label').textContent)}"><h4>${esc(card.querySelector('.label').textContent)}</h4>
-        <dl class="kv">${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}</dl>
-        <p class="muted">Native currencies; nothing converted here.${key === 'dividends' ? ' Per-stock detail lives on the Dividends page.' : ''}</p>
-        <div class="row"><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`;
-      back.hidden = false;
-      $('[data-close]', back).focus();
-      $('[data-close]', back).addEventListener('click', () => { back.hidden = true; card.focus(); });
-    }));
-  });
-
-  frame('f4', '4', 'Holdings by currency, then sector; Holding details', 'slices 5, 6', [
-    'Currency is always the outer group with a native-currency subtotal. By sector is a grouping inside each currency, never a filter: every holding stays.',
-    'Share price colour vs previous close: green up, red down, blue unchanged. No previous close shows — (RELIANCE). Never compared with average cost.',
-    'Rows carry no action buttons. Click a row: Holding details opens with cost, realised, dividends, XIRR and the actions Edit, Ledger, Delete.',
-    'Add holding keeps today’s fields. Sector review queue, opening-date prompt and sector badges stay, restyled.',
-  ], () => {
-    const grouping = state.grouping || 'holding';
-    const filter = state.holdFilter || '';
-    let body = '';
-    ['INR', 'EUR'].forEach(currency => {
-      const rows = byCurrency(currency).filter(holding => !filter || (holding.name + holding.symbol).toLowerCase().includes(filter.toLowerCase()));
-      if (!rows.length) return;
-      body += `<tr class="grp"><td colspan="5">${currency === 'INR' ? 'India · INR' : 'Europe · EUR'}</td><td>${money(sumBy(rows, holding => holding.shares * holding.price), currency)}</td><td></td></tr>`;
-      const groups = grouping === 'sector' ? [...new Set(rows.map(holding => holding.sector))].map(sector => [sector, rows.filter(holding => holding.sector === sector)]) : [[null, rows]];
-      groups.forEach(([sector, list]) => {
-        if (sector) body += `<tr class="sub"><td colspan="5">${esc(sector)} · ${list.length}</td><td>${money(sumBy(list, holding => holding.shares * holding.price), currency)}</td><td></td></tr>`;
-        list.forEach(holding => {
-          const move = holding.prev === null ? null : holding.price - holding.prev;
-          const ret = (holding.price - holding.avg) / holding.avg * 100;
-          body += `<tr class="click" data-hold="${holding.symbol}" tabindex="0"><td><strong>${esc(holding.name)}</strong> <span class="muted">${holding.symbol}</span></td><td>${holding.shares}</td><td>${money(holding.avg, currency)}</td>
-            <td class="${tone(move)}">${money(holding.price, currency)}</td><td class="${tone(move)}">${move === null ? '—' : money(move * holding.shares, currency)}</td><td>${money(holding.shares * holding.price, currency)}</td><td class="${tone(ret)}">${pct(ret)}</td></tr>`;
-        });
-      });
-    });
-    return `${shellBar('Overview')}<div class="body"><div class="panel">
-      <div class="row"><input aria-label="Search holdings" placeholder="Search holdings" value="${esc(filter)}" data-hold-search>
-        <span class="seg"><button type="button" class="btn" data-group="holding" aria-pressed="${grouping === 'holding'}">By holding</button> <button type="button" class="btn" data-group="sector" aria-pressed="${grouping === 'sector'}">By sector</button></span>
-        <span class="spacer"></span><button type="button" class="btn primary">＋ Add holding</button></div>
-      <div class="tscroll" style="margin-top:8px"><table><thead><tr><th>Holding</th><th>Shares</th><th>Avg cost</th><th>Share price</th><th>Today</th><th>Current value</th><th>Unrealised</th></tr></thead><tbody>${body}</tbody></table></div>
-    </div></div><div class="dialog-back" id="hold-dlg" hidden></div>`;
-  }, root => {
-    $$('[data-group]', root).forEach(button => button.addEventListener('click', () => { state.grouping = button.dataset.group; rerender('f4'); }));
-    const search = $('[data-hold-search]', root);
-    search.addEventListener('change', () => { state.holdFilter = search.value; rerender('f4'); });
-    $$('[data-hold]', root).forEach(row => {
-      const open = () => {
-        const holding = holdings.find(candidate => candidate.symbol === row.dataset.hold);
-        const back = $('#hold-dlg', root);
-        back.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(holding.name)}"><h4>${esc(holding.name)} <span class="muted">${holding.symbol}</span></h4>
-          <dl class="kv"><dt>Cost</dt><dd>${money(holding.shares * holding.avg, holding.currency)}</dd><dt>Realised P/L</dt><dd>${money(holding.realised, holding.currency)}</dd>
-          <dt>Dividends</dt><dd>${money(holding.dividends, holding.currency)}</dd><dt>XIRR</dt><dd class="${tone(holding.xirr)}">${pct(holding.xirr)}</dd><dt>Sector</dt><dd>${esc(holding.sector)}</dd></dl>
-          <div class="row"><button type="button" class="btn">Edit</button><button type="button" class="btn">Ledger</button><button type="button" class="btn">Delete</button><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div>
-          <p class="muted">Edit and Ledger open the existing modals (Ledger = the shared ledger hook, slice 15). Delete asks first, in the dialog.</p></div>`;
-        back.hidden = false;
-        $('[data-close]', back).focus();
-        $('[data-close]', back).addEventListener('click', () => { back.hidden = true; row.focus(); });
-      };
-      row.addEventListener('click', open);
-      row.addEventListener('keydown', event => { if (event.key === 'Enter') open(); });
-    });
-  });
-
-  frame('f5', '5', 'Equity allocation', 'slice 7', [
-    'By holding, by sector or by currency. Independent of the holdings grouping above.',
-    'Shares of current value converted to INR at the day’s rate for comparison only. Gold stays out unless the owner says otherwise (the handoff forbids including it silently).',
-  ], () => {
-    const view = state.alloc || 'sector';
-    const value = holding => holding.shares * holding.price * (holding.currency === 'EUR' ? EUR_INR : 1);
-    const key = { holding: holding => holding.name, sector: holding => holding.sector, currency: holding => holding.currency }[view];
-    const buckets = {};
-    holdings.forEach(holding => { buckets[key(holding)] = (buckets[key(holding)] || 0) + value(holding); });
-    const total = Object.values(buckets).reduce((sum, part) => sum + part, 0);
-    const rows = Object.entries(buckets).sort((first, second) => second[1] - first[1]);
-    return `${shellBar('Overview')}<div class="body"><div class="panel"><div class="row"><h3 style="font:700 14px var(--font-display)">Equity allocation</h3><span class="spacer"></span>
-      <span class="seg">${['holding', 'sector', 'currency'].map(option => `<button type="button" class="btn" data-alloc="${option}" aria-pressed="${view === option}">By ${option}</button>`).join(' ')}</span></div>
-      <div class="bars" style="margin-top:10px">${rows.map(([label, part]) => `<div class="b"><span>${esc(label)}</span><span class="track"><span class="fill" style="width:${(part / total * 100).toFixed(1)}%"></span></span><span class="num">${(part / total * 100).toFixed(1)}%</span></div>`).join('')}</div></div></div>`;
-  }, root => $$('[data-alloc]', root).forEach(button => button.addEventListener('click', () => { state.alloc = button.dataset.alloc; rerender('f5'); })));
 
   // ----- overall performance: 400 illustrative days with gaps the user can simulate
   const overallDays = (() => {
@@ -519,20 +463,112 @@ a { color: var(--accent); }
       <text x="${left}" y="${height - 4}">${fmt(first)}</text><text x="${width - right}" y="${height - 4}" text-anchor="end">${fmt(last)}</text></svg>`;
   }
 
-  frame('f6', '6', 'Overall performance (INR + EUR + gold)', 'slices 8, 9a, 9b, 10', [
-    'One series: INR bucket + EUR bucket × that day’s stored EUR→INR rate + physical gold. Toggle INR / EUR. No USD.',
-    'Periods 1W, 1M, 3M, 1Y, All. 1Y and All draw one point per week; volatility is computed from daily rows first (existing flow-adjusted definition).',
-    'Shaded bars are gaps, never a partial number: a day missing its rate; gold held but not priced yet (before the first price, here the first weeks of gold); or gold unreadable (banner, no totals).',
-    'A day without a gold price copies the previous day’s price and heals when you enter it. Amber dots mark a carried rate; History offers to fetch it again.',
-  ], () => {
+  // ---------- Overview, laid out as the handoff mockup ----------
+  const toInr = (value, currency) => currency === 'EUR' ? value * EUR_INR : value;
+  function overviewTotals() {
+    const totals = { invested: 0, current: 0, realised: 0 };
+    holdings.forEach(holding => {
+      totals.invested += toInr(holding.shares * holding.avg, holding.currency);
+      totals.current += toInr(holding.shares * holding.price, holding.currency);
+      totals.realised += toInr(holding.realised, holding.currency);
+    });
+    if (state.gold) { totals.invested += GOLD.invested; totals.current += GOLD.current; }
+    return totals;
+  }
+  const todayOf = currency => {
+    const rows = byCurrency(currency).filter(holding => holding.prev !== null);
+    const move = sumBy(rows, holding => holding.shares * (holding.price - holding.prev));
+    const base = sumBy(rows, holding => holding.shares * holding.prev);
+    return { move, pct: base ? move / base * 100 : null, base };
+  };
+
+  function summaryCards() {
+    const display = state.displayEur ? 'EUR' : 'INR';
+    const show = value => money(display === 'EUR' ? value / EUR_INR : value, display);
+    const totals = overviewTotals();
+    const unrealised = totals.current - totals.invested;
+    const inrToday = todayOf('INR'), eurToday = todayOf('EUR');
+    const inrDividends = sumBy(byCurrency('INR'), holding => holding.dividends);
+    const eurDividends = sumBy(byCurrency('EUR'), holding => holding.dividends);
+    const card = (key, eyebrow, body, hint) => `<section class="scard"><div class="eyebrow-m">${eyebrow}</div>${body}
+      <button type="button" class="breakdown" data-card="${key}">View breakdown <span aria-hidden="true">›</span></button><div class="hint">${hint}</div></section>`;
+    return `<div class="sctx"><span><strong>Portfolio summary</strong> <small class="muted">Equities${state.gold ? ' + physical gold' : ''}</small></span><span class="spacer"></span>
+        <strong class="rate">1 EUR = ₹${EUR_INR.toFixed(2)}</strong>
+        <label class="muted">Display currency <select data-disp aria-label="Display currency"><option value="INR" ${display === 'INR' ? 'selected' : ''}>INR ₹</option><option value="EUR" ${display === 'EUR' ? 'selected' : ''}>EUR €</option></select></label></div>
+      <div class="sgrid">
+        ${card('value', 'Portfolio value', `<div class="sval">${show(totals.current)}</div><div class="ssec">Total invested <strong>${show(totals.invested)}</strong></div>`, `INR equities · EUR equities${state.gold ? ' · Gold' : ''}`)}
+        ${card('daily', 'Daily movement', `<div class="daily"><div><span>INR equities</span><strong class="${tone(inrToday.move)}">${money(inrToday.move, 'INR')}</strong><small class="${tone(inrToday.pct)}">${pct(inrToday.pct)}</small></div><div><span>EUR equities</span><strong class="${tone(eurToday.move)}">${money(eurToday.move, 'EUR')}</strong><small class="${tone(eurToday.pct)}">${pct(eurToday.pct)}</small></div></div><div class="ssec">vs 17 Nov 2026 close</div>`, 'Previous close · Gold · Data availability')}
+        ${card('returns', 'Total profit & loss', `<div class="sval ${tone(unrealised + totals.realised)}">${show(unrealised + totals.realised)}</div><div class="comp"><span>Unrealised (${(unrealised / totals.invested * 100).toFixed(2)}%)</span><strong class="${tone(unrealised)}">${show(unrealised)}</strong><span>Realised</span><strong class="${tone(totals.realised)}">${show(totals.realised)}</strong></div>`, 'Returns by asset group · Total definition')}
+        ${card('income', 'Dividend income', `<div class="sval">${show(toInr(inrDividends, 'INR') + toInr(eurDividends, 'EUR'))}</div><div class="ssec">Total dividend income · ${display}</div>`, 'INR and EUR totals')}
+      </div>`;
+  }
+
+  function breakdownDialog(key) {
+    const field = { invested: holding => holding.shares * holding.avg, current: holding => holding.shares * holding.price };
+    const rowsFor = pick => [['INR equities', money(sumBy(byCurrency('INR'), pick), 'INR')], ['EUR equities', money(sumBy(byCurrency('EUR'), pick), 'EUR')]];
+    let title, body, foot;
+    if (key === 'value') {
+      title = 'Portfolio value';
+      const rows = [['INR equities', money(sumBy(byCurrency('INR'), field.invested), 'INR'), money(sumBy(byCurrency('INR'), field.current), 'INR')], ['EUR equities', money(sumBy(byCurrency('EUR'), field.invested), 'EUR'), money(sumBy(byCurrency('EUR'), field.current), 'EUR')]];
+      if (state.gold) rows.push(['Gold', money(GOLD.invested, 'INR'), money(GOLD.current, 'INR')]);
+      body = `<table><thead><tr><th>Asset</th><th>Invested</th><th>Current</th></tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      foot = 'Breakdown stays in original currencies. Combined totals use the bold rate.';
+    } else if (key === 'daily') {
+      title = 'Daily movement';
+      body = `<dl class="kv"><dt>India previous close</dt><dd>${money(todayOf('INR').base, 'INR')}</dd><dt>Europe previous close</dt><dd>${money(todayOf('EUR').base, 'EUR')}</dd><dt>Gold daily movement</dt><dd>today’s behaviour</dd><dt>No previous close</dt><dd>RELIANCE.NS (shown —)</dd></dl>`;
+      foot = 'Each market moves in its own currency; holdings without a previous close are left out, not guessed.';
+    } else if (key === 'returns') {
+      title = 'Total profit & loss';
+      const group = currency => { const rows = byCurrency(currency); return [money(sumBy(rows, holding => holding.shares * (holding.price - holding.avg)), currency), money(sumBy(rows, holding => holding.realised), currency)]; };
+      const rows = [['INR equities', ...group('INR')], ['EUR equities', ...group('EUR')]];
+      if (state.gold) rows.push(['Gold', money(GOLD.current - GOLD.invested, 'INR'), money(0, 'INR')]);
+      body = `<table><thead><tr><th>Asset</th><th>Unrealised</th><th>Realised</th></tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      foot = 'Total P/L = unrealised + realised. Dividends are shown on their own card.';
+    } else {
+      title = 'Dividend income';
+      body = `<dl class="kv"><dt>Indian Rupee · INR</dt><dd>${money(sumBy(byCurrency('INR'), holding => holding.dividends), 'INR')}</dd><dt>Euro · EUR</dt><dd>${money(sumBy(byCurrency('EUR'), holding => holding.dividends), 'EUR')}</dd></dl>`;
+      foot = 'Totals only. Per-stock income lives on the Dividends page.';
+    }
+    return `<div class="dialog" role="dialog" aria-modal="true" aria-label="${title}"><h4>${title}</h4>${body}<p class="muted">${foot}</p><div class="row"><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`;
+  }
+
+  function holdingsTab() {
+    const grouping = state.grouping || 'holding';
+    const filter = state.holdFilter || '';
+    const market = state.market || 'all';
+    let html = '', shown = 0;
+    ['INR', 'EUR'].forEach(currency => {
+      if (market !== 'all' && market !== currency) return;
+      const rows = byCurrency(currency).filter(holding => !filter || (holding.name + holding.symbol).toLowerCase().includes(filter.toLowerCase()));
+      if (!rows.length) return;
+      shown += rows.length;
+      html += `<div class="mhead"><span><span class="msym">${currency === 'INR' ? '₹' : '€'}</span><strong>${currency === 'INR' ? 'Indian Rupee' : 'Euro'}</strong> <small class="muted">${rows.length} holding${rows.length > 1 ? 's' : ''}</small></span><span class="muted">Current value <strong style="color:var(--m-text)">${money(sumBy(rows, holding => holding.shares * holding.price), currency)}</strong></span></div>`;
+      const groups = grouping === 'sector' ? [...new Set(rows.map(holding => holding.sector))].map(sector => [sector, rows.filter(holding => holding.sector === sector)]) : [[null, rows]];
+      html += '<div class="tscroll"><table><thead><tr><th>Holding</th><th>Shares</th><th>Avg cost</th><th>Share price</th><th>Current value</th><th>Today</th><th>Unrealised</th></tr></thead><tbody>';
+      groups.forEach(([sector, list]) => {
+        if (sector) html += `<tr class="sub"><td colspan="4">${esc(sector)} · ${list.length}</td><td>${money(sumBy(list, holding => holding.shares * holding.price), currency)}</td><td colspan="2"></td></tr>`;
+        list.forEach(holding => {
+          const move = holding.prev === null ? null : holding.price - holding.prev;
+          const ret = (holding.price - holding.avg) / holding.avg * 100;
+          html += `<tr class="click" data-hold="${holding.symbol}" tabindex="0"><td><strong>${esc(holding.name)}</strong><br><small class="muted">${holding.symbol}</small></td><td>${holding.shares}</td><td>${money(holding.avg, currency)}</td>
+            <td class="${tone(move)}">${money(holding.price, currency)}</td><td>${money(holding.shares * holding.price, currency)}</td><td class="${tone(move)}">${move === null ? '—' : money(move * holding.shares, currency)}</td><td class="${tone(ret)}">${pct(ret)}</td></tr>`;
+        });
+      });
+      html += '</tbody></table></div>';
+    });
+    return `<section class="panel"><div class="row"><input aria-label="Search holdings" placeholder="Search holdings" value="${esc(filter)}" data-hold-search>
+        <select data-market aria-label="Filter holdings by currency"><option value="all">All currencies</option><option value="INR" ${market === 'INR' ? 'selected' : ''}>INR holdings</option><option value="EUR" ${market === 'EUR' ? 'selected' : ''}>EUR holdings</option></select>
+        <span class="spacer"></span><button type="button" class="btn" data-group="holding" aria-pressed="${grouping === 'holding'}">By holding</button><button type="button" class="btn" data-group="sector" aria-pressed="${grouping === 'sector'}">By sector</button></div>
+      ${html}<div class="row muted" style="margin-top:6px"><span>${shown} of ${holdings.length} holdings</span><span class="spacer"></span><span>Open a holding for all metrics ↗</span></div></section>`;
+  }
+
+  function performanceTab() {
     const period = state.period || '1Y';
     const series = state.series || 'value';
     const all = overallPoints();
     const spans = { '1W': 7, '1M': 30, '3M': 91, '1Y': 365, All: all.length };
-    let points = all.slice(-spans[period]);
-    // derived series on daily points, before thinning
-    points = points.map((point, index) => {
-      const previous = points[index - 1];
+    let points = all.slice(-spans[period]).map((point, index, list) => {
+      const previous = list[index - 1];
       const derived = { ...point };
       if (point.current !== undefined) {
         derived.pnl = (point.current - point.invested) / point.invested * 100;
@@ -543,25 +579,98 @@ a { color: var(--accent); }
     if (period === '1Y' || period === 'All') points = points.filter((point, index) => point.date.getUTCDay() === 0 || index === points.length - 1);
     const unavailable = state.gold && state.scenario === 'unavailable';
     const lastPoint = [...points].reverse().find(point => point.current !== undefined);
-    return `${shellBar('Overview')}<div class="body"><div class="panel" style="display:grid;gap:8px">
-      <div class="row"><h3 style="font:700 14px var(--font-display)">Portfolio performance</h3><span class="spacer"></span>
-        <span class="seg">${['1W', '1M', '3M', '1Y', 'All'].map(option => `<button type="button" class="btn" data-period="${option}" aria-pressed="${period === option}">${option}</button>`).join(' ')}</span>
-        <span class="seg"><button type="button" class="btn" data-ocur="INR" aria-pressed="${!state.overallEur}">₹</button> <button type="button" class="btn" data-ocur="EUR" aria-pressed="${!!state.overallEur}">€</button></span></div>
-      <div class="row"><span class="seg">${[['value', 'Invested vs current'], ['pnl', 'P/L %'], ['vol', 'Daily volatility']].map(([value, label]) => `<button type="button" class="btn" data-series="${value}" aria-pressed="${series === value}">${label}</button>`).join(' ')}</span>
+    return `<section class="panel" style="display:grid;gap:8px">
+      <div class="row"><strong style="font:700 14px var(--font-display)">Portfolio performance</strong><span class="muted">overall · INR + EUR${state.gold ? ' + gold' : ''}</span><span class="spacer"></span>
+        <span>${['1W', '1M', '3M', '1Y', 'All'].map(option => `<button type="button" class="btn" data-period="${option}" aria-pressed="${period === option}">${option}</button>`).join(' ')}</span>
+        <span><button type="button" class="btn" data-ocur="INR" aria-pressed="${!state.overallEur}">₹</button> <button type="button" class="btn" data-ocur="EUR" aria-pressed="${!!state.overallEur}">€</button></span></div>
+      <div class="row"><span>${[['value', 'Invested vs current'], ['pnl', 'P/L %'], ['vol', 'Daily volatility']].map(([value, label]) => `<button type="button" class="btn" data-series="${value}" aria-pressed="${series === value}">${label}</button>`).join(' ')}</span>
         <span class="spacer"></span><label class="muted">Simulate <select data-scenario aria-label="Simulate a state"><option value="normal">Normal</option><option value="missing" ${state.scenario === 'missing' ? 'selected' : ''}>Missing rate (EUR held)</option><option value="unavailable" ${state.scenario === 'unavailable' ? 'selected' : ''}>Gold unreadable</option></select></label></div>
       ${unavailable ? '<div class="banner warn">Gold could not be read, so no overall total is shown. Stocks alone are on the History page.</div>' : ''}
       ${drawChart(points, series)}
-      <div class="row muted"><span>Latest: <strong class="num" style="color:var(--m-text)">${lastPoint ? money(lastPoint.current, state.overallEur ? 'EUR' : 'INR') : '—'}</strong></span><span class="spacer"></span>
-        <span class="legend"><span style="color:var(--m-accent)">Current</span><span style="color:var(--m-muted)">Invested</span><span style="color:var(--m-warn)">Gap / carried rate</span></span></div>
-    </div></div>`;
-  }, root => {
-    $$('[data-period]', root).forEach(button => button.addEventListener('click', () => { state.period = button.dataset.period; rerender('f6'); }));
-    $$('[data-ocur]', root).forEach(button => button.addEventListener('click', () => { state.overallEur = button.dataset.ocur === 'EUR'; rerender('f6'); }));
-    $$('[data-series]', root).forEach(button => button.addEventListener('click', () => { state.series = button.dataset.series; rerender('f6'); }));
-    $('[data-scenario]', root).addEventListener('change', event => { state.scenario = event.target.value; rerender('f6'); });
-  });
+      <div class="row muted"><span>Latest <strong class="num" style="color:var(--m-text)">${lastPoint ? money(lastPoint.current, state.overallEur ? 'EUR' : 'INR') : '—'}</strong></span><span class="spacer"></span>
+        <span class="legend"><span style="color:var(--m-accent)">Current</span><span style="color:var(--m-muted)">Invested</span><span style="color:var(--m-warn)">Gap / carried rate</span></span></div></section>`;
+  }
 
-  frame('f7', '7', 'History ledger and the rate re-fetch prompt', 'slices 11, 12, 13, 14', [
+  function overviewAside() {
+    const view = state.alloc || 'holding';
+    const value = holding => toInr(holding.shares * holding.price, holding.currency);
+    const key = { holding: holding => holding.name, sector: holding => holding.sector, currency: holding => holding.currency }[view];
+    const buckets = {};
+    holdings.forEach(holding => { buckets[key(holding)] = (buckets[key(holding)] || 0) + value(holding); });
+    const total = Object.values(buckets).reduce((sum, part) => sum + part, 0);
+    const rows = Object.entries(buckets).sort((first, second) => second[1] - first[1]);
+    const colours = ['var(--m-accent)', 'var(--m-purple)', 'var(--m-green)', 'var(--m-warn)', 'var(--m-red)', 'var(--m-blue)', 'var(--m-muted)', 'var(--m-line)'];
+    let start = 0;
+    const stops = rows.map(([, part], index) => { const end = start + part / total * 100; const stop = `${colours[index % colours.length]} ${start.toFixed(2)}% ${end.toFixed(2)}%`; start = end; return stop; }).join(',');
+    const inrShare = sumBy(byCurrency('INR'), value) / total * 100;
+    return `<aside class="oaside"><section class="panel"><div class="row"><strong>Equity allocation</strong><span class="spacer"></span>
+        <select data-alloc aria-label="Allocation grouping">${['holding', 'sector', 'currency'].map(option => `<option value="${option}" ${view === option ? 'selected' : ''}>By ${option}</option>`).join('')}</select></div>
+        <div class="donut" role="img" aria-label="Allocation ${rows.map(([label, part]) => `${label} ${(part / total * 100).toFixed(1)} percent`).join(', ')}" style="background:conic-gradient(${stops})"><span>${rows.length}<small>${view === 'holding' ? 'holdings' : view === 'sector' ? 'sectors' : 'currencies'}</small></span></div>
+        <div class="dlegend">${rows.map(([label, part], index) => `<span><i style="background:${colours[index % colours.length]}"></i>${esc(label)}</span><strong>${(part / total * 100).toFixed(1)}%</strong>`).join('')}</div>
+        <p class="muted" style="font-size:11px">Equities only, current values converted to INR.</p></section>
+      <section class="panel"><div class="eyebrow-m">Currency mix</div><strong>Two markets. One clear view.</strong>
+        <div class="mix"><span style="width:${inrShare.toFixed(1)}%;background:var(--m-warn)"></span><span style="width:${(100 - inrShare).toFixed(1)}%;background:var(--m-accent)"></span></div>
+        <div class="row muted"><span>INR <strong>${inrShare.toFixed(0)}%</strong></span><span class="spacer"></span><span>EUR <strong>${(100 - inrShare).toFixed(0)}%</strong></span></div></section></aside>`;
+  }
+
+  function overviewPage(tab) {
+    return `${sprinkle()}${shellBar('Overview')}<div class="body">
+      <div class="intro"><div><h3 class="ptitle">Your portfolio, at a glance</h3><p class="muted">Refreshed 18 Nov 2026, 17:30 IST</p></div><span class="spacer"></span><button type="button" class="btn">↻ Refresh</button><button type="button" class="btn primary">＋ Add holding</button></div>
+      ${summaryCards()}
+      <div class="tabs" role="tablist" aria-label="Portfolio views"><button type="button" role="tab" data-tab="holdings" aria-selected="${tab === 'holdings'}">Holdings <span class="pill">${holdings.length}</span></button><button type="button" role="tab" data-tab="performance" aria-selected="${tab === 'performance'}">Performance</button></div>
+      <div class="workspace"><div style="min-width:0">${tab === 'holdings' ? holdingsTab() : performanceTab()}</div>${overviewAside()}</div>
+    </div><div class="dialog-back" data-dlg hidden></div>`;
+  }
+
+  function bindOverview(root, id, tabKey) {
+    const redraw = () => rerender(id);
+    $$('[data-tab]', root).forEach(button => button.addEventListener('click', () => { state[tabKey] = button.dataset.tab; redraw(); }));
+    $('[data-disp]', root).addEventListener('change', event => { state.displayEur = event.target.value === 'EUR'; renderAll(false); });
+    $('[data-alloc]', root).addEventListener('change', event => { state.alloc = event.target.value; renderAll(false); });
+    const back = $('[data-dlg]', root);
+    const open = (html, returnFocus) => { back.innerHTML = html; back.hidden = false; $('[data-close]', back).focus(); $('[data-close]', back).addEventListener('click', () => { back.hidden = true; returnFocus.focus(); }); };
+    $$('[data-card]', root).forEach(button => button.addEventListener('click', () => open(breakdownDialog(button.dataset.card), button)));
+    $$('[data-group]', root).forEach(button => button.addEventListener('click', () => { state.grouping = button.dataset.group; redraw(); }));
+    const search = $('[data-hold-search]', root);
+    if (search) search.addEventListener('change', () => { state.holdFilter = search.value; redraw(); });
+    const market = $('[data-market]', root);
+    if (market) market.addEventListener('change', () => { state.market = market.value; redraw(); });
+    $$('[data-hold]', root).forEach(row => {
+      const show = () => {
+        const holding = holdings.find(candidate => candidate.symbol === row.dataset.hold);
+        open(`<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(holding.name)}"><h4>${esc(holding.name)} <span class="muted">${holding.symbol}</span></h4>
+          <dl class="kv"><dt>Cost</dt><dd>${money(holding.shares * holding.avg, holding.currency)}</dd><dt>Realised P/L</dt><dd>${money(holding.realised, holding.currency)}</dd>
+          <dt>Dividends</dt><dd>${money(holding.dividends, holding.currency)}</dd><dt>XIRR</dt><dd class="${tone(holding.xirr)}">${pct(holding.xirr)}</dd><dt>Sector</dt><dd>${esc(holding.sector)}</dd></dl>
+          <div class="row"><button type="button" class="btn">Edit</button><button type="button" class="btn">Ledger</button><button type="button" class="btn">Delete</button><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div>
+          <p class="muted">Edit and Ledger open the existing modals; Delete confirms inside this dialog.</p></div>`, row);
+      };
+      row.addEventListener('click', show);
+      row.addEventListener('keydown', event => { if (event.key === 'Enter') show(); });
+    });
+    $$('[data-period]', root).forEach(button => button.addEventListener('click', () => { state.period = button.dataset.period; redraw(); }));
+    $$('[data-ocur]', root).forEach(button => button.addEventListener('click', () => { state.overallEur = button.dataset.ocur === 'EUR'; redraw(); }));
+    $$('[data-series]', root).forEach(button => button.addEventListener('click', () => { state.series = button.dataset.series; redraw(); }));
+    const scenario = $('[data-scenario]', root);
+    if (scenario) scenario.addEventListener('change', () => { state.scenario = scenario.value; redraw(); });
+  }
+
+  frame('f3', '3', 'Overview, Holdings tab', 'slices 4, 5, 6, 7', [
+    'Layout as the handoff mockup: sidebar, breadcrumb, title with Refresh and Add holding, the four summary cards, Holdings / Performance tabs, and an aside with Equity allocation and Currency mix.',
+    'Each card’s View breakdown opens a dialog (the mockup expands inline; the owner chose dialogs). Dividend income shows INR and EUR totals only.',
+    'One bold conversion rate beside Display currency; Daily movement stays per currency, vs the previous close.',
+    'Holdings: currency is always the outer group (₹ Indian Rupee, € Euro) with its current value. By sector groups inside each currency, never filters. Share price green / red / blue vs previous close; none → —.',
+    'Rows have no action buttons; a row opens Holding details with cost, realised, dividends, XIRR and Edit, Ledger, Delete. Add holding keeps today’s fields.',
+    'Allocation: by holding, sector or currency, equities only (gold in or out is an open question).',
+  ], () => overviewPage(state.tabMain || 'holdings'), root => bindOverview(root, 'f3', 'tabMain'));
+
+  frame('f4', '4', 'Overview, Performance tab (overall worth)', 'slices 8, 9a, 9b, 10', [
+    'The Performance tab holds the new overall chart: INR + EUR × that day’s stored rate + physical gold, in ₹ or €. No USD.',
+    'Periods 1W, 1M, 3M, 1Y, All. 1Y and All draw one point a week; volatility is the existing flow-adjusted daily move, computed before thinning.',
+    'Gaps (shaded) instead of partial numbers: a day missing its rate; gold held but not yet priced (here, the first weeks of gold); gold unreadable (banner, no totals). Try Simulate.',
+    'A day without a gold price copies the previous day’s and heals when you enter it. Amber dots: a carried rate, offered for re-fetch on History.',
+  ], () => overviewPage(state.tabPerf || 'performance'), root => bindOverview(root, 'f4', 'tabPerf'));
+
+  frame('f5', '5', 'History ledger and the rate re-fetch prompt', 'slices 11, 12, 13, 14', [
     'The month ledger stays the point of the page: month picker, INR / EUR / Gold columns, add, edit, paste (current format), per-stock breakdown, full-history chart page.',
     'Tints compare with the prior chronological row: green up, red down, blue unchanged, purple new investment (invested). A negative P/L that improves is green. Legend below the table.',
     'Days whose rate fell back get a prompt: Fetch rates again (you trigger the Yahoo call), Not now hides it for this visit, failed days are offered again. Own portfolio only, never in act-as.',
@@ -592,12 +701,12 @@ a { color: var(--accent); }
       <div class="legend" style="margin-top:8px"><span class="up">Up vs prior row</span><span class="down">Down</span><span class="flat">Unchanged</span><span style="color:var(--m-purple)">New investment</span></div></div></div>`;
   }, root => {
     $$('[data-fx]', root).forEach(button => button.addEventListener('click', () => {
-      if (button.dataset.fx === 'skip') { state.fxSkipped = true; rerender('f7'); return; }
+      if (button.dataset.fx === 'skip') { state.fxSkipped = true; rerender('f5'); return; }
       const pending = state.fxPending === undefined ? ['2026-11-09', '2026-11-10'] : state.fxPending;
       // first click: one date heals, one stays (Yahoo has no close yet); second click heals the rest
       if (!state.fxTried) { state.fxTried = true; state.fxPending = pending.slice(1); state.fxFailed = true; }
       else { state.fxPending = []; state.fxDone = true; state.fxFailed = false; }
-      rerender('f7');
+      rerender('f5');
     }));
   });
 
@@ -612,7 +721,7 @@ a { color: var(--accent); }
   ];
   const TYPES = ['opening', 'buy', 'sell', 'dividend', 'split', 'bonus', 'merger'];
 
-  frame('f8', '8', 'Transactions', 'slices 15, 16, 27', [
+  frame('f6', '6', 'Transactions', 'slices 15, 16, 27', [
     'Event type and currency filters are multi-select dropdowns: the button shows a count (Types (2)) and each menu has Clear. Reset clears everything.',
     'Bought / Sold / Dividends subtotals per currency over the filtered rows; opening excluded; never combined across currencies, never P/L.',
     '15 rows per page, reset on filter or sort. Optional columns (ratio, notes, opening date) appear when any filtered row needs them.',
@@ -639,19 +748,19 @@ a { color: var(--accent); }
       <div class="panel"><div class="row"><strong>Investment delta</strong><span class="muted">monthly buys and sales, month-end invested line</span><span class="spacer"></span><select aria-label="Year"><option>2026</option></select><button type="button" class="btn">Expand</button></div></div>
     </div>`;
   }, root => {
-    $$('[data-drop]', root).forEach(button => button.addEventListener('click', () => { state.open = state.open === button.dataset.drop ? null : button.dataset.drop; rerender('f8'); }));
+    $$('[data-drop]', root).forEach(button => button.addEventListener('click', () => { state.open = state.open === button.dataset.drop ? null : button.dataset.drop; rerender('f6'); }));
     $$('[data-pick]', root).forEach(box => box.addEventListener('change', () => {
       const key = box.dataset.pick;
       const list = new Set(state[key] || []);
       box.checked ? list.add(box.value) : list.delete(box.value);
-      state[key] = [...list]; rerender('f8');
+      state[key] = [...list]; rerender('f6');
     }));
-    $$('[data-clear]', root).forEach(button => button.addEventListener('click', () => { state[button.dataset.clear] = []; state.open = null; rerender('f8'); }));
-    $('[data-reset]', root).addEventListener('click', () => { state.types = []; state.currencies = []; state.open = null; rerender('f8'); });
-    $('[data-import-open]', root).addEventListener('click', () => { location.hash = 'f9'; });
+    $$('[data-clear]', root).forEach(button => button.addEventListener('click', () => { state[button.dataset.clear] = []; state.open = null; rerender('f6'); }));
+    $('[data-reset]', root).addEventListener('click', () => { state.types = []; state.currencies = []; state.open = null; rerender('f6'); });
+    $('[data-import-open]', root).addEventListener('click', () => { location.hash = 'f7'; });
   });
 
-  frame('f9', '9', 'Import: upload, paste or load the example', 'slices 17, 19', [
+  frame('f7', '7', 'Import: upload, paste or load the example', 'slices 17, 19', [
     'Trade (Groww) and Dividend imports each offer three ways in: upload a file, paste the CSV text, or Load example.',
     'Load example fills in the header line and a format hint only, never sample rows.',
     'Pasted text goes through the same parser, 5,000-row limit and server validation as a file. UI_2.0 only; Glass may get it later.',
@@ -672,20 +781,20 @@ a { color: var(--accent); }
       <p class="muted">Validate runs the existing preview: matching, duplicates, ambiguity, then commit. Unknown holdings are never created or mapped without you.</p>
     </div></div>`;
   }, root => {
-    $$('[data-kind]', root).forEach(button => button.addEventListener('click', () => { state.importKind = button.dataset.kind; state.importText = ''; rerender('f9'); }));
-    $$('[data-mode]', root).forEach(button => button.addEventListener('click', () => { state.importMode = button.dataset.mode; rerender('f9'); }));
+    $$('[data-kind]', root).forEach(button => button.addEventListener('click', () => { state.importKind = button.dataset.kind; state.importText = ''; rerender('f7'); }));
+    $$('[data-mode]', root).forEach(button => button.addEventListener('click', () => { state.importMode = button.dataset.mode; rerender('f7'); }));
     $('[data-example]', root).addEventListener('click', () => {
       state.importMode = 'paste';
       state.importText = (state.importKind || 'dividend') === 'dividend'
         ? 'Date,Share Name,Dividend,CUMULATIVE\n# One row per payment. Date as DD-MM-YYYY, Share Name as on your statement,\n# Dividend in the currency of the tab. CUMULATIVE is optional.'
         : 'Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status\n# Paste the Groww "Order history" export as it is.';
-      rerender('f9');
+      rerender('f7');
     });
     const area = $('[data-import-text]', root);
-    if (area) area.addEventListener('change', () => { state.importText = area.value; rerender('f9'); });
+    if (area) area.addEventListener('change', () => { state.importText = area.value; rerender('f7'); });
   });
 
-  frame('f10', '10', 'Dividends', 'slices 18, 19', [
+  frame('f8', '8', 'Dividends', 'slices 18, 19', [
     'Currency tabs; summary (total, payments, holdings paying, date range) and charts cover the whole currency. Search and holding filter narrow the table only, and the page says so.',
     'Table: date, holding, dividend, currency cumulative, holding cumulative, actions. Server order and tie rules kept. 15 rows.',
     'Add, edit, delete, and Delete all scoped to this currency with an in-page confirmation. Monthly / yearly chart, year totals, by-holding contribution.',
@@ -706,10 +815,10 @@ a { color: var(--accent); }
         ${withCumulative.map(([date, name, amount, total, holdingTotal]) => `<tr><td>${date}</td><td>${name}</td><td>${money(amount, currency)}</td><td>${money(total, currency)}</td><td>${money(holdingTotal, currency)}</td><td><button type="button" class="btn">Edit</button></td></tr>`).join('')}
         </tbody></table></div></div></div>`;
   }, root => {
-    $$('[data-divcur]', root).forEach(button => button.addEventListener('click', () => { state.divCur = button.dataset.divcur; state.delAll = false; rerender('f10'); }));
-    $('[data-delall]', root).addEventListener('click', () => { state.delAll = true; rerender('f10'); });
-    $$('[data-delall-no]', root).forEach(button => button.addEventListener('click', () => { state.delAll = false; rerender('f10'); }));
-    $('[data-import-div]', root).addEventListener('click', () => { state.importKind = 'dividend'; rerender('f9'); location.hash = 'f9'; });
+    $$('[data-divcur]', root).forEach(button => button.addEventListener('click', () => { state.divCur = button.dataset.divcur; state.delAll = false; rerender('f8'); }));
+    $('[data-delall]', root).addEventListener('click', () => { state.delAll = true; rerender('f8'); });
+    $$('[data-delall-no]', root).forEach(button => button.addEventListener('click', () => { state.delAll = false; rerender('f8'); }));
+    $('[data-import-div]', root).addEventListener('click', () => { state.importKind = 'dividend'; rerender('f7'); location.hash = 'f7'; });
   });
 
   const goldRows = [
@@ -732,7 +841,7 @@ a { color: var(--accent); }
     return money(value, 'INR');
   };
 
-  frame('f11', '11', 'Gold', 'slices 20, 21', [
+  frame('f9', '9', 'Gold', 'slices 20, 21', [
     'All 15 columns in the table by default, in the original order, shaded where computed; the table scrolls sideways on narrow screens. Details shows the same 15, grouped Entered / Computed, plus Edit and Delete. The table may lose columns later; Details keeps all.',
     'Eight metrics from the server; a null renders —, never 0.',
     'Prices: enter today’s rate (INR per gram), see the last 30 dates, and open every month with View all months. Same-date entry overwrites.',
@@ -753,7 +862,7 @@ a { color: var(--accent); }
         <div class="row" style="margin-top:6px"><span class="spacer"></span><button type="button" class="btn" data-allmonths>View all months</button></div></div>
     </div><div class="dialog-back" id="gold-dlg" hidden></div>`;
   }, root => {
-    $$('[data-gp]', root).forEach(button => button.addEventListener('click', () => { state.goldPrompt = false; rerender('f11'); }));
+    $$('[data-gp]', root).forEach(button => button.addEventListener('click', () => { state.goldPrompt = false; rerender('f9'); }));
     const back = $('#gold-dlg', root);
     const show = html => { back.innerHTML = html; back.hidden = false; $('[data-close]', back).focus(); $('[data-close]', back).addEventListener('click', () => { back.hidden = true; }); };
     $$('[data-gdetail]', root).forEach(button => button.addEventListener('click', () => {
@@ -766,17 +875,16 @@ a { color: var(--accent); }
     if (all) all.addEventListener('click', () => show(`<div class="dialog" role="dialog" aria-modal="true" aria-label="All months"><h4>All months</h4><p class="muted">Today's monthly jeweler-rate table (GoldPricesPanel), restyled, one month per section.</p><dl class="kv"><dt>November 2026</dt><dd>16 days</dd><dt>October 2026</dt><dd>31 days</dd><dt>September 2026</dt><dd>30 days</dd></dl><div class="row"><span class="spacer"></span><button type="button" class="btn" data-close>Close</button></div></div>`));
   });
 
-  frame('f12', '12', 'Act-as and Admin', 'slices 22, 23, 24', [
+  frame('f10', '10', 'Act-as and Admin', 'slices 22, 23, 24', [
     'Opening a user’s portfolio shows a banner on every act-as page (Overview, Transactions, Dividends) naming the account and you, with Exit act-as back to Users.',
     'Admins see their region’s users; super-admin-only controls (promote, region, Interface, feature switches, Manage admins, Branding) stay super-admin only.',
     'Gold is not offered in act-as; your own Profile and Admin stay outside act-as.',
     'Admin pages are restyled without an accurate mockup; their detailed visuals come with wave 6.',
-  ], () => `<div class="bar actas"><span>Viewing <strong>Bob Builder</strong> (@bob) as ${state.role === 'superadmin' ? 'Root' : 'Asha'}</span><span class="spacer"></span><button type="button" class="btn">Exit act-as</button></div>
-    <div class="bar"><span class="brand"><i></i>Portfolio</span><nav aria-label="Act-as navigation"><a href="#f12" aria-current="page">Overview</a><a href="#f12">Transactions</a><a href="#f12">Dividends</a></nav></div>
-    <div class="body"><div class="cards">${['Invested', 'Current', 'Today', 'Unrealised'].map((label, index) => `<div class="card"><span class="label">${label}</span><span class="val">${['₹2,41,800.00', '₹2,58,960.00', '+₹1,240.00', '+₹17,160.00'][index]}</span></div>`).join('')}</div>
+  ], () => `<div class="bar actas"><span>Viewing <strong>Bob Builder</strong> (@bob) as ${state.role === 'superadmin' ? 'Root' : 'Asha'} · act-as</span><span class="spacer"></span><button type="button" class="btn">Exit act-as</button></div>
+    ${shellBar('Overview')}<div class="body"><div class="cards">${['Invested', 'Current', 'Today', 'Unrealised'].map((label, index) => `<div class="card"><span class="label">${label}</span><span class="val">${['₹2,41,800.00', '₹2,58,960.00', '+₹1,240.00', '+₹17,160.00'][index]}</span></div>`).join('')}</div>
     <div class="panel muted">Bob's holdings render with the same Overview components, scoped to /admin/users/:id.</div></div>`);
 
-  frame('f13', '13', 'Profile', 'slice 25', [
+  frame('f11', '11', 'Profile', 'slice 25', [
     'Name and username, saved with your current password.',
     'Change password: current, new, confirm.',
     'Security questions: replace all three at once from the existing catalogue, confirmed with your current password. Answers are never shown again.',
@@ -786,7 +894,7 @@ a { color: var(--accent); }
       <div class="panel" style="display:grid;gap:6px"><strong>Security questions</strong>${[1, 2, 3].map(index => `<select aria-label="Question ${index}"><option>Question ${index} from the catalogue</option></select><input aria-label="Answer ${index}" placeholder="Answer">`).join('')}<input type="password" aria-label="Current password for questions" placeholder="Current password"><button type="button" class="btn primary">Replace all three</button></div>
     </div></div>`);
 
-  frame('f14', '14', 'Sign-up, forgot password, onboarding', 'slice 26', [
+  frame('f12', '12', 'Sign-up, forgot password, onboarding', 'slice 26', [
     'These three screens use UI_2.0’s Light look whatever theme you pick.',
     'Login stays exactly as #330 (the sunrise design).',
   ], () => `<div class="body" style="place-items:center;padding:28px"><div class="panel" style="width:min(360px,100%);display:grid;gap:8px">
@@ -805,14 +913,17 @@ a { color: var(--accent); }
     const item = frames.find(candidate => candidate.id === id);
     const slot = host.querySelector(`[data-slot="${id}"]`);
     slot.dataset.mk = item.forceTheme || state.theme;
-    slot.innerHTML = item.render();
+    const html = item.render();
+    const marker = html.match(/<!--SHELL:([^>]*)-->/);
+    slot.innerHTML = marker ? html.slice(0, marker.index) + shell(marker[1], html.slice(marker.index + marker[0].length)) : html;
     slot.classList.toggle('enter', Boolean(entering) && state.theme === 'cyber' && !item.forceTheme);
-    const theme = slot.querySelector('.mk-theme');
-    if (theme) theme.addEventListener('change', () => setTheme(theme.value));
+    $$('.mk-theme', slot).forEach(button => button.addEventListener('click', () => setTheme(button.dataset.themeChoice)));
+    const menu = slot.querySelector('.menu');
+    if (menu) menu.addEventListener('click', () => slot.querySelector('.shell').classList.toggle('open'));
     if (item.bind) item.bind(slot);
   }
   // frame 14 is pinned to Light (owner C12)
-  frames.find(item => item.id === 'f14').forceTheme = 'light';
+  frames.find(item => item.id === 'f12').forceTheme = 'light';
   const renderAll = entering => frames.forEach(item => rerender(item.id, entering));
 
   function setTheme(theme) {
