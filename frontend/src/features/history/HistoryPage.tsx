@@ -13,6 +13,8 @@ import { useTheme, type ThemeName } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2History } from '../../ui2/history/Ui2History'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_PALETTE, MIN_YEAR, MONTHS,
   PNL_LINE_COLOUR, REGIONS, REGION_COLOURS, REGION_LABELS, VOL_LINE_COLOUR,
@@ -51,6 +53,7 @@ export default function HistoryPage() {
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const canForceDelete = auth?.user?.role === 'superadmin'
+  const uiMode = useUiMode()
   const history = useHistoryMonth()
   const {
     year, setYear, month, setMonth, today, selectedMonthStart,
@@ -62,6 +65,9 @@ export default function HistoryPage() {
     handleAddSaved, handlePasteSubmit, handleConflictResolve, handleConflictSkip,
     handleEditSaved, handleDelete,
   } = history
+
+  // UI_2.0 renders the same month and actions in the handoff layout (PD-059).
+  if (uiMode === 'ui2') return <Ui2History history={history} canForceDelete={canForceDelete} />
 
   return (
     <div className="page-art page-art-history" style={{ minHeight: '100dvh' }}>
