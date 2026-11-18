@@ -41,8 +41,9 @@ type OverallBackfillOptions struct {
 // OverallBackfillReport is one user's outcome. The dry run fills it with
 // exactly the selection apply would make, so it is a true preview:
 // SkippedRated is what apply leaves alone, ToWrite what it would write,
-// WithoutRate the ToWrite rows it cannot convert, and Min/MaxCurrent span
-// only the ToWrite rows.
+// WithoutRate the ToWrite rows that get no exchange rate (whether or not
+// their INR total can be computed), and Min/MaxCurrent span the ToWrite rows
+// whose total is known.
 type OverallBackfillReport struct {
 	Rows         int
 	SkippedRated int
@@ -106,9 +107,13 @@ func (b *OverallBackfill) RunUser(ctx context.Context, userId primitive.ObjectID
 			rate = rateOn(b.days, b.closes, date)
 		}
 		report.ToWrite++
-		if _, current := domain.OverallFromBuckets(row.Buckets, rate.EurInr); current == nil {
+		// A day without a rate is counted even when its INR total exists (an
+		// INR-only day): it still has no EUR amounts on the chart and is
+		// offered for re-fetch, so the dry run must show it.
+		if rate.EurInr == nil {
 			report.WithoutRate++
-		} else {
+		}
+		if _, current := domain.OverallFromBuckets(row.Buckets, rate.EurInr); current != nil {
 			if report.MinCurrent < 0 || *current < report.MinCurrent {
 				report.MinCurrent = *current
 			}

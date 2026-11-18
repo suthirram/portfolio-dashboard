@@ -148,3 +148,32 @@ func TestOverallBackfillRebuildWithStoredRatesSkipsYahoo(t *testing.T) {
 		}
 	})
 }
+
+// Codex review (#340): an INR-only day before Yahoo's series gets a valid
+// INR total but no rate; the dry run must still count it as without a rate.
+func TestOverallBackfillCountsInrOnlyDaysWithoutARate(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("inr only, no close", func(mt *mtest.T) {
+		userId := primitive.NewObjectID()
+		inrOnly := bson.D{
+			{Key: "_id", Value: primitive.NewObjectID()}, {Key: "user_id", Value: userId},
+			{Key: "date", Value: backfillThursday}, {Key: "currency", Value: "INR"},
+			{Key: "regions", Value: bson.D{{Key: "INR", Value: bson.D{{Key: "invested", Value: 1000.0}, {Key: "current", Value: 1100.0}, {Key: "source", Value: "cron"}}}}},
+		}
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, inrOnly),
+			mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch),
+		)
+		// Yahoo's series starts after the row: no close on or before it.
+		report, err := backfillFor(mt, fixedCloses{"2026-11-13": 90}).RunUser(context.Background(), userId, OverallBackfillOptions{DryRun: true})
+		if err != nil {
+			t.Fatalf("RunUser: %v", err)
+		}
+		if report.ToWrite != 1 || report.WithoutRate != 1 {
+			t.Errorf("report = %+v; want the INR-only day counted as without a rate", report)
+		}
+		if report.MinCurrent != 1100 || report.MaxCurrent != 1100 {
+			t.Errorf("min/max = %v/%v; want its valid INR total 1100 kept in the range", report.MinCurrent, report.MaxCurrent)
+		}
+	})
+}
