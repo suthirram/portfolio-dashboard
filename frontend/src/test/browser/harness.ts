@@ -14,7 +14,11 @@ import { createServer, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // One launch serves as both the availability probe and the test browser.
-export const launchBrowser = () => chromium.launch().catch((error: unknown) => {
+// Linux Chromium rounds each glyph advance to a whole pixel unless font
+// hinting is off, so text widths drift from macOS and Windows and the
+// metric-matched fallbacks re-wrap (fontFallback.browser.test.ts). This flag
+// turns on subpixel positioning, as those platforms' browsers use.
+export const launchBrowser = () => chromium.launch({ args: ['--font-render-hinting=none'] }).catch((error: unknown) => {
   if (process.env.REQUIRE_BROWSER_TESTS === '1') throw error
   return null
 })
