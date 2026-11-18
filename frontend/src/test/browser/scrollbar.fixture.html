@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scrollbar fixture</title>
+  </head>
+  <body>
+    <!-- Browser fixture for scrollbar.browser.test.ts: a page that scrolls,
+         with a nested scroll container inside it. -->
+    <div id="nested" style="overflow: auto; height: 120px">
+      <div style="height: 1000px"></div>
+    </div>
+    <div style="height: 3000px"></div>
+    <script type="module" src="./scrollbar.fixture.ts"></script>
+  </body>
+</html>
