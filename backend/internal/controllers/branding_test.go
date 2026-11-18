@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strings"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,6 +33,33 @@ func TestGetBranding_DefaultsToRobotoWhenUnset(t *testing.T) {
 		}
 		if got.AllowedFonts[0].Id != api.Roboto || got.AllowedFonts[1].Id != api.JetbrainsMono {
 			t.Errorf("allowed fonts = %#v, want Roboto then JetBrains Mono", got.AllowedFonts)
+		}
+	})
+}
+
+// Each stack falls back to its metric-adjusted face first, so the text
+// shown while the web font loads takes the web font's size.
+func TestGetBranding_StacksFallBackToMetricAdjustedFace(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("missing branding doc", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, brandingNS(mt), mtest.FirstBatch))
+
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.GetBranding(userCtx(scopedUser()), api.GetBrandingRequestObject{})
+		if err != nil {
+			t.Fatalf("GetBranding: %v", err)
+		}
+
+		want := map[api.BrandingFont][]string{
+			api.Roboto:        {"Roboto", `"Roboto Fallback"`},
+			api.JetbrainsMono: {`"JetBrains Mono"`, `"JetBrains Mono Fallback"`},
+		}
+		for _, option := range resp.(api.GetBranding200JSONResponse).AllowedFonts {
+			families := strings.Split(option.CssFamily, ", ")
+			if len(families) < 3 || families[0] != want[option.Id][0] || families[1] != want[option.Id][1] {
+				t.Errorf("%s stack = %q, want %s then %s, then a system fallback", option.Id, option.CssFamily, want[option.Id][0], want[option.Id][1])
+			}
 		}
 	})
 }

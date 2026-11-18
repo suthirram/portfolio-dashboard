@@ -11,16 +11,20 @@ import (
 	"portfolio-dashboard/internal/persistence"
 )
 
+// Each stack names a metric-adjusted fallback face second ("<font>
+// Fallback", an @font-face in the frontend's base.css). It is what renders
+// while the web font loads, sized to the web font's metrics so the swap
+// does not shift the layout.
 var brandingFontOptions = []api.BrandingFontOption{
 	{
 		Id:        api.Roboto,
 		Label:     "Roboto",
-		CssFamily: "Roboto, Arial, sans-serif",
+		CssFamily: "Roboto, \"Roboto Fallback\", Arial, sans-serif",
 	},
 	{
 		Id:        api.JetbrainsMono,
 		Label:     "JetBrains Mono",
-		CssFamily: "\"JetBrains Mono\", monospace",
+		CssFamily: "\"JetBrains Mono\", \"JetBrains Mono Fallback\", monospace",
 	},
 }
 
