@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// istZone is India Standard Time, for building the cut-over instants below.
+var istZone = time.FixedZone("IST", 5*60*60+30*60)
+
 func TestTradingDate_ISTCutover(t *testing.T) {
 	day := func(y int, m time.Month, d int) time.Time {
 		return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)

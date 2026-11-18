@@ -60,6 +60,37 @@ func (s *GoldService) InvestedOn(ctx context.Context, userId string, days []time
 	return goldInvestedOn(txns, days), nil
 }
 
+// HeldOn reports, per day, whether physical gold was held at the end of it:
+// any purchase dated on or before it. It is the existence test goldOverlay
+// applies before valuing a day, so a held day without an overlay point is
+// one with no price yet (PD-059). One store read.
+func (s *GoldService) HeldOn(ctx context.Context, userId string, days []time.Time) (_ []bool, retErr error) {
+	ctx, span := tracer.Start(ctx, "GoldService.HeldOn")
+	defer endSpan(span, &retErr)
+	txns, err := s.store.ListTransactions(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	return goldHeldOn(txns, days), nil
+}
+
+// goldHeldOn is the pure test behind HeldOn; purchases and days may come in
+// any order.
+func goldHeldOn(txns []domain.GoldTransaction, days []time.Time) []bool {
+	held := make([]bool, len(days))
+	for i, day := range days {
+		grams, invested := 0.0, 0.0
+		for _, txn := range txns {
+			if !dateOnly(txn.Date).After(dateOnly(day)) {
+				grams += txn.GramsBought
+				invested += txn.ActualPaid
+			}
+		}
+		held[i] = grams != 0 || invested != 0
+	}
+	return held
+}
+
 // goldInvestedOn sums ActualPaid of the purchases dated on or before each
 // day; purchases and days may come in any order.
 func goldInvestedOn(txns []domain.GoldTransaction, days []time.Time) []float64 {

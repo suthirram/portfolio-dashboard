@@ -100,7 +100,9 @@ func cliConnect(ctx context.Context, logger *zap.Logger, cfg config.Config) (*pe
 	}
 	database := client.Database(cfg.MongoDB)
 	disconnect := func() { _ = client.Disconnect(context.Background()) }
-	return persistence.New(database), database, disconnect, nil
+	store := persistence.New(database)
+	store.AttachOverall()
+	return store, database, disconnect, nil
 }
 
 func runMigrateUsers(_ *cobra.Command, _ []string) error {

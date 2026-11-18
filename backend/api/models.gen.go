@@ -1299,6 +1299,36 @@ type OnboardingRequest struct {
 	SecurityAnswers []SecurityAnswerInput `json:"security_answers"`
 }
 
+// OverallHistory defines model for OverallHistory.
+type OverallHistory struct {
+	// GoldUnavailable Gold could not be read for a gold-enabled account; every amount is absent
+	GoldUnavailable bool `json:"gold_unavailable"`
+
+	// Points One point per stored day, oldest first
+	Points []OverallPoint `json:"points"`
+}
+
+// OverallPoint defines model for OverallPoint.
+type OverallPoint struct {
+	CurrentEur *float64           `json:"current_eur,omitempty"`
+	CurrentInr *float64           `json:"current_inr,omitempty"`
+	Date       openapi_types.Date `json:"date"`
+
+	// EurInr INR per 1 EUR used for the day; absent when unknown
+	EurInr *float64 `json:"eur_inr,omitempty"`
+
+	// FxCarried The rate is a fallback after a failed fetch, or not fetched yet (re-fetch offered on History)
+	FxCarried bool `json:"fx_carried"`
+
+	// GoldUnvalued Gold was held but had no price yet; amounts absent until a price is entered
+	GoldUnvalued bool     `json:"gold_unvalued"`
+	InvestedEur  *float64 `json:"invested_eur,omitempty"`
+	InvestedInr  *float64 `json:"invested_inr,omitempty"`
+
+	// MissingRate No rate known for a day with EUR holdings; amounts absent
+	MissingRate bool `json:"missing_rate"`
+}
+
 // PasteHistoryInput defines model for PasteHistoryInput.
 type PasteHistoryInput struct {
 	// Month YYYY-MM

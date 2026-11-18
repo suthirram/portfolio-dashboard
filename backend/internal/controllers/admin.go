@@ -264,6 +264,14 @@ func (h *Controller) AdminDeleteUser(ctx context.Context, request api.AdminDelet
 		h.reqLog(ctx).Error("delete user transactions failed", zap.String("error", err.Error()))
 		return nil, err
 	}
+	// History rows and, through the attached overall store, the daily
+	// overall totals (PD-059): nothing of the portfolio outlives the account
+	// (PRD-001 §6).
+	if err := h.store.Snapshots.DeleteByUser(ctx, target.ID); err != nil {
+		logger := h.reqLog(ctx)
+		logger.Error("delete user history failed", zap.Error(err))
+		return nil, err
+	}
 	if err := h.store.Sessions.DeleteByUser(ctx, target.ID); err != nil {
 		h.reqLog(ctx).Error("delete user sessions failed", zap.String("error", err.Error()))
 		return nil, err

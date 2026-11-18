@@ -158,6 +158,12 @@ type ListHistoryParams struct {
 	IncludePrevious *bool `form:"include_previous,omitempty" json:"include_previous,omitempty"`
 }
 
+// GetOverallHistoryParams defines parameters for GetOverallHistory.
+type GetOverallHistoryParams struct {
+	From openapi_types.Date `form:"from" json:"from"`
+	To   openapi_types.Date `form:"to" json:"to"`
+}
+
 // GetForexRateParams defines parameters for GetForexRate.
 type GetForexRateParams struct {
 	From *string `form:"from,omitempty" json:"from,omitempty"`
@@ -483,6 +489,9 @@ type ServerInterface interface {
 	// Add a manual snapshot row
 	// (POST /history)
 	AddHistoryRow(ctx echo.Context) error
+	// Overall portfolio worth per day (stocks + gold, INR and EUR)
+	// (GET /history/overall)
+	GetOverallHistory(ctx echo.Context, params GetOverallHistoryParams) error
 	// Bulk-paste a month of manual rows
 	// (POST /history/paste)
 	PasteHistory(ctx echo.Context) error
@@ -1599,6 +1608,33 @@ func (w *ServerInterfaceWrapper) AddHistoryRow(ctx echo.Context) error {
 	return err
 }
 
+// GetOverallHistory converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOverallHistory(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOverallHistoryParams
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", ctx.QueryParams(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter from: %s", err))
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", ctx.QueryParams(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter to: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetOverallHistory(ctx, params)
+	return err
+}
+
 // PasteHistory converts echo context to params.
 func (w *ServerInterfaceWrapper) PasteHistory(ctx echo.Context) error {
 	var err error
@@ -2082,6 +2118,7 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/gold/transactions/:id", wrapper.UpdateGoldTransaction, options.OperationMiddlewares["updateGoldTransaction"]...)
 	router.GET(options.BaseURL+"/history", wrapper.ListHistory, options.OperationMiddlewares["listHistory"]...)
 	router.POST(options.BaseURL+"/history", wrapper.AddHistoryRow, options.OperationMiddlewares["addHistoryRow"]...)
+	router.GET(options.BaseURL+"/history/overall", wrapper.GetOverallHistory, options.OperationMiddlewares["getOverallHistory"]...)
 	router.POST(options.BaseURL+"/history/paste", wrapper.PasteHistory, options.OperationMiddlewares["pasteHistory"]...)
 	router.DELETE(options.BaseURL+"/history/:date", wrapper.DeleteHistoryRow, options.OperationMiddlewares["deleteHistoryRow"]...)
 	router.PUT(options.BaseURL+"/history/:date/regions", wrapper.PatchHistoryRegions, options.OperationMiddlewares["patchHistoryRegions"]...)
@@ -5010,6 +5047,42 @@ func (response AddHistoryRow409JSONResponse) VisitAddHistoryRowResponse(w http.R
 	return err
 }
 
+type GetOverallHistoryRequestObject struct {
+	Params GetOverallHistoryParams
+}
+
+type GetOverallHistoryResponseObject interface {
+	VisitGetOverallHistoryResponse(w http.ResponseWriter) error
+}
+
+type GetOverallHistory200JSONResponse OverallHistory
+
+func (response GetOverallHistory200JSONResponse) VisitGetOverallHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetOverallHistory400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetOverallHistory400JSONResponse) VisitGetOverallHistoryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PasteHistoryRequestObject struct {
 	Body *PasteHistoryJSONRequestBody
 }
@@ -6122,6 +6195,9 @@ type StrictServerInterface interface {
 	// Add a manual snapshot row
 	// (POST /history)
 	AddHistoryRow(ctx context.Context, request AddHistoryRowRequestObject) (AddHistoryRowResponseObject, error)
+	// Overall portfolio worth per day (stocks + gold, INR and EUR)
+	// (GET /history/overall)
+	GetOverallHistory(ctx context.Context, request GetOverallHistoryRequestObject) (GetOverallHistoryResponseObject, error)
 	// Bulk-paste a month of manual rows
 	// (POST /history/paste)
 	PasteHistory(ctx context.Context, request PasteHistoryRequestObject) (PasteHistoryResponseObject, error)
@@ -7872,6 +7948,31 @@ func (sh *strictHandler) AddHistoryRow(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(AddHistoryRowResponseObject); ok {
 		return validResponse.VisitAddHistoryRowResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetOverallHistory operation middleware
+func (sh *strictHandler) GetOverallHistory(ctx echo.Context, params GetOverallHistoryParams) error {
+	var request GetOverallHistoryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOverallHistory(ctx.Request().Context(), request.(GetOverallHistoryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOverallHistory")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOverallHistoryResponseObject); ok {
+		return validResponse.VisitGetOverallHistoryResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

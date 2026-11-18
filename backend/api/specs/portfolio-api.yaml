@@ -1114,6 +1114,52 @@ components:
           additionalProperties:
             $ref: "#/components/schemas/DividendHistoryOverlay"
 
+    OverallPoint:
+      type: object
+      required: [date, fx_carried, missing_rate, gold_unvalued]
+      properties:
+        date:
+          type: string
+          format: date
+        invested_inr:
+          type: number
+          format: double
+        current_inr:
+          type: number
+          format: double
+        invested_eur:
+          type: number
+          format: double
+        current_eur:
+          type: number
+          format: double
+        eur_inr:
+          type: number
+          format: double
+          description: INR per 1 EUR used for the day; absent when unknown
+        fx_carried:
+          type: boolean
+          description: The rate is a fallback after a failed fetch, or not fetched yet (re-fetch offered on History)
+        missing_rate:
+          type: boolean
+          description: No rate known for a day with EUR holdings; amounts absent
+        gold_unvalued:
+          type: boolean
+          description: Gold was held but had no price yet; amounts absent until a price is entered
+
+    OverallHistory:
+      type: object
+      required: [points, gold_unavailable]
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverallPoint"
+          description: One point per stored day, oldest first
+        gold_unavailable:
+          type: boolean
+          description: Gold could not be read for a gold-enabled account; every amount is absent
+
     HistoryList:
       type: object
       required: [currency, rows]

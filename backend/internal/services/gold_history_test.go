@@ -116,3 +116,13 @@ func TestGoldOverlay(t *testing.T) {
 		}
 	})
 }
+
+func TestGoldHeldOn(t *testing.T) {
+	t.Parallel()
+	purchase := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	txns := []domain.GoldTransaction{{Date: purchase, GramsBought: 10, ActualPaid: 70000}}
+	held := goldHeldOn(txns, []time.Time{purchase.AddDate(0, 0, -1), purchase, purchase.AddDate(0, 0, 5)})
+	if held[0] || !held[1] || !held[2] {
+		t.Errorf("held = %v; want false before the purchase, true from its day", held)
+	}
+}

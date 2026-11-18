@@ -29,6 +29,7 @@ type Controller struct {
 	portfolio    *services.PortfolioService
 	stockXirr    *services.StockXirrService
 	history      *services.HistoryService
+	overall      *services.OverallService
 	dividends    *services.DividendsService
 	tradeImport  *services.TradeImportService
 	gold         *services.GoldService // nil when Postgres is not configured (DD-003 §1) — gold routes answer 503
@@ -59,7 +60,9 @@ func New(db *mongo.Database, logger *zap.Logger, cookieSecure bool) *Controller 
 // NewWithProfiles is New with the profile fetcher supplied. HTTP-level tests
 // pass nil so they never contact Yahoo; holdings are then saved unclassified.
 func NewWithProfiles(db *mongo.Database, logger *zap.Logger, cookieSecure bool, profiles services.ProfileFetcher) *Controller {
-	return newWithDeps(persistence.New(db), services.NewPriceService(logger), profiles, logger, cookieSecure)
+	store := persistence.New(db)
+	store.AttachOverall()
+	return newWithDeps(store, services.NewPriceService(logger), profiles, logger, cookieSecure)
 }
 
 // newWithDeps assembles the per-domain services around a pre-built store,
@@ -77,6 +80,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, p
 		portfolio:    services.NewPortfolioService(store.Holdings, store.Snapshots, priceService, logger),
 		stockXirr:    services.NewStockXirrService(store.Holdings, store.Transactions, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
+		overall:      services.NewOverallService(store.Overall, logger),
 		dividends:    services.NewDividendsService(store.Transactions, store.Holdings, store, logger),
 		tradeImport:  services.NewTradeImportService(store.Transactions, store.Holdings, store, recomputer, logger),
 		logger:       logger,

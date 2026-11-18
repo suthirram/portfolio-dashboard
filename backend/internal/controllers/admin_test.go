@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strings"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -293,13 +294,16 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 		target := userDocument(t, targetID, "bob", "irrelevant1", domain.RoleUser, "india", nil)
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(0, usersNS(mt), mtest.FirstBatch, target),
-			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 5}), // holdings
-			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 8}), // transactions
-			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 2}), // sessions
-			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}), // user
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 5}),   // holdings
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 8}),   // transactions
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 300}), // history rows
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 300}), // overall days
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 2}),   // sessions
+			mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}),   // user
 		)
 
-		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		// Production wiring: portfolio_overall attached (PD-059).
+		h := overallHandler(mt)
 		resp, err := h.AdminDeleteUser(userCtx(regionalAdmin("india")), api.AdminDeleteUserRequestObject{
 			Id: targetID.Hex(),
 		})
@@ -310,14 +314,15 @@ func TestAdminDeleteUser_RemovesUserHoldingsSessions(t *testing.T) {
 			t.Fatalf("response = %T, want 204", resp)
 		}
 
-		deletes := 0
+		var deleted []string
 		for _, e := range mt.GetAllStartedEvents() {
 			if e.CommandName == "delete" {
-				deletes++
+				deleted = append(deleted, e.Command.Lookup("delete").StringValue())
 			}
 		}
-		if deletes != 4 {
-			t.Errorf("delete commands = %d, want 4 (holdings, transactions, sessions, user)", deletes)
+		want := []string{"holdings", "transactions", "portfolio_snapshots", "portfolio_overall", "sessions", "users"}
+		if strings.Join(deleted, ",") != strings.Join(want, ",") {
+			t.Errorf("deleted collections = %v; want %v — nothing of the portfolio may outlive the account, which goes last", deleted, want)
 		}
 	})
 }
