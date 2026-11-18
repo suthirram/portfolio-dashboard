@@ -220,6 +220,45 @@ func TestBuildSnapshot_WeekendReusesPriorClose(t *testing.T) {
 	})
 }
 
+func TestBuildSnapshot_WeekendSameSymbolInTwoCurrencies(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("each holding carries its own currency's close", func(mt *mtest.T) {
+		uid := primitive.NewObjectID()
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch,
+			holdingDoc(uid, "NASDAQ", "NVDA", "EUR", 2, 150),
+			holdingDoc(uid, "NASDAQ", "NVDA", "INR", 3, 150),
+		))
+		// Friday's row: the EUR line's close was converted from USD, the INR one was not.
+		priorLine := func(currency string, closePrice float64) bson.D {
+			return bson.D{
+				{Key: "symbol", Value: "NVDA"}, {Key: "currency", Value: currency},
+				{Key: "close_price", Value: closePrice}, {Key: "price_date", Value: "2026-06-19"},
+			}
+		}
+		prior := bson.D{
+			{Key: "user_id", Value: uid},
+			{Key: "date", Value: time.Date(2026, 6, 19, 0, 0, 0, 0, time.UTC)},
+			{Key: "holdings", Value: bson.A{priorLine("EUR", 180), priorLine("INR", 200)}},
+		}
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch, prior))
+
+		store := persistence.New(mt.DB)
+		svc := NewSnapshotService(store.Holdings, store.Snapshots, nil, &stubPriceFetcher{price: 9999}, nil)
+
+		sat := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC) // Saturday
+		snap, err := svc.BuildSnapshot(context.Background(), uid, sat)
+		if err != nil {
+			t.Fatalf("BuildSnapshot: %v", err)
+		}
+		if eur := snap.Buckets[domain.CurrencyEUR].Current; eur != 360 { // 2 × 180
+			t.Errorf("EUR current = %v, want 360 (the EUR close, not the INR one)", eur)
+		}
+		if inr := snap.Buckets[domain.CurrencyINR].Current; inr != 600 { // 3 × 200
+			t.Errorf("INR current = %v, want 600 (the INR close, not the EUR one)", inr)
+		}
+	})
+}
+
 func TestBuildSnapshot_UnknownCurrencyExcludedFromTotals(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	mt.Run("unknown currency excluded", func(mt *mtest.T) {
