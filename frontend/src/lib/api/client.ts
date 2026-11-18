@@ -61,6 +61,8 @@ export type GoldTransaction = Schemas['GoldTransaction']
 export type GoldTransactionInput = Schemas['GoldTransactionInput']
 export type GoldPrice = Schemas['GoldPrice']
 export type GoldMetrics = Schemas['GoldMetrics']
+export type OverallPoint = Schemas['OverallPoint']
+export type OverallHistory = Schemas['OverallHistory']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -193,6 +195,8 @@ export const api = {
   // includePrevious also returns the latest row before `from` (PRD-006 §4).
   listHistory:        (from: string, to: string, includePrevious = false) =>
     request<HistoryList>('GET', `/history?from=${from}&to=${to}${includePrevious ? '&include_previous=true' : ''}`),
+  getOverallHistory:  (from: string, to: string) =>
+    request<OverallHistory>('GET', `/history/overall?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   addHistoryRow:      (body: AddHistoryRowInput) => request<HistoryRow>('POST', '/history', body),
   patchHistoryRegions:(date: string, body: PatchHistoryRegionsInput) => request<HistoryRow>('PUT', `/history/${date}/regions`, body),
   deleteHistoryRow:   (date: string) => request<void>('DELETE', `/history/${date}`),

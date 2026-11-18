@@ -367,6 +367,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/history/overall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overall portfolio worth per day (stocks + gold, INR and EUR)
+         * @description PD-059. Daily points from portfolio_overall plus the physical-gold
+         *     overlay, for the Overview performance chart. Amounts are absent, never
+         *     zero, on a day without a rate, on a day whose gold has no price yet,
+         *     and on every day when gold cannot be read for a gold-enabled account.
+         */
+        get: operations["getOverallHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/history/{date}/regions": {
         parameters: {
             query?: never;
@@ -2096,6 +2119,35 @@ export interface components {
                 incoming: components["schemas"]["HistoryRegionInput"];
             }[];
         };
+        OverallPoint: {
+            /** Format: date */
+            date: string;
+            /** Format: double */
+            invested_inr?: number;
+            /** Format: double */
+            current_inr?: number;
+            /** Format: double */
+            invested_eur?: number;
+            /** Format: double */
+            current_eur?: number;
+            /**
+             * Format: double
+             * @description INR per 1 EUR used for the day; absent when unknown
+             */
+            eur_inr?: number;
+            /** @description The rate is a fallback after a failed fetch, or not fetched yet (re-fetch offered on History) */
+            fx_carried: boolean;
+            /** @description No rate known for a day with EUR holdings; amounts absent */
+            missing_rate: boolean;
+            /** @description Gold was held but had no price yet; amounts absent until a price is entered */
+            gold_unvalued: boolean;
+        };
+        OverallHistory: {
+            /** @description One point per stored day, oldest first */
+            points: components["schemas"]["OverallPoint"][];
+            /** @description Gold could not be read for a gold-enabled account; every amount is absent */
+            gold_unavailable: boolean;
+        };
         PatchHistoryRegionsInput: {
             regions: {
                 [key: string]: components["schemas"]["HistoryRegionInput"];
@@ -3143,6 +3195,30 @@ export interface operations {
                     "application/json": components["schemas"]["HistoryConflictResponse"];
                 };
             };
+        };
+    };
+    getOverallHistory: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Daily points, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverallHistory"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     patchHistoryRegions: {

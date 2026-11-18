@@ -30,9 +30,9 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
 | 7 | 2 | FE | Allocation by holding / sector / currency | 2 | | | | needs amendment |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
-| 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340 | in review |
+| 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
-| 10 | 3 | FE | Overview overall performance chart | 2, 8 | | | | needs amendment |
+| 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | | in progress |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
 | 13 | 3 | FE | History page | 2 | | | | needs amendment |
@@ -101,6 +101,11 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   USD), gold on read; rate carried on weekends; failed fetch → flagged,
   user-triggered re-fetch on `/history` (own rows, not in act-as, Not now,
   re-prompt). Backfill additive, dry-run, backup, zero data loss.
+* Overall chart (owner, 2026-11-19): build slice 10 as a standalone
+  `OverallPerformance` component and mount it when Overview slices 4–7 land.
+  Keep the handoff labels, including **Daily movement**, the **View chart
+  data** table and the absence of the preview-state selector. The History
+  table's **Daily volatility** label remains specific to History.
 * Gold in the overall chart: a day without a price copies the previous
   day's (heals when the price is entered). Gold held before its first price
   ⇒ that day's total is unavailable (`gold_unvalued`), not valued at cost.
