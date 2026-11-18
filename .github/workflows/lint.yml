@@ -92,7 +92,25 @@ jobs:
       - name: lint changed files
         if: github.event_name == 'pull_request'
         run: npm run lint:changed -- "origin/${{ github.base_ref }}"
+      # The *.browser.test.ts files drive Playwright's Chromium (issue #321).
+      # Cache the download per installed playwright version; the OS packages
+      # it needs are not cached, so install-deps runs every time.
+      - name: playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium-headless-shell
+      - run: npx playwright install-deps chromium-headless-shell
+      # Fail, not skip, when Chromium can't launch, so the browser tests
+      # always run in CI.
       - run: npm run test:run
+        env:
+          REQUIRE_BROWSER_TESTS: '1'
 
   markdown:
     name: Markdown (markdownlint)
