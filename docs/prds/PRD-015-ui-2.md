@@ -4,8 +4,9 @@
 * **Owner**: project owner
 * **Design**: [DD-015](../designs/DD-015-ui-2.md)
 * **Rollout**: [PD-059](../plans/PD-059-ui-2.md) · status [PD-059 status](../plans/PD-059-ui-2-status.md)
-* **Visual reference**: [PD-059 reference](../visuals/PD-059-ui-2-reference.html) (owner's
-  mockup; illustrative, not normative data or logic)
+* **Visual reference**: [PD-059 reference](../visuals/PD-059-ui-2-reference.html), the
+  owner's handoff mockup (`/handoff/design.html`). Single source of truth for
+  layout and style: UI_2.0 matches it 1:1. Its sample figures are not data.
 
 ## 1. Problem
 

@@ -72,6 +72,10 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 
 ## Owner decisions log (2026-11-18)
 
+* The handoff mockup (`docs/visuals/PD-059-ui-2-reference.html`, from
+  `/handoff/design.html`) is the single source of truth for layout and
+  style: every screen matches it 1:1. Claude's own visual spec was
+  withdrawn.
 * Slices merge to `main` behind the switch; label `ui-2.0`; revert by
   switching accounts or deleting `ui2/` + the `ShellLayout` branch.
 * `ui_mode` enum `classic | glass | ui2`; super admin sets it per account.

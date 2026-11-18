@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portfolio — Design Preview</title><meta name="description" content="A clearer view of your investments. Interactive portfolio design preview with three themes and sample data."><style>
+<html lang="en" data-ui="ui2" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portfolio — Design Preview</title><meta name="description" content="A clearer view of your investments. Interactive portfolio design preview with three themes and sample data."><style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{--bg:#f4f6fa;--panel:rgba(255,255,255,.88);--side:rgba(255,255,255,.78);--text:#172238;--muted:#637188;--border:#e3e8f0;--accent:#5265d8;--accentsoft:#edf0ff;--green:#087d61;--greensoft:#e7f6ef;--red:#c34153;--redsoft:#fff0f1;--shadow:0 8px 30px #20366605;--line:#dce3ed;--chart:#5265d8;--wash:#eef2fc}
 [data-theme=dark]{--bg:#10151f;--panel:rgba(27,35,49,.92);--side:rgba(22,29,41,.94);--text:#eef2fa;--muted:#a1aec2;--border:#303c50;--accent:#a1adff;--accentsoft:#2c3654;--green:#65d6b1;--greensoft:#183d36;--red:#ff94a2;--redsoft:#442a36;--shadow:0 8px 30px #00000012;--line:#354156;--chart:#a1adff;--wash:#172034}
@@ -45,20 +45,98 @@ body{isolation:isolate}.main{position:relative;z-index:1}.currency-atmosphere{po
 </style><style>
 .admin-root[hidden],.actas-banner[hidden],.account-menu[hidden]{display:none!important}.admin-root{display:grid;gap:20px}.admin-workspace{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}.admin-list{overflow:hidden}.admin-list input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:11px}.admin-list-tools{padding:16px;display:grid;gap:12px;border-bottom:1px solid var(--border)}.admin-user-list{max-height:600px;overflow:auto}.admin-user{width:100%;display:flex;gap:12px;align-items:center;padding:18px 16px;text-align:left;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text)}.admin-user.selected{background:var(--accentsoft);box-shadow:inset 3px 0 var(--accent)}.admin-user strong{display:block;font-size:12px;margin-bottom:5px}.admin-user small{font-size:11px;color:var(--muted)}.admin-dot{width:7px;height:7px;background:var(--green);border-radius:50%;margin-left:auto;flex-shrink:0}.admin-dot.locked{background:#c99b42}.admin-dot.hidden{background:var(--muted)}.admin-detail{display:grid;gap:16px;min-width:0}.admin-user-head{padding:24px;display:flex;align-items:center;gap:15px;flex-wrap:wrap}.admin-user-head h2{font:800 21px Manrope;margin:0 0 7px}.admin-user-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}.admin-avatar{width:44px;height:44px;display:grid;place-items:center;background:var(--accentsoft);color:var(--accent);border-radius:14px;font-weight:800}.admin-section{padding:22px}.admin-section h2{font:700 15px Manrope;margin:0 0 8px}.admin-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px 0;border-bottom:1px solid var(--border)}.admin-row:last-child{border-bottom:0;padding-bottom:0}.admin-row strong{font-size:12px;font-weight:600}.admin-row p{font-size:11px;color:var(--muted);line-height:1.6;margin:6px 0 0}.admin-row>span{font-size:12px;white-space:nowrap}.admin-status{display:inline-flex;align-items:center;padding:5px 9px;border-radius:6px;font-size:10px;font-weight:600;background:var(--greensoft);color:var(--green)}.admin-status.locked{background:#bc973020;color:#bd9434}.admin-status.hidden{background:var(--bg);color:var(--muted)}.admin-danger{border-color:color-mix(in srgb,var(--red) 35%,var(--border))}.admin-role{display:inline-block;font-size:9px;letter-spacing:.7px;text-transform:uppercase;background:var(--accentsoft);color:var(--accent);padding:4px 6px;border-radius:4px}.account{position:relative;cursor:pointer}.account:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:8px}.account-menu{position:absolute;bottom:calc(100% + 8px);left:0;right:0;background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:10px;padding:6px;z-index:40}.account-menu button{width:100%;border:0;background:none;text-align:left;padding:12px;border-radius:6px;color:var(--text);font-size:12px}.account-menu button:hover{background:var(--accentsoft)}.actas-banner{position:sticky;top:0;z-index:30;padding:12px 18px;border:1px solid #b18a43;background:var(--panel);box-shadow:0 3px 15px #0001;border-radius:0 0 10px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px}.actas-banner strong{font-size:12px}.actas-banner small{display:block;color:var(--muted);margin-top:4px;font-size:10px}.profile-layout{display:grid;grid-template-columns:230px 1fr;gap:24px;align-items:start}.profile-identity{padding:24px;text-align:center}.profile-identity .admin-avatar{margin:0 auto 16px;width:64px;height:64px;font-size:21px;border-radius:18px}.profile-identity h2{font:700 17px Manrope;margin:0 0 8px}.profile-tabs{display:flex;flex-direction:column;gap:5px;margin-top:24px}.profile-tabs button{border:0;background:transparent;color:var(--muted);text-align:left;padding:11px;border-radius:7px}.profile-tabs button.active{background:var(--accentsoft);color:var(--accent)}.profile-field-note{font-size:11px;color:var(--muted);line-height:1.6}.profile-content{padding:26px;max-width:850px}.profile-content h2{font:700 18px Manrope;margin:0 0 8px}.admin-confirm-input{width:100%;margin:18px 0;padding:11px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px}@media(max-width:1050px){.admin-workspace{grid-template-columns:240px 1fr}.profile-layout{grid-template-columns:1fr}.profile-identity{text-align:left}.profile-identity .admin-avatar{margin:0 0 15px}.profile-tabs{flex-direction:row;flex-wrap:wrap;margin-top:18px}.admin-user-head .btn{width:100%}}@media(max-width:700px){.admin-workspace{grid-template-columns:1fr}.admin-user-list{max-height:230px}.admin-row{gap:12px;flex-wrap:wrap}.actas-banner{align-items:flex-start;flex-wrap:wrap}.admin-section{padding:18px}.profile-content{padding:20px}}
 
+</style><style>
+/* Local handoff mockup alignment with PD-059. No production styles. */
+:root[data-ui="ui2"] { color-scheme: light; }
+:root[data-ui="ui2"][data-theme="dark"],
+:root[data-ui="ui2"][data-theme="cyber"] { color-scheme: dark; }
+/* Keep the original sidebar, account menu and responsive drawer unchanged. */
+.plan-review-controls { position: relative; font-size: 11px; }
+.plan-review-controls summary { cursor: pointer; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; }
+.plan-review-menu { position: absolute; top: 100%; right: 0; z-index: 15; min-width: 240px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow); }
+.plan-review-menu p { color: var(--muted); }
+.plan-interface-label { display: grid; gap: 7px; }
+.perspective-control { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.perspective-control select { max-width: 160px; font-size: 12px; }
+.perspective-admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.perspective-context { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
+.perspective-check { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 12px; }
+.perspective-check input { accent-color: var(--accent); min-width: 18px; min-height: 18px; }
+.perspective-fonts { border: 0; padding: 0; margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; }
+.perspective-fonts legend { font-weight: 600; margin-bottom: 12px; }
+.perspective-font-card { display: flex; align-items: center; gap: 12px; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: pointer; }
+.perspective-font-card strong, .perspective-font-card span span { display: block; margin: 8px 0; }
+.perspective-font-card:has(input:checked) { border-color: var(--accent); background: var(--accentsoft); }
+.nav button[hidden], .themes button[hidden], .account-menu button[hidden] { display: none !important; }
+.perspective-features .compactselect { max-width: 170px; }
+@media (pointer: coarse) {
+  .perspective-control select, [data-account-interface], #perspective-region { min-height: 44px; font-size: 16px; }
+}
+.holding-name { border: 0; background: none; padding: 3px 0; color: var(--text); font-weight: 700; text-align: left; }
+.holding-clickable { cursor: pointer; }
+.holding-clickable:hover { background: var(--accentsoft); }
+.holding-table { width: 100%; }
+#holding-groups { overflow-x: auto; }
+.plan-performance, .plan-delta { padding: 22px; }
+.plan-performance h2, .plan-delta h2 { font: 700 17px Manrope, sans-serif; margin: 0 0 12px; }
+.plan-performance label { font-size: 11px; color: var(--muted); }
+.plan-chart-controls { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 18px 0; }
+.plan-chart svg { width: 100%; height: auto; }
+.plan-chart text { fill: var(--muted); font-size: 11px; }
+.plan-chart .grid { stroke: var(--border); fill: none; stroke-dasharray: 3 5; }
+.plan-current { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.plan-invested { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
+.plan-scenarios { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--border); }
+.plan-scenarios select { max-width: 250px; }
+.plan-data { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 14px; }
+.plan-data summary { cursor: pointer; color: var(--accent); }
+.plan-data .asset-table-wrap { max-height: 280px; margin-top: 14px; }
+.plan-unavailable { min-height: 210px; display: grid; place-content: center; text-align: center; padding: 24px; color: var(--muted); }
+.plan-unavailable strong { color: var(--text); }
+.plan-unavailable p { max-width: 420px; line-height: 1.7; }
+.plan-multiselect { position: relative; min-width: 150px; }
+.plan-multiselect summary { cursor: pointer; padding: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); font-size: 12px; }
+.plan-options { position: absolute; inset: 100% auto auto 0; min-width: 210px; background: var(--bg); box-shadow: var(--shadow); border: 1px solid var(--border); border-radius: 9px; z-index: 9; padding: 12px; }
+.plan-options fieldset { border: 0; padding: 0; margin: 0 0 10px; }
+.plan-options legend { font-weight: 700; margin-bottom: 8px; }
+.plan-options label { display: flex; align-items: center; gap: 8px; min-height: 30px; color: var(--text); }
+.plan-options input { accent-color: var(--accent); }
+.plan-delta { margin-top: 20px; }
+.plan-delta svg { width: 100%; height: auto; }
+dialog:modal { overscroll-behavior: contain; max-width: min(940px, 94vw); }
+dialog::backdrop { overflow: hidden; overscroll-behavior: contain; }
+caption { text-align: left; color: var(--muted); padding: 10px; }
+.asset-form .full { grid-column: 1 / -1; }
+.asset-form textarea { min-height: 80px; }
+button, summary { min-height: 24px; }
+summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.asset-form input, .asset-form textarea, .asset-form select { min-width: 0; }
+@media (max-width: 760px) {
+  .topbar { height: auto; min-height: 60px; flex-wrap: wrap; padding: 12px 0; }
+  .topright { flex-wrap: wrap; gap: 8px; }
+  .plan-performance, .plan-delta { padding: 15px; }
+  .plan-chart-controls { flex-direction: column; align-items: flex-start; }
+  .plan-chart-controls .segments { display: flex; max-width: 100%; overflow-x: auto; }
+  .plan-performance .chart-head { flex-wrap: wrap; gap: 12px; }
+  .tools { flex-wrap: wrap; }
+  .asset-modal-actions { flex-wrap: wrap; }
+}
+
 </style></head><body>
-<aside class="sidebar" id="sidebar"><a class="brand" href="#" aria-label="Portfolio home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5m0 14h16M8 15l4-5 3 2 5-7"/></svg></span>Portfolio<span style="color:var(--accent)">.</span></a><div class="nav-label">WORKSPACE</div><nav class="nav" aria-label="Main navigation"></nav><div class="sidebar-bottom"><div class="preview-note"><strong>A clearer perspective.</strong>Design preview with sample data.<br>Your live portfolio is unchanged.</div><div class="theme-title">Appearance</div><div class="themes" aria-label="Choose theme"><button data-theme-choice="light">☀ Light</button><button data-theme-choice="dark">☾ Dark</button><button data-theme-choice="cyber">ϟ Cyber</button></div><label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);padding:13px 5px 0"><input type="checkbox" id="decoration"> Ambient background</label><div class="account"><div class="avatar">MM</div><div><strong>Max Mustermann</strong><small>Demo portfolio</small></div><span style="margin-left:auto;color:var(--muted)">⌄</span></div></div></aside>
+<aside class="sidebar" id="sidebar"><a class="brand" href="#" aria-label="Portfolio home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5m0 14h16M8 15l4-5 3 2 5-7"/></svg></span>Portfolio<span style="color:var(--accent)">.</span></a><div class="nav-label">WORKSPACE</div><nav class="nav" aria-label="Main navigation"></nav><div class="sidebar-bottom"><div class="preview-note"><strong>A clearer perspective.</strong>Design preview with sample data.<br>Your live portfolio is unchanged.</div><div class="theme-title">Appearance</div><div class="themes" aria-label="Choose theme"><button data-theme-choice="light">☀ Light</button><button data-theme-choice="dark">☾ Dark</button><button data-theme-choice="cyber">ϟ Cyber</button></div><input type="checkbox" id="decoration" hidden checked disabled><div class="account"><div class="avatar">MM</div><div><strong>Max Mustermann</strong><small>Demo portfolio</small></div><span style="margin-left:auto;color:var(--muted)">⌄</span></div></div></aside>
 <main class="main"><header class="topbar"><div class="breadcrumb"><button class="mobile-menu" aria-label="Toggle navigation">☰</button>Workspace <span>/ &nbsp; <b id="crumb" style="font-weight:500">Overview</b></span></div><div class="topright"><span class="badge">DESIGN PREVIEW</span><span class="shortcut">Sample data</span></div></header><section class="intro"><div><h1 id="page-title">Your portfolio, at a glance</h1><p class="subtitle" id="page-subtitle">A little clarity for every investment decision.</p></div><div class="actions"><button class="btn" id="refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg><span class="refresh-text">Refresh</span></button><button class="btn primary" id="add">＋ Add holding</button></div></section>
 <section class="overview" aria-label="Portfolio summary"><div class="value-panel"><div class="value-heading"><span class="eyebrow">TOTAL PORTFOLIO VALUE</span><select class="currency-select" id="currency" aria-label="Summary display currency"><option value="INR">INR ₹</option><option value="EUR">EUR €</option></select></div><div class="big-value" id="total">₹5,22,193.64</div><div class="equivalent" id="equivalent">≈ €5,083.66 converted equivalent</div><div class="investment"><span>Total invested</span><strong id="invested">₹4,10,381.20</strong></div></div><div class="metrics"><div><div class="metric-label">Unrealised return</div><div class="metric-amount positive" id="unrealised">+₹1,11,812.44</div><div class="metric-foot"><span class="pill">↗ +27.25%</span> &nbsp; since purchase</div></div><div><div class="metric-label">Today by currency</div><div style="display:flex;gap:20px;margin-top:12px"><div><strong class="negative" style="font-size:15px">−₹594.20</strong><div class="metric-foot">INR · −0.55%</div></div><div><strong class="negative" style="font-size:15px">−€232.00</strong><div class="metric-foot">EUR · −5.44%</div></div></div><div class="metric-foot" style="margin-top:7px">vs 16 Nov 2026 close</div></div><div class="smallmetrics"><span>Realised gains <strong id="realised">+₹1,888.00</strong></span><span>Dividends <strong>₹900.00 <small style="font-weight:400">INR</small></strong></span></div></div></section>
 <div class="section-top"><div class="tabs" role="tablist" aria-label="Portfolio views"><button class="active" data-view="holdings" role="tab" aria-selected="true">Holdings <span class="count">3</span></button><button data-view="performance" role="tab" aria-selected="false">Performance</button></div></div><div class="workspace"><div id="view-content"></div><aside class="aside"><section class="panel allocation"><div class="panel-title"><h2>Portfolio allocation</h2><span class="muted" style="font-size:10px">By holding</span></div><div class="donut" role="img" aria-label="Allocation SAP 79.4 percent, TCS 11.5 percent, Infosys 9.1 percent"><div class="donut-center">3<small>holdings</small></div></div><div class="legend-wrap"><div class="legend"><span><i class="dot" style="background:#6678e6"></i>SAP</span><strong>79.4%</strong></div><div class="legend"><span><i class="dot" style="background:#b1bbf4"></i>TCS</span><strong>11.5%</strong></div><div class="legend"><span><i class="dot" style="background:#bfcddf"></i>Infosys</span><strong>9.1%</strong></div></div><div class="allocation-foot">Allocation uses current values converted to a common currency.</div></section><section class="panel insight"><div class="tiny-label">CURRENCY MIX</div><h2 style="margin-top:9px">Two markets. One clear view.</h2><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;margin:17px 0 12px"><span style="width:21%;background:#e8b66a"></span><span style="width:79%;background:#6678e6"></span></div><div style="display:flex;justify-content:space-between;font-size:10px"><span>INR <strong>21%</strong></span><span>EUR <strong>79%</strong></span></div><p>Daily movement stays in its original currency, so each market tells its own story.</p></section></aside></div><footer class="footer"><span><i class="status-dot"></i><span id="updated">Sample snapshot · 17 Nov 2026</span></span><span>Portfolio design concept · All figures are illustrative</span></footer></main>
-<dialog id="details"><div class="dialoghead"><h2 id="detail-title">Holding details</h2><button class="close" aria-label="Close details">×</button></div><div id="detail-content"></div></dialog><dialog id="add-dialog"><div class="dialoghead"><h2>Add a holding</h2><button class="close" aria-label="Close add holding">×</button></div><p class="subtitle" style="margin-bottom:20px">Explore the proposed entry flow with sample data.</p><form class="form" id="add-form"><label>Company or symbol<input name="symbol" placeholder="e.g. AAPL" required maxlength="30"></label><label>Number of shares<input name="shares" type="number" min="0.001" step="any" required></label><label>Purchase price per share<input name="price" type="number" min="0.01" step="any" required></label><button class="btn primary">Preview holding</button></form><p class="dialognote">Prototype only. This form does not save trades or connect to your portfolio.</p></dialog><div id="toast" class="toast hide" role="status"></div>
+<dialog id="details" aria-labelledby="detail-title" closedby="any"><div class="dialoghead"><h2 id="detail-title">Holding details</h2><button class="close" aria-label="Close details">×</button></div><div id="detail-content"></div></dialog><dialog id="add-dialog" aria-labelledby="add-title" closedby="any"><div class="dialoghead"><h2 id="add-title">Add a holding</h2><button class="close" aria-label="Close add holding">×</button></div><p class="subtitle" style="margin-bottom:20px">Explore the proposed entry flow with sample data.</p><form class="form" id="add-form"><label>Company or symbol<input name="symbol" placeholder="e.g. AAPL" required maxlength="30"></label><label>Number of shares<input name="shares" type="number" min="0.001" step="any" required></label><label>Purchase price per share<input name="price" type="number" min="0.01" step="any" required></label><button class="btn primary">Preview holding</button></form><p class="dialognote">Prototype only. This form does not save trades or connect to your portfolio.</p></dialog><div id="toast" class="toast hide" role="status"></div>
 <script>
+const PREVIEW_PAGE_SIZE=15;
 const icons={Overview:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',History:'<path d="M3 12a9 9 0 1 0 3-7M3 3v6h6m3-3v6l4 2"/>',Transactions:'<path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4"/>',Dividends:'<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h1m10 0h1"/>',Gold:'<path d="m7 6-4 13h18L17 6H7zm-2 7h14M12 6v7"/>'};
 const nav=document.querySelector('.nav');Object.keys(icons).forEach((name,i)=>nav.innerHTML+=`<button data-nav="${name}" class="${i===0?'active':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">${icons[name]}</svg>${name}</button>`);
 let theme='light';try{theme=localStorage.getItem('design-theme')||'light'}catch{}function setTheme(t){if(!['light','dark','cyber'].includes(t))t='light';document.documentElement.dataset.theme=t;document.querySelectorAll('[data-theme-choice]').forEach(b=>{b.classList.toggle('selected',b.dataset.themeChoice===t);b.setAttribute('aria-pressed',String(b.dataset.themeChoice===t))});try{localStorage.setItem('design-theme',t)}catch{}}setTheme(theme);document.querySelectorAll('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice));
 const holdings=[{name:'Infosys',symbol:'INFY.NS',market:'NSE',sector:'Technology',qty:42,currency:'INR',price:1130,value:47460,day:-634.2,pct:-1.32,gain:-14028,gainpct:-22.81,cost:61488,avg:1464,realised:1888,dividends:0,xirr:-11.52,icon:'INFY',class:''},{name:'TCS',symbol:'TCS.NS',market:'NSE',sector:'Technology',qty:25,currency:'INR',price:2406.6,value:60165,day:40,pct:.07,gain:-20635,gainpct:-25.54,cost:80800,avg:3232,realised:0,dividends:900,xirr:-13.22,icon:'TCS',class:'tcs'},{name:'SAP',symbol:'SAP.DE',market:'XETRA',sector:'Technology',qty:20,currency:'EUR',price:201.8,value:4036,day:-232,pct:-5.44,gain:1426,gainpct:54.64,cost:2610,avg:130.5,realised:0,dividends:0,xirr:24.54,icon:'SAP',class:'sap'}];
 const money=(v,c='INR')=>new Intl.NumberFormat(c==='INR'?'en-IN':'en-IE',{style:'currency',currency:c,minimumFractionDigits:2}).format(v);const signed=(v,c)=>`${v>=0?'+':'−'}${money(Math.abs(v),c)}`;const percent=v=>`${v>=0?'+':'−'}${Math.abs(v).toFixed(2)}%`;let currentView='holdings',currentNav='Overview',searchText='',marketFilter='all';
 let holdingGrouping='holding';
-function renderHoldings(){const filtered=holdings.filter(h=>(h.name+' '+h.symbol).toLowerCase().includes(searchText.toLowerCase())&&(marketFilter==='all'||h.currency===marketFilter));document.getElementById('view-content').innerHTML=`<section class="panel"><div class="tools"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input id="holding-search" aria-label="Search holdings" placeholder="Search name or symbol" value=""></div><select class="compactselect" id="market-filter" aria-label="Filter holdings by currency"><option value="all">All currencies</option><option value="INR">INR holdings</option><option value="EUR">EUR holdings</option></select></div><div style="display:flex;gap:6px;padding:12px 20px;border-bottom:1px solid var(--border)" role="group" aria-label="Group holdings"><button class="btn ${holdingGrouping==='holding'?'primary':''}" data-holding-group="holding" aria-pressed="${holdingGrouping==='holding'}">By holding</button><button class="btn ${holdingGrouping==='sector'?'primary':''}" data-holding-group="sector" aria-pressed="${holdingGrouping==='sector'}">By sector</button></div><div id="holding-groups">${['INR','EUR'].map(c=>{let list=filtered.filter(h=>h.currency===c);if(holdingGrouping==='sector')list.sort((a,b)=>(a.sector||'Unclassified').localeCompare(b.sector||'Unclassified')||a.name.localeCompare(b.name));return list.length?`<div class="market-header"><div><span class="market-symbol">${c==='INR'?'₹':'€'}</span><strong>${c==='INR'?'Indian Rupee':'Euro'}</strong><small>${list.length} holding${list.length>1?'s':''}</small></div><div class="bucket">Current value <strong>${money(list.reduce((s,h)=>s+h.value,0),c)}</strong></div></div><table class="holding-table"><thead><tr><th>HOLDING</th><th>SHARES</th><th>AVG COST</th><th>SHARE PRICE</th><th>VALUE</th><th>TODAY</th><th>UNREALISED</th><th><span aria-label="Actions">···</span></th></tr></thead><tbody>${list.map((h,i)=>`${holdingGrouping==='sector'&&(i===0||h.sector!==list[i-1].sector)?`<tr class="sector-heading"><td colspan="8" style="background:var(--accentsoft);padding:12px 18px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${h.sector||'Unclassified'}</strong><span>${list.filter(x=>x.sector===h.sector).length} holdings · ${money(list.filter(x=>x.sector===h.sector).reduce((sum,x)=>sum+x.value,0),c)}</span></div></td></tr>`:''}<tr><td><div class="holding"><div class="stock-icon ${h.class}">${h.icon}</div><div><strong>${h.name}</strong><small>${h.symbol} · ${h.market}</small></div></div></td><td class="quantity" data-label="Quantity">${h.qty}</td><td data-label="Average cost">${money(h.avg,c)}</td><td class="price-${h.pct>0?'up':h.pct<0?'down':'flat'}" data-label="Share price" title="${h.pct>0?'Up':h.pct<0?'Down':'Unchanged'} versus previous close">${money(h.price,c)}</td><td data-label="Current value"><strong>${money(h.value,c)}</strong></td><td class="return ${h.day<0?'negative':'positive'}" data-label="Today">${signed(h.day,c)}<small>${percent(h.pct)}</small></td><td class="return ${h.gain<0?'negative':'positive'}" data-label="Unrealised return">${signed(h.gain,c)}<small>${percent(h.gainpct)}</small></td><td><button class="details-btn" data-symbol="${h.symbol}" aria-label="View ${h.name} details">›</button></td></tr>`).join('')}</tbody></table>`:''}).join('')||'<div class="empty">No holdings match your search.<br><br>Try another name or currency.</div>'}</div><div class="table-foot"><span>${filtered.length} of ${holdings.length} holdings</span><span>Open a holding for all metrics ↗</span></div></section>`;document.getElementById('holding-search').value=searchText;document.getElementById('market-filter').value=marketFilter;document.getElementById('holding-search').oninput=e=>{let pos=e.target.selectionStart;searchText=e.target.value;renderHoldings();let el=document.getElementById('holding-search');el.focus();el.setSelectionRange(pos,pos)};document.getElementById('market-filter').onchange=e=>{marketFilter=e.target.value;renderHoldings()};document.querySelectorAll('[data-holding-group]').forEach(el=>el.onclick=()=>{holdingGrouping=el.dataset.holdingGroup;renderHoldings()});document.querySelectorAll('[data-symbol]').forEach(b=>b.onclick=()=>openDetails(b.dataset.symbol))}
+function renderHoldings(){const filtered=holdings.filter(h=>(h.name+' '+h.symbol).toLowerCase().includes(searchText.toLowerCase())&&(marketFilter==='all'||h.currency===marketFilter));document.getElementById('view-content').innerHTML=`<section class="panel"><div class="tools"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input id="holding-search" aria-label="Search holdings" placeholder="Search name or symbol" value=""></div><select class="compactselect" id="market-filter" aria-label="Filter holdings by currency"><option value="all">All currencies</option><option value="INR">INR holdings</option><option value="EUR">EUR holdings</option></select></div><div style="display:flex;gap:6px;padding:12px 20px;border-bottom:1px solid var(--border)" role="group" aria-label="Group holdings"><button class="btn ${holdingGrouping==='holding'?'primary':''}" data-holding-group="holding" aria-pressed="${holdingGrouping==='holding'}">By holding</button><button class="btn ${holdingGrouping==='sector'?'primary':''}" data-holding-group="sector" aria-pressed="${holdingGrouping==='sector'}">By sector</button></div><div id="holding-groups">${['INR','EUR'].map(c=>{let list=filtered.filter(h=>h.currency===c);if(holdingGrouping==='sector')list.sort((a,b)=>(a.sector||'Unclassified').localeCompare(b.sector||'Unclassified')||a.name.localeCompare(b.name));return list.length?`<div class="market-header"><div><span class="market-symbol">${c==='INR'?'₹':'€'}</span><strong>${c==='INR'?'Indian Rupee':'Euro'}</strong><small>${list.length} holding${list.length>1?'s':''}</small></div><div class="bucket">Current value <strong>${money(list.reduce((s,h)=>s+h.value,0),c)}</strong></div></div><table class="holding-table"><thead><tr><th>HOLDING</th><th>SHARES</th><th>AVG COST</th><th>SHARE PRICE</th><th>VALUE</th><th>TODAY</th><th>UNREALISED</th></tr></thead><tbody>${list.map((h,i)=>`${holdingGrouping==='sector'&&(i===0||h.sector!==list[i-1].sector)?`<tr class="sector-heading"><td colspan="7" style="background:var(--accentsoft);padding:12px 18px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${h.sector||'Unclassified'}</strong><span>${list.filter(x=>x.sector===h.sector).length} holdings · ${money(list.filter(x=>x.sector===h.sector).reduce((sum,x)=>sum+x.value,0),c)}</span></div></td></tr>`:''}<tr><td><div class="holding"><div class="stock-icon ${h.class}">${h.icon}</div><div><button class="holding-name" data-symbol="${h.symbol}">${h.name}</button><small>${h.symbol} · ${h.market}</small></div></div></td><td class="quantity" data-label="Quantity">${h.qty}</td><td data-label="Average cost">${money(h.avg,c)}</td><td class="price-${h.pct>0?'up':h.pct<0?'down':'flat'}" data-label="Share price" title="${h.pct>0?'Up':h.pct<0?'Down':'Unchanged'} versus previous close">${money(h.price,c)}</td><td data-label="Current value"><strong>${money(h.value,c)}</strong></td><td class="return ${h.day<0?'negative':'positive'}" data-label="Today">${signed(h.day,c)}<small>${percent(h.pct)}</small></td><td class="return ${h.gain<0?'negative':'positive'}" data-label="Unrealised return">${signed(h.gain,c)}<small>${percent(h.gainpct)}</small></td></tr>`).join('')}</tbody></table>`:''}).join('')||'<div class="empty">No holdings match your search.<br><br>Try another name or currency.</div>'}</div><div class="table-foot"><span>${filtered.length} of ${holdings.length} holdings</span><span>Open a holding for all metrics ↗</span></div></section>`;document.getElementById('holding-search').value=searchText;document.getElementById('market-filter').value=marketFilter;document.getElementById('holding-search').oninput=e=>{let pos=e.target.selectionStart;searchText=e.target.value;renderHoldings();let el=document.getElementById('holding-search');el.focus();el.setSelectionRange(pos,pos)};document.getElementById('market-filter').onchange=e=>{marketFilter=e.target.value;renderHoldings()};document.querySelectorAll('[data-holding-group]').forEach(el=>el.onclick=()=>{holdingGrouping=el.dataset.holdingGroup;renderHoldings()});document.querySelectorAll('[data-symbol]').forEach(b=>b.onclick=()=>openDetails(b.dataset.symbol))}
 let period='1M';function renderChart(){let paths={'1W':'M40 70L120 80L200 75L280 110L360 100L440 125L520 140L600 155','1M':'M40 170L75 155L110 160L145 125L180 140L215 102L250 110L285 80L320 100L355 70L390 90L425 55L460 65L495 30L530 42L565 63L600 75','3M':'M40 180L90 170L140 175L190 140L240 148L290 110L340 120L390 85L440 100L490 60L540 70L600 55','1Y':'M40 190L90 182L140 160L190 170L240 130L290 150L340 110L390 120L440 75L490 80L540 40L600 60'};document.getElementById('view-content').innerHTML=`<section class="panel chart-panel"><div class="chart-head"><div><h2>Portfolio performance</h2><p class="subtitle" style="margin-top:7px">Illustrative value trend · INR equivalent</p></div><div class="segments" aria-label="Chart period">${['1W','1M','3M','1Y'].map(p=>`<button data-period="${p}" class="${p===period?'active':''}" aria-pressed="${p===period}">${p}</button>`).join('')}</div></div><svg class="chart" viewBox="0 0 650 235" role="img" aria-label="Sample ${period} portfolio trend. Illustrative data only, not actual historical returns."><defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop stop-color="var(--chart)" stop-opacity=".16"/><stop offset="1" stop-color="var(--chart)" stop-opacity="0"/></linearGradient></defs>${[40,90,140,190].map((y,i)=>`<path class="grid" d="M40 ${y}H600"/><text x="608" y="${y+3}">${['550k','525k','500k','475k'][i]}</text>`).join('')}<path d="${paths[period]}L600 205H40Z" fill="url(#area)"/><path class="trend" d="${paths[period]}"/><text x="40" y="230">Period start</text><text x="540" y="230">Period end</text></svg><div class="chart-caption">Sample trend for visual review. Values are illustrative and do not represent calculated investment performance.</div></section><section class="panel insight" style="margin-top:18px"><h2>Read the detail behind the trend</h2><p>Switch to Holdings to inspect current prices, daily movement, cost basis and returns by holding. Currency-specific daily changes remain separate in the overview.</p><button class="btn" style="margin-top:15px" id="back-holdings">View holdings →</button></section>`;document.querySelectorAll('[data-period]').forEach(b=>b.onclick=()=>{period=b.dataset.period;renderChart()});document.getElementById('back-holdings').onclick=()=>selectView('holdings')}
 function selectView(v){currentView=v;document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===v);b.setAttribute('aria-selected',String(b.dataset.view===v))});if(v==='holdings')renderHoldings();else renderChart()}
 function openDetails(symbol){const h=holdings.find(x=>x.symbol===symbol);document.getElementById('detail-title').textContent=h.name;document.getElementById('detail-content').innerHTML=`<p class="subtitle" style="margin-bottom:24px">${h.symbol} · ${h.market} · ${h.sector}</p><div class="detailgrid">${[['Shares',h.qty],['Average cost per share',money(h.avg,h.currency)],['Total cost',money(h.cost,h.currency)],['Current value',money(h.value,h.currency)],['Unrealised return',signed(h.gain,h.currency)],['Realised gain',money(h.realised,h.currency)],['Dividends',money(h.dividends,h.currency)],['XIRR',percent(h.xirr)]].map(([a,b])=>`<div><span>${a}</span><strong>${b}</strong></div>`).join('')}</div><p class="dialognote">Sample holding details. In the live app, transaction history and editing actions would be available here.</p>`;document.getElementById('details').showModal()}
@@ -107,7 +185,7 @@ let txState={search:'',currency:'all',holding:'all',type:'all',from:'',to:'',pag
 const txEsc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function txFiltered(){return txRows.filter(r=>{let h=holdings.find(h=>h.symbol===r.symbol);return (h.name+' '+r.symbol+' '+r.notes).toLowerCase().includes(txState.search.toLowerCase())&&(txState.currency==='all'||h.currency===txState.currency)&&(txState.holding==='all'||r.symbol===txState.holding)&&(txState.type==='all'||r.type===txState.type)&&(!txState.from||r.date>=txState.from)&&(!txState.to||r.date<=txState.to)}).sort((a,b)=>b.date.localeCompare(a.date))}
 function txModal(title,content){document.getElementById('detail-title').textContent=title;document.getElementById('detail-content').innerHTML=content;const d=document.getElementById('details');if(!d.open)d.showModal()}
-function txRender(){let root=document.getElementById('transactions-root');if(!root){root=document.createElement('section');root.id='transactions-root';document.querySelector('.footer').before(root)}let rows=txFiltered(),pages=Math.max(1,Math.ceil(rows.length/10));txState.page=Math.min(txState.page,pages);root.innerHTML=`<div class="tx-top"><div><h2>All transactions <span class="badge">${rows.length}</span></h2><p class="subtitle">Sample ledger · amounts remain in their original currency</p></div><div class="actions"><button class="btn" id="tx-delta">Investment delta ↗</button><button class="btn primary" id="tx-import">Import CSV</button></div></div><div class="tx-summaries">${['INR','EUR'].map(c=>`<section class="panel tx-summary"><div class="eyebrow">${c} · FILTERED TOTALS</div><div class="tx-totals">${['buy','sell','dividend'].map(t=>`<div><span>${{buy:'Bought',sell:'Sold',dividend:'Dividends'}[t]}</span><strong>${money(rows.filter(r=>r.type===t&&holdings.find(h=>h.symbol===r.symbol).currency===c).reduce((s,r)=>s+r.amount,0),c)}</strong></div>`).join('')}</div></section>`).join('')}</div><section class="panel"><div class="tx-filters"><input id="tx-search" placeholder="Search holding, symbol or notes" aria-label="Search transactions"><select id="tx-holding" class="compactselect" aria-label="Transaction holding"><option value="all">All holdings</option>${holdings.map(h=>`<option value="${h.symbol}">${h.name}</option>`).join('')}</select><select id="tx-currency" class="compactselect" aria-label="Transaction currency"><option value="all">All currencies</option><option>INR</option><option>EUR</option></select><select id="tx-type" class="compactselect" aria-label="Event type"><option value="all">All event types</option>${['opening','buy','sell','dividend','split','bonus','merger'].map(t=>`<option>${t}</option>`).join('')}</select><label>From <input type="date" id="tx-from"></label><label>To <input type="date" id="tx-to"></label><button class="btn" id="tx-clear">Clear filters</button></div><div class="tx-scroll"><table class="tx-table"><thead><tr><th>Date ↓</th><th>Holding</th><th>Event</th><th>Shares</th><th>Amount</th><th>Implied price</th><th>Currency</th><th></th></tr></thead><tbody>${rows.slice((txState.page-1)*10,txState.page*10).map(r=>{let h=holdings.find(h=>h.symbol===r.symbol);return `<tr><td>${new Date(r.date+'T12:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td><td><strong>${h.name}</strong><small>${h.symbol}</small></td><td><span class="tx-tag ${r.type}">${r.type}</span></td><td>${r.qty||'—'}</td><td><strong>${money(r.amount,h.currency)}</strong></td><td>${r.qty?money(r.amount/r.qty,h.currency):'—'}</td><td>${h.currency}</td><td><button class="btn" data-tx="${r.id}">Open ledger ↗</button></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No transactions match these filters.</td></tr>'}</tbody></table></div><div class="tx-pagination"><span>${rows.length} matching events · newest first</span><div><button class="btn" id="tx-prev" ${txState.page===1?'disabled':''}>←</button> <span>${txState.page} / ${pages}</span> <button class="btn" id="tx-next" ${txState.page===pages?'disabled':''}>→</button></div></div></section><p class="dialognote">Sample events for design review. Changes last for this session only.</p>`;
+function txRender(){let root=document.getElementById('transactions-root');if(!root){root=document.createElement('section');root.id='transactions-root';document.querySelector('.footer').before(root)}let rows=txFiltered(),pages=Math.max(1,Math.ceil(rows.length/PREVIEW_PAGE_SIZE));txState.page=Math.min(txState.page,pages);root.innerHTML=`<div class="tx-top"><div><h2>All transactions <span class="badge">${rows.length}</span></h2><p class="subtitle">Sample ledger · amounts remain in their original currency</p></div><div class="actions"><button class="btn" id="tx-delta">Investment delta ↗</button><button class="btn primary" id="tx-import">Import CSV</button></div></div><div class="tx-summaries">${['INR','EUR'].map(c=>`<section class="panel tx-summary"><div class="eyebrow">${c} · FILTERED TOTALS</div><div class="tx-totals">${['buy','sell','dividend'].map(t=>`<div><span>${{buy:'Bought',sell:'Sold',dividend:'Dividends'}[t]}</span><strong>${money(rows.filter(r=>r.type===t&&holdings.find(h=>h.symbol===r.symbol).currency===c).reduce((s,r)=>s+r.amount,0),c)}</strong></div>`).join('')}</div></section>`).join('')}</div><section class="panel"><div class="tx-filters"><input id="tx-search" placeholder="Search holding, symbol or notes" aria-label="Search transactions"><select id="tx-holding" class="compactselect" aria-label="Transaction holding"><option value="all">All holdings</option>${holdings.map(h=>`<option value="${h.symbol}">${h.name}</option>`).join('')}</select><select id="tx-currency" class="compactselect" aria-label="Transaction currency"><option value="all">All currencies</option><option>INR</option><option>EUR</option></select><select id="tx-type" class="compactselect" aria-label="Event type"><option value="all">All event types</option>${['opening','buy','sell','dividend','split','bonus','merger'].map(t=>`<option>${t}</option>`).join('')}</select><label>From <input type="date" id="tx-from"></label><label>To <input type="date" id="tx-to"></label><button class="btn" id="tx-clear">Clear filters</button></div><div class="tx-scroll"><table class="tx-table"><thead><tr><th>Date ↓</th><th>Holding</th><th>Event</th><th>Shares</th><th>Amount</th><th>Implied price</th><th>Currency</th><th></th></tr></thead><tbody>${rows.slice((txState.page-1)*PREVIEW_PAGE_SIZE,txState.page*PREVIEW_PAGE_SIZE).map(r=>{let h=holdings.find(h=>h.symbol===r.symbol);return `<tr><td>${new Date(r.date+'T12:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td><td><strong>${h.name}</strong><small>${h.symbol}</small></td><td><span class="tx-tag ${r.type}">${r.type}</span></td><td>${r.qty||'—'}</td><td><strong>${money(r.amount,h.currency)}</strong></td><td>${r.qty?money(r.amount/r.qty,h.currency):'—'}</td><td>${h.currency}</td><td><button class="btn" data-tx="${r.id}">Open ledger ↗</button></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">No transactions match these filters.</td></tr>'}</tbody></table></div><div class="tx-pagination"><span>${rows.length} matching events · newest first</span><div><button class="btn" id="tx-prev" ${txState.page===1?'disabled':''}>←</button> <span>${txState.page} / ${pages}</span> <button class="btn" id="tx-next" ${txState.page===pages?'disabled':''}>→</button></div></div></section><p class="dialognote">Sample events for design review. Changes last for this session only.</p>`;
 for(const key of ['search','holding','currency','type','from','to']){let el=document.getElementById('tx-'+key);el.value=txState[key];el[key==='search'?'oninput':'onchange']=()=>{let pos=el.selectionStart;txState[key]=el.value;txState.page=1;txRender();if(key==='search'){let n=document.getElementById('tx-search');n.focus();n.setSelectionRange(pos,pos)}}}document.getElementById('tx-clear').onclick=()=>{txState={search:'',holding:'all',currency:'all',type:'all',from:'',to:'',page:1};txRender()};document.getElementById('tx-prev').onclick=()=>{txState.page--;txRender()};document.getElementById('tx-next').onclick=()=>{txState.page++;txRender()};document.querySelectorAll('[data-tx]').forEach(b=>b.onclick=()=>txLedger(Number(b.dataset.tx)));document.getElementById('tx-delta').onclick=txDelta;document.getElementById('tx-import').onclick=txImport;}
 function txLedger(id){const r=txRows.find(r=>r.id===id),h=holdings.find(h=>h.symbol===r.symbol);txModal(h.name+' · transaction ledger',`<p class="subtitle">${h.symbol} · ${h.currency} · sample events</p><div class="tx-scroll"><table class="tx-table"><thead><tr><th>Date</th><th>Type</th><th>Shares</th><th>Amount</th><th></th></tr></thead><tbody>${txRows.filter(x=>x.symbol===r.symbol).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr><td>${x.date}</td><td>${x.type}</td><td>${x.qty||'—'}</td><td>${money(x.amount,h.currency)}</td><td>${x.type==='opening'?'Opening balance':`<button class="btn" data-tx-edit="${x.id}">Edit</button>`}</td></tr>`).join('')}</tbody></table></div><p class="dialognote">Opening balances are managed on the holding. These events belong to this holding.</p><button class="btn primary" id="tx-add">Add sample event</button>`);document.getElementById('tx-add').onclick=()=>txEdit(r.symbol);document.querySelectorAll('[data-tx-edit]').forEach(b=>b.onclick=()=>txEdit(r.symbol,Number(b.dataset.txEdit)))}
 function txDelta(){txModal('Investment delta',`<p class="subtitle">Sample ledger cash flows and invested-balance illustration</p><div style="display:flex;gap:12px;margin:20px 0"><select id="tx-delta-currency" class="compactselect" aria-label="Chart currency"><option>INR</option><option>EUR</option></select><select id="tx-delta-year" class="compactselect" aria-label="Chart year"><option>2026</option><option>2025</option><option>2024</option></select></div><div id="tx-delta-chart"></div><p class="dialognote">Green: purchases · Red: sales · Blue: sample invested balance (right axis). Dividends excluded. Illustrative balances are separate from performance returns.</p>`);function draw(){let c=document.getElementById('tx-delta-currency').value,year=document.getElementById('tx-delta-year').value,values=Array.from({length:12},(_,i)=>{let rows=txRows.filter(r=>r.date.startsWith(year+'-'+String(i+1).padStart(2,'0'))&&holdings.find(h=>h.symbol===r.symbol).currency===c);return {buy:rows.filter(r=>r.type==='buy').reduce((s,r)=>s+r.amount,0),sell:rows.filter(r=>r.type==='sell').reduce((s,r)=>s+r.amount,0),opening:rows.filter(r=>r.type==='opening').reduce((s,r)=>s+r.amount,0)}}),balance=txRows.filter(r=>r.date<year+'-01-01'&&holdings.find(h=>h.symbol===r.symbol).currency===c).reduce((s,r)=>s+(['buy','opening'].includes(r.type)?r.amount:r.type==='sell'?-r.amount:0),0),balances=values.map(v=>balance+=v.buy+v.opening-v.sell),max=Math.max(...values.flatMap(v=>[v.buy,v.sell]),1),maxBalance=Math.max(...balances.map(Math.abs),1);document.getElementById('tx-delta-chart').innerHTML=`<svg viewBox="0 0 680 270" role="img" aria-label="Monthly ${c} purchases, sales and sample invested balance in ${year}"><text x="35" y="15" fill="var(--muted)" font-size="10">Cash flow · ${c}</text><text x="640" y="15" text-anchor="end" fill="var(--accent)" font-size="10">Invested · ${c}</text><text x="35" y="35" fill="var(--muted)" font-size="9">${money(max,c)}</text><text x="640" y="35" text-anchor="end" fill="var(--accent)" font-size="9">${money(maxBalance,c)}</text><line x1="35" x2="640" y1="155" y2="155" stroke="var(--border)"/><text x="25" y="158" fill="var(--muted)" font-size="9">0</text>${values.map((v,i)=>`<rect x="${43+i*49}" y="${155-v.buy/max*100}" width="13" height="${v.buy/max*100}" rx="2" fill="var(--green)"><title>${i+1}/${year} purchases: ${money(v.buy,c)}</title></rect><rect x="${57+i*49}" y="155" width="13" height="${v.sell/max*65}" rx="2" fill="var(--red)"><title>${i+1}/${year} sales: ${money(v.sell,c)}</title></rect><text x="${56+i*49}" y="250" text-anchor="middle" fill="var(--muted)" font-size="10">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</text>`).join('')}<polyline points="${balances.map((v,i)=>(56+i*49)+','+(220-v/maxBalance*170)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>${balances.map((v,i)=>`<circle cx="${56+i*49}" cy="${220-v/maxBalance*170}" r="3" fill="var(--accent)"><title>Month end: ${money(v,c)}</title></circle>`).join('')}</svg>`}document.getElementById('tx-delta-currency').onchange=draw;document.getElementById('tx-delta-year').onchange=draw;draw()}
@@ -115,7 +193,7 @@ const txStyle=document.createElement('style');txStyle.textContent=`#details:has(
 document.querySelectorAll('[data-nav]').forEach(b=>{let previous=b.onclick;b.onclick=()=>{if(b.dataset.nav==='Transactions'){document.querySelectorAll('.overview,.section-top,.workspace,.intro .actions,#history-root').forEach(x=>x.classList.add('history-hidden'));document.querySelectorAll('[data-nav]').forEach(x=>x.classList.toggle('active',x===b));document.getElementById('crumb').textContent='Transactions';document.getElementById('page-title').textContent='Every event. One ledger.';document.getElementById('page-subtitle').textContent='Follow purchases, sales and income across your portfolio.';txRender();document.getElementById('transactions-root').hidden=false;location.hash='transactions';document.getElementById('sidebar').classList.remove('open')}else{if(['Overview','History'].includes(b.dataset.nav)){const root=document.getElementById('transactions-root');if(root)root.hidden=true}previous?.()}}});if(location.hash==='#transactions')document.querySelector('[data-nav="Transactions"]').click();
 function txEdit(symbol,id){let r=txRows.find(r=>r.id===id),h=holdings.find(h=>h.symbol===symbol);txModal((r?'Edit':'Add')+' sample event · '+h.name,`<form id="tx-edit-form" class="form" style="margin-top:20px"><label>Event type<select id="te-type" class="compactselect"><option>buy</option><option>sell</option><option>dividend</option></select></label><label>Date<input id="te-date" type="date" required value="${r?.date||'2026-11-18'}"></label><label>Shares (not used for dividends)<input id="te-qty" type="number" min="0" step="any" value="${r?.qty||0}" required></label><label>Total amount · ${h.currency}<input id="te-amount" type="number" min="0.01" step="any" required value="${r?.amount||''}"></label><label>Notes<input id="te-notes" value="${txEsc(r?.notes||'')}"></label><p class="dialognote">Sample session only. This does not change your portfolio or recalculate holdings.</p><button class="btn primary">Save sample event</button></form>`);document.getElementById('te-type').value=r?.type||'buy';document.getElementById('tx-edit-form').onsubmit=e=>{e.preventDefault();let type=document.getElementById('te-type').value,qty=Number(document.getElementById('te-qty').value);if(type!=='dividend'&&qty<=0){document.getElementById('te-qty').setCustomValidity('Enter a positive share quantity.');document.getElementById('te-qty').reportValidity();return}const v={id:r?.id??Math.max(...txRows.map(r=>r.id))+1,symbol,type,date:document.getElementById('te-date').value,qty:type==='dividend'?0:qty,amount:Number(document.getElementById('te-amount').value),notes:document.getElementById('te-notes').value};if(r)Object.assign(r,v);else txRows.push(v);document.getElementById('details').close();txRender();toast('Sample event saved for this session')};document.getElementById('te-qty').oninput=e=>e.target.setCustomValidity('')}
 function txCSV(text){let rows=[],row=[],field='',quoted=false;for(let i=0;i<text.length;i++){let c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(field);field=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(v=>v.trim()))rows.push(row);row=[];field=''}else field+=c}if(quoted)throw Error('A quoted CSV field is not closed.');row.push(field);if(row.some(v=>v.trim()))rows.push(row);return rows}
-function txImport(){txModal('Import transactions',`<p class="subtitle">Preview an existing Groww trade CSV. Imports here affect sample data only.</p><div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0"><input id="ti-file" type="file" accept=".csv,text/csv" aria-label="Choose CSV"><button class="btn" id="ti-example">Load example</button></div><textarea id="ti-text" aria-label="CSV contents" placeholder="Paste CSV contents" style="width:100%;height:170px;border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--bg);color:var(--text)"></textarea><div class="dialognote">Required: Symbol, Type, Quantity, Value, Exchange, Execution date and time. BUY/SELL · NSE/BSE · day-first dates. Unknown holdings require your decision.</div><button class="btn primary" id="ti-check">Validate CSV</button><div id="ti-results" style="margin-top:20px"></div>`);document.getElementById('ti-file').onchange=async e=>{if(e.target.files[0])document.getElementById('ti-text').value=await e.target.files[0].text()};document.getElementById('ti-example').onclick=()=>{document.getElementById('ti-text').value='Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status\nInfosys,INFY,,BUY,2,2260,NSE,DEMO-1,16/11/2026 10:30,Executed\nTCS,TCS,,SELL,1,2406.6,NSE,DEMO-2,10/11/2026 11:00,Executed'};document.getElementById('ti-check').onclick=()=>{let target=document.getElementById('ti-results');try{let data=txCSV(document.getElementById('ti-text').value),headers=data.shift()?.map(v=>v.trim().toLowerCase())||[],required=['symbol','type','quantity','value','exchange','execution date and time'];if(required.some(h=>!headers.includes(h)))throw Error('Required column missing. Check the CSV header.');if(data.length>5000)throw Error('Maximum 5,000 rows per import.');if(!data.length)throw Error('No data rows found.');let result=[],errors=[],skipped=0;for(let [i,cells] of data.entries()){let get=h=>(cells[headers.indexOf(h)]||'').trim(),status=get('order status').toLowerCase();if(status&&status!=='executed'){skipped++;continue}let sym=get('symbol'),exchange=get('exchange').toUpperCase(),h=holdings.find(h=>h.symbol===sym||h.symbol===sym+(exchange==='NSE'?'.NS':'.BO')),date=get('execution date and time').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/),type=get('type').toLowerCase(),qty=Number(get('quantity')),amount=Number(get('value'));if(!h||!['NSE','BSE'].includes(exchange)||!['buy','sell'].includes(type)||qty<=0||amount<=0||!date){errors.push('Row '+(i+2)+': unmatched holding or invalid trade fields.');continue}let iso=date[3]+'-'+date[2].padStart(2,'0')+'-'+date[1].padStart(2,'0');if(new Date(iso+'T12:00').toISOString().slice(0,10)!==iso){errors.push('Row '+(i+2)+': invalid date.');continue}result.push({symbol:h.symbol,date:iso,type,qty,amount,notes:'Sample CSV import'})}target.innerHTML=`<strong>${result.length} valid · ${skipped} skipped · ${errors.length} need attention</strong>${errors.map(e=>`<p class="negative">${txEsc(e)}</p>`).join('')}<div class="tx-scroll"><table class="tx-table"><thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Shares</th><th>Amount</th></tr></thead><tbody>${result.slice(0,20).map(r=>`<tr><td>${r.date}</td><td>${r.symbol}</td><td>${r.type}</td><td>${r.qty}</td><td>${money(r.amount,holdings.find(h=>h.symbol===r.symbol).currency)}</td></tr>`).join('')}</tbody></table></div><button class="btn primary" id="ti-confirm" ${errors.length||!result.length?'disabled':''}>Import ${result.length} sample trades</button><p class="dialognote">Review before importing. Fix unresolved rows first. Imports here do not affect your live portfolio.</p>`;document.getElementById('ti-confirm').onclick=()=>{let next=Math.max(...txRows.map(r=>r.id))+1;result.forEach(r=>txRows.push({...r,id:next++}));document.getElementById('details').close();txRender();toast(result.length+' sample trades imported')}}catch(e){target.textContent=e.message}}}
+function txImport(){txModal('Import transactions',`<p class="subtitle">Preview an existing Groww trade CSV. Imports here affect sample data only.</p><div style="display:flex;gap:12px;flex-wrap:wrap;margin:20px 0"><input id="ti-file" type="file" accept=".csv,text/csv" aria-label="Choose CSV"><button class="btn" id="ti-example">Load example</button></div><textarea id="ti-text" aria-label="CSV contents" placeholder="Paste CSV contents" style="width:100%;height:170px;border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--bg);color:var(--text)"></textarea><div class="dialognote">Required: Symbol, Type, Quantity, Value, Exchange, Execution date and time. BUY/SELL · NSE/BSE · day-first dates. Unknown holdings require your decision.</div><button class="btn primary" id="ti-check">Validate CSV</button><div id="ti-results" style="margin-top:20px"></div>`);document.getElementById('ti-file').onchange=async e=>{if(e.target.files[0])document.getElementById('ti-text').value=await e.target.files[0].text()};document.getElementById('ti-example').onclick=()=>{document.getElementById('ti-text').value='Stock name,Symbol,ISIN,Type,Quantity,Value,Exchange,Exchange Order Id,Execution date and time,Order status'};document.getElementById('ti-check').onclick=()=>{let target=document.getElementById('ti-results');try{let data=txCSV(document.getElementById('ti-text').value),headers=data.shift()?.map(v=>v.trim().toLowerCase())||[],required=['symbol','type','quantity','value','exchange','execution date and time'];if(required.some(h=>!headers.includes(h)))throw Error('Required column missing. Check the CSV header.');if(data.length>5000)throw Error('Maximum 5,000 rows per import.');if(!data.length)throw Error('No data rows found.');let result=[],errors=[],skipped=0;for(let [i,cells] of data.entries()){let get=h=>(cells[headers.indexOf(h)]||'').trim(),status=get('order status').toLowerCase();if(status&&status!=='executed'){skipped++;continue}let sym=get('symbol'),exchange=get('exchange').toUpperCase(),h=holdings.find(h=>h.symbol===sym||h.symbol===sym+(exchange==='NSE'?'.NS':'.BO')),date=get('execution date and time').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/),type=get('type').toLowerCase(),qty=Number(get('quantity')),amount=Number(get('value'));if(!h||!['NSE','BSE'].includes(exchange)||!['buy','sell'].includes(type)||qty<=0||amount<=0||!date){errors.push('Row '+(i+2)+': unmatched holding or invalid trade fields.');continue}let iso=date[3]+'-'+date[2].padStart(2,'0')+'-'+date[1].padStart(2,'0');if(new Date(iso+'T12:00').toISOString().slice(0,10)!==iso){errors.push('Row '+(i+2)+': invalid date.');continue}result.push({symbol:h.symbol,date:iso,type,qty,amount,notes:'Sample CSV import'})}target.innerHTML=`<strong>${result.length} valid · ${skipped} skipped · ${errors.length} need attention</strong>${errors.map(e=>`<p class="negative">${txEsc(e)}</p>`).join('')}<div class="tx-scroll"><table class="tx-table"><thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Shares</th><th>Amount</th></tr></thead><tbody>${result.slice(0,20).map(r=>`<tr><td>${r.date}</td><td>${r.symbol}</td><td>${r.type}</td><td>${r.qty}</td><td>${money(r.amount,holdings.find(h=>h.symbol===r.symbol).currency)}</td></tr>`).join('')}</tbody></table></div><button class="btn primary" id="ti-confirm" ${errors.length||!result.length?'disabled':''}>Import ${result.length} sample trades</button><p class="dialognote">Review before importing. Fix unresolved rows first. Imports here do not affect your live portfolio.</p>`;document.getElementById('ti-confirm').onclick=()=>{let next=Math.max(...txRows.map(r=>r.id))+1;result.forEach(r=>txRows.push({...r,id:next++}));document.getElementById('details').close();txRender();toast(result.length+' sample trades imported')}}catch(e){target.textContent=e.message}}}
 
 </script><script>
 // Explicitly illustrative, session-only. Reuse production APIs and calculations when implementing.
@@ -130,13 +208,13 @@ function assetClose(){document.getElementById('details').close()}
 function assetConfirm(title,body,action){assetDialog(title,`<p style="line-height:1.7">${body}</p><p class="asset-note">This affects sample data in this session only.</p><div class="asset-modal-actions"><button class="btn" id="asset-cancel">Cancel</button><button class="btn asset-danger" id="asset-confirm">Delete sample data</button></div>`);document.getElementById('asset-cancel').onclick=assetClose;document.getElementById('asset-confirm').onclick=()=>{action();assetClose();toast('Sample data removed')}}
 function assetStats(items){return `<div class="asset-stat-grid">${items.map((v,i)=>`<section class="asset-stat ${i===0?'hero':''}"><div class="eyebrow">${v[0]}</div><strong class="${v[3]||''}">${v[1]}</strong>${v[2]?`<span class="stat-detail">${v[2]}</span>`:''}</section>`).join('')}</div>`}
 function assetBarChart(data,currency){let max=Math.max(...data.map(d=>d.value),1),width=700,step=600/Math.max(data.length,1);return `<svg class="asset-chart" viewBox="0 0 700 240" role="img" aria-label="Dividend income by ${divPeriod==='month'?'month':'year'} in ${currency}">${[0,.5,1].map(t=>`<line x1="75" x2="680" y1="${195-t*160}" y2="${195-t*160}" stroke="var(--border)" stroke-dasharray="3 4"/><text x="65" y="${199-t*160}" fill="var(--muted)" text-anchor="end" font-size="10">${money(max*t,currency)}</text>`).join('')}${data.map((d,i)=>`<rect x="${80+i*step+step*.2}" y="${195-d.value/max*160}" width="${Math.max(8,step*.55)}" height="${d.value/max*160}" fill="var(--accent)" rx="4"><title>${d.label}: ${money(d.value,currency)}</title></rect><text x="${80+i*step+step*.47}" y="220" fill="var(--muted)" text-anchor="middle" font-size="10">${d.label}</text>`).join('')}</svg>`}
-function dividendView(){const root=document.getElementById('asset-root');let all=dividendDemo.filter(r=>holdings.find(h=>h.symbol===r.symbol)?.currency===divCurrency).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id),total=all.reduce((s,r)=>s+r.amount,0),visible=all.filter(r=>{let h=holdings.find(h=>h.symbol===r.symbol);return (divHolding==='all'||r.symbol===divHolding)&&(h.name+' '+h.symbol).toLowerCase().includes(divSearch.toLowerCase())}),cumul=0,holdingCumul={};const fullRows=all.map(r=>{cumul+=r.amount;holdingCumul[r.symbol]=(holdingCumul[r.symbol]||0)+r.amount;return {...r,cumulative:cumul,holdingCumulative:holdingCumul[r.symbol]}}),pages=Math.max(1,Math.ceil(visible.length/15));divPage=Math.min(divPage,pages);
-root.innerHTML=`<div class="asset-top"><div class="asset-tabs" role="tablist" aria-label="Dividend currency">${['INR','EUR'].map(c=>`<button class="btn ${c===divCurrency?'primary':''}" role="tab" aria-selected="${c===divCurrency}" data-div-currency="${c}">${c==='INR'?'₹':'€'} ${c}</button>`).join('')}</div><div class="actions"><button class="btn" id="div-import">Upload CSV</button><button class="btn primary" id="div-add">＋ Add dividend</button></div></div>${assetStats([['Total dividends · '+divCurrency,money(total,divCurrency),'All payments in this currency'],['Payments',all.length,'Recorded dividends'],['Holdings paying',new Set(all.map(r=>r.symbol)).size,'Distinct holdings'],['Payment range',all.length?assetDate(all[0].date):'—',all.length?'to '+assetDate(all.at(-1).date):'No recorded payments']])}<section class="panel"><div class="asset-search"><input id="div-search" aria-label="Search dividends" placeholder="Search holding or symbol"><select id="div-holding" class="compactselect" aria-label="Dividend holding"><option value="all">All holdings</option>${[...new Set(all.map(r=>r.symbol))].map(s=>`<option value="${s}">${holdings.find(h=>h.symbol===s).name}</option>`).join('')}</select><span class="asset-note">${visible.length} of ${all.length} payments</span></div>${all.length?`<div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>Date</th><th class="left">Holding</th><th>Dividend</th><th><span title="Running total for all payments in this currency, before holding and search filters.">Currency cumulative</span></th><th><span title="Running total for this holding through the payment date.">Holding cumulative</span></th><th>Actions</th></tr></thead><tbody>${visible.slice((divPage-1)*15,divPage*15).map(r=>{let h=holdings.find(h=>h.symbol===r.symbol),v=fullRows.find(v=>v.id===r.id);return `<tr><td>${assetDate(r.date)}</td><td class="left"><strong>${h.name}</strong><small>${h.symbol}</small></td><td><strong>${money(r.amount,divCurrency)}</strong></td><td class="positive">${money(v.cumulative,divCurrency)}</td><td>${money(v.holdingCumulative,divCurrency)}</td><td><button class="btn" data-div-edit="${r.id}">Edit</button> <button class="btn asset-danger" data-div-delete="${r.id}" aria-label="Delete dividend ${r.id}">Delete</button></td></tr>`}).join('')||'<tr><td colspan="6" class="empty">No payments match this search.</td></tr>'}</tbody></table></div><div class="asset-footer"><span>Chronological payments · ${divCurrency}</span><div><button class="btn" id="div-prev" ${divPage===1?'disabled':''}>←</button> ${divPage} / ${pages} <button class="btn" id="div-next" ${divPage===pages?'disabled':''}>→</button></div></div>`:`<div class="asset-empty"><div class="eyebrow">${divCurrency} DIVIDENDS</div><h2>Your income story starts here.</h2><p>No ${divCurrency} payments recorded in this sample.<br>Add a dividend or upload your dividend CSV.</p></div>`}</section>${all.length?`<div class="asset-split"><section class="panel asset-panel"><div class="asset-panel-head"><h2>Income over time · ${divCurrency}</h2><div class="asset-period" role="group" aria-label="Dividend chart period"><button class="btn ${divPeriod==='month'?'primary':''}" data-div-period="month">Monthly</button><button class="btn ${divPeriod==='year'?'primary':''}" data-div-period="year">Yearly</button></div></div><div id="div-chart"></div><div id="div-years"></div></section><section class="panel asset-panel"><div class="asset-panel-head"><h2>Income by holding</h2><span class="asset-note">${divCurrency} · all payments</span></div>${[...new Set(all.map(r=>r.symbol))].map(s=>{let amount=all.filter(r=>r.symbol===s).reduce((sum,r)=>sum+r.amount,0);return `<div class="asset-contribution"><div class="asset-contribution-line"><strong>${holdings.find(h=>h.symbol===s).name}</strong><strong>${money(amount,divCurrency)}</strong></div><div class="asset-track"><div style="width:${amount/total*100}%"></div></div><p class="asset-note" style="margin-top:8px">${(amount/total*100).toFixed(1)}% of dividend income</p></div>`}).join('')}</section></div>`:''}<div class="asset-footer"><span>Sample payments · changes last for this session</span>${all.length?`<button class="btn asset-danger" id="div-delete-all">Delete all ${divCurrency}</button>`:''}</div>`;
+function dividendView(){const root=document.getElementById('asset-root');let all=dividendDemo.filter(r=>holdings.find(h=>h.symbol===r.symbol)?.currency===divCurrency).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id),total=all.reduce((s,r)=>s+r.amount,0),visible=all.filter(r=>{let h=holdings.find(h=>h.symbol===r.symbol);return (divHolding==='all'||r.symbol===divHolding)&&(h.name+' '+h.symbol).toLowerCase().includes(divSearch.toLowerCase())}),cumul=0,holdingCumul={};const fullRows=all.map(r=>{cumul+=r.amount;holdingCumul[r.symbol]=(holdingCumul[r.symbol]||0)+r.amount;return {...r,cumulative:cumul,holdingCumulative:holdingCumul[r.symbol]}}),pages=Math.max(1,Math.ceil(visible.length/PREVIEW_PAGE_SIZE));divPage=Math.min(divPage,pages);
+root.innerHTML=`<div class="asset-top"><div class="asset-tabs" role="tablist" aria-label="Dividend currency">${['INR','EUR'].map(c=>`<button class="btn ${c===divCurrency?'primary':''}" role="tab" aria-selected="${c===divCurrency}" data-div-currency="${c}">${c==='INR'?'₹':'€'} ${c}</button>`).join('')}</div><div class="actions"><button class="btn" id="div-import">Upload CSV</button><button class="btn primary" id="div-add">＋ Add dividend</button></div></div>${assetStats([['Total dividends · '+divCurrency,money(total,divCurrency),'All payments in this currency'],['Payments',all.length,'Recorded dividends'],['Holdings paying',new Set(all.map(r=>r.symbol)).size,'Distinct holdings'],['Payment range',all.length?assetDate(all[0].date):'—',all.length?'to '+assetDate(all.at(-1).date):'No recorded payments']])}<section class="panel"><div class="asset-search"><input id="div-search" aria-label="Search dividends" placeholder="Search holding or symbol"><select id="div-holding" class="compactselect" aria-label="Dividend holding"><option value="all">All holdings</option>${[...new Set(all.map(r=>r.symbol))].map(s=>`<option value="${s}">${holdings.find(h=>h.symbol===s).name}</option>`).join('')}</select><span class="asset-note">${visible.length} of ${all.length} payments</span></div>${all.length?`<div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>Date</th><th class="left">Holding</th><th>Dividend</th><th><span title="Running total for all payments in this currency, before holding and search filters.">Currency cumulative</span></th><th><span title="Running total for this holding through the payment date.">Holding cumulative</span></th><th>Actions</th></tr></thead><tbody>${visible.slice((divPage-1)*PREVIEW_PAGE_SIZE,divPage*PREVIEW_PAGE_SIZE).map(r=>{let h=holdings.find(h=>h.symbol===r.symbol),v=fullRows.find(v=>v.id===r.id);return `<tr><td>${assetDate(r.date)}</td><td class="left"><strong>${h.name}</strong><small>${h.symbol}</small></td><td><strong>${money(r.amount,divCurrency)}</strong></td><td class="positive">${money(v.cumulative,divCurrency)}</td><td>${money(v.holdingCumulative,divCurrency)}</td><td><button class="btn" data-div-edit="${r.id}">Edit</button> <button class="btn asset-danger" data-div-delete="${r.id}" aria-label="Delete dividend ${r.id}">Delete</button></td></tr>`}).join('')||'<tr><td colspan="6" class="empty">No payments match this search.</td></tr>'}</tbody></table></div><div class="asset-footer"><span>Chronological payments · ${divCurrency}</span><div><button class="btn" id="div-prev" ${divPage===1?'disabled':''}>←</button> ${divPage} / ${pages} <button class="btn" id="div-next" ${divPage===pages?'disabled':''}>→</button></div></div>`:`<div class="asset-empty"><div class="eyebrow">${divCurrency} DIVIDENDS</div><h2>Your income story starts here.</h2><p>No ${divCurrency} payments recorded in this sample.<br>Add a dividend or upload your dividend CSV.</p></div>`}</section>${all.length?`<div class="asset-split"><section class="panel asset-panel"><div class="asset-panel-head"><h2>Income over time · ${divCurrency}</h2><div class="asset-period" role="group" aria-label="Dividend chart period"><button class="btn ${divPeriod==='month'?'primary':''}" data-div-period="month">Monthly</button><button class="btn ${divPeriod==='year'?'primary':''}" data-div-period="year">Yearly</button></div></div><div id="div-chart"></div><div id="div-years"></div></section><section class="panel asset-panel"><div class="asset-panel-head"><h2>Income by holding</h2><span class="asset-note">${divCurrency} · all payments</span></div>${[...new Set(all.map(r=>r.symbol))].map(s=>{let amount=all.filter(r=>r.symbol===s).reduce((sum,r)=>sum+r.amount,0);return `<div class="asset-contribution"><div class="asset-contribution-line"><strong>${holdings.find(h=>h.symbol===s).name}</strong><strong>${money(amount,divCurrency)}</strong></div><div class="asset-track"><div style="width:${amount/total*100}%"></div></div><p class="asset-note" style="margin-top:8px">${(amount/total*100).toFixed(1)}% of dividend income</p></div>`}).join('')}</section></div>`:''}<div class="asset-footer"><span>Sample payments · changes last for this session</span>${all.length?`<button class="btn asset-danger" id="div-delete-all">Delete all ${divCurrency}</button>`:''}</div>`;
 if(all.length){let periods={};all.forEach(r=>{let key=r.date.slice(0,divPeriod==='month'?7:4);periods[key]=(periods[key]||0)+r.amount});document.getElementById('div-chart').innerHTML=assetBarChart(Object.entries(periods).map(([key,value])=>({label:divPeriod==='month'?new Date(key+'-01T12:00').toLocaleDateString('en-GB',{month:'short',year:'2-digit'}):key,value})),divCurrency);let years=[...new Set(all.map(r=>r.date.slice(0,4)))];document.getElementById('div-years').innerHTML=`<table class="asset-table"><thead><tr><th>Year</th><th>Payments</th><th>Total</th></tr></thead><tbody>${years.reverse().map(y=>`<tr><td>${y}</td><td>${all.filter(r=>r.date.startsWith(y)).length}</td><td>${money(all.filter(r=>r.date.startsWith(y)).reduce((s,r)=>s+r.amount,0),divCurrency)}</td></tr>`).join('')}</tbody></table>`;document.getElementById('div-prev').onclick=()=>{divPage--;dividendView()};document.getElementById('div-next').onclick=()=>{divPage++;dividendView()};document.getElementById('div-delete-all').onclick=()=>assetConfirm('Delete all '+divCurrency+' sample dividends?',`Remove ${all.length} sample payments in ${divCurrency}? Other currencies remain unchanged.`,()=>{for(let i=dividendDemo.length-1;i>=0;i--)if(all.some(r=>r.id===dividendDemo[i].id))dividendDemo.splice(i,1);dividendView()})}
 document.querySelectorAll('[data-div-currency]').forEach(b=>b.onclick=()=>{divCurrency=b.dataset.divCurrency;divHolding='all';divPage=1;dividendView()});document.querySelectorAll('[data-div-period]').forEach(b=>b.onclick=()=>{divPeriod=b.dataset.divPeriod;dividendView()});let search=document.getElementById('div-search');search.value=divSearch;search.oninput=()=>{let pos=search.selectionStart;divSearch=search.value;divPage=1;dividendView();let e=document.getElementById('div-search');e.focus();e.setSelectionRange(pos,pos)};let hf=document.getElementById('div-holding');hf.value=divHolding;hf.onchange=()=>{divHolding=hf.value;divPage=1;dividendView()};document.getElementById('div-add').onclick=()=>dividendEditor();document.querySelectorAll('[data-div-edit]').forEach(b=>b.onclick=()=>dividendEditor(Number(b.dataset.divEdit)));document.querySelectorAll('[data-div-delete]').forEach(b=>b.onclick=()=>assetConfirm('Delete sample dividend?','Remove this sample payment from the ledger?',()=>{dividendDemo.splice(dividendDemo.findIndex(r=>r.id===Number(b.dataset.divDelete)),1);dividendView()}));document.getElementById('div-import').onclick=dividendImport;
 }
 function dividendEditor(id){let row=dividendDemo.find(r=>r.id===id),options=holdings.filter(h=>h.currency===divCurrency);assetDialog((row?'Edit':'Add')+' dividend · '+divCurrency,`<form id="div-form"><div class="asset-form"><label class="full">Holding<select name="symbol" ${row?'disabled':''}>${options.map(h=>`<option value="${h.symbol}" ${row?.symbol===h.symbol?'selected':''}>${h.name} · ${h.symbol}</option>`).join('')}</select></label><label>Payment date<input name="date" type="date" max="2026-11-18" value="${row?.date||'2026-11-18'}" required></label><label>Total received · ${divCurrency}<input name="amount" type="number" min="0.01" step="any" value="${row?.amount||''}" required></label></div><p class="asset-note">Total payment received, not a per-share dividend. Sample session only.</p><div class="asset-modal-actions"><button type="button" class="btn" id="div-cancel">Cancel</button><button class="btn primary">Save sample dividend</button></div></form>`);document.getElementById('div-cancel').onclick=assetClose;document.getElementById('div-form').onsubmit=e=>{e.preventDefault();let f=e.target.elements,value={id:row?.id??Math.max(0,...dividendDemo.map(r=>r.id))+1,symbol:row?.symbol||f.symbol.value,date:f.date.value,amount:Number(f.amount.value)};if(row)Object.assign(row,value);else dividendDemo.push(value);assetClose();dividendView();toast('Sample dividend saved')}}
-function dividendImport(){assetDialog('Upload dividend CSV · '+divCurrency,`<div class="asset-import"><p class="asset-note">Date,Share Name,Dividend,CUMULATIVE · cumulative is optional. Match holdings within ${divCurrency}.</p><div class="asset-toolbar" style="margin-top:20px"><input id="di-file" type="file" accept=".csv,text/csv" aria-label="Dividend CSV file"><button class="btn" id="di-example">Load example</button></div><textarea id="di-text" aria-label="Dividend CSV contents" placeholder="Paste your dividend CSV"></textarea><button class="btn primary" id="di-validate">Validate and preview</button><div id="di-results" style="margin-top:20px"></div></div>`);document.getElementById('di-file').onchange=async e=>{if(e.target.files[0])document.getElementById('di-text').value=await e.target.files[0].text()};document.getElementById('di-example').onclick=()=>document.getElementById('di-text').value=divCurrency==='INR'?'Date,Share Name,Dividend,CUMULATIVE\n12/03/2026,TCS,300,300':'Date,Share Name,Dividend,CUMULATIVE\n12/03/2026,SAP,20,20';document.getElementById('di-validate').onclick=()=>{let target=document.getElementById('di-results');try{let csv=txCSV(document.getElementById('di-text').value),headers=csv.shift()?.map(v=>v.trim().toLowerCase())||[];if(['date','share name','dividend'].some(v=>!headers.includes(v)))throw Error('Missing required header. Expected Date,Share Name,Dividend,CUMULATIVE.');if(!csv.length||csv.length>5000)throw Error('Provide 1–5,000 data rows.');let result=[],errors=[];csv.forEach((row,i)=>{let get=n=>row[headers.indexOf(n)]?.trim()||'',name=get('share name'),h=holdings.find(h=>h.currency===divCurrency&&[h.name,h.symbol].some(v=>v.toLowerCase()===name.toLowerCase())),d=get('date').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/),date=d?d[3]+'-'+d[2].padStart(2,'0')+'-'+d[1].padStart(2,'0'):'',amount=Number(get('dividend').replace(/[,₹€\s]/g,''));if(!h||!d||!Number.isFinite(amount)||amount<=0||date>'2026-11-18'||isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date){errors.push('Row '+(i+2)+': check holding, day-first date and positive amount.');return}result.push({symbol:h.symbol,date,amount})});target.innerHTML=`<strong>${result.length} ready · ${errors.length} need attention</strong>${errors.map(e=>`<p class="asset-error">${assetEscape(e)}</p>`).join('')}<div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>Date</th><th>Holding</th><th>Dividend</th></tr></thead><tbody>${result.slice(0,15).map(r=>`<tr><td>${assetDate(r.date)}</td><td>${r.symbol}</td><td>${money(r.amount,divCurrency)}</td></tr>`).join('')}</tbody></table></div><p class="asset-note" style="margin:16px 0">Review matches before importing. Unknown holdings need your decision. Sample imports do not change your portfolio.</p><button class="btn primary" id="di-confirm" ${!result.length||errors.length?'disabled':''}>Import ${result.length} sample payments</button>`;document.getElementById('di-confirm').onclick=()=>{let next=Math.max(0,...dividendDemo.map(r=>r.id))+1;result.forEach(r=>dividendDemo.push({...r,id:next++}));assetClose();dividendView();toast('Sample dividends imported')}}catch(e){target.textContent=e.message}}}
+function dividendImport(){assetDialog('Upload dividend CSV · '+divCurrency,`<div class="asset-import"><p class="asset-note">Date,Share Name,Dividend,CUMULATIVE · cumulative is optional. Match holdings within ${divCurrency}.</p><div class="asset-toolbar" style="margin-top:20px"><input id="di-file" type="file" accept=".csv,text/csv" aria-label="Dividend CSV file"><button class="btn" id="di-example">Load example</button></div><textarea id="di-text" aria-label="Dividend CSV contents" placeholder="Paste your dividend CSV"></textarea><button class="btn primary" id="di-validate">Validate and preview</button><div id="di-results" style="margin-top:20px"></div></div>`);document.getElementById('di-file').onchange=async e=>{if(e.target.files[0])document.getElementById('di-text').value=await e.target.files[0].text()};document.getElementById('di-example').onclick=()=>document.getElementById('di-text').value='Date,Share Name,Dividend,CUMULATIVE';document.getElementById('di-validate').onclick=()=>{let target=document.getElementById('di-results');try{let csv=txCSV(document.getElementById('di-text').value),headers=csv.shift()?.map(v=>v.trim().toLowerCase())||[];if(['date','share name','dividend'].some(v=>!headers.includes(v)))throw Error('Missing required header. Expected Date,Share Name,Dividend,CUMULATIVE.');if(!csv.length||csv.length>5000)throw Error('Provide 1–5,000 data rows.');let result=[],errors=[];csv.forEach((row,i)=>{let get=n=>row[headers.indexOf(n)]?.trim()||'',name=get('share name'),h=holdings.find(h=>h.currency===divCurrency&&[h.name,h.symbol].some(v=>v.toLowerCase()===name.toLowerCase())),d=get('date').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/),date=d?d[3]+'-'+d[2].padStart(2,'0')+'-'+d[1].padStart(2,'0'):'',amount=Number(get('dividend').replace(/[,₹€\s]/g,''));if(!h||!d||!Number.isFinite(amount)||amount<=0||date>'2026-11-18'||isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date){errors.push('Row '+(i+2)+': check holding, day-first date and positive amount.');return}result.push({symbol:h.symbol,date,amount})});target.innerHTML=`<strong>${result.length} ready · ${errors.length} need attention</strong>${errors.map(e=>`<p class="asset-error">${assetEscape(e)}</p>`).join('')}<div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>Date</th><th>Holding</th><th>Dividend</th></tr></thead><tbody>${result.slice(0,15).map(r=>`<tr><td>${assetDate(r.date)}</td><td>${r.symbol}</td><td>${money(r.amount,divCurrency)}</td></tr>`).join('')}</tbody></table></div><p class="asset-note" style="margin:16px 0">Review matches before importing. Unknown holdings need your decision. Sample imports do not change your portfolio.</p><button class="btn primary" id="di-confirm" ${!result.length||errors.length?'disabled':''}>Import ${result.length} sample payments</button>`;document.getElementById('di-confirm').onclick=()=>{let next=Math.max(0,...dividendDemo.map(r=>r.id))+1;result.forEach(r=>dividendDemo.push({...r,id:next++}));assetClose();dividendView();toast('Sample dividends imported')}}catch(e){target.textContent=e.message}}}
 function goldDerived(r){let cost=r.gm_price*r.grams_bought;return {...r,gold_cost:cost,gst_on_cost:cost*.03,total_expected:cost*1.03,gst_on_quote:r.quote_price==null?null:r.quote_price*.03,nett_per_gram:r.actual_paid/r.grams_bought,nett_reduction:r.bill_amount==null?null:r.bill_amount-r.actual_paid,nimmi_loss:r.actual_paid-cost}}
 const goldFields=[['date','Date','date'],['gm_price','gm Price'],['grams_bought','Weight','weight'],['gold_cost','Gold cost','computed'],['gst_on_cost','3%','computed'],['total_expected','Total expected','computed'],['quote_price','Price in quote'],['gst_on_quote','3% (quote)','computed'],['bill_amount','Amt per bill'],['actual_paid','Actual paid'],['nett_per_gram','Nett per gram','computed'],['nett_reduction','Nett reduction','computed'],['billed_weight','Billed weight','weight'],['nimmi_loss','LOSS due to NIMMI','computed'],['chennai_rate','Chennai rate','text']];
 function goldFormat(r,key){let v=r[key];if(v==null||v==='')return '—';return key==='date'?assetDate(v):key==='chennai_rate'?assetEscape(v):['grams_bought','billed_weight'].includes(key)?v.toLocaleString('en-IN',{maximumFractionDigits:3})+' g':money(v,'INR')}
@@ -155,7 +233,8 @@ document.querySelectorAll('[data-nav]').forEach(b=>{const previous=b.onclick;b.o
  const symbols=['₹','€','$','£','¥','₿','₩'],colors=['#7464da','#537ece','#299d85','#c96e98'];
  // Jittered cells give a fresh, random composition without clusters.
  for(let i=0;i<24;i++){const el=document.createElement('span');el.textContent=symbols[Math.floor(Math.random()*symbols.length)];el.style.cssText=`--x:${(i%6+Math.random()*.75+.125)/6*100}%;--y:${(Math.floor(i/6)+Math.random()*.7+.15)/4*100}%;--size:${20+Math.random()*19}px;--rotation:${Math.random()*54-27}deg;--symbol-color:${colors[Math.floor(Math.random()*colors.length)]};--symbol-delay:${Math.random()*220}ms`;layer.append(el)}document.body.prepend(layer);
- const toggle=document.getElementById('decoration');let enabled=true;try{enabled=localStorage.getItem('design-atmosphere')!=='off'}catch{}toggle.checked=enabled;document.body.classList.toggle('decorated',enabled);toggle.onchange=()=>{document.body.classList.toggle('decorated',toggle.checked);try{localStorage.setItem('design-atmosphere',toggle.checked?'on':'off')}catch{}};
+ // PD-059: retain the sprinkle background; no Ambient control in UI_2.0.
+ document.body.classList.add('decorated');
  const root=document.documentElement;let timer;
  function boot(){clearTimeout(timer);root.classList.remove('cyber-boot');if(root.dataset.theme!=='cyber'||matchMedia('(prefers-reduced-motion: reduce)').matches)return;document.querySelectorAll('.summary-card,.asset-stat,.panel').forEach((el,i)=>el.style.setProperty('--boot-delay',`${Math.min(i,6)*55+80}ms`));requestAnimationFrame(()=>requestAnimationFrame(()=>{if(root.dataset.theme!=='cyber')return;root.classList.add('cyber-boot');timer=setTimeout(()=>root.classList.remove('cyber-boot'),1600)}))}
  new MutationObserver(boot).observe(root,{attributes:true,attributeFilter:['data-theme']});boot();
@@ -181,5 +260,652 @@ function renderProfile(){adminRoot().innerHTML=`<div class="profile-layout"><asi
 document.getElementById('admin-profile-open').onclick=()=>adminOpen('Profile');document.getElementById('admin-users-open').onclick=()=>adminOpen('Administration');document.getElementById('admin-own-portfolio').onclick=()=>{menu.hidden=true;account.setAttribute('aria-expanded','false');actingUser=null;adminUpdateBanner();document.querySelector('[data-nav="Overview"]').click()};
 document.querySelectorAll('[data-nav]').forEach(b=>{const previous=b.onclick;b.onclick=()=>{if(b.dataset.nav==='Administration')adminOpen('Administration');else{let root=document.getElementById('admin-root');if(root)root.hidden=true;previous?.();adminUpdateBanner()}}});
 if(location.hash==='#admin')adminOpen('Administration');else if(location.hash==='#profile')adminOpen('Profile');
+
+</script><script>
+/* PD-059 preview alignment. All interactions below use fictional, in-memory
+ * fixtures. This file does not fetch rates, call account APIs or persist data.
+ * Reuse the existing preview renderers, tables, dialogs and import parsers. */
+const planPreview = {
+  period: '1M', currency: 'INR', metric: 'value', valuation: 'complete',
+  types: [], currencies: [], fxSkipped: false, fxReviewed: false,
+};
+const originalPreview = {
+  holdings: renderHoldings, details: openDetails, transactions: txRender,
+  filteredTransactions: txFiltered, delta: txDelta, history: renderHistory,
+  gold: goldView, tradeImport: txImport, dividendImport,
+};
+
+function previewButton(label, handler, className = 'btn') {
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = className;
+  button.textContent = label; button.onclick = handler;
+  return button;
+}
+
+// The row opens the detail dialog; its native name button is also available
+// to keyboard users, without changing table semantics into a custom grid.
+renderHoldings = function () {
+  originalPreview.holdings();
+  document.querySelectorAll('.holding-table tbody tr:not(.sector-heading)').forEach(row => {
+    const name = row.querySelector('[data-symbol]');
+    if (!name) return;
+    row.classList.add('holding-clickable');
+    row.onclick = event => { if (!event.target.closest('button')) name.click(); };
+  });
+  const tools = document.querySelector('#view-content .tools');
+  tools.append(previewButton('Review sectors', previewSectorReview));
+};
+
+openDetails = function (symbol) {
+  originalPreview.details(symbol);
+  document.getElementById('detail-title').textContent = 'Holding details';
+  const holding = holdings.find(item => item.symbol === symbol);
+  const actions = document.createElement('div'); actions.className = 'asset-modal-actions';
+  actions.append(
+    previewButton('Edit holding', () => previewHoldingForm(holding)),
+    previewButton('Transaction ledger', () => {
+      const event = txRows.find(item => item.symbol === symbol);
+      if (event) txLedger(event.id);
+      else assetDialog('Transaction ledger · ' + holding.name, '<p>No sample events for this holding.</p>');
+    }),
+    previewButton('Opening date', () => previewOpeningDate(holding)),
+    previewButton('Delete holding', () => assetConfirm('Delete sample holding?',
+      `Remove ${assetEscape(holding.name)} from this preview? Only fictional data is affected.`, () => {
+        for (const events of [txRows, dividendDemo]) {
+          for (let index = events.length - 1; index >= 0; index--) {
+            if (events[index].symbol === holding.symbol) events.splice(index, 1);
+          }
+        }
+        holdings.splice(holdings.indexOf(holding), 1);
+        renderHoldings(); renderAllocation();
+      }), 'btn asset-danger'),
+  );
+  document.getElementById('detail-content').append(actions);
+};
+
+function previewHoldingForm(holding) {
+  const value = (key, fallback = '') => assetEscape(holding?.[key] ?? fallback);
+  assetDialog(holding ? 'Edit holding' : 'Add holding', `
+    <p class="asset-note">The existing holding fields are retained. This form previews layout only; it does not write a portfolio.</p>
+    <form id="plan-holding-form" class="asset-form">
+      <label class="full">Script name<input name="script" value="${value('name')}" required></label>
+      <label>Yahoo symbol<input name="symbol" value="${value('symbol')}" placeholder="e.g. INFY.NS"></label>
+      <label>Exchange<select name="exchange">${['NSE','BSE','NYSE','NASDAQ','OTHER'].map(exchange => `<option ${holding?.market === exchange ? 'selected' : ''}>${exchange}</option>`).join('')}</select></label>
+      <label>Type<select name="type"><option>stock</option><option>etf</option><option>mutual_fund</option></select></label>
+      <label>Currency<select name="currency"><option ${holding?.currency === 'INR' ? 'selected' : ''}>INR</option><option ${holding?.currency === 'EUR' ? 'selected' : ''}>EUR</option></select></label>
+      <label>Shares owned<input name="shares" type="number" min="0" step="any" value="${value('qty', 0)}" required></label>
+      <label>Average cost price<input name="cost" type="number" min="0" step="any" value="${value('avg', 0)}" required></label>
+      <label>Realised P/L<input name="realised" type="number" step="any" value="${value('realised', 0)}"></label>
+      <label class="full">Notes<textarea name="notes">${value('notes')}</textarea></label>
+      <p class="asset-note full">Existing positions are ledger projections. Production keeps its current opening-balance and ledger rules.</p>
+      <div class="asset-modal-actions full"><button type="button" class="btn" id="plan-holding-cancel">Cancel</button><button class="btn primary">Preview save</button></div>
+    </form>`);
+  document.getElementById('plan-holding-cancel').onclick = assetClose;
+  document.getElementById('plan-holding-form').onsubmit = event => {
+    event.preventDefault(); assetClose(); toast('Holding form reviewed · no portfolio write');
+  };
+}
+
+function previewOpeningDate(holding) {
+  assetDialog('Opening date · ' + holding.name, `<form id="plan-opening-form" class="asset-form">
+    <label class="full">Effective opening date<input type="date" name="date" max="2026-11-18" value="${holding.openingDate || ''}" required></label>
+    <p class="asset-note full">Production keeps the existing opening-date prompt and snapshot healing. This changes the sample label only.</p>
+    <button class="btn primary">Save sample date</button></form>`);
+  document.getElementById('plan-opening-form').onsubmit = event => {
+    event.preventDefault(); holding.openingDate = event.target.elements.date.value;
+    assetClose(); toast('Sample opening date recorded');
+  };
+}
+
+function previewSectorReview() {
+  assetDialog('Sector review', `<p class="asset-note">Review existing classifications; grouping does not hide holdings. Unknown production classifications still require the owner’s decision.</p>
+    <div class="asset-table-wrap"><table class="asset-table"><thead><tr><th scope="col">Holding</th><th scope="col">Current sector</th><th scope="col">Review</th></tr></thead>
+    <tbody>${holdings.map(holding => `<tr><td>${assetEscape(holding.name)}</td><td>${assetEscape(holding.sector)}</td><td><button class="btn" data-review-sector="${holding.symbol}">Review label</button></td></tr>`).join('')}</tbody></table></div>`);
+  document.querySelectorAll('[data-review-sector]').forEach(button => button.onclick = () => {
+    const holding = holdings.find(item => item.symbol === button.dataset.reviewSector);
+    assetDialog('Review sector · ' + holding.name, `<form class="asset-form" id="plan-sector-form">
+      <label class="full">Sector label<input name="sector" value="${assetEscape(holding.sector)}" required></label>
+      <p class="asset-note full">Rename this fictional classification only. The real review queue, provenance and permissions stay authoritative.</p>
+      <button class="btn primary">Save sample label</button></form>`);
+    document.getElementById('plan-sector-form').onsubmit = event => {
+      event.preventDefault(); holding.sector = event.target.elements.sector.value.trim();
+      assetClose(); renderHoldings(); renderAllocation();
+    };
+  });
+}
+
+// Review the overall chart's data states using the existing sample snapshots.
+// FX is an explicitly fixed fixture. No values here are live market data.
+function overallPreviewRows() {
+  const rows = [0,1,2].flatMap(index => snapshotStore[index] || (snapshotStore[index] = makeSnapshots(index)))
+    .toSorted((left, right) => left.date.localeCompare(right.date));
+  return rows.map((row, index) => {
+    const recent = index >= rows.length - 5;
+    const missingRate = recent && planPreview.valuation === 'missing-fx' && !planPreview.fxReviewed;
+    const goldUnvalued = recent && planPreview.valuation === 'unpriced-gold';
+    const unavailable = planPreview.valuation === 'gold-offline';
+    const rate = missingRate ? null : 102.72;
+    const invested = missingRate || goldUnvalued || unavailable ? null : row.inrCost + row.eurCost * rate + row.goldCost;
+    const current = invested === null ? null : row.inr + row.eur * rate + row.gold;
+    const factor = planPreview.currency === 'INR' ? 1 : rate === null ? null : 1 / rate;
+    return { date: row.date, rate, invested: invested === null ? null : invested * factor,
+      current: current === null ? null : current * factor,
+      fxCarried: recent && planPreview.valuation === 'carried-fx' && !planPreview.fxReviewed,
+      missingRate, goldUnvalued, unavailable };
+  });
+}
+
+// Same documented daily-movement definition as historyShared.ts: cost-basis
+// withdrawals are adjusted using the remaining current/invested ratio.
+function previewDailyMovement(previous, row) {
+  if (!previous || !previous.current || row.current === null || row.invested === null || previous.invested === null) return null;
+  const delta = row.invested - previous.invested;
+  if (delta < 0 && row.invested === 0) return null;
+  const flow = delta < 0 ? delta * row.current / row.invested : delta;
+  return (row.current - flow - previous.current) / previous.current * 100;
+}
+
+function overallGraph(rows) {
+  const value = planPreview.metric === 'value';
+  const finite = rows.flatMap(row => value ? [row.current, row.invested] : [row.metric]).filter(number => number !== null && Number.isFinite(number));
+  if (!finite.length) return '<div class="plan-unavailable"><strong>Overall value unavailable</strong><p>A complete portfolio cannot be valued from the available data. No partial total or substitute zero is shown.</p></div>';
+  let low = Math.min(...finite), high = Math.max(...finite);
+  if (planPreview.metric === 'movement') { low = Math.min(low, 0); high = Math.max(high, 0); }
+  const padding = Math.max((high - low) * .12, value ? 100 : .1); low -= padding; high += padding;
+  const y = number => 185 - (number - low) / (high - low) * 150;
+  const x = index => 65 + index * 565 / Math.max(rows.length - 1, 1);
+  function path(key) {
+    let drawing = false;
+    return rows.map((row, index) => {
+      const number = row[key];
+      if (number === null) { drawing = false; return ''; }
+      const command = drawing ? 'L' : 'M'; drawing = true;
+      return `${command}${x(index)},${y(number)}`;
+    }).join(' ');
+  }
+  const label = number => value ? new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(number) : number.toFixed(1) + '%';
+  return `<svg viewBox="0 0 680 230" role="img" aria-label="Overall ${value ? 'invested and current value' : planPreview.metric === 'pl' ? 'P/L percentage' : 'flow-adjusted daily movement'} in ${planPreview.currency}; fictional sample snapshots">
+    ${[0,.5,1].map(step => { const number = low + (high - low) * step; return `<path d="M65 ${y(number)}H630" class="grid"/><text x="56" y="${y(number)+4}" text-anchor="end">${label(number)}</text>`; }).join('')}
+    ${value ? `<path d="${path('invested')}" class="plan-invested"/>` : ''}
+    <path d="${path(value ? 'current' : 'metric')}" class="plan-current"/>
+    <text x="65" y="218">${fmtDate(rows[0].date)}</text><text x="630" y="218" text-anchor="end">${fmtDate(rows.at(-1).date)}</text>
+  </svg>`;
+}
+
+renderChart = function () {
+  let all = overallPreviewRows();
+  // Compute daily movement BEFORE period selection or weekly thinning.
+  all = all.map((row, index) => ({ ...row, metric: planPreview.metric === 'pl'
+    ? row.current === null || !row.invested ? null : (row.current - row.invested) / row.invested * 100
+    : previewDailyMovement(all[index - 1], row) }));
+  const periodDays = { '1W': 7, '1M': 30, '3M': 90, '1Y': 365, All: Infinity };
+  const selected = all.slice(-periodDays[planPreview.period]);
+  const weekly = ['1Y','All'].includes(planPreview.period);
+  const rows = weekly ? selected.filter((row, index) => index === selected.length - 1 || new Date(row.date+'T12:00:00').getUTCDay() === 0) : selected;
+  document.getElementById('view-content').innerHTML = `<section class="panel plan-performance">
+    <div class="chart-head"><div><h2>Overall performance</h2><p class="subtitle">INR equities + EUR equities + physical gold · ${planPreview.currency} display</p></div>
+    <label>Display currency<select class="compactselect" id="plan-chart-currency"><option>INR</option><option>EUR</option></select></label></div>
+    <div class="plan-chart-controls"><div class="segments" role="group" aria-label="Overall chart period">${['1W','1M','3M','1Y','All'].map(item => `<button data-overall-period="${item}" class="${item===planPreview.period?'active':''}" aria-pressed="${item===planPreview.period}">${item}</button>`).join('')}</div>
+    <div class="segments" role="group" aria-label="Overall chart metric">${[['value','Invested vs current'],['pl','P/L %'],['movement','Daily movement']].map(([key,label]) => `<button data-overall-metric="${key}" class="${key===planPreview.metric?'active':''}" aria-pressed="${key===planPreview.metric}">${label}</button>`).join('')}</div></div>
+    <div class="plan-chart">${overallGraph(rows)}</div>
+    ${planPreview.metric==='value'?'<div class="compare-legend"><span><i class="legend-line current"></i>Current value</span><span><i class="legend-line invested"></i>Invested amount</span></div>':''}
+    <p class="asset-note">${weekly?'Weekly drawing points; daily movement is computed before thinning.':'Daily sample points.'} Sample history spans Sep–Nov 2026, so longer periods show all available records. Gaps are unavailable values.</p>
+    <div class="plan-scenarios"><label for="plan-valuation">Preview data state</label><select class="compactselect" id="plan-valuation">
+      <option value="complete">Complete valuation</option><option value="missing-fx">First FX rate unavailable</option><option value="carried-fx">Previous FX rate carried</option><option value="unpriced-gold">Gold held, no price yet</option><option value="gold-offline">Gold service unavailable</option></select></div>
+    <p class="asset-note">${planPreview.valuation==='complete'?'Fictional stored daily rates; no market connection.':planPreview.valuation==='carried-fx'?'The previous rate is carried and flagged. History offers a user-triggered re-fetch.':planPreview.valuation==='missing-fx'?'No prior FX rate: converted totals remain unavailable until a successful re-fetch.':planPreview.valuation==='unpriced-gold'?'Gold held without an earlier recorded price makes that day’s total unavailable. No cost-price fallback.':'Gold cannot be read: all overall totals are unavailable, never stock-only amounts.'}</p>
+    <details class="plan-data"><summary>View chart data</summary><div class="asset-table-wrap"><table class="asset-table"><caption>Fictional overall daily values · ${planPreview.currency}</caption><thead><tr><th scope="col">Date</th><th scope="col">Invested</th><th scope="col">Current</th><th scope="col">Status</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.date}</td><td>${row.invested===null?'—':money(row.invested,planPreview.currency)}</td><td>${row.current===null?'—':money(row.current,planPreview.currency)}</td><td>${row.unavailable?'Gold unavailable':row.goldUnvalued?'Gold unvalued':row.missingRate?'FX missing':row.fxCarried?'FX carried':'Available'}</td></tr>`).join('')}</tbody></table></div></details>
+    </section>`;
+  document.querySelectorAll('[data-overall-period]').forEach(button => button.onclick = () => { planPreview.period = button.dataset.overallPeriod; renderChart(); });
+  document.querySelectorAll('[data-overall-metric]').forEach(button => button.onclick = () => { planPreview.metric = button.dataset.overallMetric; renderChart(); });
+  const currency = document.getElementById('plan-chart-currency'); currency.value = planPreview.currency;
+  currency.onchange = () => { planPreview.currency = currency.value; renderChart(); };
+  const scenario = document.getElementById('plan-valuation'); scenario.value = planPreview.valuation;
+  scenario.onchange = () => { planPreview.valuation = scenario.value; planPreview.fxReviewed = false; planPreview.fxSkipped = false; renderChart(); };
+};
+
+function previewFxPrompt() {
+  assetDialog('Fetch exchange rates again', `<p>Two sample days use a carried or missing rate. In production, Yahoo is queried only for your own flagged dates.</p>
+    <ul><li>16 Nov 2026</li><li>17 Nov 2026</li></ul>
+    <p class="asset-note">Local demonstration only: no network request. A failed fetch keeps the dates flagged for the next visit.</p>
+    <label for="plan-fx-result">Demonstrate result</label><select class="compactselect" id="plan-fx-result"><option value="success">Successful re-fetch</option><option value="failure">Fetch failed</option></select>
+    <p id="plan-fx-feedback" role="status"></p><div class="asset-modal-actions"><button class="btn" id="plan-fx-later" autofocus>Not now</button><button class="btn primary" id="plan-fx-fetch">Fetch rates again</button></div>`);
+  document.getElementById('plan-fx-later').onclick = () => { planPreview.fxSkipped = true; assetClose(); renderHistory(); };
+  document.getElementById('plan-fx-fetch').onclick = () => {
+    if (document.getElementById('plan-fx-result').value === 'failure') {
+      document.getElementById('plan-fx-feedback').textContent = 'Sample fetch failed. Both days remain flagged; retry or choose Not now.';
+      return;
+    }
+    planPreview.fxReviewed = true; assetClose(); renderHistory(); toast('Sample rates restored · no Yahoo request was made');
+  };
+}
+
+renderHistory = function () {
+  originalPreview.history();
+  const root = document.getElementById('history-root');
+  if (!actingUser && !planPreview.fxSkipped && !planPreview.fxReviewed) {
+    const notice = document.createElement('div'); notice.className = 'asset-alert';
+    notice.innerHTML = '<div><strong>Review exchange rates</strong><span>Two illustrative dates have missing or carried FX rates.</span></div>';
+    notice.append(previewButton('Fetch rates again', previewFxPrompt)); root.prepend(notice);
+  }
+  const controls = root.querySelector('.history-controls');
+  controls.append(previewButton('Full-history charts', () => {
+    historyDialog('Full-history charts', historyCharts([0,1,2].flatMap(index => snapshotStore[index] || (snapshotStore[index] = makeSnapshots(index)))));
+  }));
+};
+
+// Preserve search, dates and per-currency subtotals from the existing renderer;
+// add independent multi-select currency and event-type facets.
+txFiltered = function () {
+  return originalPreview.filteredTransactions().filter(row => {
+    const holding = holdings.find(item => item.symbol === row.symbol);
+    return (!planPreview.types.length || planPreview.types.includes(row.type)) &&
+      (!planPreview.currencies.length || planPreview.currencies.includes(holding.currency));
+  });
+};
+
+function previewMultiSelect(id, title, values, selected, onChange) {
+  const wrapper = document.createElement('details'); wrapper.className = 'plan-multiselect';
+  wrapper.innerHTML = `<summary>${title} · ${selected.length ? selected.length + ' selected' : 'All'}</summary><div class="plan-options"><fieldset><legend>${title}</legend>${values.map(value => `<label><input type="checkbox" value="${value}" ${selected.includes(value)?'checked':''}> ${value}</label>`).join('')}</fieldset><button class="btn" type="button">Clear selection</button></div>`;
+  wrapper.id = id;
+  wrapper.querySelectorAll('input').forEach(input => input.onchange = () => {
+    onChange([...wrapper.querySelectorAll('input:checked')].map(item => item.value));
+  });
+  wrapper.querySelector('button').onclick = () => onChange([]);
+  return wrapper;
+}
+
+txRender = function () {
+  originalPreview.transactions();
+  const allFiltered = txFiltered();
+  const optional = [['ratio','Ratio'],['realizedSeed','Realised seed'],['openingDate','Opening date'],['notes','Notes']]
+    .filter(([key]) => allFiltered.some(row => row[key] !== undefined && row[key] !== ''));
+  const header = document.querySelector('.tx-table thead tr');
+  optional.forEach(([,label]) => { const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = label; header.insertBefore(cell, header.lastElementChild); });
+  document.querySelectorAll('.tx-table tbody tr').forEach((element,index) => {
+    const row = allFiltered[(txState.page - 1) * PREVIEW_PAGE_SIZE + index];
+    if (!row) return;
+    optional.forEach(([key]) => { const cell = document.createElement('td'); cell.textContent = row[key] ?? '—'; element.insertBefore(cell, element.lastElementChild); });
+  });
+  const replace = (id, title, values, key) => document.getElementById(id).replaceWith(
+    previewMultiSelect(id, title, values, planPreview[key], selected => { planPreview[key] = selected; txState.page = 1; txRender(); }));
+  replace('tx-currency', 'Currencies', ['INR','EUR'], 'currencies');
+  replace('tx-type', 'Event types', ['opening','buy','sell','dividend','split','bonus','merger'], 'types');
+  const clear = document.getElementById('tx-clear'), previous = clear.onclick;
+  clear.onclick = () => { planPreview.types = []; planPreview.currencies = []; previous(); };
+  document.getElementById('tx-delta').remove();
+  // Reuse the existing delta chart body, but render it inline rather than
+  // opening its former modal. Its numbers remain sample illustrations.
+  let deltaMarkup;
+  const modal = txModal;
+  txModal = (title, content) => {
+    const panel = document.createElement('section'); panel.className = 'panel plan-delta';
+    panel.innerHTML = `<h2>${title}</h2>${content}`;
+    document.getElementById('transactions-root').append(panel); deltaMarkup = panel;
+  };
+  try { originalPreview.delta(); } finally { txModal = modal; }
+  deltaMarkup.querySelector('p').textContent = 'Monthly buys and sales, with a separate month-end invested-balance axis · sample illustration';
+};
+
+txImport = function () {
+  originalPreview.tradeImport();
+  document.querySelector('#details .dialognote').textContent += ' Load example fills the header only; add your own sample rows. Maximum 5,000 rows. Production retains the existing Groww parser and server validation.';
+};
+dividendImport = function () {
+  originalPreview.dividendImport();
+  document.querySelector('#details .asset-note').textContent += ' Load example fills the header only, with no payments. Maximum 5,000 rows; production keeps its existing server matching and cumulative validation.';
+};
+
+goldView = function () {
+  originalPreview.gold();
+  const panel = document.getElementById('gold-price-form').closest('section');
+  panel.append(previewButton('View all months', previewGoldMonths));
+};
+function previewGoldMonths() {
+  const months = [...new Set(goldPrices.map(price => price.date.slice(0,7)))].sort().reverse();
+  assetDialog('Gold prices · all months', `<p class="asset-note">Recorded rates only. Missing days remain missing; no interpolation.</p>
+    ${months.map(month => `<h3>${month}</h3><div class="asset-table-wrap"><table class="asset-table"><thead><tr><th scope="col">Date</th><th scope="col">INR per gram</th></tr></thead><tbody>${goldPrices.filter(price => price.date.startsWith(month)).toSorted((left,right)=>right.date.localeCompare(left.date)).map(price => `<tr><td>${assetDate(price.date)}</td><td>${money(price.price)}</td></tr>`).join('')}</tbody></table></div>`).join('')}`);
+}
+
+// All supported event kinds remain available. This demonstrates fields and
+// sample edits only; financial replay is still the real Go service's job.
+txEdit = function (symbol, id) {
+  const row = txRows.find(item => item.id === id);
+  const holding = holdings.find(item => item.symbol === symbol);
+  const types = row?.type === 'opening' ? ['opening'] : ['buy','sell','dividend','split','bonus','merger'];
+  txModal((row ? 'Edit' : 'Add') + ' sample event · ' + holding.name, `<form class="asset-form" id="plan-event-form">
+    <label>Event type<select name="type">${types.map(type => `<option ${row?.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></label>
+    <label>Date<input type="date" name="date" max="2026-11-18" value="${row?.date || '2026-11-18'}" required></label>
+    <label>Shares<input type="number" name="qty" min="0" step="any" value="${row?.qty || 0}" required></label>
+    <label>Total amount · ${holding.currency}<input type="number" name="amount" min="0" step="any" value="${row?.amount || 0}" required></label>
+    <label data-event-ratio>Ratio · split / bonus<input type="number" name="ratio" min="0.00001" step="any" value="${row?.ratio || 2}"></label>
+    <label data-event-opening>Realised P/L seed<input type="number" name="realizedSeed" step="any" value="${row?.realizedSeed || 0}"></label>
+    <label class="full">Notes<input name="notes" value="${txEsc(row?.notes || '')}"></label>
+    <p class="asset-note full">Opening balances stay managed from the holding. Corporate events use existing ledger replay in production; this demo does not recompute positions.</p>
+    <p class="asset-error full" id="plan-event-error" role="alert"></p>
+    <div class="asset-modal-actions full"><button class="btn" type="button" id="plan-event-cancel">Cancel</button>${row?'<button class="btn asset-danger" type="button" id="plan-event-delete">Delete event</button>':''}<button class="btn primary">Save sample event</button></div></form>`);
+  const form = document.getElementById('plan-event-form');
+  const updateFields = () => {
+    const type = form.elements.type.value;
+    form.querySelector('[data-event-ratio]').hidden = !['split','bonus'].includes(type);
+    form.querySelector('[data-event-opening]').hidden = type !== 'opening';
+  };
+  form.elements.type.onchange = updateFields; updateFields();
+  document.getElementById('plan-event-cancel').onclick = assetClose;
+  document.getElementById('plan-event-delete')?.addEventListener('click', () => assetConfirm('Delete sample event?',
+    'This removes the fictional event only; production keeps its existing confirmation and replay.', () => { txRows.splice(txRows.indexOf(row), 1); txRender(); }));
+  form.onsubmit = event => {
+    event.preventDefault(); const fields = form.elements, type = fields.type.value;
+    if (['buy','sell','merger'].includes(type) && Number(fields.qty.value) <= 0) {
+      document.getElementById('plan-event-error').textContent = 'Enter a positive share quantity.'; return;
+    }
+    const next = { id: row?.id ?? Math.max(0,...txRows.map(item=>item.id))+1, symbol, type,
+      date: fields.date.value, qty: type === 'dividend' ? 0 : Number(fields.qty.value),
+      amount: Number(fields.amount.value), notes: fields.notes.value };
+    if (['split','bonus'].includes(type)) next.ratio = Number(fields.ratio.value);
+    if (type === 'opening') { next.realizedSeed = Number(fields.realizedSeed.value); next.openingDate = holding.openingDate; }
+    if (row) { delete row.ratio; Object.assign(row, next); } else txRows.push(next);
+    assetClose(); txRender(); toast('Sample event saved · no production ledger changed');
+  };
+};
+
+// The production History paste format is spreadsheet TSV, with both native
+// currencies on a row. Gold prices remain managed on the Gold page.
+pasteSnapshots = function () {
+  historyDialog('Paste monthly records', `<form id="plan-history-paste" class="asset-form">
+    <p class="asset-note full" id="plan-paste-hint">Paste tab-separated spreadsheet columns: Date, INR invested, INR current, EUR invested, EUR current. Dates must belong to ${monthNames[monthIndex]}. Empty currency pairs are left unchanged.</p>
+    <label class="full">Spreadsheet rows<textarea name="rows" rows="8" aria-describedby="plan-paste-hint" placeholder="01/11/2026&#9;142288&#9;112335&#9;2610&#9;4036" required></textarea></label>
+    <p id="plan-paste-error" class="asset-error full" role="alert"></p><button class="btn primary">Review sample rows</button></form>`);
+  document.getElementById('plan-history-paste').onsubmit = event => {
+    event.preventDefault();
+    const parsed = event.target.elements.rows.value.trim().split(/\r?\n/).map(line => line.split('\t').map(cell => cell.trim()));
+    const prefix = '2026-' + String(monthIndex+9).padStart(2,'0') + '-';
+    const updates = [];
+    for (const cells of parsed) {
+      if (/^date$/i.test(cells[0])) continue;
+      let date = cells[0]; const dayFirst = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dayFirst) date = dayFirst[3]+'-'+dayFirst[2].padStart(2,'0')+'-'+dayFirst[1].padStart(2,'0');
+      const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(date)) && new Date(date).toISOString().slice(0,10) === date;
+      if (!validDate || !date.startsWith(prefix) || date > '2026-11-18' || cells.length !== 5 || cells.slice(1).some(cell => cell !== '' && (!Number.isFinite(Number(cell.replace(/[,₹€\s]/g,''))) || Number(cell.replace(/[,₹€\s]/g,'')) < 0))) {
+        document.getElementById('plan-paste-error').textContent = 'Check the five tab-separated columns, non-negative amounts and dates in the selected month.'; return;
+      }
+      const values = cells.slice(1).map(cell => cell === '' ? null : Number(cell.replace(/[,₹€\s]/g,'')));
+      if ((values[0] === null) !== (values[1] === null) || (values[2] === null) !== (values[3] === null)) {
+        document.getElementById('plan-paste-error').textContent = 'Enter invested and current together for each currency, or leave both empty.'; return;
+      }
+      updates.push({ date, values });
+    }
+    if (!updates.length) { document.getElementById('plan-paste-error').textContent = 'Add at least one sample data row.'; return; }
+    assetDialog('Review History paste', `<p>${updates.length} valid sample rows. Existing dates will update only the supplied currency pairs.</p><p class="asset-note">Production keeps its existing conflict review and validation; this demonstration writes session-only rows.</p><div class="asset-modal-actions"><button class="btn" id="plan-paste-cancel" autofocus>Cancel</button><button class="btn primary" id="plan-paste-confirm">Apply sample rows</button></div>`);
+    document.getElementById('plan-paste-cancel').onclick = assetClose;
+    document.getElementById('plan-paste-confirm').onclick = () => {
+      const rows = monthRows();
+      updates.forEach(update => {
+        let row = rows.find(item => item.date === update.date);
+        if (!row) { row = { date: update.date, day: Number(update.date.slice(-2)), inr: 0, inrCost: 0, eur: 0, eurCost: 0, gold: 0, goldCost: 0, dividend: 0 }; rows.push(row); }
+        if (update.values[0] !== null) [row.inrCost,row.inr] = update.values.slice(0,2);
+        if (update.values[2] !== null) [row.eurCost,row.eur] = update.values.slice(2,4);
+        row.source = 'manual';
+      });
+      assetClose(); renderHistory(); toast('Sample History rows updated; overall preview uses the same snapshots');
+    };
+  };
+};
+
+// Separate review-only access to the super-admin picker. This is never
+// presented as an available action for the Max administrator account.
+function previewInterfaceManagement() {
+  assetDialog('Interface settings · super-admin scenario', `<p class="asset-note">Design review of the super-admin-only account picker. Max remains an admin in the regular mock; no role or account API is called.</p>
+    <div class="asset-table-wrap"><table class="asset-table"><thead><tr><th scope="col">Sample account</th><th scope="col">Interface</th></tr></thead><tbody>${adminDemoUsers.map(user => `<tr><td>${assetEscape(user.name)}</td><td><label class="plan-interface-label">Interface for ${assetEscape(user.username)}<select class="compactselect" data-interface-user="${user.id}">${['classic','glass','ui2'].map(mode=>`<option value="${mode}" ${(user.uiMode||'ui2')===mode?'selected':''}>${{classic:'Classic',glass:'Glass',ui2:'UI_2.0'}[mode]}</option>`).join('')}</select></label></td></tr>`).join('')}</tbody></table></div>
+    <p class="asset-note">One interface per account. Classic and Glass stay intact; unfinished UI_2.0 pages fall back to the current screen. Changes here update only this sample selection.</p>`);
+  document.querySelectorAll('[data-interface-user]').forEach(select => select.onchange = () => {
+    adminDemoUsers.find(user=>user.id===select.dataset.interfaceUser).uiMode = select.value;
+    toast('Sample interface selection updated');
+  });
+}
+const reviewControls = document.createElement('details'); reviewControls.className = 'plan-review-controls';
+reviewControls.innerHTML = '<summary>Review states</summary><div class="plan-review-menu"><p>Local mockup scenarios</p><button class="btn" id="plan-interface-review">Super-admin interface picker</button></div>';
+document.querySelector('.topright').append(reviewControls);
+document.getElementById('plan-interface-review').onclick = () => { reviewControls.open = false; previewInterfaceManagement(); };
+
+// Keep an act-as session within its supported portfolio routes. Own-account
+// Profile and Administration exit the session through their existing handler.
+document.querySelectorAll('[data-nav]').forEach(button => {
+  const previous = button.onclick;
+  button.onclick = () => {
+    const page = button.dataset.nav;
+    if (actingUser && ['Gold','History'].includes(page)) {
+      toast(page + ' is outside the supported act-as routes. Exit act-as to open your own page.'); return;
+    }
+    if (page !== 'History') planPreview.fxSkipped = false;
+    currentNav = page;
+    previous();
+    if (page === 'Overview') selectView(currentView);
+    if (page === 'Overview' || page === 'Transactions' || page === 'Dividends') adminUpdateBanner();
+    document.title = page + ' · UI_2.0 design preview';
+  };
+});
+document.getElementById('add').onclick = () => previewHoldingForm();
+document.querySelector('.brand').setAttribute('href', '#overview');
+document.documentElement.dataset.ui = 'ui2';
+// Native dialogs supply focus containment/return and Escape dismissal.
+document.querySelectorAll('dialog').forEach(dialog => {
+  dialog.onclick = null;
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    let pressedOutside = false;
+    const outside = event => { const box = dialog.getBoundingClientRect(); return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom; };
+    dialog.addEventListener('pointerdown', event => { pressedOutside = outside(event); });
+    dialog.addEventListener('pointerup', event => { if (pressedOutside && outside(event)) dialog.close(); });
+  }
+});
+// Remove tab semantics from the two view buttons: they are simple controls.
+document.querySelector('.tabs').setAttribute('role', 'group');
+document.querySelectorAll('[data-view]').forEach(button => { button.removeAttribute('role'); button.removeAttribute('aria-selected'); });
+const alignedSelectView = selectView;
+selectView = function (view) {
+  alignedSelectView(view);
+  document.querySelectorAll('[data-view]').forEach(button => { button.removeAttribute('aria-selected'); button.setAttribute('aria-pressed', String(button.dataset.view === view)); });
+};
+// Re-render only the active page after replacing the adapters above.
+const requestedPage = location.hash.slice(1).toLowerCase();
+const initialPage = [...document.querySelectorAll('[data-nav]')].find(button => button.dataset.nav.toLowerCase() === requestedPage);
+if (initialPage) initialPage.click(); else selectView(currentView);
+
+</script><script>
+/* Fictional role perspectives for design review. No identity, permission,
+ * account-setting or branding API is connected to this browser-only mock. */
+const previewOwner = { id: 'demo-owner', name: 'Portfolio Owner', username: 'owner.demo', role: 'superadmin', region: '', locked: false, disabled: false };
+const previewIndiaUser = { id: 'demo-india', name: 'Casey Rao', username: 'casey.demo', role: 'user', region: 'India', locked: false, disabled: false };
+adminDemoUsers.push(previewOwner, previewIndiaUser);
+adminDemoUsers.forEach(user => {
+  user.uiMode ||= 'ui2'; user.goldEnabled ??= true;
+  user.premium ??= user.role !== 'user'; user.deltaFromHistory ??= false;
+});
+let previewPerspective = 'superadmin', previewAdminPage = 'users', previewBrandFont = 'roboto';
+const previewRegions = ['India', 'Europe', 'US'];
+const previewModes = [['classic','Classic'],['glass','Glass'],['ui2','UI_2.0']];
+const originalProfilePreview = renderProfile;
+
+function perspectiveViewer() {
+  if (previewPerspective === 'superadmin') return previewOwner;
+  if (previewPerspective === 'admin') return { ...adminSelf, role: 'admin', premium: true, region: 'Europe' };
+  const member = adminDemoUsers.find(user => user.id === 'demo-alex') || { id: 'demo-alex', region: 'Europe', goldEnabled: true };
+  return { ...member, role: 'user', premium: previewPerspective === 'premium', name: 'Alex Morgan', username: 'alex.demo' };
+}
+
+function perspectiveSelect(user, prefix = 'account-interface') {
+  const id = prefix + '-' + user.id;
+  return `<label class="plan-interface-label" for="${id}">Interface<select id="${id}" name="ui_mode" class="compactselect" data-account-interface="${user.id}">${previewModes.map(([value,label])=>`<option value="${value}" ${user.uiMode===value?'selected':''}>${label}</option>`).join('')}</select></label>`;
+}
+
+function perspectiveAdminTabs() {
+  const superadmin = perspectiveViewer().role === 'superadmin';
+  return `<nav class="perspective-admin-tabs" aria-label="Administration sections">${[['users','Users'],...(superadmin?[['admins','Administrators'],['branding','Branding']]:[])].map(([key,label])=>`<button type="button" class="btn ${previewAdminPage===key?'primary':''}" data-admin-section="${key}" aria-pressed="${previewAdminPage===key}">${label}</button>`).join('')}</nav>`;
+}
+
+function bindPerspectiveAdminTabs() {
+  document.querySelectorAll('[data-admin-section]').forEach(button => button.onclick = () => {
+    previewAdminPage = button.dataset.adminSection; adminQuery = ''; renderAdmin();
+  });
+}
+
+function perspectiveFeature(user, key, label, description) {
+  return `<div class="admin-row"><div><strong>${label}</strong><p>${description}</p></div>
+    <label class="perspective-check" for="feature-${key}-${user.id}"><input type="checkbox" id="feature-${key}-${user.id}" name="${key}" data-account-feature="${key}" ${user[key]?'checked':''}> Enabled</label></div>`;
+}
+
+renderAdmin = function () {
+  const viewer = perspectiveViewer();
+  if (viewer.role === 'user') { document.querySelector('[data-nav="Overview"]').click(); return; }
+  const superadmin = viewer.role === 'superadmin';
+  if (!superadmin) previewAdminPage = 'users';
+  const root = adminRoot();
+  document.getElementById('page-subtitle').textContent = superadmin ? 'Manage accounts, features and interface settings across regions.' : 'Manage the accounts in your region.';
+  if (previewAdminPage === 'branding') {
+    root.innerHTML = perspectiveAdminTabs() + `<section class="panel admin-section"><h2>Branding</h2><p class="asset-note">Global font setting · super admin only. These are the existing font choices; changes here affect this session’s sample selection.</p>
+      <form id="perspective-brand-form"><fieldset class="perspective-fonts"><legend>Brand font</legend>${[['roboto','Roboto','Arial, sans-serif'],['jetbrains_mono','JetBrains Mono','ui-monospace, monospace']].map(([value,label,family])=>`<label class="perspective-font-card" for="brand-${value}"><input type="radio" name="font" id="brand-${value}" value="${value}" ${previewBrandFont===value?'checked':''}><span style="font-family:${family}"><strong>${label}</strong><span>Aa · ₹1,23,456.78</span></span></label>`).join('')}</fieldset><div class="asset-modal-actions"><button class="btn primary" type="submit">Save sample branding</button></div></form></section>`;
+    bindPerspectiveAdminTabs();
+    document.getElementById('perspective-brand-form').onsubmit = event => {
+      event.preventDefault(); previewBrandFont = event.target.elements.font.value;
+      toast('Sample branding saved · no global setting changed');
+    };
+    return;
+  }
+  const scoped = adminDemoUsers.filter(user => superadmin || (user.role !== 'superadmin' && user.region === viewer.region));
+  const inSection = scoped.filter(user => previewAdminPage !== 'admins' || ['admin','superadmin'].includes(user.role));
+  const visible = inSection.filter(user => (adminIncludeHidden || !user.disabled) && (user.name+' '+user.username).toLowerCase().includes(adminQuery.toLowerCase()));
+  const selected = visible.find(user => user.id === adminSelected) || visible[0];
+  adminSelected = selected?.id;
+  const self = selected?.id === viewer.id, protectedAccount = selected?.role === 'superadmin' || self;
+  root.innerHTML = `${perspectiveAdminTabs()}<div class="perspective-context"><span class="admin-role">${viewer.role}</span><span>${assetEscape(viewer.name)} · ${superadmin?'All regions':viewer.region}</span><span class="asset-note">Fictional preview · no account API</span></div>
+    <div class="admin-workspace"><section class="panel admin-list"><div class="admin-list-tools">
+      <label for="perspective-user-search">Search ${previewAdminPage==='admins'?'administrators':'users'}</label><input id="perspective-user-search" type="search" name="user_search" placeholder="Name or username" value="${assetEscape(adminQuery)}">
+      <label class="perspective-check" for="perspective-hidden"><input id="perspective-hidden" type="checkbox" ${adminIncludeHidden?'checked':''}> Include hidden accounts</label></div>
+      <div class="admin-user-list">${visible.map(user=>`<button class="admin-user ${selected?.id===user.id?'selected':''}" data-perspective-user="${user.id}" aria-pressed="${selected?.id===user.id}"><span class="admin-avatar">${adminInitials(user)}</span><span><strong>${assetEscape(user.name)}${user.id===viewer.id?' (you)':''}</strong><small>@${assetEscape(user.username)} · ${user.role}</small></span><span class="admin-dot ${adminStatus(user).toLowerCase()}" aria-label="${adminStatus(user)}"></span></button>`).join('') || '<p class="asset-empty">No matching accounts.</p>'}</div><div class="asset-footer">${visible.length} accounts · ${superadmin?'all regions':viewer.region}</div></section>
+      <div class="admin-detail">${selected?`<section class="panel admin-user-head"><div class="admin-avatar">${adminInitials(selected)}</div><div style="flex:1"><h2>${assetEscape(selected.name)}</h2><div class="admin-user-meta"><span>@${assetEscape(selected.username)}</span><span class="admin-role">${selected.role}</span><span class="admin-status ${adminStatus(selected).toLowerCase()}">${adminStatus(selected)}</span></div></div><button type="button" class="btn primary" id="admin-open-portfolio">${self?'My portfolio':'Open portfolio'}</button></section>
+      <section class="panel admin-section"><h2>Account</h2>${adminSetting('Role',self?'Your own role is protected.':selected.role==='superadmin'?'The owner account cannot be demoted.':'Account permission level.',superadmin&&!protectedAccount?`<button type="button" class="btn" id="perspective-role">${selected.role==='admin'?'Demote to user':'Promote to admin'}</button>`:`<span class="admin-role">${selected.role}</span>`)}
+      ${adminSetting('Region',superadmin?'The region whose administrator can help this account.':'You can oversee accounts in your region only.',superadmin&&!protectedAccount?`<label for="perspective-region" class="plan-interface-label">Region<select id="perspective-region" name="region" class="compactselect">${previewRegions.map(region=>`<option ${selected.region===region?'selected':''}>${region}</option>`).join('')}</select></label>`:`<span>${selected.region||'All regions'}</span>`)}</section>
+      ${superadmin?`<section class="panel admin-section perspective-features"><h2>Features &amp; interface</h2>
+      ${perspectiveFeature(selected,'goldEnabled','Gold tracking','Physical gold purchases, prices and metrics.')}
+      ${perspectiveFeature(selected,'premium','Premium','Unlocks Cyber; disabling it falls back to Dark.')}
+      ${perspectiveFeature(selected,'deltaFromHistory','Investment delta from History','Off keeps the existing ledger source.')}
+      <form id="perspective-interface-form"><div class="admin-row"><div><strong>Interface</strong><p>Choose exactly one: Classic, Glass or UI_2.0.</p></div>${perspectiveSelect(selected)}</div><div class="asset-modal-actions"><button type="submit" class="btn primary">Save sample interface</button></div></form>
+      <p class="asset-note">The picker changes this sample account’s selection; the design canvas continues to show UI_2.0. Production keeps Classic and Glass intact.</p></section>`:''}
+      <section class="panel admin-section"><h2>Access</h2>${adminSetting('Security questions',selected.locked?'Recovery is locked.':'Recovery is available.',selected.locked?'<button type="button" class="btn" id="admin-unlock">Unlock recovery</button>':'<span class="admin-status">Available</span>')}
+      ${!protectedAccount?adminSetting('Sign-in',selected.disabled?'Hidden accounts cannot sign in.':'Hide disables sign-in; data is retained.',`<button type="button" class="btn" id="admin-hide">${selected.disabled?'Reactivate account':'Hide account'}</button>`):'<p class="asset-note">Your own account and the super-admin account cannot be hidden or deleted.</p>'}</section>
+      ${!protectedAccount?'<section class="panel admin-section admin-danger"><h2>Delete account</h2><p class="asset-note">Production removes the account and its portfolio. This mock removes only a sample record after confirmation.</p><button type="button" class="btn asset-danger" id="admin-delete">Delete sample account</button></section>':''}`:'<section class="panel asset-empty">Select an account to see settings.</section>'}
+      </div></div>`;
+  bindPerspectiveAdminTabs();
+  const search = document.getElementById('perspective-user-search');
+  search.oninput = () => { const caret=search.selectionStart; adminQuery=search.value; renderAdmin(); const next=document.getElementById('perspective-user-search'); next.focus(); if(next.type!=='search')next.setSelectionRange(caret,caret); };
+  document.getElementById('perspective-hidden').onchange = event => { adminIncludeHidden=event.target.checked; renderAdmin(); };
+  document.querySelectorAll('[data-perspective-user]').forEach(button=>button.onclick=()=>{adminSelected=button.dataset.perspectiveUser;renderAdmin();});
+  if (!selected) return;
+  document.getElementById('admin-open-portfolio').onclick = () => self ? document.querySelector('[data-nav="Overview"]').click() : adminActAs(selected);
+  document.getElementById('perspective-interface-form')?.addEventListener('submit',event=>{
+    event.preventDefault(); selected.uiMode=event.target.elements.ui_mode.value;
+    toast(`${previewModes.find(([mode])=>mode===selected.uiMode)[1]} selected for ${selected.username} · sample only`);
+  });
+  document.querySelectorAll('[data-account-feature]').forEach(input=>input.onchange=()=>{
+    const key=input.dataset.accountFeature, next=input.checked;
+    if (!next && ['premium','goldEnabled'].includes(key)) {
+      input.checked=true;
+      adminActionDialog(`Disable ${key==='premium'?'premium':'Gold tracking'}?`,key==='premium'?'The sample account loses Cyber access; the theme falls back to Dark.':'The sample account loses access to Gold screens; purchase data is retained.',()=>{selected[key]=false;renderAdmin();});
+    } else { selected[key]=next; toast('Sample feature updated'); }
+  });
+  document.getElementById('perspective-role')?.addEventListener('click',()=>adminActionDialog('Change sample role?',`${selected.role==='admin'?'Demote':'Promote'} ${selected.name}?`,()=>{
+    if(selected.role==='user' && adminDemoUsers.some(user=>user.id!==selected.id && user.role==='admin' && user.region===selected.region)) {
+      toast('This region already has an administrator. Keep one administrator per region.');return;
+    }
+    selected.role=selected.role==='admin'?'user':'admin';renderAdmin();
+  }));
+  document.getElementById('perspective-region')?.addEventListener('change',event=>{
+    const region=event.target.value;
+    if(selected.role==='admin' && adminDemoUsers.some(user=>user.id!==selected.id && user.role==='admin' && user.region===region)) {
+      event.target.value=selected.region;toast('That region already has an administrator.');return;
+    }
+    selected.region=region;renderAdmin();
+  });
+  document.getElementById('admin-unlock')?.addEventListener('click',()=>adminActionDialog('Unlock recovery?',`Clear the sample lockout for ${selected.name}?`,()=>{selected.locked=false;renderAdmin();}));
+  document.getElementById('admin-hide')?.addEventListener('click',()=>adminActionDialog(selected.disabled?'Reactivate account?':'Hide account?',`Change sign-in access for ${selected.name} in the sample?`,()=>{selected.disabled=!selected.disabled;renderAdmin();}));
+  document.getElementById('admin-delete')?.addEventListener('click',()=>{
+    assetDialog('Delete sample account',`<p>Type <strong>${assetEscape(selected.username)}</strong> to remove this fictional account.</p><form id="perspective-delete-form" class="asset-form"><label class="full" for="perspective-delete-name">Confirm username<input id="perspective-delete-name" name="username" required autocomplete="off"></label><p class="asset-error full" id="perspective-delete-error" role="alert"></p><div class="asset-modal-actions full"><button type="button" class="btn" id="perspective-delete-cancel" autofocus>Cancel</button><button type="submit" class="btn asset-danger">Delete sample account</button></div></form>`);
+    document.getElementById('perspective-delete-cancel').onclick=assetClose;
+    document.getElementById('perspective-delete-form').onsubmit=event=>{
+      event.preventDefault();if(event.target.elements.username.value!==selected.username){document.getElementById('perspective-delete-error').textContent='Enter the exact sample username.';return;}
+      adminDemoUsers.splice(adminDemoUsers.indexOf(selected),1);assetClose();renderAdmin();toast('Sample account removed');
+    };
+  });
+};
+
+renderProfile = function () {
+  originalProfilePreview();
+  const viewer=perspectiveViewer(), root=adminRoot();
+  root.querySelector('.profile-identity h2').textContent=viewer.name;
+  root.querySelector('.profile-identity .admin-avatar').textContent=adminInitials(viewer);
+  root.querySelector('.profile-identity .asset-note').textContent='@'+viewer.username;
+  root.querySelectorAll('.admin-role').forEach(role=>role.textContent=viewer.role);
+  const name=root.querySelector('[name="name"]'), username=root.querySelector('[name="username"]');
+  if(name)name.value=viewer.name;if(username)username.value=viewer.username;
+  root.querySelectorAll('.admin-row').forEach(row=>{if(row.querySelector('strong')?.textContent==='Region')row.lastElementChild.textContent=viewer.region||'All regions';});
+};
+
+adminUpdateBanner = function () {
+  banner.hidden=!actingUser;if(!actingUser)return;
+  const viewer=perspectiveViewer();
+  banner.innerHTML=`<div><strong>Viewing ${assetEscape(actingUser.name)}’s portfolio</strong><small>@${assetEscape(actingUser.username)} · Signed in as ${assetEscape(viewer.name)} · ${viewer.role} sample</small></div><button type="button" class="btn" id="admin-exit-actas">Exit act-as</button>`;
+  document.getElementById('admin-exit-actas').onclick=()=>{actingUser=null;adminUpdateBanner();adminOpen('Administration');};
+};
+adminActAs = function (user) {
+  const viewer=perspectiveViewer();
+  if(viewer.role==='user'||(viewer.role==='admin'&&(user.region!==viewer.region||user.role==='superadmin')))return;
+  actingUser=user.id===viewer.id?null:user;adminUpdateBanner();
+  document.querySelector('[data-nav="Overview"]').click();
+  toast(actingUser?'Sample act-as view · fictional figures':'Your own sample portfolio');
+};
+
+document.querySelectorAll('[data-nav]').forEach(button=>{
+  const previous=button.onclick;
+  button.onclick=()=>{
+    const viewer=perspectiveViewer();
+    if(button.dataset.nav==='Administration'&&viewer.role==='user'){toast('Administration is unavailable in the user perspective.');return;}
+    if(button.dataset.nav==='Gold'&&!viewer.goldEnabled){toast('Gold tracking is disabled for this sample account.');return;}
+    previous();
+  };
+});
+
+function setPreviewPerspective(value) {
+  previewPerspective=value;actingUser=null;adminUpdateBanner();previewAdminPage='users';adminQuery='';adminSelected='demo-alex';
+  const viewer=perspectiveViewer(), isAdmin=['admin','superadmin'].includes(viewer.role);
+  document.querySelector('[data-nav="Administration"]').hidden=!isAdmin;
+  document.getElementById('admin-users-open').hidden=!isAdmin;
+  document.querySelector('[data-nav="Gold"]').hidden=!viewer.goldEnabled;
+  account.querySelector('.avatar').textContent=adminInitials(viewer);
+  account.querySelector('strong').textContent=viewer.name;
+  account.querySelector('small').textContent=`${viewer.role} · sample account`;
+  account.setAttribute('aria-label',`Open ${viewer.name} account menu`);
+  const cyber=document.querySelector('[data-theme-choice="cyber"]');cyber.hidden=!viewer.premium;
+  if(!viewer.premium&&document.documentElement.dataset.theme==='cyber')setTheme('dark');
+  const page=document.getElementById('crumb').textContent;
+  if(page==='Profile')renderProfile();
+  else if(page==='Administration'){if(isAdmin)renderAdmin();else document.querySelector('[data-nav="Overview"]').click();}
+  else if(page==='Gold'&&!viewer.goldEnabled)document.querySelector('[data-nav="Overview"]').click();
+  if(location.hash==='#admin'&&isAdmin)adminOpen('Administration');
+}
+
+const previewLogoutButton=previewButton('Log out',()=>{
+  menu.hidden=true;account.setAttribute('aria-expanded','false');
+  assetDialog('Log out', '<p>This design preview has no authenticated session. In the application, Log out ends the current session and returns to the login page.</p><div class="asset-modal-actions"><button type="button" class="btn primary" id="perspective-logout-close" autofocus>Close preview</button></div>');
+  document.getElementById('perspective-logout-close').onclick=assetClose;
+});
+previewLogoutButton.id='perspective-logout';menu.append(previewLogoutButton);
+
+// The perspective selector is a design-review control, not an account-role
+// action. It stays in the existing header; the original sidebar is untouched.
+reviewControls.remove();
+const perspectiveControl=document.createElement('div');perspectiveControl.className='perspective-control';
+perspectiveControl.innerHTML='<label for="preview-perspective">Preview as</label><select id="preview-perspective" name="perspective" class="compactselect"><option value="superadmin">Super admin</option><option value="admin">Admin · Europe</option><option value="user">User · standard</option><option value="premium">User · premium</option></select>';
+document.querySelector('.topright').append(perspectiveControl);
+document.getElementById('preview-perspective').onchange=event=>setPreviewPerspective(event.target.value);
+setPreviewPerspective('superadmin');
 
 </script></body></html>
