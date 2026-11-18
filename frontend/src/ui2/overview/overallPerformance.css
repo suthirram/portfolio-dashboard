@@ -135,6 +135,19 @@
   stroke-dasharray: 6 5;
 }
 
+:root[data-ui="ui2"] .ui2-overall__svg .point-marker {
+  stroke: var(--u2-panel);
+  stroke-width: 2;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .current-marker {
+  fill: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .invested-marker {
+  fill: var(--u2-muted);
+}
+
 :root[data-ui="ui2"] .ui2-overall__legend {
   display: flex;
   gap: 18px;
