@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react'
 import type {
   GoldHistoryOverlay,
   HistoryRow,
-  RegionSnapshot,
 } from '../../lib/api/client'
 import { EditIcon, TrashIcon } from '../../components/Icon'
 import { formatDate } from '../../lib/formDates'
@@ -13,8 +12,8 @@ import type { ThemeName } from '../../lib/useTheme'
 import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, GOLD_TINT, NEW_INVESTMENT_TINT,
   PRICE_DIR_TINT, REGIONS, REGION_TINTS,
-  actionCell, actionTd, actionTh, fmtCurrency, goldCurrentDirection,
-  holdingRegion,
+  actionCell, actionTd, actionTh, fmtCurrency, goldCurrentDirection, goldInvestedWentUp,
+  holdingRegion, isAllManual,
   regionCurrentDirection, regionDailyVolatility, regionInvestedWentUp,
   regionPnLPct, sortHeaderBtn, td, th,
   type RegionKey,
@@ -44,9 +43,6 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
 }) {
   // Click the Date header to flip order. Default true = oldest-first.
   const [sortAsc, setSortAsc] = useState(true)
-
-  const isAllManual = (regions: Record<string, RegionSnapshot>) =>
-    Object.values(regions).every(snapshot => snapshot.source === 'manual')
 
   // Canonical newest-first array drives the day-over-day math: the
   // volatility / invested-went-up helpers assume rows[i+1] is the prior
@@ -113,7 +109,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
                     onSelectRegion={onSelectRegion ? () => onSelectRegion(row, prev, region) : undefined}
                   />
                 ))}
-                {hasGold && <GoldRowCells gold={row.gold} prevGold={prev?.gold} />}
+                {hasGold && <GoldRowCells gold={row.gold} prevGold={prev?.gold} wentUp={goldInvestedWentUp(byDateDesc, i)} />}
                 <td style={actionTd}>
                   {!row.tentative && (
                     <div style={actionCell}>
@@ -254,7 +250,7 @@ function GoldHeaderGroup() {
   )
 }
 
-function GoldRowCells({ gold, prevGold }: { gold?: GoldHistoryOverlay; prevGold?: GoldHistoryOverlay }) {
+function GoldRowCells({ gold, prevGold, wentUp }: { gold?: GoldHistoryOverlay; prevGold?: GoldHistoryOverlay; wentUp: boolean }) {
   const base: React.CSSProperties = { ...td, background: GOLD_TINT }
   const first: React.CSSProperties = { ...base, borderLeft: '2px solid var(--border)' }
   // Rows before the first purchase (or before any price existed) carry no
@@ -269,9 +265,9 @@ function GoldRowCells({ gold, prevGold }: { gold?: GoldHistoryOverlay; prevGold?
   const volColor = gold.volatility_pct === 0 ? undefined
     : gold.volatility_pct > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
   // Match the currency columns: a day the gold invested rose (a new
-  // purchase) gets the purple "new investment" tint; the P/L% cell tints
-  // by the day-over-day value move (green up / red down / blue flat).
-  const wentUp = !!prevGold && gold.invested > prevGold.invested
+  // purchase, including the first) gets the purple "new investment" tint
+  // (goldInvestedWentUp); the P/L% cell tints by the day-over-day value
+  // move (green up / red down / blue flat).
   const dir = goldCurrentDirection(gold, prevGold)
   const investedStyle: React.CSSProperties = {
     ...first,
