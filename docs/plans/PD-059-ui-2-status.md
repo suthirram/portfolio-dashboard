@@ -35,7 +35,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | in review |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
-| 13 | 3 | FE | History page | 2 | Claude | `feat/PD-059-history` | | amendment in review ([wave 3b](PD-059-wave3-history.md)) |
+| 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | in review |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Claude | | | needs amendment (after 13) |
 | 15 | 4 | FE | Shared ledger hook + UI_2.0 ledger modal | 2 | | | | needs amendment |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
@@ -71,6 +71,10 @@ shared piece.
 | `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
 | `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (planned) |
 | `OverallPerformance` | `frontend/src/ui2/overview/OverallPerformance.tsx` | standalone daily overall chart; stays unmounted until Overview slices 4–7 land | slice 10 (#342) |
+| `Ui2PageIntro` | `frontend/src/ui2/shell/Ui2PageIntro.tsx` | page intro: `title`, `subtitle`, optional `actions` (handoff `.intro`) | slice 13 (#344) |
+| `primitives.css` | `frontend/src/ui2/primitives.css` | shared `.ui2-intro`, `.ui2-panel`, `.ui2-btn`, `.ui2-btn-primary`, `.ui2-table`, `.u2-positive` / `-negative` / `-muted` | slice 13 (#344) |
+| `useHistoryMonth` | `frontend/src/features/history/useHistoryMonth.ts` | History month data and actions for both interfaces | slice 13 (#344) |
+| `Ui2MiniChart` | `frontend/src/ui2/history/Ui2MiniChart.tsx` | handoff SVG mini chart; `linePath` gap-aware path | slice 13 (#344) |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 `useHoldings`, `useAllTransactions`, `useDividends`, `usePagination`,
