@@ -94,8 +94,11 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 	defer disconnect()
 
 	store := persistence.New(database)
+	store.AttachOverall()
 	priceSvc := services.NewPriceService(logger)
 	snapSvc := services.NewSnapshotService(store.Holdings, store.Snapshots, store.Users, priceSvc, logger)
+	snapSvc.Overall = store.Overall
+	snapSvc.Closes = priceSvc
 
 	report, err := snapSvc.Run(ctx, services.RunOptions{
 		Date:   date,
@@ -120,10 +123,6 @@ func runSnapshot(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// istZone is India Standard Time (UTC+5:30). A fixed zone is used so the
-// job never depends on tzdata being present in the container image.
-var istZone = time.FixedZone("IST", 5*60*60+30*60)
-
 // tradingDate maps a wall-clock instant to the snapshot date it belongs to,
 // using an 08:00 IST cut-over. Every run from 1st 08:00 IST up to 2nd
 // 07:59 IST records the 1st; at 2nd 08:00 IST the date rolls to the 2nd.
@@ -132,8 +131,7 @@ var istZone = time.FixedZone("IST", 5*60*60+30*60)
 // same (user, date) row. The returned value is the UTC midnight of that
 // calendar day, matching how snapshot rows are keyed (domain.UTCDate).
 func tradingDate(now time.Time) time.Time {
-	ist := now.In(istZone).Add(-8 * time.Hour)
-	return time.Date(ist.Year(), ist.Month(), ist.Day(), 0, 0, 0, 0, time.UTC)
+	return services.SnapshotTradingDay(now)
 }
 
 // buildSnapshotConfig reuses serve's flags. The snapshot subcommand

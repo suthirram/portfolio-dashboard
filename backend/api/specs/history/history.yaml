@@ -141,3 +141,36 @@ history_paste:
               $ref: "../portfolio-api.yaml#/components/schemas/PasteHistoryReport"
       "400":
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+history_overall:
+  get:
+    tags: [History]
+    summary: Overall portfolio worth per day (stocks + gold, INR and EUR)
+    description: |
+      PD-059. Daily points from portfolio_overall plus the physical-gold
+      overlay, for the Overview performance chart. Amounts are absent, never
+      zero, on a day without a rate, on a day whose gold has no price yet,
+      and on every day when gold cannot be read for a gold-enabled account.
+    operationId: getOverallHistory
+    parameters:
+      - name: from
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+    responses:
+      "200":
+        description: Daily points, oldest first
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/OverallHistory"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

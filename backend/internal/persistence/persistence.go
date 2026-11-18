@@ -40,8 +40,11 @@ type Store struct {
 	Users        *UserStore
 	Sessions     *SessionStore
 	Snapshots    *SnapshotStore
-	Branding     *BrandingStore
-	Migrations   *MigrationStore
+	// Overall is portfolio_overall (PD-059). Nil until AttachOverall; the
+	// mock-driver tests built with New alone keep their command sequences.
+	Overall    *OverallStore
+	Branding   *BrandingStore
+	Migrations *MigrationStore
 
 	client *mongo.Client // for InTransaction
 
@@ -57,6 +60,16 @@ func (s *Store) AttachGold(pool *pgxpool.Pool) {
 	if pool != nil {
 		s.Gold = NewGoldDao(pool)
 	}
+}
+
+// AttachOverall wires portfolio_overall and makes every SnapshotStore write
+// refresh it (DD-015 §2.3). Production entry points call it once after New.
+func (s *Store) AttachOverall() {
+	if s.Overall != nil {
+		return
+	}
+	s.Overall = &OverallStore{col: s.Snapshots.col.Database().Collection("portfolio_overall")}
+	s.Snapshots.overall = s.Overall
 }
 
 // New wires the collection stores onto db.

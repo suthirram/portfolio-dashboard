@@ -115,9 +115,13 @@ type PortfolioSnapshot struct {
 	// array, which round-trips back as a non-nil empty slice and stays
 	// recomputable. omitempty would drop it to absent → indistinguishable from
 	// a legacy/manual row, so a backdated txn could never heal that day.
-	Lines     []HoldingSnapshot `bson:"holdings" json:"holdings,omitempty"`
-	CreatedAt time.Time         `bson:"created_at" json:"-"`
-	UpdatedAt time.Time         `bson:"updated_at" json:"-"`
+	Lines []HoldingSnapshot `bson:"holdings" json:"holdings,omitempty"`
+	// Fx is the rate the snapshot job resolved for this day (PD-059). It is
+	// handed to SnapshotStore for the portfolio_overall document and is never
+	// stored on the snapshot row itself. Nil on every other write path.
+	Fx        *FxRate   `bson:"-" json:"-"`
+	CreatedAt time.Time `bson:"created_at" json:"-"`
+	UpdatedAt time.Time `bson:"updated_at" json:"-"`
 }
 
 // BucketsFromLines aggregates per-stock lines into the per-currency bucket map,

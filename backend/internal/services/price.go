@@ -71,7 +71,16 @@ type yahooChartResp struct {
 				RegularMarketPrice float64  `json:"regularMarketPrice"`
 				PreviousClose      *float64 `json:"previousClose"`
 				ChartPreviousClose *float64 `json:"chartPreviousClose"`
+				GmtOffset          int64    `json:"gmtoffset"`
 			} `json:"meta"`
+			// Timestamp and Indicators carry daily candles for period queries
+			// (GetDailyCloses); a range=1d quote ignores them.
+			Timestamp  []int64 `json:"timestamp"`
+			Indicators struct {
+				Quote []struct {
+					Close []*float64 `json:"close"`
+				} `json:"quote"`
+			} `json:"indicators"`
 		} `json:"result"`
 		Error any `json:"error"`
 	} `json:"chart"`
@@ -132,6 +141,36 @@ func (s *PriceService) GetForexRate(ctx context.Context, from, to string) (float
 		return 0, fmt.Errorf("yahoo returned zero for %s", symbol)
 	}
 	return 1 / price, nil
+}
+
+// GetDailyCloses returns symbol's daily closes in [from, to] keyed by the
+// exchange-local trading day ("YYYY-MM-DD"). Days Yahoo has no close for
+// are absent, never zero. Not cached: the backfill, the past-day snapshot
+// and the user-triggered re-fetch each call it once.
+func (s *PriceService) GetDailyCloses(ctx context.Context, symbol string, from, to time.Time) (_ map[string]float64, retErr error) {
+	ctx, span := tracer.Start(ctx, "PriceService.GetDailyCloses")
+	span.SetAttributes(attribute.String("symbol", symbol))
+	defer endSpan(span, &retErr)
+	endpoint := fmt.Sprintf("%s/v8/finance/chart/%s?interval=1d&period1=%d&period2=%d",
+		s.baseURL, url.PathEscape(symbol), from.UTC().Unix(), to.UTC().AddDate(0, 0, 1).Unix())
+	chart, err := s.fetchChart(ctx, endpoint, symbol)
+	if err != nil {
+		return nil, err
+	}
+	result := chart.Chart.Result[0]
+	closes := make(map[string]float64, len(result.Timestamp))
+	if len(result.Indicators.Quote) == 0 {
+		return closes, nil
+	}
+	values := result.Indicators.Quote[0].Close
+	for i, timestamp := range result.Timestamp {
+		if i >= len(values) || !validPreviousClose(values[i]) {
+			continue
+		}
+		day := time.Unix(timestamp+result.Meta.GmtOffset, 0).UTC().Format("2006-01-02")
+		closes[day] = *values[i]
+	}
+	return closes, nil
 }
 
 func (s *PriceService) cacheGet(symbol string) (cachedPrice, bool) {

@@ -23,8 +23,8 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 
 	mt.Run("indexes created", func(mt *mtest.T) {
 		// One createIndexes command per collection: holdings, transactions,
-		// users, sessions, portfolio_snapshots.
-		for range 5 {
+		// users, sessions, portfolio_snapshots, portfolio_overall.
+		for range 6 {
 			mt.AddMockResponses(mtest.CreateSuccessResponse(
 				bson.E{Key: "createdCollectionAutomatically", Value: false},
 				bson.E{Key: "numIndexesBefore", Value: 1},
@@ -38,7 +38,7 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 		if err := EnsureIndexes(context.Background(), mt.DB, logger); err != nil {
 			t.Fatalf("EnsureIndexes: %v", err)
 		}
-		for _, col := range []string{"holdings", "transactions", "users", "sessions", "portfolio_snapshots"} {
+		for _, col := range []string{"holdings", "transactions", "users", "sessions", "portfolio_snapshots", "portfolio_overall"} {
 			if !strings.Contains(buf.String(), `"collection":"`+col+`"`) {
 				t.Errorf("log output missing collection %q: %s", col, buf.String())
 			}
@@ -51,6 +51,17 @@ func TestEnsureIndexesCreatesAllCollectionIndexes(t *testing.T) {
 			indexes, _ := event.Command.Lookup("indexes").Array().Values()
 			if len(indexes) != 4 {
 				t.Errorf("transactions indexes = %d, want 4", len(indexes))
+			}
+		}
+		// portfolio_overall: one document per (user, day) (PD-059), which the
+		// backfill's "already rated" duplicate-key check relies on.
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName != "createIndexes" || event.Command.Lookup("createIndexes").StringValue() != "portfolio_overall" {
+				continue
+			}
+			index := event.Command.Lookup("indexes").Array().Index(0).Value().Document()
+			if unique, _ := index.Lookup("unique").BooleanOK(); !unique {
+				t.Error("portfolio_overall (user_id, date) index must be unique")
 			}
 		}
 	})

@@ -24,6 +24,34 @@ var ErrCronProtected = errors.New("store: snapshot row contains cron-sourced reg
 // write that does not name the owner.
 type SnapshotStore struct {
 	col *mongo.Collection
+	// overall, when attached, is refreshed after every write (PD-059).
+	overall *OverallStore
+}
+
+// refreshOverall keeps the day's portfolio_overall document in step with
+// the row's final buckets: with the job's rate it is (re)written at that
+// rate; otherwise its totals are recomputed at the rate it already stores.
+func (s *SnapshotStore) refreshOverall(ctx context.Context, snap domain.PortfolioSnapshot, buckets map[string]domain.RegionSnapshot) error {
+	if s.overall == nil {
+		return nil
+	}
+	if snap.Fx != nil {
+		return s.overall.Put(ctx, snap.UserID, snap.Date, *snap.Fx, buckets)
+	}
+	return s.overall.RefreshStocks(ctx, snap.UserID, snap.Date, buckets)
+}
+
+// refreshOverallFromRow re-reads a patched row and refreshes its overall
+// document at the stored rate.
+func (s *SnapshotStore) refreshOverallFromRow(ctx context.Context, userId primitive.ObjectID, date time.Time) error {
+	if s.overall == nil {
+		return nil
+	}
+	var row domain.PortfolioSnapshot
+	if err := s.col.FindOne(ctx, snapshotFilter(userId, date)).Decode(&row); err != nil {
+		return translateFindErr(err)
+	}
+	return s.overall.RefreshStocks(ctx, userId, date, row.Buckets)
 }
 
 // snapshotFilter pins user_id and the UTC midnight of date.
@@ -97,8 +125,10 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 				"updated_at": now,
 			},
 		}
-		_, err := s.col.UpdateOne(ctx, snapshotFilter(snap.UserID, date), update)
-		return err
+		if _, err := s.col.UpdateOne(ctx, snapshotFilter(snap.UserID, date), update); err != nil {
+			return err
+		}
+		return s.refreshOverall(ctx, snap, merged)
 	case errors.Is(err, mongo.ErrNoDocuments):
 		// Insert.
 		doc := domain.PortfolioSnapshot{
@@ -110,8 +140,10 @@ func (s *SnapshotStore) Upsert(ctx context.Context, snap domain.PortfolioSnapsho
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
-		_, err := s.col.InsertOne(ctx, doc)
-		return err
+		if _, err := s.col.InsertOne(ctx, doc); err != nil {
+			return err
+		}
+		return s.refreshOverall(ctx, snap, snap.Buckets)
 	default:
 		return err
 	}
@@ -196,7 +228,7 @@ func (s *SnapshotStore) PatchRegion(ctx context.Context, uid primitive.ObjectID,
 	if res.MatchedCount == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return s.refreshOverallFromRow(ctx, uid, date)
 }
 
 // PatchRegions replaces multiple regions atomically in one UpdateOne so
@@ -226,7 +258,7 @@ func (s *SnapshotStore) PatchRegions(ctx context.Context, uid primitive.ObjectID
 	if res.MatchedCount == 0 {
 		return ErrNotFound
 	}
-	return nil
+	return s.refreshOverallFromRow(ctx, uid, date)
 }
 
 // Delete removes a (user, date) row only when every region's source is
@@ -260,8 +292,13 @@ func (s *SnapshotStore) deleteInternal(ctx context.Context, uid primitive.Object
 			}
 		}
 	}
-	_, err = s.col.DeleteOne(ctx, snapshotFilter(uid, date))
-	return err
+	if _, err = s.col.DeleteOne(ctx, snapshotFilter(uid, date)); err != nil {
+		return err
+	}
+	if s.overall != nil {
+		return s.overall.Delete(ctx, uid, date)
+	}
+	return nil
 }
 
 // DeleteByUser removes every snapshot owned by uid (used when a user is
@@ -269,6 +306,11 @@ func (s *SnapshotStore) deleteInternal(ctx context.Context, uid primitive.Object
 func (s *SnapshotStore) DeleteByUser(ctx context.Context, uid primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	_, err := s.col.DeleteMany(ctx, bson.M{"user_id": uid})
-	return err
+	if _, err := s.col.DeleteMany(ctx, bson.M{"user_id": uid}); err != nil {
+		return err
+	}
+	if s.overall != nil {
+		return s.overall.DeleteByUser(ctx, uid)
+	}
+	return nil
 }

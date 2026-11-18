@@ -28,6 +28,11 @@ type SnapshotService struct {
 	users     *persistence.UserStore
 	prices    PriceFetcher
 	logger    *zap.Logger
+	// Overall, when set (production wiring), makes Run resolve the day's
+	// EUR→INR rate and hand it to the store for portfolio_overall (PD-059).
+	Overall *persistence.OverallStore
+	// Closes supplies a past day's EUR→INR close for `snapshot --date`.
+	Closes DailyCloser
 	// Now lets tests inject a deterministic clock without dragging in
 	// a time interface.
 	Now func() time.Time
@@ -283,6 +288,98 @@ func isWeekend(t time.Time) bool {
 	return wd == time.Saturday || wd == time.Sunday
 }
 
+// rateSources is what a run knows about the day's EUR→INR rate. Live is
+// today's quote, fetched only when the run is for the current trading day.
+// Historical is the requested day's close, fetched only when the run is for
+// a past day (`snapshot --date`), so a past row never gets today's quote.
+type rateSources struct {
+	Live       *float64
+	Historical *domain.FxRate
+}
+
+// pickRate is the rate a snapshot day is converted with (DD-015 §2.4):
+//  1. a rate already stored for the day and not flagged is kept, so a
+//     re-run never overwrites a good rate;
+//  2. a weekday with a live quote (current day) or a historical close
+//     (past day) uses it;
+//  3. otherwise the prior day's rate is carried with its own fx_date —
+//     flagged when a weekday's fetch failed, inheriting the prior flag on a
+//     weekend;
+//  4. with nothing to carry the rate is unknown and flagged, never guessed.
+func pickRate(date time.Time, sources rateSources, existing, prior *domain.OverallDay) domain.FxRate {
+	if existing != nil && existing.EurInr != nil && !existing.FxCarried {
+		return domain.FxRate{EurInr: existing.EurInr, FxDate: existing.FxDate}
+	}
+	weekend := isWeekend(date)
+	if !weekend && sources.Live != nil {
+		return domain.FxRate{EurInr: sources.Live, FxDate: domain.UTCDate(date).Format("2006-01-02")}
+	}
+	if sources.Historical != nil && sources.Historical.EurInr != nil {
+		return *sources.Historical
+	}
+	if prior != nil && prior.EurInr != nil {
+		return domain.FxRate{EurInr: prior.EurInr, FxDate: prior.FxDate, Carried: prior.FxCarried || !weekend}
+	}
+	return domain.FxRate{Carried: true}
+}
+
+// isCurrentDay reports whether date is the trading day a run at s.Now()
+// records under the job's 08:00 IST cut-over (SnapshotTradingDay). Only that
+// day may use the live quote; any earlier day — including yesterday once the
+// cut-over has passed — uses its historical close.
+func (s *SnapshotService) isCurrentDay(date time.Time) bool {
+	return domain.UTCDate(date).Equal(SnapshotTradingDay(s.Now()))
+}
+
+// rateSourcesFor fetches the run's rate once: today's live quote for the
+// current day, or the requested day's historical close for a past day.
+// A failed fetch leaves the source nil (logged) and the rate carries.
+func (s *SnapshotService) rateSourcesFor(ctx context.Context, logger *zap.Logger, date time.Time) rateSources {
+	if s.Overall == nil || isWeekend(date) {
+		return rateSources{}
+	}
+	if s.isCurrentDay(date) {
+		rate, _, err := s.prices.GetPrice(ctx, eurInrSymbol)
+		if err != nil || rate <= 0 {
+			logger.Warn("snapshot: EUR→INR fetch failed; carrying the prior rate", zap.Float64("rate", rate), zap.Error(err))
+			return rateSources{}
+		}
+		return rateSources{Live: &rate}
+	}
+	if s.Closes == nil {
+		return rateSources{}
+	}
+	day := domain.UTCDate(date)
+	closes, err := s.Closes.GetDailyCloses(ctx, eurInrSymbol, day.AddDate(0, 0, -7), day)
+	if err != nil {
+		logger.Warn("snapshot: historical EUR→INR fetch failed; carrying the prior rate", zap.Error(err))
+		return rateSources{}
+	}
+	historical := rateOn(sortedDays(closes), closes, day.Format("2006-01-02"))
+	return rateSources{Historical: &historical}
+}
+
+// rateFor resolves one user's rate for date from the day's stored document,
+// the run's sources and the prior day for carry-forward.
+func (s *SnapshotService) rateFor(ctx context.Context, userId primitive.ObjectID, date time.Time, sources rateSources) (domain.FxRate, error) {
+	var existing, prior *domain.OverallDay
+	stored, err := s.Overall.Get(ctx, userId, date)
+	switch {
+	case err == nil:
+		existing = &stored
+	case !errors.Is(err, persistence.ErrNotFound):
+		return domain.FxRate{}, err
+	}
+	previous, err := s.Overall.LatestBefore(ctx, userId, date)
+	switch {
+	case err == nil:
+		prior = &previous
+	case !errors.Is(err, persistence.ErrNotFound):
+		return domain.FxRate{}, err
+	}
+	return pickRate(date, sources, existing, prior), nil
+}
+
 // RunOptions configures a snapshot run. Zero-value RunOptions = now (UTC),
 // every non-disabled user, persist for real. The cron entry point
 // (cmd/snapshot) passes yesterday, not now — see that command for why.
@@ -318,6 +415,7 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 
 	logger := s.log(ctx)
 	report := RunReport{Date: date, Total: len(users), UserErrors: map[string]string{}}
+	sources := s.rateSourcesFor(ctx, logger, date)
 	for _, u := range users {
 		// Bail early on parent ctx cancellation rather than continue
 		// recording per-user failures that are really one cancellation
@@ -333,6 +431,15 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 				zap.Error(err),
 			)
 			continue
+		}
+		if s.Overall != nil {
+			rate, err := s.rateFor(ctx, u.ID, date, sources)
+			if err != nil {
+				report.UserErrors[u.ID.Hex()] = err.Error()
+				logger.Error("snapshot rate lookup failed", zap.String("user_id", u.ID.Hex()), zap.Error(err))
+				continue
+			}
+			snap.Fx = &rate
 		}
 		if opts.DryRun {
 			report.Succeeded++

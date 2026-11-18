@@ -78,6 +78,8 @@ paths:
 
   /history:
     $ref: "./history/history.yaml#/history"
+  /history/overall:
+    $ref: "./history/history.yaml#/history_overall"
   /history/{date}/regions:
     $ref: "./history/history.yaml#/history_date_regions"
   /history/{date}:

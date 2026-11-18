@@ -73,6 +73,12 @@ func EnsureIndexes(ctx context.Context, database *mongo.Database, logger *zap.Lo
 			// scan.
 			{Keys: bson.D{{Key: "date", Value: 1}}},
 		},
+		"portfolio_overall": {
+			// one document per (user, UTC midnight); powers the overall
+			// chart's range read (DD-015 §2.2).
+			{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "date", Value: -1}},
+				Options: options.Index().SetUnique(true)},
+		},
 	} {
 		names, err := database.Collection(col).Indexes().CreateMany(ctx, models)
 		if err != nil {
