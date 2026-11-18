@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text scale fixture</title>
+  </head>
+  <body>
+    <!-- Browser fixture for textScale.browser.test.ts: text sized by each
+         stylesheet (base, components, glass UI), with no inline sizes. -->
+    <p id="body-text">Body text</p>
+    <button id="button" class="btn">Button</button>
+    <input id="input" aria-label="Input" />
+    <div class="classification-card"><h2 id="card-heading">Card heading</h2></div>
+    <a id="shell-brand" class="shell-brand" href="#">Brand</a>
+    <kbd id="kbd">⌘K</kbd>
+    <script type="module" src="./textScale.fixture.ts"></script>
+  </body>
+</html>
