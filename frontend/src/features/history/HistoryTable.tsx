@@ -53,7 +53,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
   // day. Display order is independent — ascending just reverses what we
   // render, while every cell still computes against the canonical index.
   const byDateDesc = useMemo(
-    () => [...rows].sort((left, right) => right.date.localeCompare(left.date)),
+    () => rows.toSorted((left, right) => right.date.localeCompare(left.date)),
     [rows],
   )
   const indexOfDate = useMemo(() => {
@@ -61,7 +61,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
     byDateDesc.forEach((row, i) => positionByDate.set(row.date, i))
     return positionByDate
   }, [byDateDesc])
-  const display = sortAsc ? [...byDateDesc].reverse() : byDateDesc
+  const display = sortAsc ? byDateDesc.toReversed() : byDateDesc
   // The gold column group appears only when the backend attached an overlay
   // to at least one row — i.e. a gold-enabled user with a valued position
   // (PRD-003 §8). Non-gold users never see it.

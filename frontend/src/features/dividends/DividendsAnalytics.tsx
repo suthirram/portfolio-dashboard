@@ -40,7 +40,7 @@ export default function DividendsAnalytics({ view, currency }: { view: DividendV
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead><tr><th scope="col" style={th}>Year</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Dividends</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead>
           <tbody>
-            {[...view.by_year].reverse().map(year => (
+            {view.by_year.toReversed().map(year => (
               <tr key={year.period}>
                 <td style={td}>{year.period}</td>
                 <td style={{ ...td, textAlign: 'right' }}>{year.count}</td>
