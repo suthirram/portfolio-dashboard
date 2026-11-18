@@ -5,23 +5,14 @@
 // no layout or wheel scrolling, so this drives real Chromium: a scrolled
 // page, a real app modal on top, real wheel input over the backdrop and at
 // the card's scroll boundary, then the page's scroll position is checked.
-//
-// Skips when Playwright's Chromium cannot launch. Set REQUIRE_BROWSER_TESTS=1
-// to fail instead (CI will, once it installs the browser — issue #321).
-// Install locally: npx playwright install chromium-headless-shell
-import { resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { chromium, type Page } from 'playwright'
-import { createServer, type ViteDevServer } from 'vite'
-import react from '@vitejs/plugin-react'
+import type { Page } from 'playwright'
+import type { ViteDevServer } from 'vite'
+import { launchBrowser, startFixtureServer } from '../test/browser/harness'
 
 const PAGE_SCROLL = 1000
 
-// One launch serves as both the availability probe and the test browser.
-const browser = await chromium.launch().catch((error: unknown) => {
-  if (process.env.REQUIRE_BROWSER_TESTS === '1') throw error
-  return null
-})
+const browser = await launchBrowser()
 
 let server: ViteDevServer
 let baseUrl: string
@@ -74,15 +65,7 @@ const cardOverflows = (page: Page) =>
 
 describe.skipIf(!browser)('modal scroll containment in a real browser', () => {
   beforeAll(async () => {
-    server = await createServer({
-      root: resolve(process.cwd()),
-      configFile: false,
-      plugins: [react()],
-      logLevel: 'silent',
-      server: { port: 0, host: '127.0.0.1' },
-    })
-    await server.listen()
-    baseUrl = server.resolvedUrls!.local[0].replace(/\/$/, '')
+    ({ server, baseUrl } = await startFixtureServer())
   }, 60_000)
 
   afterAll(async () => {

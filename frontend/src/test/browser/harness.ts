@@ -5,8 +5,8 @@
 // src/test/browser with the real app stylesheet.
 //
 // The browser is null when Chromium cannot launch, so a test file can skip
-// with describe.skipIf(!browser). Set REQUIRE_BROWSER_TESTS=1 to fail
-// instead (CI will, once it installs the browser — issue #321).
+// with describe.skipIf(!browser). REQUIRE_BROWSER_TESTS=1 fails instead;
+// CI sets it.
 // Install locally: npx playwright install chromium-headless-shell
 import { resolve } from 'node:path'
 import { chromium } from 'playwright'
