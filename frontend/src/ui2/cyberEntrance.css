@@ -1,0 +1,29 @@
+/* Port the reference's shell entrance. Future Overview components opt in
+ * with .ui2-entrance-item; existing fallback pages are not retargeted. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-ui="ui2"][data-theme="cyberpunk"]
+    .ui2-shell[data-cyber-entrance="true"] .ui2-topbar {
+    animation: ui2-cyber-reveal 650ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  :root[data-ui="ui2"][data-theme="cyberpunk"]
+    .ui2-shell[data-cyber-entrance="true"] .ui2-entrance-item {
+    animation: ui2-cyber-reveal 800ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--ui2-entrance-delay, 100ms);
+  }
+
+  :root[data-ui="ui2"][data-theme="cyberpunk"]
+    .ui2-shell[data-cyber-entrance="true"] .ui2-brand-mark {
+    animation: ui2-cyber-mark 1100ms ease-out both;
+  }
+}
+
+@keyframes ui2-cyber-reveal {
+  from { opacity: 0; transform: translateY(12px); filter: brightness(1.2); }
+  to { opacity: 1; transform: translateY(0); filter: brightness(1); }
+}
+
+@keyframes ui2-cyber-mark {
+  0%, 100% { box-shadow: 0 0 0 #6ee7ef00; }
+  45% { box-shadow: 0 0 28px #6ee7ef85, 0 0 45px #bd45ff40; }
+}
