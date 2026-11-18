@@ -135,10 +135,7 @@ func TestRateForKeepsAStoredGoodRate(t *testing.T) {
 			{Key: "user_id", Value: primitive.NewObjectID()}, {Key: "date", Value: monday},
 			{Key: "eur_inr", Value: 89.0}, {Key: "fx_date", Value: "2026-11-16"}, {Key: "fx_carried", Value: false},
 		}
-		mt.AddMockResponses(
-			mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch, stored),
-			mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch),
-		)
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch, stored))
 		store := persistence.New(mt.DB)
 		store.AttachOverall()
 		service := &SnapshotService{Overall: store.Overall}
@@ -149,6 +146,54 @@ func TestRateForKeepsAStoredGoodRate(t *testing.T) {
 		}
 		if rate.EurInr == nil || *rate.EurInr != 89 || rate.Carried {
 			t.Errorf("rate = %+v; want the stored 89 kept, not today's 91", rate)
+		}
+		if reads := len(mt.GetAllStartedEvents()); reads != 1 {
+			t.Errorf("queries = %d; want 1 — a good stored rate needs no prior-day lookup", reads)
+		}
+	})
+}
+
+// Codex review (#336): a failure reading portfolio_overall must never cost
+// the user that day's normal snapshot.
+func TestRunWritesTheSnapshotWhenTheOverallLookupFails(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	mt.Run("overall read fails", func(mt *mtest.T) {
+		userId := primitive.NewObjectID()
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".users", mtest.FirstBatch, bson.D{{Key: "_id", Value: userId}, {Key: "role", Value: "user"}}),
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".holdings", mtest.FirstBatch),
+			// fxFor: reading the day's overall document fails
+			mtest.CreateCommandErrorResponse(mtest.CommandError{Code: 2, Message: "overall read failed"}),
+			// Upsert: no row yet, insert, then the overall refresh at the stored rate
+			mtest.CreateCursorResponse(0, mt.DB.Name()+".portfolio_snapshots", mtest.FirstBatch),
+			mtest.CreateSuccessResponse(),
+			mtest.CreateSuccessResponse(),
+		)
+		store := persistence.New(mt.DB)
+		store.AttachOverall()
+		service := NewSnapshotService(store.Holdings, store.Snapshots, store.Users, &stubPriceFetcher{}, zap.NewNop())
+		service.Overall = store.Overall
+
+		report, err := service.Run(context.Background(), RunOptions{Date: time.Date(2026, 6, 16, 0, 0, 0, 0, time.UTC)})
+		if err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+		if report.Succeeded != 1 || report.HasErrors() {
+			t.Errorf("report = %+v; want the user's snapshot written despite the overall read failure", report)
+		}
+		inserted := false
+		for _, event := range mt.GetAllStartedEvents() {
+			if event.CommandName == "insert" && event.Command.Lookup("insert").StringValue() == "portfolio_snapshots" {
+				inserted = true
+			}
+			if event.CommandName == "update" && event.Command.Lookup("update").StringValue() == "portfolio_overall" {
+				if _, err := event.Command.Lookup("updates").Array().Index(0).Value().Document().LookupErr("u", "$set", "eur_inr"); err == nil {
+					t.Error("without a resolved rate the store must not write one")
+				}
+			}
+		}
+		if !inserted {
+			t.Error("the day's snapshot was not written")
 		}
 	})
 }

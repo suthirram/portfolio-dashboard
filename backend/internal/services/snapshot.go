@@ -360,13 +360,17 @@ func (s *SnapshotService) rateSourcesFor(ctx context.Context, logger *zap.Logger
 }
 
 // rateFor resolves one user's rate for date from the day's stored document,
-// the run's sources and the prior day for carry-forward.
+// the run's sources and the prior day for carry-forward. A day that already
+// has a good stored rate keeps it without reading the prior day.
 func (s *SnapshotService) rateFor(ctx context.Context, userId primitive.ObjectID, date time.Time, sources rateSources) (domain.FxRate, error) {
 	var existing, prior *domain.OverallDay
 	stored, err := s.Overall.Get(ctx, userId, date)
 	switch {
 	case err == nil:
 		existing = &stored
+		if stored.EurInr != nil && !stored.FxCarried {
+			return pickRate(date, sources, existing, nil), nil
+		}
 	case !errors.Is(err, persistence.ErrNotFound):
 		return domain.FxRate{}, err
 	}
@@ -378,6 +382,24 @@ func (s *SnapshotService) rateFor(ctx context.Context, userId primitive.ObjectID
 		return domain.FxRate{}, err
 	}
 	return pickRate(date, sources, existing, prior), nil
+}
+
+// fxFor is the rate handed to the store with a user's snapshot, or nil. The
+// snapshot itself never depends on it: when the overall days cannot be read
+// the failure is logged and nil is returned, so the snapshot is still written
+// and the store only re-values that day at the rate it already holds — it
+// can never overwrite a good stored rate.
+func (s *SnapshotService) fxFor(ctx context.Context, logger *zap.Logger, userId primitive.ObjectID, date time.Time, sources rateSources) *domain.FxRate {
+	if s.Overall == nil {
+		return nil
+	}
+	rate, err := s.rateFor(ctx, userId, date, sources)
+	if err != nil {
+		logger.Warn("snapshot: overall rate lookup failed; snapshot written without a new rate",
+			zap.String("user_id", userId.Hex()), zap.Error(err))
+		return nil
+	}
+	return &rate
 }
 
 // RunOptions configures a snapshot run. Zero-value RunOptions = now (UTC),
@@ -432,15 +454,7 @@ func (s *SnapshotService) Run(ctx context.Context, opts RunOptions) (RunReport, 
 			)
 			continue
 		}
-		if s.Overall != nil {
-			rate, err := s.rateFor(ctx, u.ID, date, sources)
-			if err != nil {
-				report.UserErrors[u.ID.Hex()] = err.Error()
-				logger.Error("snapshot rate lookup failed", zap.String("user_id", u.ID.Hex()), zap.Error(err))
-				continue
-			}
-			snap.Fx = &rate
-		}
+		snap.Fx = s.fxFor(ctx, logger, u.ID, date, sources)
 		if opts.DryRun {
 			report.Succeeded++
 			continue
