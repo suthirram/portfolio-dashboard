@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthOptional } from '../../features/auth/AuthContext'
 import { useTheme, type ThemeName } from '../../lib/useTheme'
-import { navItems } from '../../components/shell/navItems'
+import { navItems, type NavItem } from '../../components/shell/navItems'
 import '../ui2.css'
 
 // Ui2Shell is the UI_2.0 app frame (PD-059), built 1:1 from the owner's
@@ -20,8 +20,13 @@ const ICON_PATHS: Record<string, ReactNode> = {
   '/dividends': <><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 12h1m10 0h1" /></>,
   '/gold': <path d="m7 6-4 13h18L17 6H7zm-2 7h14M12 6v7" />,
   '/admin': <><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z" /><path d="m8 12 3 3 5-6" /></>,
+  '/admin/branding': <path d="m4 19 6-14 6 14M6 14h8M18 9h3m-1.5 0v10" />,
 }
 const LABELS: Record<string, string> = { '/': 'Overview', '/admin': 'Administration' }
+
+// The mockup gives the super admin a direct Branding link after
+// Administration; it opens the existing /admin/branding page.
+const BRANDING: NavItem = { to: '/admin/branding', label: 'Branding', icon: null }
 
 const THEMES: { theme: ThemeName; label: string }[] = [
   { theme: 'light', label: '☀ Light' },
@@ -42,10 +47,14 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-  const items = navItems(Boolean(user?.gold_enabled), isAdmin)
+  const items = [...navItems(Boolean(user?.gold_enabled), isAdmin), ...(user?.role === 'superadmin' ? [BRANDING] : [])]
   const labelOf = (to: string, label: string) => LABELS[to] ?? label
-  const current = items.find(item => (item.end ? pathname === item.to : pathname.startsWith(item.to)))
+  const matches = (item: NavItem) => (item.end ? pathname === item.to : pathname.startsWith(item.to))
+  // The most specific link wins: /admin/branding is Branding, not Administration.
+  const current = items.filter(matches).sort((first, second) => second.to.length - first.to.length)[0]
   const pageLabel = current ? labelOf(current.to, current.label) : pathname.startsWith('/profile') ? 'Profile & security' : ''
   const userName = user?.name || user?.username || 'Account'
 
@@ -76,12 +85,19 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [drawerOpen])
 
+  // While the drawer is open the page behind it is inert and focus starts
+  // on the drawer's ✕; a closed drawer is hidden from focus by ui2.css.
+  useEffect(() => {
+    mainRef.current?.toggleAttribute('inert', drawerOpen)
+    if (drawerOpen) closeButtonRef.current?.focus()
+  }, [drawerOpen])
+
   const go = (to: string) => { setMenuOpen(false); setDrawerOpen(false); navigate(to) }
 
   return (
     <div className="ui2-shell">
       <aside id="ui2-sidebar" className={drawerOpen ? 'ui2-sidebar open' : 'ui2-sidebar'} aria-label="Sidebar">
-        <button type="button" className="ui2-drawer-close" aria-label="Close navigation" onClick={closeDrawer}>✕</button>
+        <button ref={closeButtonRef} type="button" className="ui2-drawer-close" aria-label="Close navigation" onClick={closeDrawer}>✕</button>
         <Link to="/" className="ui2-brand" aria-label="Portfolio home">
           <span className="ui2-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19V5m0 14h16M8 15l4-5 3 2 5-7" /></svg>
@@ -91,7 +107,9 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
         <div className="ui2-nav-label">WORKSPACE</div>
         <nav className="ui2-nav" aria-label="Main navigation">
           {items.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setDrawerOpen(false)}>
+            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setDrawerOpen(false)}
+              className={() => (current?.to === item.to ? 'active' : undefined)}
+              aria-current={current?.to === item.to ? 'page' : 'false'}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">{ICON_PATHS[item.to]}</svg>
               {labelOf(item.to, item.label)}
             </NavLink>
@@ -129,7 +147,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       {drawerOpen && <button type="button" className="ui2-backdrop" aria-label="Close navigation" tabIndex={-1} onClick={closeDrawer} />}
-      <div className="ui2-main">
+      <div ref={mainRef} className="ui2-main">
         <header className="ui2-topbar">
           <div className="ui2-breadcrumb">
             <button ref={menuButtonRef} type="button" className="ui2-mobile-menu" aria-label="Toggle navigation" aria-controls="ui2-sidebar"

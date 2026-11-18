@@ -36,6 +36,22 @@ describe('Ui2Shell', () => {
     expect(navLabels()).toEqual(['Overview', 'History', 'Transactions', 'Dividends', 'Gold', 'Administration'])
   })
 
+  it('gives the super admin a Branding link after Administration', () => {
+    renderShell({ role: 'superadmin', gold_enabled: false }, '/admin/branding')
+    expect(navLabels()).toEqual(['Overview', 'History', 'Transactions', 'Dividends', 'Administration', 'Branding'])
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).getByRole('link', { name: 'Branding' })).toHaveAttribute('href', '/admin/branding')
+    expect(within(nav).getByRole('link', { name: 'Branding' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Administration' })).not.toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Administration' })).not.toHaveClass('active')
+    expect(screen.getByRole('banner')).toHaveTextContent('Workspace / Branding')
+  })
+
+  it('keeps Branding out of a regional admin’s sidebar', () => {
+    renderShell({ role: 'admin' })
+    expect(navLabels()).not.toContain('Branding')
+  })
+
   it('names the current page in the breadcrumb', () => {
     renderShell({ role: 'user' }, '/history')
     expect(screen.getByRole('banner')).toHaveTextContent('Workspace / History')
@@ -50,13 +66,18 @@ describe('Ui2Shell', () => {
     expect(screen.getByRole('button', { name: /Cyber/ })).toBeInTheDocument()
   })
 
-  it('opens the sidebar drawer from the menu button', () => {
-    renderShell({ role: 'user' })
+  it('opens the drawer with focus inside and the page behind it inert', () => {
+    const { container } = renderShell({ role: 'user' })
     const menu = screen.getByRole('button', { name: 'Toggle navigation' })
     expect(menu).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(menu)
+    const sidebar = screen.getByRole('complementary', { name: 'Sidebar' })
     expect(menu).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('complementary', { name: 'Sidebar' })).toHaveClass('open')
+    expect(sidebar).toHaveClass('open')
+    expect(within(sidebar).getByRole('button', { name: 'Close navigation' })).toHaveFocus()
+    expect(container.querySelector('.ui2-main')).toHaveAttribute('inert')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(container.querySelector('.ui2-main')).not.toHaveAttribute('inert')
   })
 
   // The open drawer covers ☰, so it must close without it.
