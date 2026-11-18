@@ -86,6 +86,12 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   USD), gold on read; rate carried on weekends; failed fetch → flagged,
   user-triggered re-fetch on `/history` (own rows, not in act-as, Not now,
   re-prompt). Backfill additive, dry-run, backup, zero data loss.
+* Gold in the overall chart: a day without a price copies the previous
+  day's (heals when the price is entered); gold held before the first price
+  is valued at cost and flagged `gold_at_cost`; Postgres missing or failing
+  ⇒ `gold_unavailable`. A past-date snapshot uses that day's historical
+  rate; a stored good rate is never overwritten. History adds/pastes create
+  the overall day, flagged for re-fetch when a rate is needed.
 * History: keep paste format, chart page, period card, per-stock modal.
 * Transactions: delta inline (sub-route late, tentative); filters =
   multi-select dropdown with count + clear; 15 rows; shared ledger hook.
