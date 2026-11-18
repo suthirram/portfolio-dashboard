@@ -18,8 +18,9 @@ does not accept an act-as user id.
 * Match the handoff styling and labels, including **Daily movement**.
 * Keep the `INR` / `EUR` display control and the 1W, 1M, 3M, 1Y and All
   periods.
-* Keep **View chart data** with ISO dates in its table and day/month labels
-  such as `16 Nov` on the chart axis.
+* Keep **View chart data** with the app's day-first `dd-MM-yyyy` dates
+  (such as `16-11-2026`) in its table and day/month labels such as
+  `16 Nov` on the chart axis.
 * Omit the preview-state selector.
 * If the rate or Gold valuation is unavailable, show a gap and its status;
   never display zero or a stock-only total. When Gold cannot be read, do not
@@ -54,7 +55,7 @@ unchanged.
 Run `cd frontend && npm run test:run -- src/lib/formDates.test.ts
 src/ui2/overview/OverallPerformance.test.tsx`, `npx tsc -b` and
 `npm run lint:changed` before merge. Confirm the chart axis uses `16 Nov`
-labels and the table keeps ISO dates.
+labels and the table uses the app's day-first date format.
 
 Slice 10 is complete when #342 is merged, its checks pass, and the component
 is ready for the Overview slices to mount. The Overview integration remains
