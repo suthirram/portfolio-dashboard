@@ -29,25 +29,10 @@ const THEMES: { theme: ThemeName; label: string }[] = [
   { theme: 'cyberpunk', label: 'ϟ Cyber' },
 ]
 
-// The mockup's faces, loaded only for UI_2.0 accounts.
-const FONTS_HREF = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap'
-
-function useUi2Fonts() {
-  useEffect(() => {
-    if (document.querySelector('link[data-ui2-fonts]')) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = FONTS_HREF
-    link.dataset.ui2Fonts = ''
-    document.head.appendChild(link)
-  }, [])
-}
-
 const initialsOf = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('')
 
 export function Ui2Shell({ children }: { children: ReactNode }) {
-  useUi2Fonts()
   const auth = useAuthOptional()
   const user = auth?.user ?? null
   const navigate = useNavigate()

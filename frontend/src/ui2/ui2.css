@@ -21,8 +21,11 @@
   --u2-line: #dce3ed;
   --u2-chart: #5265d8;
   --u2-wash: #eef2fc;
-  --u2-font: "DM Sans", sans-serif;
-  --u2-font-display: Manrope, sans-serif;
+  /* Type follows the super admin's Branding font (useBranding sets
+   * --brand-font-family). The mockup's DM Sans / Manrope become choices in
+   * Branding with slice 24 (owner, 2026-11-18). */
+  --u2-font: var(--brand-font-family);
+  --u2-font-display: var(--brand-font-family);
 }
 
 :root[data-ui="ui2"][data-theme="dark"] {
