@@ -106,6 +106,30 @@ Ordering: the step ships with the backend that reads `ui_mode`
 the rollout; until it runs, every account already reports the right mode.
 Plan: PD-059 (`docs/plans/PD-059-ui-2.md`, docs PR #332).
 
+## Overall-worth backfill (PD-059)
+
+`portfolio_overall` is derived from `portfolio_snapshots` plus one stored
+EUR→INR rate per day. The backfill only reads snapshots.
+
+1. Back up: `mongodump --uri "$MONGODB_URI" --db "$MONGODB_DATABASE" --collection portfolio_snapshots --out backup-$(date +%F)`.
+   Record the row count: `db.portfolio_snapshots.countDocuments()`.
+2. Dry run: `go run . migrate overall --dry-run`. It makes apply's exact
+   selection without writing. Review per user `skipped_rated` (left alone),
+   `to_write`, `without_rate` (written without a rate, offered for re-fetch)
+   and `min/max_current_inr` (over `to_write` only) against the History page.
+3. Apply: `go run . migrate overall` (fills days without a rate only; safe
+   to re-run). After slice 9b the deploy runs it as step `20261118_02`.
+4. Post-check: the snapshot row count is unchanged;
+   `db.portfolio_overall.countDocuments({user_id: …})` equals that user's
+   snapshot rows.
+5. Repair drift: `go run . migrate overall --rebuild [--user <id>]`
+   recomputes totals and keeps stored rates; Yahoo is only called for days
+   that have no rate, so it works during a Yahoo outage when every rate is
+   stored.
+
+Restore (only if a snapshot row was ever changed, which the backfill never
+does): `mongorestore --uri "$MONGODB_URI" --nsInclude "$MONGODB_DATABASE.portfolio_snapshots" --drop backup-<date>`.
+
 ## Seeding a demo user (`seed-max.sh`)
 
 ```bash
