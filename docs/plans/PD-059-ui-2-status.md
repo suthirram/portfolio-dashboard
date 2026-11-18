@@ -24,7 +24,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | merged |
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
-| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `docs/PD-059-wave2` (amendment) | | amendment in progress |
+| 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `docs/PD-059-wave2` (amendment) | #338 (amendment) | amendment in review |
 | 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | | | | needs amendment |
 | 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | | | | needs amendment |
 | 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
