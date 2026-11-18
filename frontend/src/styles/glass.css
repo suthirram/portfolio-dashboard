@@ -286,7 +286,7 @@
   padding: 4px 8px;
   color: var(--text-primary);
   text-decoration: none;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -301,7 +301,7 @@
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   cursor: pointer;
 }
 :root[data-ui="v2"] .shell-search:hover { border-color: var(--border-light); color: var(--text-secondary); }
@@ -309,7 +309,7 @@
 
 :root[data-ui="v2"] kbd {
   font-family: inherit;
-  font-size: 10px;
+  font-size: 0.625rem;
   padding: 2px 6px;
   border-radius: 6px;
   border: 1px solid var(--border-light);
@@ -329,7 +329,7 @@
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   font-weight: 500;
   background: transparent;
   border: 1px solid transparent;
@@ -426,7 +426,7 @@
 :root[data-ui="v2"] .shell .page-nav a.btn-icon[href="/"] { display: none !important; }
 :root[data-ui="v2"] .shell .shell-only { display: block; }
 :root[data-ui="v2"] .shell .page-title {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0 8px 0 0;
@@ -479,7 +479,7 @@
     padding: 6px 2px;
     border-radius: 16px;
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 0.625rem;
     text-decoration: none;
     background: transparent;
     border: none;
@@ -501,7 +501,7 @@
 }
 :root[data-ui="v2"] .hero-label,
 :root[data-ui="v2"] .hero-chip-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -518,7 +518,7 @@
   background-clip: text;
   color: transparent;
 }
-:root[data-ui="v2"] .hero-sub { color: var(--text-secondary); font-size: 14px; margin-top: 2px; }
+:root[data-ui="v2"] .hero-sub { color: var(--text-secondary); font-size: 0.875rem; margin-top: 2px; }
 :root[data-ui="v2"] .hero-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 :root[data-ui="v2"] .hero-chip {
   display: flex;
@@ -548,8 +548,8 @@
 :root[data-ui="v2"] .hero-chip.neg .hero-chip-label { color: var(--text-secondary); }
 :root[data-ui="v2"] .hero-chip.pos .hero-chip-value { color: var(--green); }
 :root[data-ui="v2"] .hero-chip.neg .hero-chip-value { color: var(--red); }
-:root[data-ui="v2"] .hero-chip-value { font-size: 17px; font-weight: 700; }
-:root[data-ui="v2"] .hero-chip-value small { font-size: 12px; font-weight: 600; opacity: 0.85; }
+:root[data-ui="v2"] .hero-chip-value { font-size: 1.0625rem; font-weight: 700; }
+:root[data-ui="v2"] .hero-chip-value small { font-size: 0.75rem; font-weight: 600; opacity: 0.85; }
 
 /* The Unrealised chip is a button that flips to the next currency. */
 :root[data-ui="v2"] .hero-chip-cycle {
@@ -583,7 +583,7 @@
 :root[data-ui="v2"] .hero-split-bar span { border-radius: 999px; }
 :root[data-ui="v2"] .hero-split-inr { background: linear-gradient(90deg, #ff9933, #ffb366); }
 :root[data-ui="v2"] .hero-split-eur { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
-:root[data-ui="v2"] .hero-split-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+:root[data-ui="v2"] .hero-split-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary); }
 :root[data-ui="v2"] .hero-split-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 
 @media (max-width: 860px) {
@@ -616,7 +616,7 @@
   background: var(--bg-input);
   color: var(--text-primary);
   font: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
   outline: none;
 }
 :root[data-ui="v2"] .admin-md-list .seg-group { align-self: flex-start; }
@@ -642,9 +642,9 @@
   border-color: rgba(120, 150, 255, 0.25);
 }
 :root[data-ui="v2"] .admin-md-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-:root[data-ui="v2"] .admin-md-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-:root[data-ui="v2"] .admin-md-meta { font-size: 12px; color: var(--text-muted); }
-:root[data-ui="v2"] .admin-md-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 13px; }
+:root[data-ui="v2"] .admin-md-name { font-size: 0.84375rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-ui="v2"] .admin-md-meta { font-size: 0.75rem; color: var(--text-muted); }
+:root[data-ui="v2"] .admin-md-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 0.8125rem; }
 
 :root[data-ui="v2"] .admin-avatar {
   flex-shrink: 0;
@@ -655,10 +655,10 @@
   border-radius: 50%;
   background: var(--gradient-brand);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
-:root[data-ui="v2"] .admin-avatar-lg { width: 52px; height: 52px; font-size: 17px; }
+:root[data-ui="v2"] .admin-avatar-lg { width: 52px; height: 52px; font-size: 1.0625rem; }
 :root[data-ui="v2"] .admin-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; }
 :root[data-ui="v2"] .admin-dot-ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
 :root[data-ui="v2"] .admin-dot-warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
@@ -666,7 +666,7 @@
 
 :root[data-ui="v2"] .admin-md-detail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 :root[data-ui="v2"] .admin-md-head { display: flex; align-items: center; gap: 16px; padding: 18px 20px; flex-wrap: wrap; }
-:root[data-ui="v2"] .admin-md-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.02em; }
+:root[data-ui="v2"] .admin-md-title { font-size: 1.25rem; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.02em; }
 :root[data-ui="v2"] .admin-md-placeholder { padding: 40px; text-align: center; color: var(--text-muted); }
 :root[data-ui="v2"] .admin-pill {
   display: inline-block;
@@ -674,7 +674,7 @@
   border-radius: 999px;
   background: var(--blue-dim);
   color: var(--blue);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 :root[data-ui="v2"] .admin-status { font-weight: 600; }
@@ -685,7 +685,7 @@
 :root[data-ui="v2"] .admin-section { padding: 6px 20px; }
 :root[data-ui="v2"] .admin-section-title {
   margin: 12px 0 4px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -702,8 +702,8 @@
 }
 :root[data-ui="v2"] .admin-section-title + .admin-row { border-top: none; }
 :root[data-ui="v2"] .admin-row-text { flex: 1; min-width: 0; }
-:root[data-ui="v2"] .admin-row-label { font-size: 14px; font-weight: 600; }
-:root[data-ui="v2"] .admin-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+:root[data-ui="v2"] .admin-row-label { font-size: 0.875rem; font-weight: 600; }
+:root[data-ui="v2"] .admin-row-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 :root[data-ui="v2"] .admin-row-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 :root[data-ui="v2"] .admin-select {
   padding: 7px 10px;
@@ -712,7 +712,7 @@
   background: var(--bg-input);
   color: var(--text-primary);
   font: inherit;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 /* An iOS-style switch: the knob slides right and the track fills when on. */
@@ -769,9 +769,9 @@
   background: linear-gradient(135deg, rgba(91, 147, 255, 0.18), rgba(139, 92, 246, 0.08)), var(--bg-input);
   box-shadow: 0 0 0 1px var(--blue), 0 10px 30px -12px rgba(91, 147, 255, 0.7);
 }
-:root[data-ui="v2"] .font-tile-sample { font-size: 34px; font-weight: 700; line-height: 1.1; }
-:root[data-ui="v2"] .font-tile-name { font-size: 14px; font-weight: 600; }
-:root[data-ui="v2"] .font-tile-text { font-size: 12px; color: var(--text-muted); }
+:root[data-ui="v2"] .font-tile-sample { font-size: 2.125rem; font-weight: 700; line-height: 1.1; }
+:root[data-ui="v2"] .font-tile-name { font-size: 0.875rem; font-weight: 600; }
+:root[data-ui="v2"] .font-tile-text { font-size: 0.75rem; color: var(--text-muted); }
 :root[data-ui="v2"] .font-tile-mark {
   position: absolute;
   top: 12px;
@@ -783,7 +783,7 @@
   border-radius: 50%;
   background: var(--blue);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -834,7 +834,7 @@
   box-shadow: none !important;
   outline: none;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 :root[data-ui="v2"] .palette-list { list-style: none; max-height: 52vh; overflow-y: auto; padding: 6px; }
 :root[data-ui="v2"] .palette-option {
@@ -847,9 +847,9 @@
   color: var(--text-secondary);
 }
 :root[data-ui="v2"] .palette-option[aria-selected="true"] { background: var(--bg-card-hover); color: var(--text-primary); }
-:root[data-ui="v2"] .palette-group { min-width: 64px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
-:root[data-ui="v2"] .palette-label { flex: 1; font-size: 14px; }
-:root[data-ui="v2"] .palette-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 13px; }
+:root[data-ui="v2"] .palette-group { min-width: 64px; font-size: 0.65625rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+:root[data-ui="v2"] .palette-label { flex: 1; font-size: 0.875rem; }
+:root[data-ui="v2"] .palette-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 0.8125rem; }
 
 /* --- Toasts ------------------------------------------------------------------- */
 
@@ -874,14 +874,14 @@
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
   box-shadow: var(--shadow-lg);
-  font-size: 13px;
+  font-size: 0.8125rem;
   animation: glass-pop var(--speed-slow) var(--ease);
 }
 :root[data-ui="v2"] .toast-success .toast-icon { color: var(--green); }
 :root[data-ui="v2"] .toast-error .toast-icon { color: var(--red); }
 :root[data-ui="v2"] .toast-info .toast-icon { color: var(--blue); }
 :root[data-ui="v2"] .toast-message { flex: 1; }
-:root[data-ui="v2"] .toast-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; line-height: 1; }
+:root[data-ui="v2"] .toast-close { background: none; border: none; color: var(--text-muted); font-size: 1.125rem; cursor: pointer; line-height: 1; }
 
 @media (max-width: 860px) {
   :root[data-ui="v2"] .toaster { left: 18px; right: 18px; bottom: 96px; width: auto; }

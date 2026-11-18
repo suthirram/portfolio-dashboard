@@ -6,15 +6,17 @@ const DEFAULT_FONT: BrandingFont = 'roboto'
 
 // Client-side fallback catalog, used until /branding responds (first paint,
 // load errors). The server's allowed_fonts is the source of truth once loaded.
+// Each stack's second family is its metric-adjusted fallback face
+// (styles/base.css), matching the server's stacks.
 export const FONT_CATALOG: { id: BrandingFont; label: string; css_family: string }[] = [
-  { id: 'roboto', label: 'Roboto', css_family: 'Roboto, Arial, sans-serif' },
-  { id: 'jetbrains_mono', label: 'JetBrains Mono', css_family: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+  { id: 'roboto', label: 'Roboto', css_family: 'Roboto, "Roboto Fallback", Arial, sans-serif' },
+  { id: 'jetbrains_mono', label: 'JetBrains Mono', css_family: '"JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
 ]
 
-const FONT_STACKS = Object.fromEntries(FONT_CATALOG.map(f => [f.id, f.css_family])) as Record<BrandingFont, string>
+const FONT_STACKS = Object.fromEntries(FONT_CATALOG.map(option => [option.id, option.css_family])) as Record<BrandingFont, string>
 
 function normaliseFont(raw: unknown): BrandingFont {
-  return FONT_CATALOG.some(f => f.id === raw) ? (raw as BrandingFont) : DEFAULT_FONT
+  return FONT_CATALOG.some(option => option.id === raw) ? (raw as BrandingFont) : DEFAULT_FONT
 }
 
 function readStoredFont(): BrandingFont {
@@ -31,7 +33,7 @@ function storeFont(font: BrandingFont) {
 }
 
 function stackFor(font: BrandingFont, settings: BrandingSettings | null): string {
-  return settings?.allowed_fonts.find(f => f.id === font)?.css_family ?? FONT_STACKS[font]
+  return settings?.allowed_fonts.find(option => option.id === font)?.css_family ?? FONT_STACKS[font]
 }
 
 export function applyBrandFont(font: BrandingFont, cssFamily = FONT_STACKS[font]) {

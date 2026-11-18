@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
@@ -19,8 +20,10 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   const [prices, setPrices] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onSkip() })
 
-  const set = (date: string, v: string) => setPrices(p => ({ ...p, [date]: v }))
+  const set = (date: string, value: string) => setPrices(previousPrices => ({ ...previousPrices, [date]: value }))
 
   // Only the days the user actually filled are sent; blanks are left for a
   // later visit rather than rejected, so a long gap can be closed piecemeal.
@@ -35,9 +38,9 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   }
 
   const invalid = (): string | null => {
-    for (const p of filled()) {
-      if (!Number.isFinite(p.price_per_gram) || p.price_per_gram <= 0) {
-        return `Price for ${formatDate(p.date)} must be a number > 0`
+    for (const price of filled()) {
+      if (!Number.isFinite(price.price_per_gram) || price.price_per_gram <= 0) {
+        return `Price for ${formatDate(price.date)} must be a number > 0`
       }
     }
     return null
@@ -67,11 +70,11 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-label="Fill missing gold prices" style={{
+    <div className="modal-overlay" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
     }}>
-      <div className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Fill missing gold prices" className="modal-card" style={{
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 24, width: 440, maxWidth: '100%',
         maxHeight: '90dvh', display: 'flex', flexDirection: 'column',
@@ -91,7 +94,7 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
             <div key={date} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <label htmlFor={`price-${date}`} style={{ fontSize: 13, color: 'var(--text-primary)' }}>{formatDate(date)}</label>
               <DecimalInput id={`price-${date}`} style={input} placeholder="₹ / gram"
-                value={prices[date] ?? ''} onValueChange={v => set(date, v)} />
+                value={prices[date] ?? ''} onValueChange={value => set(date, value)} />
             </div>
           ))}
         </div>

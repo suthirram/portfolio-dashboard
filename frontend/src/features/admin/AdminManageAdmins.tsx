@@ -88,11 +88,11 @@ export default function AdminManageAdmins() {
           <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={th}>Username</th>
-                <th style={th}>Name</th>
-                <th style={th}>Role</th>
-                <th style={th}>Region</th>
-                <th style={{ ...th, textAlign: 'right' }}>Actions</th>
+                <th scope="col" style={th}>Username</th>
+                <th scope="col" style={th}>Name</th>
+                <th scope="col" style={th}>Role</th>
+                <th scope="col" style={th}>Region</th>
+                <th scope="col" style={{ ...th, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

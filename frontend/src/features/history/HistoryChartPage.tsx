@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { api, type HistoryRow } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
@@ -37,10 +37,10 @@ type Granularity = 'day' | 'week'
 // own YYYY-MM-DD, so all days in a week collapse to one bucket keyed by that
 // Monday.
 export function weekKey(iso: string): string {
-  const d = new Date(iso + 'T00:00:00Z')
-  const dow = (d.getUTCDay() + 6) % 7 // Mon=0 … Sun=6
-  d.setUTCDate(d.getUTCDate() - dow)
-  return d.toISOString().slice(0, 10)
+  const day = new Date(iso + 'T00:00:00Z')
+  const dow = (day.getUTCDay() + 6) % 7 // Mon=0 … Sun=6
+  day.setUTCDate(day.getUTCDate() - dow)
+  return day.toISOString().slice(0, 10)
 }
 
 // toWeekly collapses a daily oldest-first series to one point per ISO week,
@@ -48,19 +48,19 @@ export function weekKey(iso: string): string {
 // weekly close, the natural down-sample for a value series.
 export function toWeekly(daily: { date: string; invested: number | null; current: number | null }[]) {
   const byWeek = new Map<string, { date: string; invested: number | null; current: number | null }>()
-  for (const p of daily) byWeek.set(weekKey(p.date), { ...p, date: weekKey(p.date) })
-  return [...byWeek.values()].sort((a, b) => a.date.localeCompare(b.date))
+  for (const point of daily) byWeek.set(weekKey(point.date), { ...point, date: weekKey(point.date) })
+  return [...byWeek.values()].sort((left, right) => left.date.localeCompare(right.date))
 }
 
 // fullSeries builds an oldest-first invested/current series for one region
 // using the FULL ISO date (unlike HistoryPage's perCurrencyChartData, which
 // formats to dd-MM — that collides across years on a multi-year view).
 export function fullSeries(rows: HistoryRow[], region: RegionKey) {
-  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
-  return oldestFirst.map(r => {
-    const rs = r.regions[region]
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
+  return oldestFirst.map(row => {
+    const rs = row.regions[region]
     return {
-      date: r.date,
+      date: row.date,
       invested: rs ? rs.invested : null,
       current: rs ? rs.current : null,
     }
@@ -71,16 +71,16 @@ export function fullSeries(rows: HistoryRow[], region: RegionKey) {
 // ISO date (unlike historyShared's goldChartData, which formats to dd-MM for
 // the History page's mini chart).
 export function goldFullSeries(rows: HistoryRow[]) {
-  const oldestFirst = [...rows].sort((a, b) => a.date.localeCompare(b.date))
-  return oldestFirst.map(r => ({
-    date: r.date,
-    invested: r.gold ? r.gold.invested : null,
-    current: r.gold ? r.gold.current : null,
+  const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
+  return oldestFirst.map(row => ({
+    date: row.date,
+    invested: row.gold ? row.gold.invested : null,
+    current: row.gold ? row.gold.current : null,
   }))
 }
 
-function isRegionKey(s: string | undefined): s is RegionKey {
-  return !!s && (REGIONS as readonly string[]).includes(s)
+function isRegionKey(value: string | undefined): value is RegionKey {
+  return !!value && (REGIONS as readonly string[]).includes(value)
 }
 
 const zoomBtnStyle: React.CSSProperties = {
@@ -106,8 +106,8 @@ export default function HistoryChartPage() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    const today = new Date().toISOString().slice(0, 10)
-    api.listHistory(HISTORY_START, today)
+    // Up to the IST day so a late-night visit still includes today's row.
+    api.listHistory(HISTORY_START, todayIST())
       .then(list => { if (!cancelled) setRows(list.rows) })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -128,14 +128,14 @@ export default function HistoryChartPage() {
     [daily, granularity],
   )
   const amountDomain = useMemo(
-    () => niceDomain(data.flatMap(d => [d.invested, d.current])),
+    () => niceDomain(data.flatMap(point => [point.invested, point.current])),
     [data],
   )
   // Width grows with the number of points × the zoom factor so every plot
   // gets horizontal room; the wrapping div scrolls when it exceeds the
   // viewport.
   const chartWidth = Math.max(MIN_CHART_WIDTH, data.length * zoom)
-  const hasData = data.some(d => (d.invested ?? 0) !== 0 || (d.current ?? 0) !== 0)
+  const hasData = data.some(point => (point.invested ?? 0) !== 0 || (point.current ?? 0) !== 0)
   const firstDate = data.length ? data[0].date : null
   const lastDate = data.length ? data[data.length - 1].date : null
 
@@ -179,18 +179,18 @@ export default function HistoryChartPage() {
             <div style={{ display: 'flex', gap: 16, alignItems: 'center',
               flexWrap: 'wrap', marginBottom: 12 }}>
               <div className="seg-group">
-                {(['week', 'day'] as Granularity[]).map(g => (
-                  <button key={g} className="seg-btn" onClick={() => setGranularity(g)}
-                    aria-pressed={granularity === g}>
-                    {g === 'week' ? 'Weekly' : 'Daily'}
+                {(['week', 'day'] as Granularity[]).map(option => (
+                  <button key={option} className="seg-btn" onClick={() => setGranularity(option)}
+                    aria-pressed={granularity === option}>
+                    {option === 'week' ? 'Weekly' : 'Daily'}
                   </button>
                 ))}
               </div>
               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Zoom</span>
-                <button onClick={() => setZoom(z => Math.max(ZOOM_MIN, z - ZOOM_STEP))}
+                <button onClick={() => setZoom(previousZoom => Math.max(ZOOM_MIN, previousZoom - ZOOM_STEP))}
                   disabled={zoom <= ZOOM_MIN} style={zoomBtnStyle} aria-label="Zoom out (shrink)">−</button>
-                <button onClick={() => setZoom(z => Math.min(ZOOM_MAX, z + ZOOM_STEP))}
+                <button onClick={() => setZoom(previousZoom => Math.min(ZOOM_MAX, previousZoom + ZOOM_STEP))}
                   disabled={zoom >= ZOOM_MAX} style={zoomBtnStyle} aria-label="Zoom in">+</button>
               </div>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -207,7 +207,7 @@ export default function HistoryChartPage() {
                       tickFormatter={formatDate} />
                     <YAxis tick={{ fontSize: 11 }} domain={amountDomain ?? ['auto', 'auto']}
                       tickFormatter={fmtAxisAmount} width={72} />
-                    <Tooltip {...chartTooltipProps} formatter={(v) => fmtCurrency(Number(v), sym)}
+                    <Tooltip {...chartTooltipProps} formatter={(value) => fmtCurrency(Number(value), sym)}
                       labelFormatter={formatDate} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line dataKey="invested" name={`Invested (${cur})`} stroke={palette.invested}

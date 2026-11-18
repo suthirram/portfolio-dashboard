@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { api } from '../../lib/api/client'
 import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
-import { formatDate } from '../../lib/formDates'
+import { formatDate, todayIST } from '../../lib/formDates'
 import { currencySymbol } from '../../lib/currency'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 
 // Ordered for the type picker; opening is managed via the holding's opening
 // balance, but is shown read-only in the list when present.
@@ -35,9 +36,9 @@ interface FormState {
   notes: string
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
-
-const emptyForm = (): FormState => ({ type: 'buy', date: todayISO(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
+// Dates default to the IST calendar day: a UTC slice shows yesterday between
+// 00:00 and 05:30 IST.
+const emptyForm = (): FormState => ({ type: 'buy', date: todayIST(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
 
 interface Props {
   // Holding, not HoldingWithPrice: every field this editor reads
@@ -62,6 +63,8 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirm, setConfirm] = useState<string | null>(null)
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onClose() })
 
   const load = useCallback(async () => {
     if (!holding.id) return
@@ -84,8 +87,8 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
   // present, auto-fill the total amount (= price × shares). Amount stays
   // editable so the user can fold in brokerage/charges afterwards (e.g. enter
   // NAV 41.1086 × 279.733 = 11499.43, then bump to the 11500 actually debited).
-  const recompute = (next: Partial<FormState>) => setForm(f => {
-    const merged = { ...f, ...next }
+  const recompute = (next: Partial<FormState>) => setForm(previousForm => {
+    const merged = { ...previousForm, ...next }
     const qty = parseDecimalInput(merged.quantity, { singleSeparator: 'decimal' })
     const px = parseDecimalInput(merged.price)
     if (merged.price.trim() !== '' && Number.isFinite(qty) && Number.isFinite(px) && qty > 0) {
@@ -94,17 +97,17 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
     return merged
   })
 
-  const startEdit = (t: Transaction) => {
-    setEditingId(t.id || null)
+  const startEdit = (txn: Transaction) => {
+    setEditingId(txn.id || null)
     setForm({
-      type: (t.type as TransactionType) || 'buy',
-      date: t.date ? t.date.slice(0, 10) : todayISO(),
-      quantity: t.quantity != null ? String(t.quantity) : '',
+      type: (txn.type as TransactionType) || 'buy',
+      date: txn.date ? txn.date.slice(0, 10) : todayIST(),
+      quantity: txn.quantity != null ? String(txn.quantity) : '',
       price: '',
-      amount: t.amount != null ? String(t.amount) : '',
-      ratio: t.ratio != null && t.ratio !== 0 ? String(t.ratio) : '',
-      realized: t.realized_seed != null && t.realized_seed !== 0 ? String(t.realized_seed) : '',
-      notes: t.notes || '',
+      amount: txn.amount != null ? String(txn.amount) : '',
+      ratio: txn.ratio != null && txn.ratio !== 0 ? String(txn.ratio) : '',
+      realized: txn.realized_seed != null && txn.realized_seed !== 0 ? String(txn.realized_seed) : '',
+      notes: txn.notes || '',
     })
   }
 
@@ -169,24 +172,24 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
     }
   }
 
-  const money = (n?: number | null) =>
-    n == null || n === 0 ? '—' : sym + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const num = (n?: number | null) => (n == null || n === 0 ? '—' : n.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
+  const money = (value?: number | null) =>
+    value == null || value === 0 ? '—' : sym + Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const num = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
 
   // Replay the ledger (mirrors backend RecomputePosition) and return a map of
   // transaction id → avg cost per share after that event executes.
   const runningAvgCosts = (() => {
-    const sorted = [...txns].sort((a, b) => {
-      const ao = a.type === 'opening', bo = b.type === 'opening'
-      if (ao !== bo) return ao ? -1 : 1
-      return (a.date || '').localeCompare(b.date || '')
+    const sorted = txns.toSorted((left, right) => {
+      const leftOpening = left.type === 'opening', rightOpening = right.type === 'opening'
+      if (leftOpening !== rightOpening) return leftOpening ? -1 : 1
+      return (left.date || '').localeCompare(right.date || '')
     })
     let totalQty = 0, totalBasis = 0
-    const m = new Map<string, number>()
-    for (const t of sorted) {
-      const qty = t.quantity ?? 0
-      const amt = t.amount ?? 0
-      switch (t.type) {
+    const avgCostById = new Map<string, number>()
+    for (const txn of sorted) {
+      const qty = txn.quantity ?? 0
+      const amt = txn.amount ?? 0
+      switch (txn.type) {
         case 'opening':
         case 'buy':
           if (qty > 0) { totalQty += qty; totalBasis += amt }
@@ -200,13 +203,13 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
         }
         case 'split':
         case 'bonus':
-          if ((t.ratio ?? 0) > 0) totalQty *= t.ratio!
+          if ((txn.ratio ?? 0) > 0) totalQty *= txn.ratio!
           break
         // dividend / merger: no position change
       }
-      if (t.id) m.set(t.id, totalQty > 0 ? totalBasis / totalQty : 0)
+      if (txn.id) avgCostById.set(txn.id, totalQty > 0 ? totalBasis / totalQty : 0)
     }
-    return m
+    return avgCostById
   })()
 
   // Quantity/amount are irrelevant for split/bonus/merger; show ratio instead.
@@ -228,7 +231,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
     }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card" style={{
+      <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Transactions — ${holding.script}`} className="modal-card" style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius)', padding: 28, width: '100%', maxWidth: 720,
         maxHeight: '90vh', overflowY: 'auto',
@@ -254,15 +257,15 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
                 <input style={{ ...INPUT, opacity: 0.7 }} value="Opening (balance)" disabled />
               ) : (
                 <select style={{ ...INPUT, cursor: 'pointer' }} value={form.type}
-                  onChange={e => setForm(f => ({ ...f, type: e.target.value as TransactionType }))}>
-                  {NEW_TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+                  onChange={e => setForm(previousForm => ({ ...previousForm, type: e.target.value as TransactionType }))}>
+                  {NEW_TYPES.map(txnType => <option key={txnType} value={txnType}>{TYPE_LABEL[txnType]}</option>)}
                 </select>
               )}
             </div>
             <div>
               <label style={LABEL}>Date</label>
               <input style={INPUT} type="date" value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                onChange={e => setForm(previousForm => ({ ...previousForm, date: e.target.value }))} />
             </div>
           </div>
 
@@ -290,7 +293,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
                     : `Total debited (${sym})`}
                 </label>
                 <DecimalInput style={INPUT} value={form.amount}
-                  onValueChange={value => setForm(f => ({ ...f, amount: value }))} placeholder="0.00" />
+                  onValueChange={value => setForm(previousForm => ({ ...previousForm, amount: value }))} placeholder="0.00" />
               </div>
             </div>
           )}
@@ -308,7 +311,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
             <div style={{ marginTop: 12 }}>
               <label style={LABEL}>Realised P&L seed ({sym})</label>
               <DecimalInput style={INPUT} value={form.realized} allowNegative
-                onValueChange={value => setForm(f => ({ ...f, realized: value }))}
+                onValueChange={value => setForm(previousForm => ({ ...previousForm, realized: value }))}
                 placeholder="Carried realised P&L (optional)" />
             </div>
           )}
@@ -317,7 +320,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
             <div style={{ marginTop: 12 }}>
               <label style={LABEL}>Ratio (new shares per old, e.g. 2 = 2-for-1)</label>
               <DecimalInput style={INPUT} value={form.ratio}
-                onValueChange={value => setForm(f => ({ ...f, ratio: value }))} placeholder="2" />
+                onValueChange={value => setForm(previousForm => ({ ...previousForm, ratio: value }))} placeholder="2" />
             </div>
           )}
 
@@ -331,7 +334,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
           <div style={{ marginTop: 12 }}>
             <label style={LABEL}>Notes</label>
             <input style={INPUT} value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional" />
+              onChange={e => setForm(previousForm => ({ ...previousForm, notes: e.target.value }))} placeholder="Optional" />
           </div>
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
@@ -372,29 +375,33 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
                   No transactions yet. Add a buy, sell or dividend above.
                 </td></tr>
               )}
-              {!loading && txns.map(t => (
-                <tr key={t.id} style={{ borderTop: '1px solid var(--border)' }}>
-                  <Td style={{ textAlign: 'left' }}>{t.date ? formatDate(t.date) : '—'}</Td>
+              {!loading && txns.map(txn => (
+                <tr key={txn.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <Td style={{ textAlign: 'left' }}>{txn.date ? formatDate(txn.date) : '—'}</Td>
                   <Td style={{ textAlign: 'left' }}>
-                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[t.type || ''] || t.type}</span>
-                    {t.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t.notes}</div>}
+                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[txn.type || ''] || txn.type}</span>
+                    {txn.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{txn.notes}</div>}
                   </Td>
-                  <Td className="mono">{num(t.quantity)}</Td>
-                  <Td className="mono">{money(t.amount)}</Td>
-                  <Td className="mono">{t.ratio ? `${t.ratio}×` : '—'}</Td>
-                  <Td className="mono">{(() => { const v = t.id ? runningAvgCosts.get(t.id) : undefined; return v ? sym + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
+                  <Td className="mono">{num(txn.quantity)}</Td>
+                  <Td className="mono">{money(txn.amount)}</Td>
+                  <Td className="mono">{txn.ratio ? `${txn.ratio}×` : '—'}</Td>
+                  <Td className="mono">{(() => { const avgCost = txn.id ? runningAvgCosts.get(txn.id) : undefined; return avgCost ? sym + avgCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
                   <Td style={{ textAlign: 'center' }}>
-                    {confirm === t.id ? (
+                    {confirm === txn.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => t.id && remove(t.id)} className="btn btn-sm btn-danger-solid">Yes</button>
+                        <button onClick={() => txn.id && remove(txn.id)} className="btn btn-sm btn-danger-solid">Yes</button>
                         <button onClick={() => setConfirm(null)} className="btn btn-sm">No</button>
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(t)} title="Edit" className="btn-row btn-row-accent">
+                        <button onClick={() => startEdit(txn)} title="Edit"
+                          aria-label={`Edit ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => t.id && setConfirm(t.id)} title="Delete" className="btn-row btn-row-danger">
+                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete"
+                          aria-label={`Delete ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                          className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
                       </span>
@@ -419,7 +426,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 }
 
 const Th = ({ children, style }: { children?: React.ReactNode; style?: CSSProperties }) => (
-  <th style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
+  <th scope="col" style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 500, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', ...style }}>{children}</th>
 )
 const Td = ({ children, style, className }: { children?: React.ReactNode; style?: CSSProperties; className?: string }) => (
   <td className={className} style={{ padding: '9px 12px', textAlign: 'right', ...style }}>{children}</td>

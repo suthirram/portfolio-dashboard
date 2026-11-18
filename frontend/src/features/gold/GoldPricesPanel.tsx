@@ -12,13 +12,13 @@ interface Props {
   onSaved: () => void
 }
 
-const fmt = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+const fmt = (value: number) => value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
 
 // localToday keeps the quick-add default on the user's calendar day; the
 // server rejects future dates (IST), and this input never sends one.
 function localToday(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 /** Recent daily prices plus a single-row quick-add/edit (PRD-003 §7). Bulk
@@ -48,7 +48,7 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
   }
 
   // Newest first for review; the store returns ascending.
-  const recent = [...prices].reverse().slice(0, 30)
+  const recent = prices.toReversed().slice(0, 30)
 
   const input: CSSProperties = {
     background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -91,14 +91,14 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
         <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No prices recorded yet.</p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
-          {recent.map(p => (
-            <div key={p.date} style={{
+          {recent.map(price => (
+            <div key={price.date} style={{
               display: 'flex', justifyContent: 'space-between', gap: 8,
               background: 'var(--bg-card)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 13,
             }}>
-              <span style={{ color: 'var(--text-secondary)' }}>{formatDate(p.date)}</span>
-              <span style={{ fontWeight: 600 }}>₹{fmt(p.price_per_gram)}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{formatDate(price.date)}</span>
+              <span style={{ fontWeight: 600 }}>₹{fmt(price.price_per_gram)}</span>
             </div>
           ))}
         </div>

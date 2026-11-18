@@ -14,8 +14,8 @@ import MissingPricesModal from './MissingPricesModal'
 
 // The full PRD-003 §5 column set: entered fields interleaved with the
 // server-computed columns (shaded), in the owner's spreadsheet order.
-const fmt = (v: number | null | undefined, digits = 2) =>
-  v == null ? '—' : v.toLocaleString('en-IN', { maximumFractionDigits: digits })
+const fmt = (value: number | null | undefined, digits = 2) =>
+  value == null ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: digits })
 
 export default function GoldPage() {
   const auth = useAuthOptional()
@@ -33,7 +33,7 @@ export default function GoldPage() {
   // fetchAll refreshes every gold slice at once. The gap list drives the
   // blocking prompt (PRD-003 §7), metrics is the live summary (§6).
   const fetchAll = useCallback(async () => {
-    const [txns, priceRows, gaps, m] = await Promise.all([
+    const [txns, priceRows, gaps, goldMetrics] = await Promise.all([
       api.listGoldTransactions(),
       api.listGoldPrices(),
       api.listGoldMissingDates(),
@@ -42,7 +42,7 @@ export default function GoldPage() {
     setRows(txns)
     setPrices(priceRows)
     setMissing(gaps.missing)
-    setMetrics(m)
+    setMetrics(goldMetrics)
   }, [])
 
   const load = useCallback(async () => {
@@ -73,11 +73,11 @@ export default function GoldPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const remove = async (t: GoldTransaction) => {
-    if (!confirm(`Delete the ${formatDate(t.date)} purchase of ${t.grams_bought} g?`)) return
-    setBusy(t.id)
+  const remove = async (txn: GoldTransaction) => {
+    if (!confirm(`Delete the ${formatDate(txn.date)} purchase of ${txn.grams_bought} g?`)) return
+    setBusy(txn.id)
     try {
-      await api.deleteGoldTransaction(t.id)
+      await api.deleteGoldTransaction(txn.id)
       await load()
     } catch (e) {
       alert(e instanceof ApiError ? e.message : 'Delete failed')
@@ -135,53 +135,53 @@ export default function GoldPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Date</th>
-                  <th style={th}>gm Price</th>
-                  <th style={th}>Weight</th>
-                  <th style={{ ...th, ...computed }}>Gold cost</th>
-                  <th style={{ ...th, ...computed }}>3%</th>
-                  <th style={{ ...th, ...computed }}>Total expected</th>
-                  <th style={th}>Price in quote</th>
-                  <th style={{ ...th, ...computed }}>3% (quote)</th>
-                  <th style={th}>Amt per bill</th>
-                  <th style={th}>Actual paid</th>
-                  <th style={{ ...th, ...computed }}>Nett per gram</th>
-                  <th style={{ ...th, ...computed }}>Nett reduction</th>
-                  <th style={th}>Billed weight</th>
-                  <th style={{ ...th, ...computed }}>LOSS due to NIMMI</th>
-                  <th style={th}>Chennai rate</th>
-                  <th style={th} aria-label="Actions" />
+                  <th scope="col" style={{ ...th, textAlign: 'left' }}>Date</th>
+                  <th scope="col" style={th}>gm Price</th>
+                  <th scope="col" style={th}>Weight</th>
+                  <th scope="col" style={{ ...th, ...computed }}>Gold cost</th>
+                  <th scope="col" style={{ ...th, ...computed }}>3%</th>
+                  <th scope="col" style={{ ...th, ...computed }}>Total expected</th>
+                  <th scope="col" style={th}>Price in quote</th>
+                  <th scope="col" style={{ ...th, ...computed }}>3% (quote)</th>
+                  <th scope="col" style={th}>Amt per bill</th>
+                  <th scope="col" style={th}>Actual paid</th>
+                  <th scope="col" style={{ ...th, ...computed }}>Nett per gram</th>
+                  <th scope="col" style={{ ...th, ...computed }}>Nett reduction</th>
+                  <th scope="col" style={th}>Billed weight</th>
+                  <th scope="col" style={{ ...th, ...computed }}>LOSS due to NIMMI</th>
+                  <th scope="col" style={th}>Chennai rate</th>
+                  <th scope="col" style={th} aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
-                {rows.map(t => (
-                  <tr key={t.id}>
-                    <td style={{ ...td, textAlign: 'left' }}>{formatDate(t.date)}</td>
-                    <td style={td}>{fmt(t.gm_price)}</td>
-                    <td style={td}>{fmt(t.grams_bought, 3)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.gold_cost)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.gst_on_cost)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.total_expected)}</td>
-                    <td style={td}>{fmt(t.quote_price)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.gst_on_quote)}</td>
-                    <td style={td}>{fmt(t.bill_amount)}</td>
-                    <td style={td}>{fmt(t.actual_paid)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.nett_per_gram)}</td>
-                    <td style={{ ...td, ...computed }}>{fmt(t.nett_reduction)}</td>
-                    <td style={td}>{fmt(t.billed_weight, 3)}</td>
-                    <td style={{ ...td, ...computed, color: t.nimmi_loss > 0 ? 'var(--red)' : 'var(--green)' }}>
-                      {fmt(t.nimmi_loss)}
+                {rows.map(txn => (
+                  <tr key={txn.id}>
+                    <td style={{ ...td, textAlign: 'left' }}>{formatDate(txn.date)}</td>
+                    <td style={td}>{fmt(txn.gm_price)}</td>
+                    <td style={td}>{fmt(txn.grams_bought, 3)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.gold_cost)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.gst_on_cost)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.total_expected)}</td>
+                    <td style={td}>{fmt(txn.quote_price)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.gst_on_quote)}</td>
+                    <td style={td}>{fmt(txn.bill_amount)}</td>
+                    <td style={td}>{fmt(txn.actual_paid)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.nett_per_gram)}</td>
+                    <td style={{ ...td, ...computed }}>{fmt(txn.nett_reduction)}</td>
+                    <td style={td}>{fmt(txn.billed_weight, 3)}</td>
+                    <td style={{ ...td, ...computed, color: txn.nimmi_loss > 0 ? 'var(--red)' : 'var(--green)' }}>
+                      {fmt(txn.nimmi_loss)}
                     </td>
-                    <td style={td}>{t.chennai_rate || '—'}</td>
+                    <td style={td}>{txn.chennai_rate || '—'}</td>
                     <td style={td}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
-                        <button aria-label={`Edit ${formatDate(t.date)}`} disabled={busy === t.id}
-                          onClick={() => setModal({ open: true, txn: t })}
+                        <button aria-label={`Edit ${formatDate(txn.date)}`} disabled={busy === txn.id}
+                          onClick={() => setModal({ open: true, txn })}
                           style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 2 }}>
                           <EditIcon size={14} />
                         </button>
-                        <button aria-label={`Delete ${formatDate(t.date)}`} disabled={busy === t.id}
-                          onClick={() => void remove(t)}
+                        <button aria-label={`Delete ${formatDate(txn.date)}`} disabled={busy === txn.id}
+                          onClick={() => void remove(txn)}
                           style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 2 }}>
                           <TrashIcon size={14} />
                         </button>

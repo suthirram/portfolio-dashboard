@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api } from '../../lib/api/client'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import { DecimalInput } from '../../components/DecimalInput'
 import { parseSeededDecimal } from '../../lib/formNumbers'
 import { canonicalCurrency, formatMoney } from '../../lib/currency'
@@ -30,6 +31,8 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
   const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!saving) onClose() })
 
   const save = async () => {
     const value = parseSeededDecimal(amount, editing?.amount)
@@ -54,7 +57,7 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label={editing ? 'Edit dividend' : 'Add dividend'}>
-      <div style={{ ...modalCard, width: 'min(440px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(440px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ fontSize: 15, margin: 0 }}>{editing ? 'Edit dividend' : 'Add dividend'}</h2>
         <div>
           <label style={LABEL} htmlFor="div-holding">Holding ({currency})</label>
@@ -85,6 +88,8 @@ export function DeleteDividendDialog({ row, currency, userId, onClose, onDeleted
 }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, () => { if (!busy) onClose() })
   const remove = async () => {
     setBusy(true)
     try {
@@ -97,7 +102,7 @@ export function DeleteDividendDialog({ row, currency, userId, onClose, onDeleted
   }
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label="Delete dividend">
-      <div style={{ ...modalCard, width: 'min(420px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(420px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ fontSize: 15, margin: 0 }}>Delete dividend?</h2>
         <p style={{ fontSize: 13, margin: 0 }}>{row.script} · {formatDate(row.date)} · {formatMoney(row.amount, currency)}</p>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>The holding's dividend total and every later running total drop by this amount.</p>

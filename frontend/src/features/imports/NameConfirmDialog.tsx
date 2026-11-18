@@ -2,7 +2,8 @@
 // imports (PRD-005 §6, PRD-008 §5). Answers are a holding id or null
 // (unresolved); `created` lists the names the user chose to create a new
 // holding for, offered only when the import supports it (createLabel).
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialogFocus } from '../../lib/useDialogFocus'
 import type { DividendNameResolution, Holding } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
 
@@ -26,6 +27,8 @@ export default function NameConfirmDialog({ names, holdings, heading, context, i
   const [choice, setChoice] = useState<Record<string, string>>(() =>
     Object.fromEntries(names.map(name => [name.sheet_name, name.preselect ?? ''])))
   const [other, setOther] = useState<Record<string, string>>({})
+  const root = useRef<HTMLDivElement>(null)
+  useDialogFocus(root, onBack)
 
   const answered = names.every(name => {
     const chosen = choice[name.sheet_name]
@@ -45,7 +48,7 @@ export default function NameConfirmDialog({ names, holdings, heading, context, i
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label={heading}>
-      <div style={{ ...modalCard, width: 'min(620px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(620px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 style={{ fontSize: 15, margin: 0 }}>{heading}{context && ` · ${context}`}</h2>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>{intro}</p>
         {names.map(name => (

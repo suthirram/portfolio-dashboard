@@ -137,11 +137,12 @@ const TH_BASE: CSSProperties = {
 }
 
 const Th = ({ children, style }: { children?: React.ReactNode; style?: CSSProperties }) => (
-  <th style={{ ...TH_BASE, ...style }}>{children}</th>
+  <th scope="col" style={{ ...TH_BASE, ...style }}>{children}</th>
 )
 
-// A sortable header carries aria-sort so the active column and its direction
-// are announced, not just tinted.
+// Only the active sort column carries aria-sort (with its direction), so the
+// sorted column is announced, not just tinted. Inactive columns omit it:
+// aria-sort="none" on every other header is noise the guide rules out.
 function SortTh({ col, sort, onSort, align, children }: {
   col: SortKey
   sort: Sort
@@ -151,9 +152,9 @@ function SortTh({ col, sort, onSort, align, children }: {
 }) {
   const active = sort.key === col
   return (
-    <th style={{ ...TH_BASE, textAlign: align ?? 'right' }}
-      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button onClick={() => onSort(col)} style={{
+    <th scope="col" style={{ ...TH_BASE, textAlign: align ?? 'right' }}
+      aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button type="button" onClick={() => onSort(col)} style={{
         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
         font: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit',
         color: active ? 'var(--blue)' : 'inherit',

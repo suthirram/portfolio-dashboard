@@ -203,3 +203,28 @@ describe('dividendIncome', () => {
     expect(dividendIncome(holdings)).toEqual({ inr: 350, eur: 40 })
   })
 })
+
+// PD-058 Task 11: the account menu closes for keyboard and touch users too.
+describe('DashboardPage account menu', () => {
+  const openMenu = () => {
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    const trigger = screen.getByRole('button', { name: /Alice/ })
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('link', { name: /Account settings/ })).toBeInTheDocument()
+    return trigger
+  }
+
+  it('closes on Escape', () => {
+    const trigger = openMenu()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('link', { name: /Account settings/ })).not.toBeInTheDocument()
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('closes on a press outside the menu', () => {
+    openMenu()
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('link', { name: /Account settings/ })).not.toBeInTheDocument()
+  })
+})
