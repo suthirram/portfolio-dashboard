@@ -56,6 +56,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const items = navItems(Boolean(user?.gold_enabled), isAdmin)
   const labelOf = (to: string, label: string) => LABELS[to] ?? label
@@ -73,11 +74,29 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('click', close)
   }, [menuOpen])
 
+  // The open drawer covers the ☰ button, so it closes from its own ✕, the
+  // backdrop or Escape, and focus goes back to ☰.
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    menuButtonRef.current?.focus()
+  }
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setDrawerOpen(false)
+      menuButtonRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
+
   const go = (to: string) => { setMenuOpen(false); setDrawerOpen(false); navigate(to) }
 
   return (
     <div className="ui2-shell">
       <aside id="ui2-sidebar" className={drawerOpen ? 'ui2-sidebar open' : 'ui2-sidebar'} aria-label="Sidebar">
+        <button type="button" className="ui2-drawer-close" aria-label="Close navigation" onClick={closeDrawer}>✕</button>
         <Link to="/" className="ui2-brand" aria-label="Portfolio home">
           <span className="ui2-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19V5m0 14h16M8 15l4-5 3 2 5-7" /></svg>
@@ -124,10 +143,11 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </aside>
+      {drawerOpen && <button type="button" className="ui2-backdrop" aria-label="Close navigation" tabIndex={-1} onClick={closeDrawer} />}
       <div className="ui2-main">
         <header className="ui2-topbar">
           <div className="ui2-breadcrumb">
-            <button type="button" className="ui2-mobile-menu" aria-label="Toggle navigation" aria-controls="ui2-sidebar"
+            <button ref={menuButtonRef} type="button" className="ui2-mobile-menu" aria-label="Toggle navigation" aria-controls="ui2-sidebar"
               aria-expanded={drawerOpen} onClick={() => setDrawerOpen(open => !open)}>☰</button>
             Workspace <span>/ &nbsp;<b>{pageLabel}</b></span>
           </div>

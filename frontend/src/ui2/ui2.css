@@ -70,7 +70,9 @@
   transition: background 0.2s, color 0.2s;
 }
 
-:root[data-ui="ui2"] .ui2-shell button {
+/* Only the shell's own controls; page components keep their button styles. */
+:root[data-ui="ui2"] .ui2-sidebar button,
+:root[data-ui="ui2"] .ui2-topbar button {
   cursor: pointer;
   color: inherit;
   font: inherit;
@@ -306,7 +308,9 @@
   font-weight: 500;
 }
 
-:root[data-ui="ui2"] .ui2-mobile-menu {
+:root[data-ui="ui2"] .ui2-mobile-menu,
+:root[data-ui="ui2"] .ui2-drawer-close,
+:root[data-ui="ui2"] .ui2-backdrop {
   display: none;
 }
 
@@ -362,6 +366,34 @@
   }
   :root[data-ui="ui2"] .ui2-sidebar.open {
     transform: translateX(0);
+  }
+  /* The open drawer covers the ☰ button, so it carries its own close
+   * control and a backdrop that closes it. */
+  :root[data-ui="ui2"] .ui2-drawer-close {
+    display: block;
+    position: absolute;
+    top: 26px;
+    right: 12px;
+    z-index: 1;
+    border: 0;
+    background: none;
+    color: var(--u2-muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  :root[data-ui="ui2"] .ui2-drawer-close:hover {
+    background: var(--u2-accentsoft);
+  }
+  :root[data-ui="ui2"] .ui2-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    border: 0;
+    padding: 0;
+    background: #0003;
   }
   :root[data-ui="ui2"] .ui2-main {
     margin-left: 0;

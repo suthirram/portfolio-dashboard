@@ -59,6 +59,22 @@ describe('Ui2Shell', () => {
     expect(screen.getByRole('complementary', { name: 'Sidebar' })).toHaveClass('open')
   })
 
+  // The open drawer covers ☰, so it must close without it.
+  it.each([
+    ['its close button', () => fireEvent.click(within(screen.getByRole('complementary', { name: 'Sidebar' })).getByRole('button', { name: 'Close navigation' }))],
+    ['the backdrop', () => fireEvent.click(document.querySelector('.ui2-backdrop')!)],
+    ['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
+  ])('closes the drawer from %s and returns focus to the menu button', (_, close) => {
+    renderShell({ role: 'user' })
+    const menu = screen.getByRole('button', { name: 'Toggle navigation' })
+    fireEvent.click(menu)
+    close()
+    expect(screen.getByRole('complementary', { name: 'Sidebar' })).not.toHaveClass('open')
+    expect(menu).toHaveAttribute('aria-expanded', 'false')
+    expect(document.querySelector('.ui2-backdrop')).toBeNull()
+    expect(menu).toHaveFocus()
+  })
+
   it('reaches profile, administration and log out from the account menu', () => {
     renderShell({ role: 'admin', name: 'Asha Rao' })
     fireEvent.click(screen.getByRole('button', { name: 'Open Asha Rao account menu' }))
