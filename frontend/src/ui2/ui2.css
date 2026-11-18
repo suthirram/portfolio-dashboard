@@ -310,10 +310,28 @@
   display: none;
 }
 
-/* Pages not rebuilt yet carry copies of the shell's chrome (.shell-dup,
- * PD-054); the shell already offers them. */
-:root[data-ui="ui2"] .ui2-shell .shell-dup {
+:root[data-ui="ui2"] .ui2-topbar {
+  position: relative;
+  z-index: 2;
+}
+
+/* Pages not rebuilt yet carry copies of the shell's chrome — .shell-dup,
+ * their header theme picker and back-to-dashboard link (PD-054 marks them
+ * the same way for the glass shell); the shell already offers them. The
+ * mockup has no page artwork, so the classic page-art layers are dropped. */
+:root[data-ui="ui2"] .ui2-shell .shell-dup,
+:root[data-ui="ui2"] .ui2-shell .page-nav .theme-picker-inline,
+:root[data-ui="ui2"] .ui2-shell .page-nav a.btn-icon[href="/"] {
+  display: none !important;
+}
+
+:root[data-ui="ui2"] .page-art::before,
+:root[data-ui="ui2"] .page-art::after {
   display: none;
+}
+
+:root[data-ui="ui2"] .page-art {
+  background: transparent;
 }
 
 @media (min-width: 1500px) {
