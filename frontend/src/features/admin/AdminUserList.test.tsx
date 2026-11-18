@@ -42,7 +42,11 @@ vi.mock('../auth/AuthContext', () => {
 })
 
 describe('AdminUserList action buttons', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    session.caller = null
+    session.glass = false
+  })
 
   it('renders every row action with the shared btn classes', async () => {
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
@@ -104,6 +108,24 @@ describe('AdminUserList action buttons', () => {
     await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: false }))
   })
 
+  it('reserves UI_2.0 as an off, disabled placeholder beside the usable Glass UI button', async () => {
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    const placeholder = await screen.findByRole('button', { name: 'UI_2.0 (coming soon)' })
+    expect(placeholder).toBeDisabled()
+    expect(placeholder).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(placeholder)
+    expect(api.adminSetUserUiRevamp).not.toHaveBeenCalled()
+    expect(refreshCaller).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Glass UI on' })).toBeEnabled()
+  })
+
+  it('does not offer the UI_2.0 placeholder to a regional admin in the current UI', async () => {
+    session.caller = { id: 'a1', username: 'asha', name: 'Asha', role: 'admin', region: 'india' } as User
+    render(<MemoryRouter><AdminUserList /></MemoryRouter>)
+    await screen.findByRole('link', { name: 'Open' })
+    expect(screen.queryByRole('button', { name: /UI_2\.0/ })).toBeNull()
+  })
+
   it('refreshes the signed-in user after switching their own look', async () => {
     vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...superAdmin, ui_revamp: false }])
     render(<MemoryRouter><AdminUserList /></MemoryRouter>)
@@ -159,6 +181,20 @@ describe('AdminUserList in the glass UI', () => {
     await waitFor(() => expect(api.adminSetUserGold).toHaveBeenCalledWith('u1', { enabled: true }))
     fireEvent.click(within(settings()).getByRole('switch', { name: 'Glass UI' }))
     await waitFor(() => expect(api.adminSetUserUiRevamp).toHaveBeenCalledWith('u1', { enabled: true }))
+  })
+
+  it('keeps UI_2.0 off and disabled when Glass UI is already on', async () => {
+    vi.mocked(api.adminListUsers).mockResolvedValueOnce([{ ...rowUser, ui_revamp: true }])
+    renderPage()
+    const placeholder = await screen.findByRole('switch', { name: 'UI_2.0' })
+    expect(placeholder).toBeDisabled()
+    expect(placeholder).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText('Coming soon. The new UI variant is not available yet.')).toBeInTheDocument()
+    fireEvent.click(placeholder)
+    expect(api.adminSetUserUiRevamp).not.toHaveBeenCalled()
+    expect(refreshCaller).not.toHaveBeenCalled()
+    expect(screen.getByRole('switch', { name: 'Glass UI' })).toBeEnabled()
+    expect(screen.getByRole('switch', { name: 'Glass UI' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('asks before turning a feature off, and keeps it on when declined', async () => {

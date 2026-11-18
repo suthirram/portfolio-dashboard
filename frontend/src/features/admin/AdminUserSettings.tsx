@@ -174,6 +174,12 @@ function UserDetail({ listedUser, caller, isSuper, regions, regionLabel, busy, r
               </button>
             </SettingRow>
           ))}
+          <SettingRow label="UI_2.0" description="Coming soon. The new UI variant is not available yet.">
+            <button type="button" role="switch" aria-checked={false} aria-label="UI_2.0"
+              className="admin-switch" disabled title="Coming soon">
+              <span className="admin-switch-knob" />
+            </button>
+          </SettingRow>
         </SettingsSection>
       )}
 
