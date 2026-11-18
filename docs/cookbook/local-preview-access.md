@@ -69,6 +69,39 @@ not covered by those table geometry checks.
 Continue collecting UI feedback. Keep unverified interactions distinct from
 the approved table checks. Stop the preview server when review is complete.
 
+## Isolated login preview (2026-11-18)
+
+Starting the login worktree's Vite preview on `127.0.0.1:3017` inside the
+sandbox returned `listen EPERM: operation not permitted`. Running the same
+command with approved escalation started the server successfully:
+
+```bash
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 3017 --strictPort
+```
+
+Installed Chrome, launched through Playwright with the `chrome` channel in
+the approved execution context, loaded `/login`. Endpoint fixtures matched
+only paths beginning `/api/`. Browser assertions passed at 1671, 1440, 768,
+390 and 320 px: the card and controls fit without horizontal overflow,
+password visibility toggled, a fixture `401` produced a visible error and
+enabled retry, and signup remained keyboard reachable. Desktop and mobile
+screenshots were inspected. The login retained its light palette across all
+three stored themes. These checks used fictional API responses; they do not
+verify deployed authentication or database persistence. No existing server,
+database or credentials were changed.
+
+An initial browser check also timed out locating the login submit button by
+its accessible name while its label was wrapped in `role="status"`. Moving
+the live announcement to `aria-live="polite"` on the button and using a plain
+label span restored lookup by role and name in Chrome. The interaction
+tests remain reproducible with:
+
+```bash
+cd frontend
+npx vitest run src/features/auth/LoginPage.test.tsx
+```
+
 ## Frontend fixture routing (2026-11-13)
 
 A Playwright check of the implemented sector tables initially rendered a blank

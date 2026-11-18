@@ -1,0 +1,73 @@
+.sunrise-login {
+  color-scheme: light;
+  --ring: 0 0 0 3px rgb(47 105 208 / 35%);
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 3rem 8vw;
+  color: #0b1024;
+  background: #edf0ff url('../../assets/login-sunrise.webp') left center / cover no-repeat;
+}
+
+.sunrise-login-card {
+  width: min(100%, 26.25rem);
+  padding: 2rem;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: var(--radius-lg, 26px);
+  background: rgb(245 247 255 / 92%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 18px 44px -18px rgb(23 32 66 / 30%);
+}
+
+@supports (backdrop-filter: blur(20px)) {
+  .sunrise-login-card {
+    background: linear-gradient(135deg, rgb(255 255 255 / 58%), rgb(240 243 255 / 38%));
+    backdrop-filter: blur(var(--glass-blur, 20px)) saturate(var(--glass-saturate, 170%));
+  }
+}
+
+.sunrise-login-card h1 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+.sunrise-login-subtitle { color: #555d73; font-size: .875rem; margin-top: .375rem; margin-bottom: 1.5rem; }
+.sunrise-login-field { margin-bottom: 1rem; }
+.sunrise-login-field > label { display: block; margin-bottom: .375rem; font-size: .75rem; font-weight: 500; color: #444d64; }
+.sunrise-login-input { position: relative; display: flex; align-items: center; }
+.sunrise-login-input > svg { position: absolute; left: 1.125rem; width: 1.5rem; height: 1.5rem; pointer-events: none; color: #555d73; }
+.sunrise-login-input .app-icon * { color: inherit; stroke: currentColor; animation: none; }
+.sunrise-login-input .icon-spark { display: none; }
+.sunrise-login-input input {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: .625rem 3rem;
+  color: #151b30;
+  background: rgb(255 255 255 / 42%);
+  border: 1px solid #858b9c;
+  border-radius: var(--radius-sm, 12px);
+  font-size: max(1rem, 1em);
+}
+.sunrise-login-reveal { position: absolute; right: .25rem; width: 3rem; height: 3rem; display: grid; place-items: center; background: transparent; color: #555d73; }
+.sunrise-login-reveal svg { width: 1.5rem; height: 1.5rem; }
+.sunrise-login-options { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .25rem .75rem; margin-block: .25rem 1rem; font-size: .8125rem; }
+.sunrise-login-remember { display: flex; align-items: center; gap: .75rem; min-height: 3rem; }
+.sunrise-login-remember input { width: 1.25rem; height: 1.25rem; accent-color: #346bc3; }
+.sunrise-login-remember label { cursor: pointer; padding-block: .75rem; }
+.sunrise-login a { color: #073dc7; text-decoration: none; font-weight: 500; }
+.sunrise-login a:hover { text-decoration: underline; }
+.sunrise-login-options > a { padding-block: .75rem; }
+.sunrise-login-submit { display: flex; align-items: center; justify-content: center; gap: .75rem; width: 100%; min-height: 3rem; border-radius: 999px; color: white; font-size: 1rem; font-weight: 600; background: linear-gradient(105deg, #307fca, #7065bb); box-shadow: 0 8px 20px rgb(59 111 190 / 12%); }
+.sunrise-login-submit:disabled { opacity: .7; }
+.sunrise-login-footer { display: flex; align-items: center; gap: .75rem; margin-top: 1.25rem; color: #474f64; font-size: .8125rem; text-align: center; }
+.sunrise-login-footer::before, .sunrise-login-footer::after { content: ''; height: 1px; flex: 1; background: #d5d8e4; }
+.sunrise-login-footer a { display: inline-block; padding-block: .75rem; margin-left: .5rem; }
+.sunrise-login-error { background: #fff0f1; color: #a51b35; border: 1px solid #d78695; border-radius: .75rem; padding: .75rem 1rem; margin-bottom: 1.25rem; }
+.sunrise-login :focus-visible { outline: 2px solid #245dbb; outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .sunrise-login { padding: 2rem 1rem; justify-content: center; background-position: 25% center; }
+}
+@media (max-width: 480px) {
+  .sunrise-login { align-items: flex-start; padding: 1.5rem .75rem; }
+  .sunrise-login-card { padding: 1.75rem 1.25rem; border-radius: 1.5rem; }
+  .sunrise-login-footer { gap: .5rem; }
+}
