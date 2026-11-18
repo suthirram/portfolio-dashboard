@@ -21,7 +21,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 
 | # | Wave | Layer | Slice | Depends on | Owner | Branch | PR | State |
 |---|---|---|---|---|---|---|---|---|
-| 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | | in review |
+| 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | in review |
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | | | | open |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | | | | open |
 | 3 | 2 | FE | Cyber entrance animation | 2 | | | | needs amendment |
