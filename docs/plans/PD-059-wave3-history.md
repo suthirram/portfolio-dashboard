@@ -25,6 +25,8 @@ Owner answers (2026-11-19) this slice implements:
 | W7 | Title **Your portfolio through time**, subtitle **Daily snapshots, monthly perspective, and the details behind every day.** |
 | Row delete | A row shows only **Edit**; **Delete** moves inside the Edit dialog under today's rule (all-manual row, or any row for a super admin). |
 | Gold value | Plain text; a gold-day dialog is a later slice. |
+| Gold tint | The day gold first appears is a new investment (purple), as for a currency: a prior row without gold counts as zero. One shared rule (`goldInvestedWentUp`) in both tables, so Classic/Glass gain it too (owner review on #343, option a). |
+| Gold filter | In a month without gold the table shows All assets; the Gold choice is kept and returns with a gold month (Codex review on #343). |
 
 Not in this slice: the fx re-fetch banner (slice 12), the Full-history
 charts dialog and the dialogs' restyle (slice 14), the mock's
@@ -42,8 +44,9 @@ render the unchanged classic page.
 | --- | --- | --- |
 | Create | `frontend/src/features/history/useHistoryMonth.ts` | The page's month state, rows, chart series and handlers, moved out of `HistoryPage` unchanged; `handleDelete` now resolves whether it deleted |
 | Modify | `frontend/src/features/history/HistoryPage.tsx` | Calls `useHistoryMonth`; renders `Ui2History` for `ui2` |
-| Modify | `frontend/src/features/history/historyShared.ts` | Shared `isAllManual` |
-| Modify | `frontend/src/features/history/HistoryTable.tsx` | Uses the shared `isAllManual` |
+| Modify | `frontend/src/features/history/historyShared.ts` | Shared `isAllManual` and `goldInvestedWentUp` |
+| Modify | `frontend/src/features/history/HistoryTable.tsx` | Uses the shared `isAllManual` and `goldInvestedWentUp` |
+| Modify | `frontend/src/features/history/HistoryPage.test.tsx` | First gold purchase is tinted in the classic table |
 | Modify | `frontend/src/features/history/HistoryModals.tsx` | Optional `onDelete` on `EditRowModal` |
 | Create | `frontend/src/ui2/primitives.css` | Shared UI_2.0 intro, panel, button, table and tone classes (registry) |
 | Create | `frontend/src/ui2/shell/Ui2PageIntro.tsx` | Shared page intro: h1, subtitle, actions (registry) |
@@ -63,7 +66,7 @@ render the unchanged classic page.
 | Order | Branch | Scope | No regression | Adds value | Test that fails without it |
 | --- | --- | --- | --- | --- | --- |
 | Amendment | `docs/PD-059-wave3-history` | This plan, board claim | Docs only | Unlocks slice 13 | markdownlint |
-| Slice 13 | `feat/PD-059-history` | Tasks 1–7 | Classic/Glass take the unchanged classic branch; the hook is a verbatim move (existing 176 History tests pass untouched); `EditRowModal.onDelete` is optional | UI_2.0 accounts get the handoff History page with all of today's data and actions | `Ui2History.test.tsx`, `historyCells.test.ts` |
+| Slice 13 | `feat/PD-059-history` | Tasks 1–7 | Classic/Glass take the classic branch; the hook is a verbatim move (existing 176 History tests pass untouched); `EditRowModal.onDelete` is optional; the one classic change is the first gold purchase gaining the purple tint (owner-approved fix) | UI_2.0 accounts get the handoff History page with all of today's data and actions | `Ui2History.test.tsx`, `historyCells.test.ts` |
 
 One frontend-only PR, label `ui-2.0`, branched from `main`.
 
@@ -416,9 +419,9 @@ The JSX below is unchanged.
   Expected: no type errors; `5 passed` files, `176 passed` tests.
 * [ ] **Commit:** `git add frontend/src/features/history/useHistoryMonth.ts frontend/src/features/history/HistoryPage.tsx && git commit -m "♻️ Move History page state into a hook"`
 
-### Task 2: Shared `isAllManual` and Delete inside the Edit dialog
+### Task 2: Shared delete and gold-tint rules; Delete inside the Edit dialog
 
-**Files:** `historyShared.ts`, `HistoryTable.tsx`, `HistoryModals.tsx` (modify)
+**Files:** `historyShared.ts`, `HistoryTable.tsx`, `HistoryModals.tsx`, `HistoryPage.test.tsx` (modify)
 
 The delete rule is needed by both tables, so it moves from a
 `HistoryTable` local into `historyShared`. UI_2.0 rows carry only Edit
@@ -456,7 +459,93 @@ Drop `RegionSnapshot,` from the `../../lib/api/client` type import and
 change `holdingRegion,` to `holdingRegion, isAllManual,` in the
 `./historyShared` import.
 
-* [ ] **Step 3: `HistoryModals.tsx`** — current signature:
+* [ ] **Step 3: one gold new-investment rule (owner review, option a).**
+  Today's gold group needs a previous gold value, so the day gold first
+  appears is never purple, while a currency treats a missing prior bucket
+  as zero. One shared rule fixes both tables (Classic/Glass gain the tint
+  on the first gold purchase). In `historyShared.ts`, after
+  `goldCurrentDirection`, add:
+
+```ts
+// goldInvestedWentUp mirrors regionInvestedWentUp for the gold overlay: the
+// purple "new investment" tint when gold invested rose versus the prior row.
+// Rows newest-first. A prior row without an overlay (before the first
+// purchase) counts as zero invested, so the day gold first appears is
+// marked, as a currency's first investment is; no prior row at all is not.
+export function goldInvestedWentUp(rows: HistoryRow[], i: number): boolean {
+  const prev = rows[i + 1]
+  const gold = rows[i].gold
+  if (!prev || !gold) return false
+  return gold.invested > (prev.gold?.invested ?? 0)
+}
+```
+
+In `HistoryTable.tsx` add `goldInvestedWentUp` to the `./historyShared`
+import, pass it at the call site — current
+`{hasGold && <GoldRowCells gold={row.gold} prevGold={prev?.gold} />}`,
+replacement
+`{hasGold && <GoldRowCells gold={row.gold} prevGold={prev?.gold} wentUp={goldInvestedWentUp(byDateDesc, i)} />}`
+— and take it as a prop. Current:
+
+```tsx
+function GoldRowCells({ gold, prevGold }: { gold?: GoldHistoryOverlay; prevGold?: GoldHistoryOverlay }) {
+  const base: React.CSSProperties = { ...td, background: GOLD_TINT }
+  const first: React.CSSProperties = { ...base, borderLeft: '2px solid var(--border)' }
+  // Rows before the first purchase (or before any price existed) carry no
+  // overlay — the whole group reads em dashes rather than fake zeros.
+  if (!gold) {
+    return (
+      <>
+        <td style={first}>—</td><td style={base}>—</td><td style={base}>—</td><td style={base}>—</td>
+      </>
+    )
+  }
+  const volColor = gold.volatility_pct === 0 ? undefined
+    : gold.volatility_pct > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  // Match the currency columns: a day the gold invested rose (a new
+  // purchase) gets the purple "new investment" tint; the P/L% cell tints
+  // by the day-over-day value move (green up / red down / blue flat).
+  const wentUp = !!prevGold && gold.invested > prevGold.invested
+```
+
+Replace with:
+
+```tsx
+function GoldRowCells({ gold, prevGold, wentUp }: { gold?: GoldHistoryOverlay; prevGold?: GoldHistoryOverlay; wentUp: boolean }) {
+  const base: React.CSSProperties = { ...td, background: GOLD_TINT }
+  const first: React.CSSProperties = { ...base, borderLeft: '2px solid var(--border)' }
+  // Rows before the first purchase (or before any price existed) carry no
+  // overlay — the whole group reads em dashes rather than fake zeros.
+  if (!gold) {
+    return (
+      <>
+        <td style={first}>—</td><td style={base}>—</td><td style={base}>—</td><td style={base}>—</td>
+      </>
+    )
+  }
+  const volColor = gold.volatility_pct === 0 ? undefined
+    : gold.volatility_pct > 0 ? 'var(--green, #16a34a)' : 'var(--red, #dc2626)'
+  // Match the currency columns: a day the gold invested rose (a new
+  // purchase, including the first) gets the purple "new investment" tint
+  // (goldInvestedWentUp); the P/L% cell tints by the day-over-day value
+  // move (green up / red down / blue flat).
+```
+
+In `HistoryPage.test.tsx`, `describe('HistoryTable gold cell tints')`,
+before `'gold cells keep the plain gold tint when nothing changed / no prior'`
+add (fails before this step):
+
+```tsx
+  it('gold invested cell is purple on the day gold first appears', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
+      row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 7300, 1) }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }), // before the first purchase
+    ]} />)
+    expect(norm(goldCells('2026-06-17')[11].style.background)).toBe('rgba(168,85,247,0.18)') // purple
+  })
+```
+
+* [ ] **Step 4: `HistoryModals.tsx`** — current signature:
 
 ```tsx
 export function EditRowModal({ row, onSubmit, onCancel }: {
@@ -503,8 +592,8 @@ Replace with:
 ```
 
 * [ ] **Verify:** `cd frontend && npx tsc -b && npx vitest run src/features/history`
-  Expected: `176 passed` (classic delete tests unchanged).
-* [ ] **Commit:** `git add frontend/src/features/history/historyShared.ts frontend/src/features/history/HistoryTable.tsx frontend/src/features/history/HistoryModals.tsx && git commit -m "✨ Allow deleting a row from the edit dialog"`
+  Expected: `177 passed` (the new first-gold test; classic delete tests unchanged).
+* [ ] **Commit:** `git add frontend/src/features/history/historyShared.ts frontend/src/features/history/HistoryTable.tsx frontend/src/features/history/HistoryModals.tsx frontend/src/features/history/HistoryPage.test.tsx && git commit -m "✨ Share delete and gold tint rules"`
 
 ### Task 3: Shared UI_2.0 primitives
 
@@ -699,7 +788,7 @@ options (January 2020 → the current trading month, long names).
 // this module only shapes them per asset group for the handoff's layout.
 import type { HistoryRow } from '../../lib/api/client'
 import {
-  CURRENCY_BY_REGION, CURRENCY_SYMBOL, MIN_YEAR, MONTHS, goldCurrentDirection, holdingRegion,
+  CURRENCY_BY_REGION, CURRENCY_SYMBOL, MIN_YEAR, MONTHS, goldCurrentDirection, goldInvestedWentUp, holdingRegion,
   regionCurrentDirection, regionDailyVolatility, regionInvestedWentUp, regionPnLPct,
   type RegionKey,
 } from '../../features/history/historyShared'
@@ -772,7 +861,7 @@ export function assetCells(newestFirst: HistoryRow[], index: number, asset: Hist
       volatility: gold ? gold.volatility_pct : null,
       pnlPct: gold ? gold.pnl_pct : null,
       direction: goldCurrentDirection(gold, prev?.gold),
-      newInvestment: !!gold && !!prev?.gold && gold.invested > prev.gold.invested,
+      newInvestment: goldInvestedWentUp(newestFirst, index),
       dividendsToDate: null,
       dividendsOnDay: 0,
       hasHoldings: false,
@@ -918,6 +1007,16 @@ describe('assetCells', () => {
     })
   })
 
+  it('marks the day gold first appears as a new investment, like a currency', () => {
+    const firstGold = [
+      row('2026-11-16', { invested: 1, current: 1 }, { gold: { invested: 500, current: 510, pnl_pct: 2, volatility_pct: 0 } }),
+      row('2026-11-15', { invested: 1, current: 1 }),
+    ]
+    expect(assetCells(firstGold, 0, 'GOLD').newInvestment).toBe(true)
+    // The oldest row has no prior row at all: no baseline, no tint.
+    expect(assetCells(firstGold.slice(0, 1), 0, 'GOLD').newInvestment).toBe(false)
+  })
+
   it('shows dashes for a day without gold', () => {
     const noGold = [row('2026-11-16', { invested: 1, current: 1 })]
     expect(assetCells(noGold, 0, 'GOLD')).toMatchObject({ invested: null, current: null, pnlPct: null, direction: null })
@@ -974,7 +1073,7 @@ describe('linePath', () => {
 ```
 
 * [ ] **Verify** (after Task 5): `cd frontend && npx vitest run src/ui2/history/historyCells.test.ts`
-  Expected: `11 passed`.
+  Expected: `12 passed`.
 * [ ] **Commit:** `git add frontend/src/ui2/history/historyCells.ts frontend/src/ui2/history/historyCells.test.ts && git commit -m "✨ Add the UI_2.0 History cell model"`
 
 ### Task 5: Charts, Month in review, Daily records
@@ -1916,7 +2015,7 @@ function AssetRowCells({ rows, index, asset, onSelect }: {
 ```
 
 * [ ] **Verify:** `cd frontend && npx tsc -b && npx vitest run src/ui2/history/historyCells.test.ts && npx eslint src/ui2`
-  Expected: no type errors; `11 passed`; no lint output.
+  Expected: no type errors; `12 passed`; no lint output.
 * [ ] **Commit:** `git add frontend/src/ui2/history/Ui2MiniChart.tsx frontend/src/ui2/history/Ui2AssetCharts.tsx frontend/src/ui2/history/Ui2MonthReview.tsx frontend/src/ui2/history/Ui2DailyRecords.tsx frontend/src/ui2/history/history.css && git commit -m "✨ Add UI_2.0 History tables and charts"`
 
 ### Task 6: Compose the page and switch it on for UI_2.0
@@ -1927,7 +2026,8 @@ function AssetRowCells({ rows, index, asset, onSelect }: {
 toolbar (‹ month select ›, Charts on top checkbox, Paste month, Add
 record), error, empty state, Month in review (only when the loaded rows
 are the selected month's, as today), then table and charts in the chosen
-order. The ‹ › buttons reuse `shiftMonth`. Dialogs are today's
+order. The ‹ › buttons reuse `shiftMonth`. A Gold filter in a month without
+gold shows All assets without forgetting the choice. Dialogs are today's
 components; Edit passes `onDelete` only under the delete rule and closes
 after a confirmed delete.
 
@@ -1976,11 +2076,14 @@ export function Ui2History({ history, canForceDelete }: {
   const atMax = year === today.year && month === today.month0
   const monthLabel = longMonthLabel(year, month)
   const hasGold = displayRows.some(row => row.gold)
-  const assets = visibleAssets(filter, hasGold)
+  // A month without gold has no Gold filter: show All assets, but keep the
+  // choice so returning to a gold month restores it.
+  const effectiveFilter: AssetFilter = filter === 'GOLD' && !hasGold ? 'ALL' : filter
+  const assets = visibleAssets(effectiveFilter, hasGold)
   const expand = (asset: HistoryAsset) => navigate(`/history/chart/${asset === 'GOLD' ? 'gold' : asset}`)
 
   const table = (
-    <Ui2DailyRecords rows={displayRows} filter={filter} onFilter={setFilter}
+    <Ui2DailyRecords rows={displayRows} filter={effectiveFilter} onFilter={setFilter}
       onEdit={row => setEditRow(row)}
       onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })} />
   )
@@ -2051,7 +2154,8 @@ export function Ui2History({ history, canForceDelete }: {
 ```
 
 Behaviour tests: ui2 renders the handoff page and other modes the classic
-one; the filter narrows groups; tints and new-investment cue; Delete in
+one; the filter narrows groups and falls back to All in a month without
+gold; tints and new-investment cue; Delete in
 Edit only for an all-manual row (or a super admin); breakdown opens;
 Charts on top reorders; month arrows load the month.
 
@@ -2205,6 +2309,30 @@ describe('UI_2.0 History page', () => {
     expect(movedTable.compareDocumentPosition(movedCharts) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
   })
 
+  it('shows All assets in a month without gold and restores Gold on return', async () => {
+    const withGold = (date: string): HistoryRow =>
+      row(date, 1000, 1100, 'cron', { gold: { invested: 500, current: 520, pnl_pct: 4, volatility_pct: 0 } })
+    mockApi.listHistory.mockImplementation(async (from: string) =>
+      list(from === '2026-11-01' ? [withGold('2026-11-13'), withGold('2026-11-16')] : [row('2026-10-15', 1000, 1100)]))
+    renderPage()
+    const table = await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    await within(table).findByRole('columnheader', { name: 'Gold · INR' })
+    fireEvent.click(screen.getByRole('button', { name: 'Gold' }))
+    expect(within(table).queryByRole('columnheader', { name: 'India · INR' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    await waitFor(() => expect(screen.getAllByText('15 Oct').length).toBeGreaterThan(0))
+    const october = screen.getByRole('table', { name: 'Daily portfolio snapshots' })
+    expect(within(october).getByRole('columnheader', { name: 'India · INR' })).toBeInTheDocument()
+    expect(within(october).getByRole('columnheader', { name: 'Europe · EUR' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'All assets' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Gold' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    await waitFor(() => expect(screen.getAllByText('16 Nov').length).toBeGreaterThan(0))
+    expect(screen.getByRole('button', { name: 'Gold' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('steps months with the arrows and loads that month', async () => {
     renderPage()
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
@@ -2267,8 +2395,8 @@ export default function HistoryPage() {
 ```
 
 * [ ] **Verify:** `cd frontend && npx tsc -b && npx vitest run src/ui2/history src/features/history && npm run lint:changed`
-  Expected: `7 passed` files, `196 passed` tests; lint clean.
-* [ ] **Verify full suite:** `cd frontend && npx vitest run` — Expected: all files pass (`86 passed` at time of writing).
+  Expected: `7 passed` files, `199 passed` tests; lint clean.
+* [ ] **Verify full suite:** `cd frontend && npx vitest run` — Expected: all files pass (`86 passed` files, `776 passed` tests at time of writing).
 * [ ] **Commit:** `git add frontend/src/ui2/history/Ui2History.tsx frontend/src/ui2/history/Ui2History.test.tsx && git commit -m "✨ Add the UI_2.0 History page"`
 
 ### Task 7: Board and registry
