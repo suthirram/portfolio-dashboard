@@ -29,6 +29,28 @@ describe('TransactionsModal numeric input', () => {
     vi.mocked(api.listTransactions).mockResolvedValue([])
   })
 
+  it('keeps the ledger context, Close and Add event outside the scrolling events', async () => {
+    vi.mocked(useUiMode).mockReturnValue('ui2')
+    vi.mocked(api.listTransactions).mockResolvedValueOnce(Array.from({ length: 14 }, (_, index) => (
+      { id: `buy-${index}`, type: 'buy', date: `2026-02-${String(index + 1).padStart(2, '0')}`, quantity: 1, amount: 10 })))
+    const onClose = vi.fn()
+    render(<TransactionsModal holding={{ ...holding, symbol: 'ITC.NS', currency: 'INR' } as HoldingWithPrice}
+      onClose={onClose} onChanged={() => {}} />)
+    const events = await screen.findByRole('region', { name: 'Transaction events' })
+    expect(screen.getByRole('dialog', { name: 'Transaction ledger' })).toBeVisible()
+    expect(screen.getByText('Holding:').parentElement).toHaveTextContent('Holding: ITC.NS')
+    expect(screen.getByText('Currency:').parentElement).toHaveTextContent('Currency: INR')
+    // However many events there are, both actions stay in the footer, out of the scroll.
+    const close = screen.getByRole('button', { name: 'Close' })
+    const add = screen.getByRole('button', { name: 'Add event' })
+    for (const button of [close, add]) {
+      expect(events.contains(button)).toBe(false)
+      expect(button.closest('.ui2-dialog-footer')).not.toBeNull()
+    }
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('lists UI_2.0 events under an empty last header with the opening note after the table', async () => {
     vi.mocked(useUiMode).mockReturnValue('ui2')
     vi.mocked(api.listTransactions).mockResolvedValueOnce([
@@ -93,7 +115,7 @@ describe('TransactionsModal numeric input', () => {
     ])
     const onChanged = vi.fn()
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={onChanged} userId="owner" />)
-    expect(screen.getByRole('dialog', { name: 'VWCE · transaction ledger' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Transaction ledger' })).toBeVisible()
     fireEvent.click(await screen.findByRole('button', { name: /Edit Split/ }))
     expect(screen.getByLabelText(/Ratio/)).toHaveValue('2')
     fireEvent.click(screen.getByRole('button', { name: 'Delete event' }))
