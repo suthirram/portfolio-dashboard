@@ -40,18 +40,15 @@ describe.skipIf(!browser)('UI_2.0 portfolio summary', () => {
         await summary.getByText('₹15,000.00', { exact: true }).waitFor()
         await summary.getByLabel('Display currency').selectOption('EUR')
         await summary.getByText('€150.00', { exact: true }).waitFor()
-        const opener = summary.getByRole('button', { name: 'View breakdown · Total portfolio value' })
+        const opener = summary.getByRole('button', { name: 'View breakdown · Portfolio value' })
         await opener.focus()
         await opener.press('Enter')
-        const dialog = page.getByRole('dialog', { name: 'Total portfolio value' })
-        await dialog.getByText(/Current ₹5,000.00/).waitFor()
+        const dialog = page.getByRole('dialog', { name: 'Invested and current value' })
+        await dialog.getByRole('row', { name: /Physical gold/ }).getByText('₹5,000.00', { exact: true }).waitFor()
         await page.keyboard.press('Escape')
         await expect.poll(() => opener.evaluate(element => element === document.activeElement)).toBe(true)
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
         expect(await page.locator('html').getAttribute('data-theme')).toBe(theme)
-        if (width === 1280 || width === 390) {
-          await page.screenshot({ path: `/private/tmp/pd059-s4-${width}-${theme}.png`, fullPage: true })
-        }
       }
     } finally { await page.close() }
   })
