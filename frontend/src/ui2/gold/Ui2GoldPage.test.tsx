@@ -130,6 +130,35 @@ describe('Ui2GoldPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add gold purchase' })).not.toBeInTheDocument())
   })
 
+  it('opens the missing-price dialog on arrival and keeps the alert after a skip', async () => {
+    vi.mocked(api.listGoldMissingDates).mockResolvedValue({ missing: ['2026-11-15', '2026-11-16'] })
+    render(<Ui2GoldPage />)
+    const dialog = await screen.findByRole('dialog', { name: 'Complete missing daily prices' })
+    expect(dialog).toHaveTextContent('2 dates are missing')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Skip for now' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('2 daily prices need attention')
+    await userEvent.click(screen.getByRole('button', { name: 'Review missing prices' }))
+    expect(screen.getByRole('dialog', { name: 'Complete missing daily prices' })).toBeInTheDocument()
+  })
+
+  it('saves the entered days and stays open on the days still missing', async () => {
+    vi.mocked(api.listGoldMissingDates)
+      .mockResolvedValueOnce({ missing: ['2026-11-15', '2026-11-16'] })
+      .mockResolvedValue({ missing: ['2026-11-16'] })
+    vi.mocked(api.putGoldPrices).mockResolvedValue(undefined)
+    render(<Ui2GoldPage />)
+    const dialog = await screen.findByRole('dialog', { name: 'Complete missing daily prices' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save entered prices' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Enter at least one known rate, or skip for now.')
+    await userEvent.type(within(dialog).getByLabelText('15-11-2026 · INR / gram'), '9400')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save entered prices' }))
+    await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([{ date: '2026-11-15', price_per_gram: 9400 }]))
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Complete missing daily prices' }))
+      .toHaveTextContent('1 date is missing'))
+    expect(screen.queryByLabelText('15-11-2026 · INR / gram')).not.toBeInTheDocument()
+  })
+
   it('shows the empty ledger row when there are no purchases', async () => {
     vi.mocked(api.listGoldTransactions).mockResolvedValue([])
     render(<Ui2GoldPage />)
