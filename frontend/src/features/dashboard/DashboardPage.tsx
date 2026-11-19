@@ -419,7 +419,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             {TAB('table', 'Holdings')}
             {(!ui2 || !actAsUserId) && TAB('charts', ui2 ? 'Performance' : 'Charts')}
           </div>
-          {tab === 'table' && (
+          {!ui2 && tab === 'table' && (
             <input
               value={filter}
               onChange={e => setFilter(e.target.value)}
@@ -452,6 +452,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
                 onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
                 xirr={xirr}
                 sectorColors={sectorColors}
+                ui2Panel={ui2}
+                searchValue={ui2 ? filter : undefined}
+                onSearch={ui2 ? setFilter : undefined}
               />
             )}
             {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
