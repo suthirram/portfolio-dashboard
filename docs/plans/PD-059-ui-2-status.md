@@ -3,6 +3,9 @@
 Shared by Claude and Codex. Spec: [PRD-015](../prds/PRD-015-ui-2.md) ·
 [DD-015](../designs/DD-015-ui-2.md) · [plan](PD-059-ui-2.md).
 
+The ordered list of remaining PRs and what blocks what is in the
+[roadmap](PD-059-roadmap.md). This board records who owns each row.
+
 ## How to use this board
 
 1. Pick an unclaimed slice whose dependencies are merged.
@@ -34,10 +37,10 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
 | 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | merged |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | Claude | `feat/PD-059-fx-refetch` | #352 | merged ([wave 4a](PD-059-wave4-fx-refetch.md)) |
-| 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #353 | in review ([wave 4a](PD-059-wave4-fx-refetch.md)) |
+| 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #353 | merged ([wave 4a](PD-059-wave4-fx-refetch.md)) |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
-| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | in review |
+| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | merged |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
 | 18 | 5 | FE | Dividends page | 2 | | | | needs amendment |
@@ -68,10 +71,10 @@ shared piece.
 
 | Component / hook | Path | Purpose / props | Added in |
 | --- | --- | --- | --- |
-| `Ui2Shell` | `frontend/src/ui2/shell/Ui2Shell.tsx` | app frame (mockup layout): sidebar nav, Appearance, account, breadcrumb | slice 2 (planned) |
-| `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (planned) |
-| `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
-| `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (planned) |
+| `Ui2Shell` | `frontend/src/ui2/shell/Ui2Shell.tsx` | app frame (mockup layout): sidebar nav, Appearance, account, breadcrumb | slice 2 (#334) |
+| `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (#334) |
+| `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (#334) |
+| `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (#334) |
 | `OverallPerformance` | `frontend/src/ui2/overview/OverallPerformance.tsx` | standalone daily overall chart; stays unmounted until Overview slices 4–7 land | slice 10 (#342) |
 | `Ui2PageIntro` | `frontend/src/ui2/shell/Ui2PageIntro.tsx` | page intro: `title`, `subtitle`, optional `actions` (handoff `.intro`) | slice 13 (#344) |
 | `primitives.css` | `frontend/src/ui2/primitives.css` | shared `.ui2-intro`, `.ui2-panel`, `.ui2-btn`, `.ui2-btn-primary`, `.ui2-table`, `.u2-positive` / `-negative` / `-muted` | slice 13 (#344) |
@@ -80,7 +83,10 @@ shared piece.
 | `Ui2Dialog` | `frontend/src/ui2/shell/Ui2Dialog.tsx` | Portalled dialog with title, onClose, wide and busy props. Uses `useDialogFocus` for stacked dialogs. | slice 14 |
 | `Ui2SummaryCards` | `frontend/src/ui2/overview/Ui2SummaryCards.tsx` | The handoff's four summary cards (value, daily movement, total P/L, dividends), rate badge and display currency, with native-currency breakdowns through `Ui2Dialog`; inputs owned by DashboardPage. Also exports `money`, `signedMoney` and `GOLD_LABEL`. | slice 4 |
 | `useHoldingLedger` | `frontend/src/features/holdings/useHoldingLedger.ts` | Shared ledger state, validation, reads and writes for both interface families. | slice 15 |
-| `Ui2HoldingLedger` | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | Holding event list and editor inside `Ui2Dialog`. | slice 15 |
+| `Ui2HoldingLedger` | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | Holding event list and editor inside `Ui2Dialog`; split layout with a fixed footer (Close / Add event), only the events scroll. | slice 15 (#354) |
+| Dialog button design | `frontend/src/ui2/dialogButtons.css` | One look for every dialog action in UI_2.0 and the older `.modal-card` modals it reaches: 44 px, 2 px border, bold, 3 px focus ring; `.ui2-btn-primary`, `.ui2-btn-danger`, `-sm` for row actions. Page-level buttons keep the handoff look. | slice 15 (#354) |
+| `Ui2Dialog` `footer` / `className` | `frontend/src/ui2/shell/Ui2Dialog.tsx` | Opt-in split layout: fixed heading and footer, scrolling body (`.ui2-dialog-split`). | slice 15 (#354) |
+| Page scroll lock | `frontend/src/lib/useDialogFocus.ts` | Locks page scroll behind any open dialog (nested-safe); with `html { overscroll-behavior: none }` for fine pointers, stops trackpad scroll moving the page. | slice 15 (#354) |
 | Dialog and form styles | `frontend/src/ui2/primitives.css` | `.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger` | slice 14 |
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
 | `Ui2Toaster` | `frontend/src/ui2/shell/Ui2Toaster.tsx` | Handoff toast: renders the newest message of the `lib/toast` queue; mounted by `Ui2Shell`, so `toast()` works in UI_2.0 | slice 12 |
