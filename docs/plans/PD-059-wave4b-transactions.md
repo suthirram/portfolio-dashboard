@@ -466,7 +466,11 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
                       </button>
                     </th>
                     {cols.impliedCost && <th scope="col">Implied price</th>}
+                    {cols.ratio && <th scope="col">Ratio</th>}
+                    {cols.realizedSeed && <th scope="col">Realised seed</th>}
+                    {cols.openingDate && <th scope="col">Opening date</th>}
                     <th scope="col">Currency</th>
+                    {cols.notes && <th scope="col">Notes</th>}
                     <th scope="col"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -493,7 +497,11 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
                         {cols.quantity && <td>{txn.quantity != null && txn.quantity !== 0 ? formatQuantity(txn.quantity) : '—'}</td>}
                         <td><strong>{money(txn.amount, currency)}</strong></td>
                         {cols.impliedCost && <td>{implied != null ? money(implied, currency) : '—'}</td>}
+                        {cols.ratio && <td>{txn.ratio != null && txn.ratio !== 0 ? txn.ratio : '—'}</td>}
+                        {cols.realizedSeed && <td>{txn.realized_seed != null && txn.realized_seed !== 0 ? money(txn.realized_seed, currency) : '—'}</td>}
+                        {cols.openingDate && <td>{txn.type === 'opening' ? (txn.opening_date ?? '—') : ''}</td>}
                         <td>{currency}</td>
+                        {cols.notes && <td>{txn.notes || '—'}</td>}
                         <td>
                           {holding && (
                             <button
@@ -534,6 +542,7 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
       {importOpen && (
         <TradeImportModal
           holdings={holdings}
+          userId={actAsUserId}
           onClose={() => setImportOpen(false)}
           onImported={() => { refresh(); setImportOpen(false) }}
         />
@@ -733,11 +742,12 @@ const open = (preview: TradeImportPreview, answers: Answers, created: string[]) 
 
 interface Props {
   holdings: Holding[]
+  userId?: string
   onClose: () => void
   onImported: () => void
 }
 
-export function Ui2TradeImport({ holdings, onClose, onImported }: Props) {
+export function Ui2TradeImport({ holdings, userId, onClose, onImported }: Props) {
   const [step, setStep] = useState<Step>('pick')
   const [text, setText] = useState('')
   const [parse, setParse] = useState<{ preview: TradeImportPreview; invalid: InvalidLine[] } | null>(null)
@@ -777,7 +787,7 @@ export function Ui2TradeImport({ holdings, onClose, onImported }: Props) {
     setError(null)
     try {
       const rows: TradeImportRow[] = parse.preview.rows.map(row => ({ ...row, ...answers }))
-      const importResult = await api.importTrades({ rows, replace: true, as_of: todayIST() })
+      const importResult = await api.importTrades({ rows, replace: true, as_of: todayIST() }, userId)
       setResult(importResult)
       setStep('result')
     } catch (err) {
@@ -883,7 +893,7 @@ export function Ui2TradeImport({ holdings, onClose, onImported }: Props) {
 
 * `frontend/src/features/transactions/TradeImportModal.tsx` (modify)
 
-The guard pattern is identical to task 4: add `useUiMode()` and return `<Ui2TradeImport>` for UI_2.0, leaving the existing Classic path untouched. The `TradeImportModal` already receives `holdings`, `onClose`, and `onImported` as props, so no interface change is needed.
+The guard pattern is identical to task 4: add `useUiMode()` and return `<Ui2TradeImport>` for UI_2.0, leaving the existing Classic path untouched. The `TradeImportModal` already receives `holdings`, `userId`, `onClose`, and `onImported` as props; the UI_2.0 guard passes all four through so act-as admins import into the viewed user's portfolio, not their own.
 
 * [ ] In `frontend/src/features/transactions/TradeImportModal.tsx`, add at the top after existing imports:
 
@@ -895,9 +905,9 @@ import { Ui2TradeImport } from '../../ui2/transactions/Ui2TradeImport'
 At the start of `TradeImportModal`'s function body:
 
 ```tsx
-export default function TradeImportModal({ holdings, onClose, onImported }: Props) {
+export default function TradeImportModal({ holdings, userId, onClose, onImported }: Props) {
   const ui2 = useUiMode() === 'ui2'
-  if (ui2) return <Ui2TradeImport holdings={holdings} onClose={onClose} onImported={onImported} />
+  if (ui2) return <Ui2TradeImport holdings={holdings} userId={userId} onClose={onClose} onImported={onImported} />
   // … rest of Classic body unchanged
 ```
 
