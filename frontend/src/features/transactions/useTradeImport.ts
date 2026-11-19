@@ -91,11 +91,14 @@ export function useTradeImport(holdings: Holding[], userId?: string): TradeImpor
   }
 
   const evaluateText = async (text: string, sourceName: string, requireDataRows: boolean) => {
-    setFileName(sourceName)
     const parsed = parseTradeCsv(text, todayIST())
+    // A header with no rows (e.g. Load example as-is) has no line to blame, so
+    // it stays on the paste step as a dialog error rather than an invalid line.
     if (requireDataRows && parsed.rows.length === 0 && parsed.total === 0 && parsed.errors.length === 0) {
-      parsed.errors.push({ line: 0, reason: 'No data rows found. Add trade rows below the header.' })
+      setError('No data rows found. Add trade rows below the header.')
+      return
     }
+    setFileName(sourceName)
     setRows(parsed.rows)
     setLocalErrors(parsed.errors)
     setSkipped(parsed.skipped)

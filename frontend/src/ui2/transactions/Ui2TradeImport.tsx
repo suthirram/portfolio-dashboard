@@ -6,6 +6,8 @@ import { TRADE_CSV_EXAMPLE_HEADER } from '../../features/transactions/tradeCsv'
 import { useTradeImport, pendingNames } from '../../features/transactions/useTradeImport'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
 
+const PREVIEW_ROW_LIMIT = 20
+
 interface Props {
   holdings: Holding[]
   userId?: string
@@ -18,10 +20,11 @@ export function Ui2TradeImport({ holdings, userId, onClose, onImported }: Props)
   const [csvText, setCsvText] = useState('')
   const [sourceName, setSourceName] = useState('')
   const previewStatusByLine = new Map<number, string>(ctrl.preview?.rows.map(row => [row.line, row.status] as const) ?? [])
-  const visiblePreviewRows = ctrl.rows.filter(row => {
+  const importableRows = ctrl.rows.filter(row => {
     const status = previewStatusByLine.get(row.line)
     return status === 'ready' || status === 'replace' || status === 'covered'
-  }).slice(0, 20)
+  })
+  const visiblePreviewRows = importableRows.slice(0, PREVIEW_ROW_LIMIT)
 
   // Escape / × / backdrop on the result step must refresh the page, same as
   // the Classic modal's useDialogFocus escape handler (PD-059 §4).
@@ -64,7 +67,7 @@ export function Ui2TradeImport({ holdings, userId, onClose, onImported }: Props)
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', margin: '16px 0' }}>
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.tsv,text/csv,text/tab-separated-values"
               aria-label="Choose CSV file"
               onChange={event => {
                 const file = event.target.files?.[0]
@@ -133,6 +136,9 @@ export function Ui2TradeImport({ holdings, userId, onClose, onImported }: Props)
                   ))}
                 </tbody>
               </table>
+              {importableRows.length > visiblePreviewRows.length && (
+                <p className="ui2-note">Showing {visiblePreviewRows.length} of {importableRows.length} rows.</p>
+              )}
             </div>
           )}
           {ctrl.preview.warnings.map((warning, index) => (

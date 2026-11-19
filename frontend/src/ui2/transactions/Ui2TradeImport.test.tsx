@@ -1,24 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Ui2TradeImport } from './Ui2TradeImport'
 import type { Holding } from '../../types'
-import { TRADE_CSV_EXAMPLE_HEADER } from '../../features/transactions/tradeCsv'
+import { TRADE_CSV_EXAMPLE_HEADER, parseTradeCsv } from '../../features/transactions/tradeCsv'
+import { api } from '../../lib/api/client'
 
 const HOLDINGS: Holding[] = [
   { id: 'h1', script: 'TCS', symbol: 'TCS.NS', currency: 'INR', exchange: 'NSE',
     stocks_owned: 10, avg_cost_price: 1000 },
 ]
 
-vi.mock('../../features/transactions/tradeCsv', async importOriginal => ({
-  ...await importOriginal<typeof import('../../features/transactions/tradeCsv')>(),
-  parseTradeCsv: (_text: string, _today: string) => ({
-    rows: [{ symbol: 'TCS.NS', type: 'buy', date: '2026-10-01', quantity: 5, amount: 5000, line: 2, status: 'ready' }],
-    errors: [],
-    skipped: [],
-    total: 1,
-  }),
-}))
+// The bare example header goes through the real parser so the "no data rows"
+// rule is exercised; anything else yields one ready row.
+vi.mock('../../features/transactions/tradeCsv', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../features/transactions/tradeCsv')>()
+  return {
+    ...actual,
+    parseTradeCsv: vi.fn((text: string, today: string) => text === actual.TRADE_CSV_EXAMPLE_HEADER
+      ? actual.parseTradeCsv(text, today)
+      : {
+          rows: [{ symbol: 'TCS.NS', type: 'buy', date: '2026-10-01', quantity: 5, amount: 5000, line: 2, status: 'ready' }],
+          errors: [],
+          skipped: [],
+          total: 1,
+        }),
+  }
+})
 
 vi.mock('../../lib/api/client', () => ({
   api: {
@@ -84,6 +92,37 @@ describe('Ui2TradeImport', () => {
     await userEvent.type(textarea, 'Stock name,Symbol,Type,Quantity,Value,Exchange,Execution date and time\nTCS,TCS.NS,BUY,5,5000,NSE,01/10/2026')
     await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
     expect(await screen.findByRole('table', { name: 'Trade preview' })).toBeInTheDocument()
+  })
+
+  it('keeps a header-only CSV on the paste step with an error', async () => {
+    render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Load example' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No data rows found. Add trade rows below the header.')
+    expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue(TRADE_CSV_EXAMPLE_HEADER)
+    expect(api.previewTradeImport).not.toHaveBeenCalled()
+  })
+
+  it('rejects pasted CSV over 1 MB without calling the server', async () => {
+    render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'CSV contents' }), { target: { value: 'x'.repeat(1024 * 1024 + 1) } })
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The CSV is larger than 1 MB — split it.')
+    expect(api.previewTradeImport).not.toHaveBeenCalled()
+  })
+
+  it('notes when the preview shows only part of the rows', async () => {
+    const manyRows = Array.from({ length: 25 }, (_, index) => (
+      { symbol: 'TCS.NS', stock_name: 'TCS', exchange: 'NSE' as const, type: 'buy' as const, date: '2026-10-01',
+        quantity: 1, amount: 100, line: index + 2, status: 'ready' as const }))
+    vi.mocked(api.previewTradeImport).mockResolvedValueOnce({
+      counts: { ready: 25, replace: 0, covered: 0, invalid: 0, total: 25 }, names: [], rows: manyRows, warnings: [],
+    })
+    vi.mocked(parseTradeCsv).mockReturnValueOnce({ rows: manyRows, errors: [], skipped: [], total: 25 })
+    render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
+    await userEvent.type(screen.getByRole('textbox', { name: 'CSV contents' }), 'rows')
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    expect(await screen.findByText('Showing 20 of 25 rows.')).toBeInTheDocument()
   })
 
   it('calls onImported after successful import', async () => {
