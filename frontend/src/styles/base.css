@@ -55,6 +55,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* A trackpad's two-finger scroll must not rubber-band the page at its edges
+ * (the content bounces while the fixed sidebar and dialogs stay put) nor swipe
+ * the browser back. Only for fine pointers: touch keeps pull-to-refresh. */
+@media (pointer: fine) {
+  html { overscroll-behavior: none; }
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
