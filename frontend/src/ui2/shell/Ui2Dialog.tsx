@@ -11,6 +11,7 @@ import { useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import '../primitives.css'
+import '../dialogButtons.css'
 
 export function Ui2Dialog({ title, onClose, children, wide = false, busy = false, footer, className }: {
   title: string

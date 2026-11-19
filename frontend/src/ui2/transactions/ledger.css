@@ -40,8 +40,8 @@
 
 :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td { padding: 8px 15px; }
 
-/* Compact row action, so more events fit before the list scrolls. */
-:root[data-ui="ui2"] .u2-ledger-scroll .ui2-btn { padding: 6px 12px; }
+/* The row action is the shared compact size (.ui2-btn-sm), so more events fit
+ * before the list scrolls. */
 
 :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { min-width: 30rem; }
 
@@ -55,12 +55,12 @@
   :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td:first-child { padding-left: 8px; }
   :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th:last-child,
   :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td:last-child { padding-right: 6px; }
-  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-btn { padding: 5px 8px; font-size: 11px; }
+  :root[data-ui="ui2"] .u2-ledger-dialog .u2-ledger-scroll .ui2-btn-sm { padding: 5px 8px; font-size: 11px; }
 }
 
 @media (max-width: 380px) {
   :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { font-size: 10px; }
-  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-btn { font-size: 10px; }
+  :root[data-ui="ui2"] .u2-ledger-dialog .u2-ledger-scroll .ui2-btn-sm { font-size: 10px; }
 }
 
 :root[data-ui="ui2"] .u2-ledger-empty {
@@ -78,10 +78,9 @@
   line-height: 1.6;
 }
 
-/* Close and Add event are one identical pair: same width and height (grid
- * columns share the widest), a 44 px touch target, a boundary visible on its
- * own (the 1px hairline of .ui2-btn is too faint to count as one), and a focus
- * ring held off the fill by a gap so it still shows on the blue button. */
+/* Close and Add event are one identical pair: grid columns share the widest, so
+ * both have the same width and height. Their look is the shared dialog button
+ * design (../dialogButtons.css). */
 :root[data-ui="ui2"] .u2-ledger-footer-actions {
   display: grid;
   flex: none;
@@ -89,30 +88,6 @@
   grid-auto-columns: minmax(120px, 1fr);
   gap: 12px;
   margin-left: auto;
-}
-
-:root[data-ui="ui2"] .u2-ledger-footer-actions .ui2-btn {
-  min-height: 44px;
-  padding: 10px 22px;
-  border-width: 2px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-:root[data-ui="ui2"] .u2-ledger-footer-actions .ui2-btn:not(.ui2-btn-primary) {
-  border-color: var(--u2-muted);
-  color: var(--u2-text);
-}
-
-:root[data-ui="ui2"] .u2-ledger-footer-actions .ui2-btn:not(.ui2-btn-primary):hover:not(:disabled) {
-  background: var(--u2-accentsoft);
-}
-
-:root[data-ui="ui2"] .u2-ledger-footer-actions .ui2-btn-primary:hover:not(:disabled) { filter: brightness(.9); }
-
-:root[data-ui="ui2"] .u2-ledger-footer-actions .ui2-btn:focus-visible {
-  outline: 3px solid var(--u2-accent);
-  outline-offset: 3px;
 }
 
 @media (max-width: 560px) {

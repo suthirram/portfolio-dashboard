@@ -72,7 +72,7 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
           <tr key={transaction.id}>
             <td>{transaction.date ? formatDate(transaction.date) : '—'}</td><td>{(TYPE_LABEL[transaction.type || ''] || transaction.type)}</td>
             <td>{formatQuantity(transaction.quantity)}</td><td>{money(transaction.amount)}</td>
-            <td><button className="ui2-btn" onClick={() => { startEdit(transaction); setEditor(true) }}
+            <td><button className="ui2-btn ui2-btn-sm" onClick={() => { startEdit(transaction); setEditor(true) }}
               aria-label={`Edit ${(TYPE_LABEL[transaction.type || ''] || transaction.type)} on ${transaction.date ? formatDate(transaction.date) : 'unknown date'}`}>Edit</button></td>
           </tr>)}</tbody>
         </table>

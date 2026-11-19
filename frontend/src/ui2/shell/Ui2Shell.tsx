@@ -5,6 +5,8 @@ import { useTheme, type ThemeName } from '../../lib/useTheme'
 import { navItems, type NavItem } from '../../components/shell/navItems'
 import '../ui2.css'
 import '../cyberEntrance.css'
+// Dialog buttons, including the older modals a UI_2.0 account still reaches.
+import '../dialogButtons.css'
 import { useCyberEntrance } from './useCyberEntrance'
 import { Ui2Toaster } from './Ui2Toaster'
 

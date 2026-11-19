@@ -187,8 +187,8 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')}
                     onBlur={() => setPreviewSymbol(form.symbol)} placeholder="e.g. TCS.NS, AAPL" />
-                  <button type="button" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
-                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '0 10px', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap' }}>
+                  <button type="button" className="btn btn-sm" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
+                    style={{ alignSelf: 'stretch' }}>
                     {lookupLoading ? '…' : 'Test'}
                   </button>
                 </div>
