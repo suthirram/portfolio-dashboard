@@ -433,9 +433,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
         </div>
 
-        <div className={ui2 ? 'u2-workspace' : undefined} role={ui2 ? 'tabpanel' : undefined}
-          aria-labelledby={ui2 ? `dashboard-${tab}-tab` : undefined} tabIndex={ui2 ? 0 : undefined}>
-          <div>
+        <div className={ui2 ? 'u2-workspace' : undefined}>
+          <div role={ui2 ? 'tabpanel' : undefined} aria-labelledby={ui2 ? `dashboard-${tab}-tab` : undefined}
+            tabIndex={ui2 ? 0 : undefined}>
             {(tab === 'table' || (ui2 && actAsUserId)) && (
               <HoldingsByCurrency
                 renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}

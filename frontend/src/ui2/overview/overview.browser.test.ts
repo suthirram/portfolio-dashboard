@@ -12,7 +12,7 @@ describe.skipIf(!browser)('Overview at the handoff widths', () => {
     try {
       const holdings = [{ id: 'one', script: 'Example', symbol: 'EX.NS', currency: 'INR', current_price: 100,
         stocks_owned: 1, current_value: 100, avg_cost_price: 50, cost_price: 50, unrealized_pnl: 50 }]
-      await page.route((url: URL) => url.pathname.startsWith('/api/'), (route: { request: () => { url: () => string }; fulfill: (options: { json: unknown }) => Promise<void> }) => {
+      await page.route((url: URL) => url.pathname.startsWith('/api/'), route => {
         const path = new URL(route.request().url()).pathname
         const replies: Record<string, unknown> = {
           '/api/auth/me': { id: 'owner', username: 'owner', name: 'Owner', ui_mode: 'ui2', role: 'user' },
@@ -22,7 +22,7 @@ describe.skipIf(!browser)('Overview at the handoff widths', () => {
         }
         return route.fulfill({ json: replies[path] ?? [] })
       })
-      await page.route('https://fonts.googleapis.com/**', (route: { fulfill: (options: { contentType: string; body: string }) => Promise<void> }) => route.fulfill({ contentType: 'text/css', body: '' }))
+      await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }))
       await page.goto(fixture.baseUrl, { waitUntil: 'domcontentloaded' })
       const opener = page.getByRole('table', { name: 'Holdings' }).getByRole('button', { name: 'Example' })
       await opener.focus()

@@ -232,8 +232,8 @@
 :root[data-ui="ui2"] .u2-mix-eyebrow { color: var(--u2-accent); font-size: .5625rem; font-weight: 700; letter-spacing: .06rem; text-transform: uppercase; }
 :root[data-ui="ui2"] .u2-currency-mix h2 { margin-top: .55rem; }
 :root[data-ui="ui2"] .u2-mix-bar { display: flex; height: .3125rem; margin: 1rem 0 .75rem; overflow: hidden; border-radius: .2rem; background: var(--u2-border); }
-:root[data-ui="ui2"] .u2-mix-bar span:first-child { background: #e8b66a; }
-:root[data-ui="ui2"] .u2-mix-bar span:last-child { background: #6678e6; }
+:root[data-ui="ui2"] .u2-mix-bar span:first-child { background: var(--yellow); }
+:root[data-ui="ui2"] .u2-mix-bar span:last-child { background: var(--blue); }
 :root[data-ui="ui2"] .u2-mix-values { display: flex; justify-content: space-between; font-size: .625rem; }
 :root[data-ui="ui2"] .u2-currency-mix p { color: var(--u2-muted); font-size: .6875rem; line-height: 1.8; }
 :root[data-ui="ui2"] .u2-allocation-entry:focus-visible { outline: 3px solid var(--u2-accent); outline-offset: 2px; }
