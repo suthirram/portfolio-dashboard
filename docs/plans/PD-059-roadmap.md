@@ -31,12 +31,11 @@ test that fails without the change).
 
 ## Where we are
 
-Merged: shell and picker (1–2), cyber entrance (3), Overview summary (4),
+Merged: shell and picker (1–2), cyber entrance (3), Overview (4–7),
 `portfolio_overall` data and backfill command (8, 9a), overall chart component
 (10), exchange-rate re-fetch (11–12), History page and dialogs (13–14), ledger
-dialog (15). The Overview still lacks grouped holdings, holding details and the
-allocation panel, and every other page (Transactions, Dividends, Gold, admin,
-profile, auth) still renders its Classic page inside the UI_2.0 shell.
+dialog (15), Transactions page (16, #364), and trade import (17, #366).
+Dividends, Gold, admin, profile and auth still need their UI_2.0 pages.
 
 ## The steps
 
@@ -47,15 +46,15 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | --- | --- | --- | --- | --- |
 | R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | merged (#359) |
 | R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | merged (#362) |
-| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | ready |
+| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | in progress (Codex; board #28) |
 | R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | ready |
 | R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens, delta sub-route (22–27) | — | ready |
 | R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | ready |
 | R07 | FE | Guard the History table against page-width overflow (`position: relative`, browser test at 390 / 768 px) | — | merged (#361) |
 | R08 | FE | Holding details: costs, income, XIRR, and the existing holding, opening-date and review forms (6) | R01 | merged (#359) |
 | R09 | FE | Overview allocation, Currency mix, Holdings / Performance tabs, sector jump (OVW-1), mount `OverallPerformance` (7) | R01, R08 | merged (#360) |
-| R10 | FE | Transactions page (16) | R02 | blocked |
-| R11 | FE | Trade import: upload, paste, example (17) | R10 | blocked |
+| R10 | FE | Transactions page (16) | R02 | merged (#364) |
+| R11 | FE | Trade import: upload, paste, example (17) | R10 | merged (#366) |
 | R12 | FE | Dividends page (18) | R03 | blocked |
 | R13 | FE | Dividend import: upload, paste, example (19) | R12 | blocked |
 | R14 | FE | Gold table (15 columns), Details, modal, metrics (20) | R04 | blocked |

@@ -1,6 +1,6 @@
 # PD-059: Wave 4b — Transactions page and trade import (slices 16–17)
 
-* **Status**: Amendment in progress (this doc).
+* **Status**: Amendment merged as #362; implementation slices 16 and 17 merged as #364 and #366.
 * **Updated**: 2026-11-19
 * **Owner**: Claude
 * **Goal**: Render the portfolio-wide ledger view and the Groww CSV trade import in the UI_2.0 shell, reusing all existing pure logic (filters, sort, pagination, CSV parsing) and replacing only the shell and styling layer.
@@ -1051,37 +1051,12 @@ Expected: no errors.
 
 * `docs/plans/PD-059-ui-2-status.md` (modify)
 
-Claim slices 16 and 17, one at a time as each PR merges.
+Both implementation PRs have merged: #364 delivered slice 16 and #366 delivered slice 17. Their status-board rows are marked merged.
 
-* [ ] Update slice 16 row in `PD-059-ui-2-status.md`:
-
-Current:
-
-```
-| 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
-```
-
-Replacement:
-
-```
-| 16 | 4 | FE | Transactions page | 15 | Claude | `feat/PD-059-transactions-page` | | in progress ([wave 4b](PD-059-wave4b-transactions.md)) |
-```
-
-* [ ] Update slice 17 row:
-
-Current:
-
-```
-| 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
-```
-
-Replacement:
-
-```
-| 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | | plan merged; not started ([wave 4b](PD-059-wave4b-transactions.md)) |
-```
-
-* [ ] Commit: `git add docs/plans/PD-059-ui-2-status.md docs/plans/PD-059-wave4b-transactions.md`
+* [x] Confirm slice 16 is merged as #364.
+* [x] Confirm slice 17 is merged as #366.
+* [x] Record both merge states on the status board.
+* [x] Commit the status update on the Wave 5a planning branch.
 
 ---
 
@@ -1102,8 +1077,8 @@ Classic and Glass accounts never see `Ui2TransactionsPage` or `Ui2TradeImport`.
 
 ## Done
 
-* [ ] `feat/PD-059-transactions-page` merged → slice 16 live
-* [ ] `feat/PD-059-trade-import` merged → slice 17 live
-* [ ] Status board updated with PR numbers and "merged" state
+* [x] `feat/PD-059-transactions-page` merged as #364 → slice 16 live.
+* [x] `feat/PD-059-trade-import` merged as #366 → slice 17 live.
+* [x] Status board updated with PR numbers and "merged" state.
 
-**Next:** slice 18 — Dividends page (depends on this docs PR merging).
+**Next:** Wave 5a plan amendment (roadmap R03) is in progress on `docs/PD-059-wave5a-dividends`. Slice 18 — Dividends page — follows after that plan merges.

@@ -41,8 +41,8 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 13 | 3 | FE | History page and responsive table overflow fix ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344, #361 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
 | 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | merged |
-| 16 | 4 | FE | Transactions page | 15 | Claude | `feat/PD-059-transactions-page` | #362 (plan) | plan merged; not started ([wave 4b](PD-059-wave4b-transactions.md)) |
-| 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | #362 (plan) | plan merged; not started ([wave 4b](PD-059-wave4b-transactions.md)) |
+| 16 | 4 | FE | Transactions page | 15 | Claude | `feat/PD-059-transactions-page` | #364 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
+| 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | #366 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
 | 18 | 5 | FE | Dividends page | 2 | | | | needs amendment |
 | 19 | 5 | FE | Dividend import: upload, paste, example | 18 | | | | needs amendment |
 | 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2 | | | | needs amendment |
@@ -53,6 +53,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 25 | 6 | FE | Profile | 2 | | | | needs amendment |
 | 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | | | | needs amendment |
 | 27 | 6 | FE | Investment delta → sub-route (tentative) | 16 | | | | needs amendment |
+| 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Codex | `docs/PD-059-wave5a-dividends` | #369 | in progress |
 
 "needs amendment" = its wave's plan-amendment docs PR (complete code) must
 merge before the slice starts.
