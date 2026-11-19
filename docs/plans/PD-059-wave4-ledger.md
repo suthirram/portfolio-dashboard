@@ -1,6 +1,6 @@
 # PD-059: Wave 4 holding ledger dialog (slice 15)
 
-* **Status**: Review updates complete, ready for merge.
+* **Status**: Amendment merged as #350; slice 15 implementation is in review as #354.
 * **Updated**: 2026-11-19
 * **Owner**: Codex
 * **Goal**: Open a holding’s dated ledger from Overview or Transactions in UI_2.0. Add, edit and delete individual events, including corrections to an existing opening and its realised seed.
@@ -1702,7 +1702,7 @@ it('shows a clear error for an invalid Yahoo symbol', async () => {
 (cd frontend && npm run lint:changed && REQUIRE_BROWSER_TESTS=1 npm run test:run && npm run build)
 ```
 
-Expected: ESLint exits zero. The full Vitest suite reports 89 files and 806 tests passed, and the production build succeeds.
+Expected: ESLint exits zero. The full Vitest suite and production build pass.
 
 * [ ] Using the [dev runbook](../../.claude/skills/run-app/SKILL.md), open a UI_2.0 ledger from both Overview and Transactions. At desktop and phone widths, check focus, Escape and scrolling in Light, Dark and Cyber.
 * [ ] Add a buy, adjust the computed cash total for fees, save, then edit its notes. Confirm the holding refreshes. Enter Shares `1` and Total amount `1,2,3` on an empty ledger. Cancel the error and check the empty list and the next Add event.
@@ -1713,8 +1713,8 @@ Expected: ESLint exits zero. The full Vitest suite reports 89 files and 806 test
 ## 6. Done and next
 
 * [x] Specify the complete implementation and behavioral tests inline.
-* [x] Verified the final code in a scratch checkout: TypeScript, ESLint, 18 focused tests, 806 full-suite tests and production build pass.
-* [ ] Merge the amendment and ship slice 15 through its frontend PR.
+* [x] Verified the plan in a scratch checkout. The implementation branch passed TypeScript, ESLint, the focused ledger and symbol tests, the full browser suite and the production build.
+* [x] Merge the amendment as #350 and open slice 15 implementation PR #354.
 * [ ] Record dev-stack verification on the board.
 
 **Next:** Slice 16 consumes the shared ledger from the Transactions page.

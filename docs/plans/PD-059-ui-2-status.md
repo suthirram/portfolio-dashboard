@@ -37,7 +37,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #351 (plan) | plan merged; starts when slice 11 merges ([wave 4a](PD-059-wave4-fx-refetch.md)) |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
-| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #350 | plan amendment in review |
+| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | implementation in review (#350 plan merged) |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
 | 18 | 5 | FE | Dividends page | 2 | | | | needs amendment |
@@ -76,6 +76,8 @@ shared piece.
 | `useHistoryMonth` | `frontend/src/features/history/useHistoryMonth.ts` | History month data and actions for both interfaces | slice 13 (#344) |
 | `Ui2MiniChart` | `frontend/src/ui2/history/Ui2MiniChart.tsx` | handoff SVG mini chart; `linePath` gap-aware path | slice 13 (#344) |
 | `Ui2Dialog` | `frontend/src/ui2/shell/Ui2Dialog.tsx` | Portalled dialog with title, onClose, wide and busy props. Uses `useDialogFocus` for stacked dialogs. | slice 14 |
+| `useHoldingLedger` | `frontend/src/features/holdings/useHoldingLedger.ts` | Shared ledger state, validation, reads and writes for both interface families. | slice 15 |
+| `Ui2HoldingLedger` | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | Holding event list and editor inside `Ui2Dialog`. | slice 15 |
 | Dialog and form styles | `frontend/src/ui2/primitives.css` | `.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger` | slice 14 |
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
 
