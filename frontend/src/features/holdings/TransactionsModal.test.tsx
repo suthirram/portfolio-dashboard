@@ -176,7 +176,7 @@ describe('TransactionsModal numeric input', () => {
     ])
     let finishDelete!: () => void
     vi.mocked(api.deleteTransaction).mockImplementationOnce(() => new Promise(resolve => {
-      finishDelete = () => resolve(undefined)
+      finishDelete = () => resolve({})
     }))
     const onClose = vi.fn()
     render(<TransactionsModal holding={holding} onClose={onClose} onChanged={() => {}} />)
