@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import type React from 'react'
 import type { HoldingWithPrice } from '../../types'
 import HoldingsTable from './HoldingsTable'
 import { filterByView, viewCounts, type HoldingView } from './holdingViews'
@@ -14,6 +15,7 @@ import { SectorColorsContext, type SectorColorMap } from './sectorColors'
 export type HoldingsLayout = 'holding' | 'sector'
 
 interface Props {
+  renderRows?: (rows: HoldingWithPrice[]) => React.ReactNode
   holdings: HoldingWithPreviousClose[]
   loading: boolean
   onEdit: (holding: HoldingWithPrice) => void
@@ -51,7 +53,7 @@ const fmt = (amount: number, sym: string) => {
 }
 
 
-export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, xirr, searchActive = false,
+export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete, onTransactions, renderRows, xirr, searchActive = false,
   view: viewProp, onViewChange, layout: layoutProp, onLayoutChange, sectorTarget, onSectorTargetHandled, sectorColors }: Props) {
   const [internalView, setInternalView] = useState<HoldingView>('active')
   const [internalLayout, setInternalLayout] = useState<HoldingsLayout>('holding')
@@ -175,7 +177,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               )}
             </div>
 
-            {layout === 'holding' ? <HoldingsTable
+            {layout === 'holding' ? (renderRows ? renderRows(group.holdings) : <HoldingsTable
               holdings={group.holdings}
               loading={loading}
               onEdit={onEdit}
@@ -186,7 +188,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
               xirr={xirr}
               totalXirr={bucket ?? null}
               totalLabel={searchActive ? 'VISIBLE TOTAL' : 'TOTAL'}
-            /> : groupBySector(group.holdings).map(sector => {
+            />) : groupBySector(group.holdings).map(sector => {
               const subtotal = sumTotals(sector.holdings)
               const current = nativeView(group.currency, subtotal.value, subtotal.valueEur).primary
               const sectionId = sectorSectionId(group.currency, sector.key)
@@ -195,9 +197,9 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
                   <span><span aria-hidden="true" className="sector-dot" style={{ background: colors?.get(sector.key) ?? sector.color }} />{sector.label}</span>
                   <span className="sector-group-meta">{sector.holdings.length} {sector.holdings.length === 1 ? 'holding' : 'holdings'} · {fmt(current, nativeSym)} current value</span>
                 </h3>
-                <HoldingsTable holdings={sector.holdings} loading={loading} onEdit={onEdit} onDelete={onDelete}
+                {renderRows ? renderRows(sector.holdings) : <HoldingsTable holdings={sector.holdings} loading={loading} onEdit={onEdit} onDelete={onDelete}
                   onTransactions={onTransactions} view="all" nativeCurrency={group.currency === 'EUR' ? 'EUR' : 'INR'}
-                  xirr={xirr} totalXirr={null} totalLabel={`${sector.label} subtotal${searchActive ? ' (visible selection)' : ''}`} />
+                  xirr={xirr} totalXirr={null} totalLabel={`${sector.label} subtotal${searchActive ? ' (visible selection)' : ''}`} />}
               </div>
             })}
           </section>

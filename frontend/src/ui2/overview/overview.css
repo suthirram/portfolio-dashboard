@@ -209,6 +209,86 @@
   :root[data-ui="ui2"] .u2-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* Holdings table (slice 5). */
+:root[data-ui="ui2"] .u2-holdings { max-width: 100%; overflow-x: auto; }
+
+:root[data-ui="ui2"] .u2-holding { display: flex; align-items: center; gap: 9px; }
+
+:root[data-ui="ui2"] .u2-stock-icon {
+  width: 31px;
+  height: 31px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font: 700 9px var(--u2-font-display);
+  letter-spacing: .3px;
+}
+
+:root[data-ui="ui2"] .u2-holding-name {
+  display: block;
+  border: 0;
+  background: none;
+  padding: 3px 0;
+  color: var(--u2-text);
+  font: 700 11px var(--u2-font);
+  text-align: start;
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .u2-holding-name:hover { text-decoration: underline; }
+
+:root[data-ui="ui2"] .u2-holding-name:focus-visible {
+  outline: 2px solid var(--u2-accent);
+  border-radius: 2px;
+  outline-offset: 2px;
+}
+
+:root[data-ui="ui2"] .u2-holding small {
+  display: block;
+  color: var(--u2-muted);
+  font-size: 9px;
+  margin-top: 4px;
+}
+
+:root[data-ui="ui2"] .u2-price-pos { color: var(--u2-green); font-weight: 600; }
+:root[data-ui="ui2"] .u2-price-neg { color: var(--u2-red); font-weight: 600; }
+:root[data-ui="ui2"] .u2-price-neutral { color: var(--u2-accent); font-weight: 600; }
+
+:root[data-ui="ui2"] .u2-holding-row { cursor: pointer; }
+:root[data-ui="ui2"] .u2-holding-row:hover { background: var(--u2-accentsoft); }
+
+:root[data-ui="ui2"] .u2-holdings .ui2-table th:first-child,
+:root[data-ui="ui2"] .u2-holdings .ui2-table td:first-child { text-align: start; padding-left: 18px; }
+
+:root[data-ui="ui2"] .u2-holdings .ui2-table td small { display: block; }
+
+@media (max-width: 760px) {
+  :root[data-ui="ui2"] .u2-holdings thead { display: none; }
+  :root[data-ui="ui2"] .u2-holdings tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--u2-border);
+    gap: 13px 8px;
+  }
+  :root[data-ui="ui2"] .u2-holdings td {
+    border: 0;
+    padding: 0;
+    text-align: start;
+    white-space: normal;
+  }
+  :root[data-ui="ui2"] .u2-holdings td:first-child { grid-column: 1 / -1; padding: 0 35px 5px 0; }
+  :root[data-ui="ui2"] .u2-holdings td:not(:first-child)::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--u2-muted);
+    font-size: 9px;
+    margin-bottom: 5px;
+  }
+}
+
 @media (max-width: 760px) {
   /* The handoff keeps only the icon on a phone; the button keeps its aria-label. */
   :root[data-ui="ui2"] .u2-refresh-text { display: none; }
