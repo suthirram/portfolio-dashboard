@@ -5,7 +5,7 @@ import { formatDayMonthName } from '../../lib/formDates'
 import {
   PERFORMANCE_COLUMN_SYMBOL, fmtSignedCurrency, periodPerformance, type PeriodPerformance,
 } from '../../features/history/historyShared'
-import { ASSET_LABELS, signedPercent } from './historyCells'
+import { ASSET_LABELS, signedFixed, signedPercent } from './historyCells'
 
 const tone = (value: number | null) => value === null ? '' : value > 0 ? 'u2-positive' : value < 0 ? 'u2-negative' : ''
 
@@ -18,7 +18,7 @@ const METRICS: {
 }[] = [
   { label: 'Opening P/L', value: perf => perf.openingPnlPct, text: signedPercent },
   { label: 'Closing P/L', value: perf => perf.closingPnlPct, text: signedPercent },
-  { label: 'P/L change', value: perf => perf.pnlChangePp, text: value => signedPercent(value).replace('%', ' pp') },
+  { label: 'P/L change', value: perf => perf.pnlChangePp, text: value => `${signedFixed(value)} pp` },
   {
     label: 'Investment delta',
     value: perf => perf.moneyInvested,

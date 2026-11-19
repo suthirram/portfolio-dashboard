@@ -113,10 +113,16 @@ export function rowSource(row: HistoryRow): string {
   return 'Daily snapshot'
 }
 
-// signedPercent renders "+1.24%" / "−1.01%" (U+2212, like the handoff).
-export function signedPercent(value: number): string {
+// signedFixed renders a value to 2 dp with an explicit sign and a U+2212
+// minus, like the handoff: "+1.24" / "−1.01" / "0.00".
+export function signedFixed(value: number): string {
   const sign = value > 0 ? '+' : value < 0 ? '−' : ''
-  return `${sign}${Math.abs(value).toFixed(2)}%`
+  return `${sign}${Math.abs(value).toFixed(2)}`
+}
+
+// signedPercent renders "+1.24%" / "−1.01%".
+export function signedPercent(value: number): string {
+  return `${signedFixed(value)}%`
 }
 
 export interface MonthOption {

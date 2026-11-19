@@ -4,7 +4,7 @@ import {
   regionDailyVolatility, regionPnLPct,
 } from '../../features/history/historyShared'
 import {
-  assetCells, longMonthLabel, monthOptions, rowSource, signedPercent, visibleAssets,
+  assetCells, longMonthLabel, monthOptions, rowSource, signedFixed, signedPercent, visibleAssets,
 } from './historyCells'
 import { linePath } from './Ui2MiniChart'
 
@@ -109,6 +109,7 @@ describe('formatting', () => {
     expect(signedPercent(1.236)).toBe('+1.24%')
     expect(signedPercent(-1.01)).toBe('−1.01%')
     expect(signedPercent(0)).toBe('0.00%')
+    expect(signedFixed(-0.234)).toBe('−0.23')
   })
 
   it('lists every month from January 2020 to the current month', () => {
