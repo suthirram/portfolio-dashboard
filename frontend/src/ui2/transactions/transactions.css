@@ -43,6 +43,7 @@
 /* Filters panel */
 :root[data-ui="ui2"] .u2-tx-filters {
   display: flex;
+  container: tx-filters / inline-size;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
@@ -136,10 +137,16 @@
   gap: 8px;
 }
 
-@media (max-width: 760px) {
-  :root[data-ui="ui2"] .u2-tx-filters { padding: 14px; }
+@container tx-filters (inline-size < 620px) {
   :root[data-ui="ui2"] .u2-tx-filters select { flex: 1 1 130px; }
   :root[data-ui="ui2"] .u2-tx-filter-label { flex: 1 1 150px; }
   :root[data-ui="ui2"] .u2-tx-filter-label input[type="date"] { flex: 1; }
+}
+
+@media (pointer: coarse) {
+  :root[data-ui="ui2"] .u2-tx-filters :is(input, select, button) { min-block-size: 44px; }
+}
+
+@media (max-width: 760px) {
   :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
 }
