@@ -43,7 +43,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | merged |
 | 16 | 4 | FE | Transactions page | 15 | Claude | `feat/PD-059-transactions-page` | #364 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | #366 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
-| 18 | 5 | FE | Dividends page | 2 | Claude | `feat/PD-059-dividends-page` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
+| 18 | 5 | FE | Dividends page | 2 | Claude | `feat/PD-059-dividends-page` | #373 | in review ([wave 5a](PD-059-wave5a-dividends.md)) |
 | 19 | 5 | FE | Dividend import: upload, paste, example | 18 | Claude | `feat/PD-059-dividend-import` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
 | 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2 | | | | needs amendment |
 | 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | | | | needs amendment |
