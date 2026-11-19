@@ -210,7 +210,13 @@
 }
 
 /* Workspace grid and allocation panel (slice 7). */
+/* ui2-main already carries 36px side padding; remove page-main's extra 28px
+   so the workspace reaches edge-to-edge inside ui2-main. */
+:root[data-ui="ui2"] .page-art-dashboard .page-main { padding-inline: 0; }
 :root[data-ui="ui2"] .u2-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); gap: 1rem; align-items: start; }
+/* Match app-wide panel padding (same as .u2-summary-card: 21px 19px). */
+:root[data-ui="ui2"] .u2-allocation-panel { padding: 1.3125rem 1.1875rem; }
+:root[data-ui="ui2"] .u2-currency-mix { padding: 1.3125rem 1.1875rem; }
 :root[data-ui="ui2"] .u2-overview-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--u2-border); }
 :root[data-ui="ui2"] .u2-overview-tab { border: 0; border-bottom: 2px solid transparent; background: none; padding: 0 0 .75rem; color: var(--u2-muted); font-size: .8125rem; font-weight: 600; }
 :root[data-ui="ui2"] .u2-overview-tab[aria-selected="true"] { border-bottom-color: var(--u2-accent); color: var(--u2-accent); }
