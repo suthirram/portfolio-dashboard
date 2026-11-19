@@ -45,8 +45,8 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | #366 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
 | 18 | 5 | FE | Dividends page | 2 | Claude | `feat/PD-059-dividends-page` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
 | 19 | 5 | FE | Dividend import: upload, paste, example | 18 | Claude | `feat/PD-059-dividend-import` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
-| 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2, 18 | Claude | `feat/PD-059-gold-page` | | plan in review ([wave 5b](PD-059-wave5b-gold.md)) |
-| 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | Claude | `feat/PD-059-gold-prices` | | plan in review ([wave 5b](PD-059-wave5b-gold.md)) |
+| 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2, 18 | Claude | `feat/PD-059-gold-page` | #376 | in review, stacked on #373; plan #375 ([wave 5b](PD-059-wave5b-gold.md)) |
+| 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | Claude | `feat/PD-059-gold-prices` | #377 | in review, stacked on #376; plan #375 ([wave 5b](PD-059-wave5b-gold.md)) |
 | 22 | 6 | FE | Act-as in UI_2.0 | 2 | | | | needs amendment |
 | 23 | 6 | FE | Admin user list + detail | 2 | | | | needs amendment |
 | 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | | | | needs amendment |
