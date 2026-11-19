@@ -135,7 +135,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   useEffect(() => {
     if (previousOwner.current !== actAsUserId) {
       setReviewQueue(null); setModal(null); setSectorTarget(null)
-      setPositionView('active'); setHoldingsLayout('holding')
+      setPositionView('active'); setHoldingsLayout('holding'); setSelection(null)
     }
     previousOwner.current = actAsUserId
   }, [actAsUserId])
