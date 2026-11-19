@@ -165,6 +165,15 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   the toast only when all heal; Not now hides the notice until the app
   reloads; the dialog lists the 10 most recent dates and "and N more".
 
+## Owner decisions log (2026-11-19, Overview allocation)
+
+* OVW-1 (slice 7): UI_2.0 keeps Classic's sector jump. In the allocation's
+  **Sector** view each entry is selectable and opens Holdings grouped by
+  that sector, scrolled to and focused on its heading; Holding and Currency
+  entries stay static. The handoff reference (`docs/visuals/
+  PD-059-ui-2-reference.html`, same as `handoff/design.html`) was updated to
+  show it at the owner's request.
+
 ## Open questions
 
 Use the template; never pre-fill the owner's answer.
@@ -201,6 +210,8 @@ Options and consequences: (a) informational only, as in the handoff: no
   selectable: new unmocked behaviour for holding and currency.
 Independent work that can continue: everything else in slice 7; entries
   stay informational in the plan until the owner decides.
-Owner response (exact):
-Status: awaiting owner
+Owner response (exact): "go with b also update the handoff design
+  accordingly and give the link to the hosted view" (2026-11-19)
+Status: approved (option b; in the wave 2 plan and the updated handoff;
+  implemented with slice 7)
 ```
