@@ -14,6 +14,7 @@ entry or update the relevant one before handoff, including unresolved work.
 * [Reopening review restores a cleared stock sector](holding-classification-review.md)
 * [CodeQL flags Yahoo profile requests for request forgery](yahoo-profile-request-forgery.md)
 * [Sector colours repeat across categories](sector-colors-repeat.md)
+* [Ledger validation after Cancel or a cleared date](ledger-validation.md)
 
 ## Writing an entry
 
