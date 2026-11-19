@@ -63,6 +63,7 @@ export type GoldPrice = Schemas['GoldPrice']
 export type GoldMetrics = Schemas['GoldMetrics']
 export type OverallPoint = Schemas['OverallPoint']
 export type OverallHistory = Schemas['OverallHistory']
+export type FxDates = Schemas['FxDates']
 
 const BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
@@ -201,6 +202,8 @@ export const api = {
   patchHistoryRegions:(date: string, body: PatchHistoryRegionsInput) => request<HistoryRow>('PUT', `/history/${date}/regions`, body),
   deleteHistoryRow:   (date: string) => request<void>('DELETE', `/history/${date}`),
   pasteHistory:       (body: PasteHistoryInput) => request<PasteHistoryReport>('POST', '/history/paste', body),
+  getFxMissing:       () => request<FxDates>('GET', '/history/fx-missing'),
+  refetchFx:          (dates: string[]) => request<FxDates>('POST', '/history/fx-refetch', { dates }),
 
   // Admin.
   adminListUsers:       (includeHidden = false) => request<User[]>('GET', `/admin/users${includeHidden ? '?include_hidden=1' : ''}`),

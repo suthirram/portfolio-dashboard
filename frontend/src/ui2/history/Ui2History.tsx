@@ -14,6 +14,7 @@ import {
 import { longMonthLabel, monthOptions, visibleAssets, type AssetFilter, type HistoryAsset } from './historyCells'
 import { Ui2AssetCharts } from './Ui2AssetCharts'
 import { Ui2DailyRecords } from './Ui2DailyRecords'
+import { Ui2FxPrompt } from './Ui2FxPrompt'
 import { Ui2MonthReview } from './Ui2MonthReview'
 import './history.css'
 
@@ -28,7 +29,7 @@ export function Ui2History({ history, canForceDelete }: {
   const [fullHistoryOpen, setFullHistoryOpen] = useState(false)
   const {
     year, setYear, month, setMonth, today, selectedMonthStart,
-    rowsMonthStart, displayRows, loading, error,
+    rows, rowsMonthStart, displayRows, loading, error,
     chartsOnTop, toggleChartsOnTop,
     addOpen, setAddOpen, pasteOpen, setPasteOpen, editRow, setEditRow,
     holdingsView, setHoldingsView, headConflict,
@@ -66,6 +67,8 @@ export function Ui2History({ history, canForceDelete }: {
     <div className="u2h-page">
       <Ui2PageIntro title="Your portfolio through time"
         subtitle="Daily snapshots, monthly perspective, and the details behind every day." />
+
+      <Ui2FxPrompt refreshKey={rows} />
 
       <div className="u2h-toolbar">
         <div className="u2h-month-nav">

@@ -11,6 +11,8 @@ const mockApi = vi.hoisted(() => ({
   pasteHistory: vi.fn(),
   getPrices: vi.fn(),
   getGoldMetrics: vi.fn(),
+  getFxMissing: vi.fn(),
+  refetchFx: vi.fn(),
 }))
 
 vi.mock('../../lib/api/client', async () => {
@@ -65,6 +67,7 @@ describe('UI_2.0 History page', () => {
     mockAuth.user = { id: 'u1', role: 'user', ui_mode: 'ui2', premium: false, gold_enabled: false }
     mockApi.listHistory.mockResolvedValue(list(novemberRows))
     mockApi.getPrices.mockResolvedValue({ holdings: [], eur_rate: 0.011 })
+    mockApi.getFxMissing.mockResolvedValue({ dates: [] })
     try { window.localStorage.removeItem('pd_history_charts_top') } catch { /* private mode */ }
   })
 
