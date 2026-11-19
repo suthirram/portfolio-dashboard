@@ -53,7 +53,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 25 | 6 | FE | Profile | 2 | | | | needs amendment |
 | 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | | | | needs amendment |
 | 27 | 6 | FE | Investment delta → sub-route (tentative) | 16 | | | | needs amendment |
-| 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Codex | `docs/PD-059-wave5a-dividends` | | in progress |
+| 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Codex | `docs/PD-059-wave5a-dividends` | #369 | in progress |
 
 "needs amendment" = its wave's plan-amendment docs PR (complete code) must
 merge before the slice starts.
