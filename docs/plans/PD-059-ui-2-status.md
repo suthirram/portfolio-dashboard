@@ -25,10 +25,10 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
 | 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | merged |
-| 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
-| 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
-| 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
-| 7 | 2 | FE | Allocation by holding / sector / currency | 2 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
+| 4 | 2 | FE | Four Overview summary panels, currency selector and native breakdown dialogs | 2, 14 (shared dialog) | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
+| 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
+| 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
+| 7 | 2 | FE | Portfolio allocation, selection by ID and Performance tab | 4–6, 10 | Codex | `docs/PD-059-wave2-overview` | #347 | amendment in review |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
