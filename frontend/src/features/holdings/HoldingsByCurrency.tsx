@@ -214,9 +214,11 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
     }}>
       {counts.all === 0
         ? 'No holdings yet. Click "Add Holding" to get started.'
-        : view === 'nil'
-          ? 'No nil holdings. Fully-exited positions (0 shares) will appear here.'
-          : 'No active holdings — all positions exited. Switch to "Nil" to see them.'}
+        : ui2Panel && marketFilter !== 'all' && groups.length > 0
+          ? `No ${marketFilter} holdings in your portfolio.`
+          : view === 'nil'
+            ? 'No nil holdings. Fully-exited positions (0 shares) will appear here.'
+            : 'No active holdings — all positions exited. Switch to "Nil" to see them.'}
     </div>
   )
 

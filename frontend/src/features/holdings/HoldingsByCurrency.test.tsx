@@ -477,6 +477,18 @@ describe('HoldingsByCurrency ui2Panel mode', () => {
     expect(screen.queryByText('Euro')).not.toBeInTheDocument()
   })
 
+  it('shows currency-filter empty state when selected currency has no holdings', () => {
+    // INR-only portfolio filtered to EUR: positions not exited, just filtered out.
+    const inrOnly = [twoHoldings[0]] // INR holding only
+    render(<HoldingsByCurrency
+      holdings={inrOnly} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter holdings by currency' }), { target: { value: 'EUR' } })
+    expect(screen.getByText('No EUR holdings in your portfolio.')).toBeInTheDocument()
+    expect(screen.queryByText(/all positions exited/)).not.toBeInTheDocument()
+  })
+
   it('shows compact market header with currency name and current value instead of stat blocks', () => {
     render(<HoldingsByCurrency
       holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
