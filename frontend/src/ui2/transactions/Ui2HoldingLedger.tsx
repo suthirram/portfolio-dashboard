@@ -4,6 +4,7 @@ import { DecimalInput } from '../../components/DecimalInput'
 import { formatDate } from '../../lib/formDates'
 import { NEW_TYPES, TYPE_LABEL, useHoldingLedger, type LedgerProps } from '../../features/holdings/useHoldingLedger'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
+import './ledger.css'
 
 export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
   const [editor, setEditor] = useState(false)
@@ -46,15 +47,26 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
       <button className="ui2-btn ui2-btn-primary" disabled={saving}>Save event</button>
     </div>
   </form>
-  const title = editor
-    ? `${editingId ? 'Edit' : 'Add'} event · ${holding.script}`
-    : `${holding.script} · transaction ledger`
-  return <Ui2Dialog key={editor ? 'editor' : 'list'} title={title} busy={saving} onClose={onClose} wide>
+  const title = editor ? `${editingId ? 'Edit' : 'Add'} event · ${holding.script}` : 'Transaction ledger'
+  // The list's actions live in a footer that never scrolls away: Close for
+  // leaving, Add event for the one thing you do here. Only the events scroll.
+  const footer = editor ? undefined : <>
+    <p className="u2-ledger-footer-note">Opening balances are managed on the holding. These events belong to this holding.</p>
+    <div className="u2-ledger-footer-actions">
+      <button type="button" className="ui2-btn" disabled={saving} onClick={onClose}>Close</button>
+      <button type="button" className="ui2-btn ui2-btn-primary" onClick={() => { resetForm(); setEditor(true) }}>Add event</button>
+    </div>
+  </>
+  return <Ui2Dialog key={editor ? 'editor' : 'list'} title={title} busy={saving} onClose={onClose}
+    className="u2-ledger-dialog" footer={footer}>
     {!editor && err && <p role="alert" className="ui2-form-error">{err}</p>}
     {editor ? ledgerForm : <>
-      <p className="ui2-subtitle">{holding.symbol} · {holding.currency}</p>
-      <div role="region" aria-label="Transaction events" tabIndex={0} style={{ maxWidth: '100%', overflowX: 'auto' }}>
-        <table className="ui2-table ui2-ledger-table" style={{ minWidth: '32rem' }}>
+      <p className="u2-ledger-meta">
+        <span>Holding: <strong>{holding.symbol || holding.script}</strong></span>
+        <span>Currency: <strong>{holding.currency}</strong></span>
+      </p>
+      <div role="region" aria-label="Transaction events" tabIndex={0} className="u2-ledger-scroll">
+        <table className="ui2-table ui2-ledger-table">
         <thead><tr>{['Date', 'Type', 'Shares', 'Amount', ''].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
         <tbody>{transactions.toSorted((left, right) => (right.date || '').localeCompare(left.date || '')).map(transaction =>
           <tr key={transaction.id}>
@@ -63,12 +75,9 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
             <td><button className="ui2-btn" onClick={() => { startEdit(transaction); setEditor(true) }}
               aria-label={`Edit ${(TYPE_LABEL[transaction.type || ''] || transaction.type)} on ${transaction.date ? formatDate(transaction.date) : 'unknown date'}`}>Edit</button></td>
           </tr>)}</tbody>
-      </table></div>
-      {loading ? <p>Loading…</p> : !err && !transactions.length && <p>No transactions yet.</p>}
-      <p className="ui2-dialog-note">Opening balances are managed on the holding. These events belong to this holding.</p>
-      <button className="ui2-btn ui2-btn-primary" onClick={() => {
-        resetForm(); setEditor(true)
-      }}>Add event</button>
+        </table>
+        {loading ? <p className="u2-ledger-empty">Loading…</p> : !err && !transactions.length && <p className="u2-ledger-empty">No transactions yet.</p>}
+      </div>
     </>}
   </Ui2Dialog>
 }
