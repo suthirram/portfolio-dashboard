@@ -34,8 +34,8 @@ vi.mock('../../lib/api/client', () => ({
 }))
 
 vi.mock('../shell/Ui2Dialog', () => ({
-  Ui2Dialog: ({ title, children }: { title: string; children: React.ReactNode }) =>
-    <div role="dialog" aria-label={title}>{children}</div>,
+  Ui2Dialog: ({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) =>
+    <div role="dialog" aria-label={title}><button onClick={onClose}>Dismiss</button>{children}</div>,
 }))
 
 vi.mock('../../features/imports/NameConfirmDialog', () => ({
@@ -79,5 +79,19 @@ describe('Ui2TradeImport', () => {
     expect(await screen.findByRole('dialog', { name: 'Import complete' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(onImported).toHaveBeenCalledOnce()
+  })
+
+  it('calls onImported before onClose when dismissed on the result step', async () => {
+    render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
+    const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    await userEvent.upload(fileInput, file)
+    await screen.findByRole('dialog', { name: 'Preview import' })
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
+    await screen.findByRole('dialog', { name: 'Import complete' })
+    // Dismiss via × / backdrop (the Dismiss button in the mock stands in for both).
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(onImported).toHaveBeenCalledOnce()
+    expect(onClose).toHaveBeenCalledOnce()
   })
 })
