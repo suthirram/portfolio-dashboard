@@ -78,7 +78,7 @@ shared piece.
 | `useHistoryMonth` | `frontend/src/features/history/useHistoryMonth.ts` | History month data and actions for both interfaces | slice 13 (#344) |
 | `Ui2MiniChart` | `frontend/src/ui2/history/Ui2MiniChart.tsx` | handoff SVG mini chart; `linePath` gap-aware path | slice 13 (#344) |
 | `Ui2Dialog` | `frontend/src/ui2/shell/Ui2Dialog.tsx` | Portalled dialog with title, onClose, wide and busy props. Uses `useDialogFocus` for stacked dialogs. | slice 14 |
-| `Ui2SummaryCards` | `frontend/src/ui2/overview/Ui2SummaryCards.tsx` | Overview summary, display currency and native-currency breakdowns through `Ui2Dialog`; inputs owned by DashboardPage. | slice 4 |
+| `Ui2SummaryCards` | `frontend/src/ui2/overview/Ui2SummaryCards.tsx` | The handoff's four summary cards (value, daily movement, total P/L, dividends), rate badge and display currency, with native-currency breakdowns through `Ui2Dialog`; inputs owned by DashboardPage. Also exports `money`, `signedMoney` and `GOLD_LABEL`. | slice 4 |
 | Dialog and form styles | `frontend/src/ui2/primitives.css` | `.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger` | slice 14 |
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
 | `Ui2Toaster` | `frontend/src/ui2/shell/Ui2Toaster.tsx` | Handoff toast: renders the newest message of the `lib/toast` queue; mounted by `Ui2Shell`, so `toast()` works in UI_2.0 | slice 12 |

@@ -24,9 +24,16 @@ environment variable or infrastructure change is required.
 
 ## 2. Display and navigation contracts
 
-* Total portfolio value includes the INR/EUR selector, converted equivalent and
-  Total invested. Show Unrealised return, Today by currency (INR and EUR with
-  the previous close date), Realised gains and Dividends in handoff order.
+* The summary is the handoff's runtime layout: a context row (one bold
+  conversion rate and the Display currency selector) above four cards in this
+  order. **Portfolio value** with Total invested; **Daily movement** (INR and
+  EUR equities with the previous close date); **Total profit & loss**
+  (unrealised + realised, with each part and the unrealised %); **Dividend
+  income**. Each card opens a breakdown dialog. Refresh and Add holding sit in
+  the page intro. *Correction (2026-11-19):* an earlier version of this plan
+  listed five cards (including a separate Unrealised return and Realised gains)
+  and no combined P/L. That came from reading the handoff's static markup,
+  which its script replaces at runtime; PRD-015 §4.3 lists the combined P/L.
 * One **Display currency** selector changes combined figures between INR and
   EUR. Native breakdown lines and daily movement keep their currencies. The
   single rate badge displays the inverse of `summary.eur_rate` (EUR per INR).
@@ -109,6 +116,12 @@ behavioral test. Register the new components on the board in the same PR.
 
 * [ ] Branch from current main with `git switch -c feat/PD-059-overview-cards origin/main`.
 * [ ] Apply the implementation and test changes below.
+
+**Superseded by #356.** The patch below is the first (five-card) version. The
+merged implementation follows section 2 above: four cards, combined P/L, the
+context row, the intro actions, an empty gold position counted as zero, and
+the real code and tests in `frontend/src/ui2/overview/`. Use #356, not this
+patch, as the reference for slices 5–7.
 
 Use the existing dashboard reads and the slice 14 dialog. A local display-currency selector changes combined totals. The breakdowns continue to use native currency. Keep the existing SummaryCards call as the fallback. The test switches currency, opens a breakdown and checks focus after Escape.
 
