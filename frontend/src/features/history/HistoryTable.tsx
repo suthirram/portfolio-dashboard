@@ -64,7 +64,7 @@ export function HistoryTable({ rows, currency: _currency, onDelete, onEdit, onSe
   const hasGold = useMemo(() => rows.some(row => row.gold), [rows])
 
   return (
-    <div style={{ overflowX: 'auto', background: 'var(--bg-secondary)',
+    <div style={{ position: 'relative', overflowX: 'auto', background: 'var(--bg-secondary)',
       border: '1px solid var(--border)', borderRadius: 8 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
