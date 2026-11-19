@@ -3,6 +3,9 @@
 Shared by Claude and Codex. Spec: [PRD-015](../prds/PRD-015-ui-2.md) ·
 [DD-015](../designs/DD-015-ui-2.md) · [plan](PD-059-ui-2.md).
 
+The ordered list of remaining PRs and what blocks what is in the
+[roadmap](PD-059-roadmap.md). This board records who owns each row.
+
 ## How to use this board
 
 1. Pick an unclaimed slice whose dependencies are merged.
