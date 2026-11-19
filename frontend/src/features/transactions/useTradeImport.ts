@@ -37,6 +37,8 @@ export interface TradeImportController {
   setStep: (step: TradeStep) => void
   setAnswers: (answers: Answers) => void
   setCreated: (created: string[]) => void
+  readFile: (file: File) => Promise<string | null>
+  validateText: (text: string, sourceName?: string) => Promise<void>
   pick: (file: File) => Promise<void>
   runPreview: (sheetRows: TradeImportRow[], mappings: Answers, createList: string[]) => Promise<void>
   confirm: () => Promise<void>
@@ -77,10 +79,23 @@ export function useTradeImport(holdings: Holding[], userId?: string): TradeImpor
     }
   }
 
-  const pick = async (file: File) => {
-    if (file.size > MAX_BYTES) { setError('The file is larger than 1 MB — split it.'); return }
-    setFileName(file.name)
-    const parsed = parseTradeCsv(await file.text(), todayIST())
+  const readFile = async (file: File): Promise<string | null> => {
+    setError('')
+    if (file.size > MAX_BYTES) { setError('The file is larger than 1 MB — split it.'); return null }
+    try {
+      return await file.text()
+    } catch {
+      setError('Could not read that file. Choose another CSV and try again.')
+      return null
+    }
+  }
+
+  const evaluateText = async (text: string, sourceName: string, requireDataRows: boolean) => {
+    setFileName(sourceName)
+    const parsed = parseTradeCsv(text, todayIST())
+    if (requireDataRows && parsed.rows.length === 0 && parsed.total === 0 && parsed.errors.length === 0) {
+      parsed.errors.push({ line: 0, reason: 'No data rows found. Add trade rows below the header.' })
+    }
     setRows(parsed.rows)
     setLocalErrors(parsed.errors)
     setSkipped(parsed.skipped)
@@ -92,6 +107,23 @@ export function useTradeImport(holdings: Holding[], userId?: string): TradeImpor
       return
     }
     await runPreview(parsed.rows, {}, [])
+  }
+
+  const validateText = async (text: string, sourceName = '') => {
+    setError('')
+    if (new TextEncoder().encode(text).byteLength > MAX_BYTES) {
+      setError('The CSV is larger than 1 MB — split it.')
+      return
+    }
+    await evaluateText(text, sourceName, true)
+  }
+
+  // Classic keeps its established upload → preview interaction. UI_2.0 uses
+  // readFile to fill the design's editable paste area, then validates on click.
+  const pick = async (file: File) => {
+    setError('')
+    const text = await readFile(file)
+    if (text !== null) await evaluateText(text, file.name, false)
   }
 
   const confirm = async () => {
@@ -128,6 +160,6 @@ export function useTradeImport(holdings: Holding[], userId?: string): TradeImpor
     preview, result, busy, error,
     inrHoldings, counts, invalidLines,
     setStep, setAnswers, setCreated,
-    pick, runPreview, confirm,
+    readFile, validateText, pick, runPreview, confirm,
   }
 }
