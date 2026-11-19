@@ -30,6 +30,20 @@ describe('useDialogFocus', () => {
     expect(closeBottom).not.toHaveBeenCalled()
   })
 
+  it('locks the page scroll while a dialog is open and restores it when the last one closes', () => {
+    document.documentElement.style.overflow = 'scroll'
+    const { rerender, unmount } = render(<Dialog name="bottom" onClose={() => {}} />)
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    // A second dialog over the first keeps it locked, and closing it does not unlock.
+    rerender(<><Dialog name="bottom" onClose={() => {}} /><Dialog name="top" onClose={() => {}} /></>)
+    rerender(<Dialog name="bottom" onClose={() => {}} />)
+    expect(document.documentElement.style.overflow).toBe('hidden')
+    unmount()
+    // The page's own value comes back, not a blanket reset.
+    expect(document.documentElement.style.overflow).toBe('scroll')
+    document.documentElement.style.overflow = ''
+  })
+
   it('hands the keys back to the lower dialog once the top one closes', () => {
     const closeBottom = vi.fn()
     const { rerender } = render(<><Dialog name="bottom" onClose={closeBottom} /><Dialog name="top" onClose={() => {}} /></>)

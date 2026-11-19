@@ -5,7 +5,32 @@ import { useEffect, useRef, type RefObject } from 'react'
 // owns Tab and Escape until it closes.
 const openDialogs: HTMLElement[] = []
 
-/** Keep keyboard focus inside a modal and restore the invoking control. */
+// While any dialog is open the page behind it must not scroll. A trackpad
+// two-finger scroll over the backdrop would otherwise move the page (and
+// bounce it at its edges): overscroll-behavior only stops scroll chaining out
+// of a dialog that itself overflows. The first dialog to open locks, the last
+// one to close restores. A visible scrollbar's width is padded back so the
+// page does not shift sideways when it disappears.
+let restorePageScroll: (() => void) | null = null
+
+function lockPageScroll() {
+  if (restorePageScroll) return
+  const root = document.documentElement
+  const previousOverflow = root.style.overflow
+  const previousPadding = document.body.style.paddingRight
+  const scrollbar = root.clientWidth > 0 ? window.innerWidth - root.clientWidth : 0
+  if (scrollbar > 0) {
+    document.body.style.paddingRight = `calc(${getComputedStyle(document.body).paddingRight} + ${scrollbar}px)`
+  }
+  root.style.overflow = 'hidden'
+  restorePageScroll = () => {
+    root.style.overflow = previousOverflow
+    document.body.style.paddingRight = previousPadding
+    restorePageScroll = null
+  }
+}
+
+/** Keep keyboard focus inside a modal and restore the invoking control; lock the page's scroll while it is open. */
 export function useDialogFocus(root: RefObject<HTMLElement>, onClose: () => void, active = true, restoreFocusTo?: HTMLElement | null) {
   const close = useRef(onClose)
   close.current = onClose
@@ -13,6 +38,7 @@ export function useDialogFocus(root: RefObject<HTMLElement>, onClose: () => void
     if (!active || !root.current) return
     const dialog = root.current
     openDialogs.push(dialog)
+    lockPageScroll()
     const previous = restoreFocusTo ?? document.activeElement as HTMLElement | null
     const controls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
@@ -35,6 +61,7 @@ export function useDialogFocus(root: RefObject<HTMLElement>, onClose: () => void
     return () => {
       document.removeEventListener('keydown', onKey, true)
       openDialogs.splice(openDialogs.indexOf(dialog), 1)
+      if (openDialogs.length === 0) restorePageScroll?.()
       if (previous?.isConnected) previous.focus()
     }
   }, [root, active, restoreFocusTo])

@@ -1,20 +1,65 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AddEditModal from './AddEditModal'
-import { api } from '../../lib/api/client'
+import { api, ApiError } from '../../lib/api/client'
 import type { HoldingWithPrice } from '../../types'
 
-vi.mock('../../lib/api/client', () => ({
+vi.mock('../../lib/api/client', async () => ({
+  ...await vi.importActual<typeof import('../../lib/api/client')>('../../lib/api/client'),
   api: {
     createHolding: vi.fn().mockResolvedValue({}),
     updateHolding: vi.fn().mockResolvedValue({}),
     getMarketPrice: vi.fn(),
+    getMarketProfile: vi.fn().mockResolvedValue(null),
   },
 }))
 
 describe('AddEditModal numeric input', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('shows a valid Yahoo quote after Test', async () => {
+    vi.mocked(api.getMarketPrice).mockResolvedValueOnce({ price: 123.45, currency: 'USD' })
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'AAPL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText(/123.45 USD/)).toBeVisible()
+  })
+
+  it('shows a quote hint for a Yahoo server error without raw upstream text', async () => {
+    vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new ApiError(502, 'raw Yahoo upstream response'))
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'BAD-SYMBOL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText("Error: Couldn't get a quote for this symbol. Check it (for example TCS.NS) and try again.")).toBeVisible()
+    expect(screen.queryByText(/raw Yahoo upstream response/)).toBeNull()
+  })
+
+  it('shows a connection hint when Test cannot reach the server', async () => {
+    vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'AAPL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText("Error: Couldn't reach the server. Check your connection and try again.")).toBeVisible()
+    expect(screen.queryByText(/Failed to fetch/)).toBeNull()
+  })
+
+  it.each([undefined, NaN, Infinity, 0, -1])('rejects a successful response with unusable price %s', async price => {
+    vi.mocked(api.getMarketPrice).mockResolvedValueOnce({ price })
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'BAD-SYMBOL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText('Error: No valid quote found for this symbol.')).toBeVisible()
+  })
+
+  it('uses the generic quote hint for other HTTP errors', async () => {
+    vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new ApiError(400, 'raw internal details'))
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'BAD-SYMBOL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText("Error: Couldn't get a quote for this symbol. Check it (for example TCS.NS) and try again.")).toBeVisible()
+    expect(screen.queryByText(/raw internal details/)).toBeNull()
   })
 
   it('submits comma decimal costs as numbers', async () => {

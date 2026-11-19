@@ -1,0 +1,96 @@
+/* UI_2.0 holding ledger dialog (PD-059 slice 15). The list view is a split
+ * dialog: fixed heading, context line and footer, with only the events
+ * scrolling between them. Both views share one width so switching between
+ * the list and the editor does not resize the dialog. */
+
+:root[data-ui="ui2"] .ui2-dialog.u2-ledger-dialog { width: min(720px, calc(100% - 32px)); }
+
+:root[data-ui="ui2"] .u2-ledger-meta {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  margin: 0 0 12px;
+  color: var(--u2-muted);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-ledger-meta strong { color: var(--u2-text); font-weight: 600; }
+
+/* The only scrolling part of the list view. */
+:root[data-ui="ui2"] .u2-ledger-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--u2-border);
+  border-radius: 10px;
+}
+
+:root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { margin-top: 0; }
+
+/* The column headings stay visible while the events scroll under them. */
+:root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 15px;
+  background: var(--u2-bg);
+}
+
+:root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td { padding: 8px 15px; }
+
+/* The row action is the shared compact size (.ui2-btn-sm), so more events fit
+ * before the list scrolls. */
+
+:root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { min-width: 30rem; }
+
+/* On a phone every column fits, so Edit is never hidden behind a sideways scroll. */
+@media (max-width: 560px) {
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { min-width: 0; font-size: 11px; }
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th,
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td { padding: 8px 4px; }
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th { font-size: 9px; letter-spacing: .3px; }
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th:first-child,
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td:first-child { padding-left: 8px; }
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table th:last-child,
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table td:last-child { padding-right: 6px; }
+  :root[data-ui="ui2"] .u2-ledger-dialog .u2-ledger-scroll .ui2-btn-sm { padding: 5px 8px; font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  :root[data-ui="ui2"] .u2-ledger-scroll .ui2-ledger-table { font-size: 10px; }
+  :root[data-ui="ui2"] .u2-ledger-dialog .u2-ledger-scroll .ui2-btn-sm { font-size: 10px; }
+}
+
+:root[data-ui="ui2"] .u2-ledger-empty {
+  margin: 0;
+  padding: 28px 15px;
+  color: var(--u2-muted);
+  text-align: center;
+}
+
+:root[data-ui="ui2"] .u2-ledger-footer-note {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--u2-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Close and Add event are one identical pair: grid columns share the widest, so
+ * both have the same width and height. Their look is the shared dialog button
+ * design (../dialogButtons.css). */
+:root[data-ui="ui2"] .u2-ledger-footer-actions {
+  display: grid;
+  flex: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
+  gap: 12px;
+  margin-left: auto;
+}
+
+@media (max-width: 560px) {
+  /* Two equal, full-width buttons are easier to hit with a thumb. */
+  :root[data-ui="ui2"] .u2-ledger-footer-actions { width: 100%; grid-auto-columns: minmax(0, 1fr); }
+}

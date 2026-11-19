@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
-import { api } from '../../lib/api/client'
+import { api, ApiError } from '../../lib/api/client'
 import type { Currency, Exchange, Holding, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 import ClassificationReview from './ClassificationReview'
 import ProfilePreview, { previewSymbolKey } from './ProfilePreview'
@@ -102,9 +102,12 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
     setLookupLoading(true)
     try {
       const data = await api.getMarketPrice(form.symbol)
-      setLivePrice(data)
-    } catch (e) {
-      setLivePrice({ error: e instanceof Error ? e.message : String(e) })
+      setLivePrice(data.price != null && Number.isFinite(data.price) && data.price > 0
+        ? data : { error: 'No valid quote found for this symbol.' })
+    } catch (error) {
+      setLivePrice({ error: error instanceof ApiError
+        ? "Couldn't get a quote for this symbol. Check it (for example TCS.NS) and try again."
+        : "Couldn't reach the server. Check your connection and try again." })
     } finally {
       setLookupLoading(false)
     }
@@ -184,8 +187,8 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')}
                     onBlur={() => setPreviewSymbol(form.symbol)} placeholder="e.g. TCS.NS, AAPL" />
-                  <button type="button" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
-                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '0 10px', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap' }}>
+                  <button type="button" className="btn btn-sm" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
+                    style={{ alignSelf: 'stretch' }}>
                     {lookupLoading ? '…' : 'Test'}
                   </button>
                 </div>

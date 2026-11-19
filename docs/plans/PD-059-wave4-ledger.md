@@ -1,6 +1,6 @@
 # PD-059: Wave 4 holding ledger dialog (slice 15)
 
-* **Status**: Review updates complete, ready for merge.
+* **Status**: Amendment merged as #350; slice 15 implementation is in review as #354.
 * **Updated**: 2026-11-19
 * **Owner**: Codex
 * **Goal**: Open a holding’s dated ledger from Overview or Transactions in UI_2.0. Add, edit and delete individual events, including corrections to an existing opening and its realised seed.
@@ -43,6 +43,47 @@ Resolved (owner, 2026-11-19): existing Opening events and their realised seed
 are editable; split, bonus and merger remain available with ratio inputs;
 Delete lives inside Edit; the optional Price / share helper remains. Opening
 creation stays managed on the holding.
+
+### Implementation notes for #354
+
+The handoff's later `txEdit = function (symbol, id)` overrides the earlier
+definition at runtime. The final implementation follows that override. These
+notes supersede the earlier stacked-editor and generic-Test snippets below.
+
+* The editor uses the shared `.ui2-asset-form` two-column grid. Event type and
+  Date share the first row; Shares and Total amount share the next row.
+  Price / share stays inside the grid. Ratio is shown for split and bonus;
+  an existing Opening keeps its type locked and exposes its realised seed.
+* Notes, the fee-inclusive explanatory note, and the validation alert span
+  both columns. The error appears inside the editor above the buttons. The
+  list displays its error at the top.
+* One right-aligned action row contains Cancel, Delete event when editing,
+  and Save event. The inline Keep event / Confirm delete controls replace
+  Delete in the same row. Save has its natural width. At phone widths the
+  form becomes one column and its action row wraps within the dialog.
+* The ledger list is a split dialog (owner feedback after local testing,
+  2026-11-19). The title reads "Transaction ledger" and a fixed line shows
+  `Holding: <symbol> · Currency: <code>`. Only the events scroll, inside a
+  keyboard-reachable named region with sticky column headings, so a long
+  ledger never pushes the actions out of view. A fixed footer holds the
+  opening-balance note and the actions, **Close** and **Add event**: one
+  identical pair (same width and height, 44 px high, a 2 px border on Close,
+  a 3 px focus ring held off the fill). On a phone they become two equal
+  full-width buttons and every column fits without sideways scrolling down
+  to about 360 px. The list and the editor share one 720 px width.
+  `Ui2Dialog` gained an opt-in `footer` and `className`; other dialogs are
+  unchanged. The table uses `.ui2-ledger-table`: left-aligned, uppercase
+  muted headings, an empty last heading.
+* Holding Symbol → Test reports an HTTP `ApiError` with “Couldn't get a quote
+  for this symbol. Check it (for example TCS.NS) and try again.” A network
+  failure reports “Couldn't reach the server. Check your connection and try
+  again.” A 200 response with a missing, non-finite or non-positive price
+  reports “No valid quote found for this symbol.” Other HTTP errors use the
+  generic quote message. Raw upstream text is never shown. A valid response
+  still displays its price and currency.
+* After the main sync, the implementation passed TypeScript, changed-file
+  lint, all 827 frontend tests in 91 files with Chromium required, and the
+  production build. Browser stack verification is recorded on PR #354.
 
 ## 5. Implementation
 
@@ -1702,7 +1743,7 @@ it('shows a clear error for an invalid Yahoo symbol', async () => {
 (cd frontend && npm run lint:changed && REQUIRE_BROWSER_TESTS=1 npm run test:run && npm run build)
 ```
 
-Expected: ESLint exits zero. The full Vitest suite reports 89 files and 806 tests passed, and the production build succeeds.
+Expected: ESLint exits zero. The full Vitest suite and production build pass.
 
 * [ ] Using the [dev runbook](../../.claude/skills/run-app/SKILL.md), open a UI_2.0 ledger from both Overview and Transactions. At desktop and phone widths, check focus, Escape and scrolling in Light, Dark and Cyber.
 * [ ] Add a buy, adjust the computed cash total for fees, save, then edit its notes. Confirm the holding refreshes. Enter Shares `1` and Total amount `1,2,3` on an empty ledger. Cancel the error and check the empty list and the next Add event.
@@ -1713,8 +1754,8 @@ Expected: ESLint exits zero. The full Vitest suite reports 89 files and 806 test
 ## 6. Done and next
 
 * [x] Specify the complete implementation and behavioral tests inline.
-* [x] Verified the final code in a scratch checkout: TypeScript, ESLint, 18 focused tests, 806 full-suite tests and production build pass.
-* [ ] Merge the amendment and ship slice 15 through its frontend PR.
+* [x] Verified the plan in a scratch checkout. The implementation branch passed TypeScript, ESLint, the focused ledger and symbol tests, the full browser suite and the production build.
+* [x] Merge the amendment as #350 and open slice 15 implementation PR #354.
 * [ ] Record dev-stack verification on the board.
 
 **Next:** Slice 16 consumes the shared ledger from the Transactions page.

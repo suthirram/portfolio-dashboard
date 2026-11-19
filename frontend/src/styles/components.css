@@ -577,7 +577,11 @@ a:hover .app-icon .icon-spark,
 
 /* --- Tables -------------------------------------------------------------------- */
 
-.holdings-table-wrap { overflow: auto; max-width: 100%; }
+/* position: relative makes the scroller the containing block of the table's
+ * visually-hidden (.sr-only, absolutely positioned) spans. Without it they sit
+ * outside the scroller's clip, stretch the whole page to the table's width and
+ * make a phone widen its layout viewport, which pushes every dialog off-centre. */
+.holdings-table-wrap { position: relative; overflow: auto; max-width: 100%; }
 .holdings-table-wrap table { min-width: 1400px !important; table-layout: fixed; }
 .holdings-table-wrap th:first-child { width: 176px; }
 .holdings-table-wrap th:first-child,

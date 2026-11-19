@@ -25,7 +25,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
 | 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | merged |
-| 4 | 2 | FE | Handoff Overview metrics, currency selector and shared breakdown dialogs | 2, 14 (shared dialog) | Codex | `feat/PD-059-overview-cards` | #356 | implementation in review ([wave 2](PD-059-wave2-overview.md)) |
+| 4 | 2 | FE | Handoff Overview metrics, currency selector and shared breakdown dialogs | 2, 14 (shared dialog) | Codex | `feat/PD-059-overview-cards` | #356 | merged ([wave 2](PD-059-wave2-overview.md)) |
 | 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Codex | `feat/PD-059-overview-holdings` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
 | 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `feat/PD-059-holding-details` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
 | 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Codex | `feat/PD-059-overview-allocation` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
@@ -37,7 +37,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #353 | in review ([wave 4a](PD-059-wave4-fx-refetch.md)) |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
-| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #350 | plan amendment in review |
+| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | in review |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
 | 18 | 5 | FE | Dividends page | 2 | | | | needs amendment |
@@ -79,6 +79,8 @@ shared piece.
 | `Ui2MiniChart` | `frontend/src/ui2/history/Ui2MiniChart.tsx` | handoff SVG mini chart; `linePath` gap-aware path | slice 13 (#344) |
 | `Ui2Dialog` | `frontend/src/ui2/shell/Ui2Dialog.tsx` | Portalled dialog with title, onClose, wide and busy props. Uses `useDialogFocus` for stacked dialogs. | slice 14 |
 | `Ui2SummaryCards` | `frontend/src/ui2/overview/Ui2SummaryCards.tsx` | The handoff's four summary cards (value, daily movement, total P/L, dividends), rate badge and display currency, with native-currency breakdowns through `Ui2Dialog`; inputs owned by DashboardPage. Also exports `money`, `signedMoney` and `GOLD_LABEL`. | slice 4 |
+| `useHoldingLedger` | `frontend/src/features/holdings/useHoldingLedger.ts` | Shared ledger state, validation, reads and writes for both interface families. | slice 15 |
+| `Ui2HoldingLedger` | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | Holding event list and editor inside `Ui2Dialog`. | slice 15 |
 | Dialog and form styles | `frontend/src/ui2/primitives.css` | `.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger` | slice 14 |
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
 | `Ui2Toaster` | `frontend/src/ui2/shell/Ui2Toaster.tsx` | Handoff toast: renders the newest message of the `lib/toast` queue; mounted by `Ui2Shell`, so `toast()` works in UI_2.0 | slice 12 |

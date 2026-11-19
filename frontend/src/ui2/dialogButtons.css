@@ -1,0 +1,103 @@
+/* One button design for every dialog action in UI_2.0 (PD-059; owner request
+ * after local testing, 2026-11-19): the look of the Transaction ledger's
+ * Close / Add event pair. It applies to the UI_2.0 dialogs (.ui2-dialog) and to
+ * the older modals that UI_2.0 accounts still reach (.modal-card: holding
+ * Add / Edit, opening dates, classification review, gold). Classic and Glass
+ * are untouched, and page-level buttons (the intro actions, History toolbar)
+ * keep the handoff look.
+ *
+ *  - 44 px touch target, bold 13 px text
+ *  - a 2 px border: the secondary button's is strong enough to count as a
+ *    boundary on its own (the 1 px hairline of .ui2-btn is too faint)
+ *  - primary is filled; danger is red text and border, never a fill
+ *  - hover, and a 3 px focus ring held off the fill so it also shows on the
+ *    blue button
+ *  - `-sm` is the compact size for actions inside a table row, same design */
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn, .btn, .btn-primary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 22px;
+  border: 2px solid var(--u2-muted);
+  border-radius: 8px;
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  font: 700 13px var(--u2-font);
+  box-shadow: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn, .btn, .btn-primary):hover:not(:disabled) {
+  background: var(--u2-accentsoft);
+  border-color: var(--u2-muted);
+  color: var(--u2-text);
+}
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn, .btn, .btn-primary):focus-visible {
+  outline: 3px solid var(--u2-accent);
+  outline-offset: 3px;
+}
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn, .btn, .btn-primary):disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* Primary: filled. */
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-primary, .btn-primary) {
+  background: #5265d8;
+  border-color: #5265d8;
+  color: #fff;
+}
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-primary, .btn-primary):hover:not(:disabled) {
+  background: #5265d8;
+  border-color: #5265d8;
+  color: #fff;
+  filter: brightness(.9);
+}
+
+:root[data-ui="ui2"][data-theme="cyberpunk"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-primary, .btn-primary),
+:root[data-ui="ui2"][data-theme="cyberpunk"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-primary, .btn-primary):hover:not(:disabled) {
+  background: #6ee7ef;
+  border-color: #6ee7ef;
+  color: #172238;
+}
+
+/* Danger: red text and border on the panel, never a fill. */
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-danger, .btn-danger, .btn-danger-solid) {
+  border-color: var(--u2-red);
+  color: var(--u2-red);
+  background: var(--u2-panel);
+}
+
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-danger, .btn-danger, .btn-danger-solid):hover:not(:disabled) {
+  background: var(--u2-redsoft);
+  border-color: var(--u2-red);
+  color: var(--u2-red);
+}
+
+/* Compact, for an action inside a table row. */
+:root[data-ui="ui2"] :is(.ui2-dialog, .modal-card) :is(.ui2-btn-sm, .btn-sm) {
+  min-height: 34px;
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+/* The × is not a labelled button but needs a visible focus and a real target. */
+:root[data-ui="ui2"] .ui2-dialog-close {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+:root[data-ui="ui2"] .ui2-dialog-close:hover:not(:disabled) { background: var(--u2-accentsoft); color: var(--u2-text); }
+
+:root[data-ui="ui2"] .ui2-dialog-close:focus-visible {
+  outline: 3px solid var(--u2-accent);
+  outline-offset: 2px;
+}
