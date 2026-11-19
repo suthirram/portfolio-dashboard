@@ -1,12 +1,12 @@
 # PD-059: Wave 2 amendment — Overview (slices 4–7)
 
-* **Status**: PR #347 in review. Implementation patches are specified and verified in isolation.
+* **Status**: Plan merged (#347); implementation not started. Allocation entry selection is open question OVW-1 on the [status board](PD-059-ui-2-status.md).
 * **Owner**: Codex. Product decisions belong to the project owner.
 * **Updated**: 2026-11-19
 * **Implements**: [PRD-015 §4.3](../prds/PRD-015-ui-2.md#43-overview)
 * **Design**: [DD-015](../designs/DD-015-ui-2.md)
 * **Rollout**: [parent plan](PD-059-ui-2.md) and [status board](PD-059-ui-2-status.md)
-* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html) and [review frames](../visuals/PD-059-ui-2.html#frame-01)
+* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html)
 
 ## 1. Goal and architecture
 
@@ -52,7 +52,9 @@ environment variable or infrastructure change is required.
 ### Open question for the owner
 
 Should selecting an allocation entry navigate to its holdings grouping?
-Slice 7 leaves entries informational pending the owner's decision.
+Classic already does this for sectors (`onSelectSector`), so leaving entries
+informational drops that in UI_2.0. Slice 7 leaves entries informational
+pending the owner's decision (board question OVW-1).
 
 ## 3. File map and PR sequence
 
