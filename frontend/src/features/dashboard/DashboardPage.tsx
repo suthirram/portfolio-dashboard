@@ -1,8 +1,11 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
-import { useUiRevamp } from '../../lib/uiMode'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
+import { Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
+import { nativeView } from '../holdings/currencyTotals'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
 import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
@@ -90,6 +93,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const [regionLabel, setRegionLabel] = useState<string>('')
   const [openingPromptSkipped, setOpeningPromptSkipped] = useState(false)
   const revamp = useUiRevamp()
+  const ui2 = useUiMode() === 'ui2'
   const location = useLocation()
   const navigate = useNavigate()
   // In the glass shell (PD-054) the brand, page links and user menu live in
@@ -182,6 +186,33 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // tables and the pie, so a search or view filter never repaints sectors.
   const sectorColors = useMemo(() => sectorColorsByCurrency(enriched, theme), [enriched, theme])
 
+  const assets: AssetLine[] = []
+  if (ui2) {
+    for (const {currency, holdings: rows} of groupByCurrency(displayHoldings)) {
+      if (currency === 'OTHER') continue
+      const sum = (read: (holding: HoldingWithPrice) => number | undefined) => {
+        let total = 0
+        for (const holding of rows) {
+          const amount = read(holding)
+          if (amount == null || !Number.isFinite(amount)) return null
+          total += amount
+        }
+        return total
+      }
+      assets.push({ label: currency + ' equities', currency,
+        invested: sum(holding => nativeView(currency, holding.cost_price, holding.cost_price_eur).primary),
+        current: sum(holding => (holding.stocks_owned ?? 0) === 0 ? 0 : holding.price_error ? undefined
+          : nativeView(currency, holding.current_value, holding.current_value_eur).primary),
+        unrealised: sum(holding => (holding.stocks_owned ?? 0) === 0 ? 0 : holding.price_error ? undefined
+          : nativeView(currency, holding.unrealized_pnl, holding.unrealized_pnl_eur).primary),
+        realised: sum(holding => holding.realized_pnl ?? 0),
+        income: sum(holding => holding.total_dividends ?? 0) })
+    }
+    if (user?.gold_enabled && !actAsUserId) assets.push({ label: 'Physical gold', currency: 'INR',
+      invested: goldMetrics?.invested, current: goldMetrics?.current, income: 0, realised: 0,
+      unrealised: goldMetrics?.current == null ? null : goldMetrics.current - goldMetrics.invested })
+  }
+
   const TAB = (key: Tab, label: string) => (
     <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
       {label}
@@ -210,7 +241,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
           </Link>
-          <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>
+          {!ui2 && <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>}
           {roleBadge}
           {regionLabel && (
             <span style={{
@@ -293,6 +324,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       </header>
 
       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
+        {ui2 && <Ui2PageIntro title={actAsLabel ? actAsLabel + "'s portfolio" : 'Your portfolio, at a glance'}
+          subtitle="A little clarity for every investment decision." />}
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
@@ -320,7 +353,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             dayChange={computedDayChangeByCurrency} />
         )}
 
-        <SummaryCards
+        {ui2 ? <Ui2SummaryCards summary={summary} assets={assets} daily={computedDayChangeByCurrency} /> : <SummaryCards
           summary={summary}
           loading={loadingPrices}
           goldCurrentInr={goldMetrics?.current ?? null}
@@ -336,7 +369,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksUnrealisedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.unrealized_pnl_eur ?? 0), 0)}
           computedDayChangeInr={computedDayChangeByCurrency.INR}
           computedDayChangeEur={computedDayChangeByCurrency.EUR}
-        />
+        />}
 
         {needsReview.length > 0 && <aside className="classification-banner" aria-label="Classification review">
           <span>{needsReview.length} {needsReview.length === 1 ? 'holding needs' : 'holdings need'} review</span>

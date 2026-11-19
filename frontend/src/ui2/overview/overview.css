@@ -1,0 +1,98 @@
+:root[data-ui="ui2"] .u2-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+:root[data-ui="ui2"] .u2-summary-grid article {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 21px;
+}
+
+:root[data-ui="ui2"] .u2-summary-grid article:first-child {
+  grid-row: span 2;
+  background: linear-gradient(145deg, var(--u2-accentsoft), var(--u2-panel));
+  border-color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2-summary-grid h2 {
+  font: 600 11px var(--u2-font);
+  color: var(--u2-muted);
+  letter-spacing: .4px;
+}
+
+:root[data-ui="ui2"] .u2-summary-value {
+  flex: 1;
+  padding: 15px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="ui2"] .u2-summary-amount {
+  display: block;
+  font: 800 clamp(19px, 1.8vw, 27px) var(--u2-font-display);
+  letter-spacing: -.6px;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="ui2"] .u2-summary-grid article:first-child .u2-summary-amount {
+  margin-top: 24px;
+  font-size: clamp(25px, 2.5vw, 38px);
+}
+
+:root[data-ui="ui2"] .u2-summary small {
+  display: block;
+  color: var(--u2-muted);
+  font-size: 11px;
+  margin-top: 8px;
+  line-height: 1.7;
+}
+
+:root[data-ui="ui2"] .u2-summary-rate {
+  margin: 0 0 13px;
+  color: var(--u2-muted);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-summary label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--u2-muted);
+  font-size: 11px;
+}
+
+:root[data-ui="ui2"] .u2-summary select {
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+  min-height: 32px;
+  padding: 4px 8px;
+  font: inherit;
+}
+
+:root[data-ui="ui2"] .u2-summary-breakdown > div {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2-summary-breakdown dt { font-weight: 600; }
+:root[data-ui="ui2"] .u2-summary-breakdown dd {
+  margin: 7px 0 0;
+  color: var(--u2-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1000px) {
+  :root[data-ui="ui2"] .u2-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-ui="ui2"] .u2-summary-grid article:first-child { grid-row: auto; grid-column: 1 / -1; }
+}
+
+@media (max-width: 480px) {
+  :root[data-ui="ui2"] .u2-summary-grid { grid-template-columns: minmax(0, 1fr); }
+  :root[data-ui="ui2"] .u2-summary-grid article { padding: 20px; }
+}
