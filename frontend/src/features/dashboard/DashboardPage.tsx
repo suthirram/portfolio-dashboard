@@ -4,7 +4,7 @@ import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
 import { useUiMode, useUiRevamp } from '../../lib/uiMode'
-import { Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
+import { GOLD_LABEL, Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
 import { nativeView } from '../holdings/currencyTotals'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
@@ -44,6 +44,18 @@ export function dividendIncome(holdings: HoldingWithPrice[]): { inr: number; eur
     else if (currency === 'EUR') income.eur += holding.total_dividends ?? 0
   }
   return income
+}
+
+// goldAssetLine is physical gold as a UI_2.0 summary line. A read that is
+// still loading or failed (null), and gold that is held but has no price,
+// leave the amounts unknown. An account with no gold at all (zero grams) has
+// nothing to value, so it contributes zero instead of withholding the totals.
+function goldAssetLine(metrics: GoldMetrics | null): AssetLine {
+  const line = { label: GOLD_LABEL, currency: 'INR' as const, income: 0, realised: 0 }
+  if (!metrics) return { ...line, invested: null, current: null, unrealised: null }
+  const current = metrics.grams === 0 ? (metrics.current ?? 0) : metrics.current
+  return { ...line, invested: metrics.invested, current,
+    unrealised: current == null ? null : current - metrics.invested }
 }
 
 type ModalState = 'add' | HoldingWithPrice | null
@@ -208,9 +220,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         realised: sum(holding => holding.realized_pnl ?? 0),
         income: sum(holding => holding.total_dividends ?? 0) })
     }
-    if (user?.gold_enabled && !actAsUserId) assets.push({ label: 'Physical gold', currency: 'INR',
-      invested: goldMetrics?.invested, current: goldMetrics?.current, income: 0, realised: 0,
-      unrealised: goldMetrics?.current == null ? null : goldMetrics.current - goldMetrics.invested })
+    if (user?.gold_enabled && !actAsUserId) assets.push(goldAssetLine(goldMetrics))
   }
 
   const TAB = (key: Tab, label: string) => (
@@ -284,13 +294,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               Updated {lastRefresh.toLocaleTimeString()}
             </span>
           )}
-          <button onClick={fetchPrices} disabled={loadingPrices} className="btn dash-nav-btn"
-            style={{ opacity: loadingPrices ? 0.6 : 1 }}>
-            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
-          </button>
-          <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
-            <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
-          </button>
+          {/* UI_2.0 carries Refresh and Add holding in its page intro, as the handoff does. */}
+          {!ui2 && <>
+            <button onClick={fetchPrices} disabled={loadingPrices} className="btn dash-nav-btn"
+              style={{ opacity: loadingPrices ? 0.6 : 1 }}>
+              {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
+            </button>
+            <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
+              <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
+            </button>
+          </>}
           <div ref={userMenuRoot} className="dash-nav-user shell-dup" style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(wasOpen => !wasOpen)} className="btn dash-nav-btn"
               aria-expanded={menuOpen}
@@ -325,7 +338,15 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
         {ui2 && <Ui2PageIntro title={actAsLabel ? actAsLabel + "'s portfolio" : 'Your portfolio, at a glance'}
-          subtitle="A little clarity for every investment decision." />}
+          subtitle="A little clarity for every investment decision."
+          actions={<>
+            <button type="button" className="ui2-btn" aria-label="Refresh" onClick={fetchPrices} disabled={loadingPrices}>
+              <RefreshIcon size={15} /> <span className="u2-refresh-text">Refresh</span>
+            </button>
+            <button type="button" className="ui2-btn ui2-btn-primary" onClick={() => setModal('add')}>
+              <span aria-hidden="true">＋</span> Add holding
+            </button>
+          </>} />}
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
