@@ -35,7 +35,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | merged |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
-| 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | in review |
+| 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Claude | | | needs amendment (after 13) |
 | 15 | 4 | FE | Shared ledger hook + UI_2.0 ledger modal | 2 | | | | needs amendment |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
