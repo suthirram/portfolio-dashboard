@@ -33,11 +33,23 @@ Behaviour this amendment fixes where the DD was silent:
 * The current trading day (08:00 IST cut-over) uses the live quote, as the
   snapshot job does; every other day uses its close or the last close
   before it (`rateOn`, shared with the snapshot job and the backfill).
-* The heal is one conditional update (`fx_carried: true` in the filter, no
-  upsert): a rate the snapshot job stored in the meantime is never
-  overwritten and no document is created.
+* The heal is one conditional update with no upsert. Its filter carries
+  `fx_carried: true` and the `updated_at` read with the flagged list, so
+  neither a rate the snapshot job stored meanwhile nor newer totals from a
+  History edit between the snapshot read and the heal are overwritten. A
+  day that lost that race stays flagged and is listed as still missing;
+  the retry reads fresh buckets (Codex review on #351).
 * A flagged day without a snapshot row stays flagged (logged); totals need
   the row's buckets.
+* The flagged list is read again whenever History reloads its rows, so a
+  day an add or paste flags shows without leaving the page; Not now still
+  wins.
+* Not now belongs to the signed-in account: logout does not reload the
+  app, and another account in the same tab sees its own notice.
+* The dialog opens with focus on × like every UI_2.0 dialog
+  (`useDialogFocus`), not the handoff's `autofocus` on Not now: an
+  autofocused child would be recorded as the invoking control, so Escape
+  could not return focus to "Fetch rates again".
 * The dialog's production copy replaces the handoff's sample wording; the
   "Demonstrate result" select is a preview control and is not built (as
   slice 10 dropped its preview-state select).
@@ -79,10 +91,12 @@ Backend first, frontend after it merges; label `ui-2.0`; branched from `main`.
 
 **Files:** `backend/internal/persistence/overall.go` (modify)
 
-`ListCarried` reads only dates (projection), newest first, so the prompt
-lists the latest days first. `HealCarried` is the safety net: its filter
-adds `fx_carried: true` and it never upserts, so a good rate written by
-the snapshot job between the read and the write is left alone.
+`ListCarried` reads only the date and `updated_at` (projection), newest
+first, so the prompt lists the latest days first. `HealCarried` is the
+safety net: it never upserts, and its filter adds `fx_carried: true` and
+that `updated_at`, so neither a good rate written by the snapshot job nor
+newer totals written by a History edit since the list read are
+overwritten. It reports whether it wrote.
 
 * [ ] **`overall.go`:**
 
@@ -103,13 +117,14 @@ Replace with:
     return err == nil, err
 }
 
-// ListCarried returns the dates of the user's flagged days, newest first:
-// fx_carried marks a fallback rate after a failed fetch, or no rate yet.
-// These are the days History offers to re-fetch (DD-015 §2.7).
-func (s *OverallStore) ListCarried(ctx context.Context, userId primitive.ObjectID) ([]time.Time, error) {
+// ListCarried returns the user's flagged days, newest first, with only
+// their date and updated_at: fx_carried marks a fallback rate after a
+// failed fetch, or no rate yet. These are the days History offers to
+// re-fetch (DD-015 §2.7); updated_at is the version HealCarried checks.
+func (s *OverallStore) ListCarried(ctx context.Context, userId primitive.ObjectID) ([]domain.OverallDay, error) {
     ctx, cancel := context.WithTimeout(ctx, readTimeout)
     defer cancel()
-    opts := options.Find().SetSort(bson.D{{Key: "date", Value: -1}}).SetProjection(bson.M{"date": 1})
+    opts := options.Find().SetSort(bson.D{{Key: "date", Value: -1}}).SetProjection(bson.M{"date": 1, "updated_at": 1})
     cursor, err := s.col.Find(ctx, bson.M{"user_id": userId, "fx_carried": true}, opts)
     if err != nil {
         return nil, err
@@ -119,23 +134,29 @@ func (s *OverallStore) ListCarried(ctx context.Context, userId primitive.ObjectI
     if err := cursor.All(ctx, &days); err != nil {
         return nil, err
     }
-    dates := make([]time.Time, 0, len(days))
-    for _, day := range days {
-        dates = append(dates, day.Date.UTC())
-    }
-    return dates, nil
+    return days, nil
 }
 
 // HealCarried writes a re-fetched rate and the totals at that rate only
-// while the day is still flagged, so a good rate the snapshot job stored
-// in the meantime is never overwritten and no document is created.
-func (s *OverallStore) HealCarried(ctx context.Context, userId primitive.ObjectID, date time.Time, rate domain.FxRate, buckets map[string]domain.RegionSnapshot) error {
+// while the day is still flagged and unchanged since ListCarried read it
+// (seen is its updated_at). A good rate the snapshot job stored, or newer
+// totals a History edit wrote in the meantime, are never overwritten, and
+// no document is created. Reports whether it wrote; false leaves the day
+// flagged for the user to retry with fresh data.
+func (s *OverallStore) HealCarried(ctx context.Context, userId primitive.ObjectID, date, seen time.Time, rate domain.FxRate, buckets map[string]domain.RegionSnapshot) (bool, error) {
     ctx, cancel := context.WithTimeout(ctx, writeTimeout)
     defer cancel()
     filter := overallFilter(userId, date)
     filter["fx_carried"] = true
-    _, err := s.col.UpdateOne(ctx, filter, overallUpdate(rate, buckets))
-    return err
+    filter["updated_at"] = seen
+    if seen.IsZero() {
+        filter["updated_at"] = bson.M{"$exists": false}
+    }
+    result, err := s.col.UpdateOne(ctx, filter, overallUpdate(rate, buckets))
+    if err != nil {
+        return false, err
+    }
+    return result.MatchedCount > 0, nil
 }
 
 // Get returns one day's document, or ErrNotFound.
@@ -205,6 +226,20 @@ func (r *OverallRefetch) log(ctx context.Context) *zap.Logger {
 func (r *OverallRefetch) Missing(ctx context.Context, userId primitive.ObjectID) (_ []string, retErr error) {
     ctx, span := tracer.Start(ctx, "OverallRefetch.Missing")
     defer endSpan(span, &retErr)
+    days, err := r.flagged(ctx, userId)
+    if err != nil {
+        return nil, err
+    }
+    dates := make([]string, 0, len(days))
+    for _, day := range days {
+        dates = append(dates, day.Date.UTC().Format(time.DateOnly))
+    }
+    return dates, nil
+}
+
+// flagged reads the user's flagged days, newest first, with the
+// updated_at each heal checks.
+func (r *OverallRefetch) flagged(ctx context.Context, userId primitive.ObjectID) ([]domain.OverallDay, error) {
     if r.overall == nil {
         return nil, ErrOverallUnavailable
     }
@@ -214,25 +249,23 @@ func (r *OverallRefetch) Missing(ctx context.Context, userId primitive.ObjectID)
         logger.Error("fx missing read failed", zap.Error(err))
         return nil, err
     }
-    dates := make([]string, 0, len(days))
-    for _, day := range days {
-        dates = append(dates, day.Format(time.DateOnly))
-    }
-    return dates, nil
+    return days, nil
 }
 
 // Refetch re-fetches the requested days that are still flagged and heals
 // each one a rate is found for. It returns the requested days that remain
 // flagged, newest first; days that are not flagged are ignored. A failed
 // Yahoo call is not an error: the days stay flagged and History offers
-// them again (PRD-015 §4.4).
+// them again (PRD-015 §4.4). Nor is a day changed while this runs (a
+// History edit rewrote its totals): it stays flagged so a retry heals it
+// from fresh buckets.
 func (r *OverallRefetch) Refetch(ctx context.Context, userId primitive.ObjectID, dates []time.Time) (_ []string, retErr error) {
     ctx, span := tracer.Start(ctx, "OverallRefetch.Refetch")
     defer endSpan(span, &retErr)
     if len(dates) == 0 {
         return nil, ErrInvalidDate
     }
-    flagged, err := r.Missing(ctx, userId)
+    flagged, err := r.flagged(ctx, userId)
     if err != nil {
         return nil, err
     }
@@ -241,9 +274,12 @@ func (r *OverallRefetch) Refetch(ctx context.Context, userId primitive.ObjectID,
         requested[domain.UTCDate(date).Format(time.DateOnly)] = true
     }
     pending := make([]string, 0, len(dates))
-    for _, date := range flagged {
+    seen := make(map[string]time.Time, len(dates))
+    for _, day := range flagged {
+        date := day.Date.UTC().Format(time.DateOnly)
         if requested[date] {
             pending = append(pending, date)
+            seen[date] = day.UpdatedAt
         }
     }
     logger := r.log(ctx)
@@ -266,9 +302,14 @@ func (r *OverallRefetch) Refetch(ctx context.Context, userId primitive.ObjectID,
             logger.Error("fx refetch: snapshot read failed", zap.String("date", date), zap.Error(err))
             return nil, err
         }
-        if err := r.overall.HealCarried(ctx, userId, day, rate, row.Buckets); err != nil {
+        healed, err := r.overall.HealCarried(ctx, userId, day, seen[date], rate, row.Buckets)
+        if err != nil {
             logger.Error("fx refetch: overall write failed", zap.String("date", date), zap.Error(err))
             return nil, err
+        }
+        if !healed {
+            logger.Info("fx refetch: day changed during the fetch; left flagged", zap.String("date", date))
+            missing = append(missing, date)
         }
     }
     return missing, nil
@@ -322,10 +363,12 @@ func (r *OverallRefetch) ratesFor(ctx context.Context, logger *zap.Logger, pendi
 
 Tests (mtest, the backfill fakes `snapshotRow`, `eurQuote`, `eurCloses`):
 a flagged past day heals with one Yahoo call, the filter carries
-`fx_carried: true`, no upsert, totals 1100 + 11 × 90 = 2090 and the flag
-cleared; a failed fetch writes nothing and returns the day; an unflagged
-day needs no fetch; the current trading day uses the live quote only; no
-dates is `ErrInvalidDate`.
+`fx_carried: true` and the read `updated_at`, no upsert, totals 1100 +
+11 × 90 = 2090 and the flag cleared; a day a History edit changed between
+the read and the heal (the versioned update matches nothing) stays flagged
+and is returned; a failed fetch writes nothing and returns the day; an
+unflagged day needs no fetch; the current trading day uses the live quote
+only; no dates is `ErrInvalidDate`.
 
 ```go
 package services
@@ -351,9 +394,15 @@ func (failingCloses) GetDailyCloses(context.Context, string, time.Time, time.Tim
     return nil, errors.New("yahoo down")
 }
 
+// flaggedVersion is the updated_at every flaggedDay was last written at.
+var flaggedVersion = time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
+
 // flaggedDay is a stored overall document carrying a fallback rate.
 func flaggedDay(userId primitive.ObjectID, date time.Time) bson.D {
-    return bson.D{{Key: "user_id", Value: userId}, {Key: "date", Value: date}, {Key: "fx_carried", Value: true}}
+    return bson.D{
+        {Key: "user_id", Value: userId}, {Key: "date", Value: date},
+        {Key: "fx_carried", Value: true}, {Key: "updated_at", Value: flaggedVersion},
+    }
 }
 
 // refetchFor wires an OverallRefetch at Saturday 2026-11-14 10:00 UTC, so
@@ -402,6 +451,9 @@ func TestOverallRefetchHealsAFlaggedPastDay(t *testing.T) {
         if carried, ok := updates[0].Lookup("q", "fx_carried").BooleanOK(); !ok || !carried {
             t.Error("the heal must only match a day that is still flagged, never a good stored rate")
         }
+        if version, ok := updates[0].Lookup("q", "updated_at").TimeOK(); !ok || !version.Equal(flaggedVersion) {
+            t.Errorf("heal filter updated_at = %v; want the version read with the flagged list", version)
+        }
         if upsert, _ := updates[0].Lookup("upsert").BooleanOK(); upsert {
             t.Error("the heal must never create a document")
         }
@@ -411,6 +463,31 @@ func TestOverallRefetchHealsAFlaggedPastDay(t *testing.T) {
         }
         if carried := set.Document().Lookup("fx_carried").Boolean(); carried {
             t.Error("a healed day must clear fx_carried")
+        }
+    })
+}
+
+// A History edit between the snapshot read and the heal rewrites the day's
+// totals (and updated_at) but leaves it flagged: the heal must not match,
+// so the older totals never overwrite the newer ones, and the day is
+// reported for a retry.
+func TestOverallRefetchLeavesADayChangedMidFetchFlagged(t *testing.T) {
+    mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+    mt.Run("concurrent edit", func(mt *mtest.T) {
+        userId := primitive.NewObjectID()
+        mt.AddMockResponses(
+            mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch, flaggedDay(userId, backfillFriday)),
+            mtest.CreateCursorResponse(0, "portfolio.portfolio_snapshots", mtest.FirstBatch, snapshotRow(userId, backfillFriday, 11)),
+            // The edit moved updated_at: the versioned filter matches nothing.
+            mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 0}),
+        )
+        missing, err := refetchFor(mt, eurQuote{calls: new(int)}, eurCloses{closes: map[string]float64{"2026-11-13": 90}, calls: new(int)}).
+            Refetch(context.Background(), userId, []time.Time{backfillFriday})
+        if err != nil {
+            t.Fatalf("Refetch: %v", err)
+        }
+        if len(missing) != 1 || missing[0] != "2026-11-13" {
+            t.Errorf("missing = %v; want [2026-11-13] left flagged for a retry", missing)
         }
     })
 }
@@ -488,7 +565,7 @@ func TestOverallRefetchRequiresDates(t *testing.T) {
 ```
 
 * [ ] **Verify:** `cd backend && go test ./internal/services/ -run OverallRefetch -v`
-  Expected: `5` tests `PASS`, `ok`.
+  Expected: `6` tests `PASS`, `ok`.
 * [ ] **Commit:** `git add backend/internal/services/overall_refetch.go backend/internal/services/overall_refetch_test.go && git commit -m "✨ Re-fetch flagged EUR→INR rates"`
 
 ### Task 3: Endpoints
@@ -1117,10 +1194,14 @@ Replace with:
 
 The notice sits under the intro, as the handoff prepends it to the page.
 The dialog reuses `Ui2Dialog`; while a fetch runs it cannot close and
-both buttons are disabled. Not now is module state, so it survives
-navigation and clears on reload (owner). A failed list read shows
-nothing: the days stay flagged for the next visit. Dates read "16 Nov
-2026" (`formatDayMonthName` + year).
+both buttons are disabled. No child takes `autoFocus`, so `useDialogFocus`
+records "Fetch rates again" as the invoking control and Escape returns
+focus there. Not now is module state keyed by the signed-in user, so it
+survives navigation, clears on reload (owner) and never hides another
+account's notice. The list is read again whenever History reloads its
+rows (`refreshKey={rows}`), so a day an add or paste flags shows at once.
+A failed list read shows nothing: the days stay flagged for the next
+visit. Dates read "16 Nov 2026" (`formatDayMonthName` + year).
 
 ```tsx
 // The handoff's "Review exchange rates" notice and its "Fetch exchange
@@ -1128,9 +1209,12 @@ nothing: the days stay flagged for the next visit. Dates read "16 Nov
 // rate is a fallback or missing are listed by GET /history/fx-missing; the
 // user triggers the re-fetch. Healed dates drop off and the rest stay in
 // the dialog (owner, 2026-11-19). Not now hides the notice until the app
-// reloads. History is always the caller's own portfolio, so act-as never
+// reloads. The list is read again whenever History reloads its rows
+// (refreshKey), so a day an add or paste flags shows without leaving the
+// page. History is always the caller's own portfolio, so act-as never
 // reaches this.
 import { useEffect, useState } from 'react'
+import { useAuthOptional } from '../../features/auth/AuthContext'
 import { api } from '../../lib/api/client'
 import { formatDayMonthName } from '../../lib/formDates'
 import { toast } from '../../lib/toast'
@@ -1139,12 +1223,14 @@ import { Ui2Dialog } from '../shell/Ui2Dialog'
 // Dates listed in the dialog; the rest are counted (owner, 2026-11-19).
 export const FX_LISTED_DATES = 10
 
-// Not now lasts until the app reloads: module state, not storage.
-let dismissed = false
+// Not now lasts until the app reloads: module state, not storage. It
+// belongs to the account that chose it, so another login in the same tab
+// (logout does not reload) still sees its own notice.
+let dismissedFor: string | null = null
 
 // Test-only: forget Not now between cases.
 export function __resetFxPromptForTests() {
-  dismissed = false
+  dismissedFor = null
 }
 
 function datesPhrase(count: number) {
@@ -1155,27 +1241,33 @@ function longDate(iso: string) {
   return `${formatDayMonthName(iso)} ${iso.slice(0, 4)}`
 }
 
-export function Ui2FxPrompt() {
+export function Ui2FxPrompt({ refreshKey }: {
+  // Changes whenever History reloads its rows (after a save or a month change).
+  refreshKey?: unknown
+}) {
+  const userId = useAuthOptional()?.user?.id ?? ''
   const [dates, setDates] = useState<string[]>([])
-  const [hidden, setHidden] = useState(dismissed)
+  // Bumped by Not now so the module-level choice re-renders the notice away.
+  const [, setDismissals] = useState(0)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const dismissed = dismissedFor === userId
 
   useEffect(() => {
-    if (dismissed) return
+    if (dismissedFor === userId) return
     let active = true
     // A failed read shows no notice: the days stay flagged for next time.
     api.getFxMissing().then(result => { if (active) setDates(result.dates) }).catch(() => {})
     return () => { active = false }
-  }, [])
+  }, [userId, refreshKey])
 
-  if (hidden || dates.length === 0) return null
+  if (dismissed || dates.length === 0) return null
 
   const notNow = () => {
-    dismissed = true
+    dismissedFor = userId
     setOpen(false)
-    setHidden(true)
+    setDismissals(count => count + 1)
   }
   const fetchAgain = async () => {
     setBusy(true)
@@ -1221,7 +1313,7 @@ export function Ui2FxPrompt() {
             <p role="status">{feedback}</p>
           </div>
           <div className="ui2-dialog-actions">
-            <button type="button" className="ui2-btn" onClick={notNow} disabled={busy} autoFocus>Not now</button>
+            <button type="button" className="ui2-btn" onClick={notNow} disabled={busy}>Not now</button>
             <button type="button" className="ui2-btn ui2-btn-primary" onClick={() => void fetchAgain()} disabled={busy}>
               {busy ? 'Fetching…' : 'Fetch rates again'}
             </button>
@@ -1236,7 +1328,10 @@ export function Ui2FxPrompt() {
 Tests: nothing flagged renders nothing; all healed closes with the toast
 and removes the notice; a partial result keeps the dialog with the rest
 and the message; a failed fetch keeps every date; 12 dates list 10 and
-"and 2 more"; Not now survives a remount without a new request.
+"and 2 more"; Not now survives a remount without a new request; Not now
+by one account does not hide another's notice; a new `refreshKey` reads
+the list again and shows a newly flagged day; Escape returns focus to
+"Fetch rates again".
 
 ```tsx
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -1253,6 +1348,13 @@ vi.mock('../../lib/api/client', async () => {
   return { ...actual, api: mockApi }
 })
 
+const mockAuth = vi.hoisted(() => ({ userId: 'u1' }))
+
+vi.mock('../../features/auth/AuthContext', async () => {
+  const actual = await vi.importActual<typeof import('../../features/auth/AuthContext')>('../../features/auth/AuthContext')
+  return { ...actual, useAuthOptional: () => ({ user: { id: mockAuth.userId } }) }
+})
+
 import { Ui2FxPrompt, __resetFxPromptForTests } from './Ui2FxPrompt'
 
 const openDialog = async () => {
@@ -1263,6 +1365,7 @@ const openDialog = async () => {
 describe('UI_2.0 exchange-rate prompt', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuth.userId = 'u1'
     __resetFxPromptForTests()
     __resetToastsForTests()
   })
@@ -1332,6 +1435,39 @@ describe('UI_2.0 exchange-rate prompt', () => {
     expect(screen.queryByText('Review exchange rates')).not.toBeInTheDocument()
     expect(mockApi.getFxMissing).not.toHaveBeenCalled()
   })
+
+  it('Not now belongs to the account that chose it', async () => {
+    mockApi.getFxMissing.mockResolvedValue({ dates: ['2026-11-16'] })
+    const { unmount } = render(<Ui2FxPrompt />)
+    fireEvent.click(within(await openDialog()).getByRole('button', { name: 'Not now' }))
+    unmount()
+    // Another account signs in the same tab without a reload.
+    mockAuth.userId = 'u2'
+    render(<Ui2FxPrompt />)
+    expect(await screen.findByText('Review exchange rates')).toBeInTheDocument()
+  })
+
+  it('reads the list again when History reloads its rows', async () => {
+    mockApi.getFxMissing.mockResolvedValueOnce({ dates: [] }).mockResolvedValueOnce({ dates: ['2026-11-18'] })
+    const { rerender } = render(<Ui2FxPrompt refreshKey={1} />)
+    await waitFor(() => expect(mockApi.getFxMissing).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText('Review exchange rates')).not.toBeInTheDocument()
+    // An add for a new date flagged it; History reloaded its rows.
+    rerender(<Ui2FxPrompt refreshKey={2} />)
+    expect(await screen.findByText('1 date has missing or carried FX rates.')).toBeInTheDocument()
+  })
+
+  it('Escape returns focus to the button that opened the dialog', async () => {
+    mockApi.getFxMissing.mockResolvedValue({ dates: ['2026-11-16'] })
+    render(<Ui2FxPrompt />)
+    const opener = await screen.findByRole('button', { name: 'Fetch rates again' })
+    opener.focus()
+    fireEvent.click(opener)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fetch rates again' })).toHaveFocus()
+  })
 })
 ```
 
@@ -1361,6 +1497,30 @@ import './history.css'
 Current:
 
 ```tsx
+  const [fullHistoryOpen, setFullHistoryOpen] = useState(false)
+  const {
+    year, setYear, month, setMonth, today, selectedMonthStart,
+    rowsMonthStart, displayRows, loading, error,
+    chartsOnTop, toggleChartsOnTop,
+    addOpen, setAddOpen, pasteOpen, setPasteOpen, editRow, setEditRow,
+    holdingsView, setHoldingsView, headConflict,
+```
+
+Replace with:
+
+```tsx
+  const [fullHistoryOpen, setFullHistoryOpen] = useState(false)
+  const {
+    year, setYear, month, setMonth, today, selectedMonthStart,
+    rows, rowsMonthStart, displayRows, loading, error,
+    chartsOnTop, toggleChartsOnTop,
+    addOpen, setAddOpen, pasteOpen, setPasteOpen, editRow, setEditRow,
+    holdingsView, setHoldingsView, headConflict,
+```
+
+Current:
+
+```tsx
       <Ui2PageIntro title="Your portfolio through time"
         subtitle="Daily snapshots, monthly perspective, and the details behind every day." />
 
@@ -1375,7 +1535,7 @@ Replace with:
       <Ui2PageIntro title="Your portfolio through time"
         subtitle="Daily snapshots, monthly perspective, and the details behind every day." />
 
-      <Ui2FxPrompt />
+      <Ui2FxPrompt refreshKey={rows} />
 
       <div className="u2h-toolbar">
         <div className="u2h-month-nav">
@@ -1460,7 +1620,7 @@ Replace with:
 ```
 
 * [ ] **Verify:** `cd frontend && npx tsc -b && npx vitest run && npm run lint:changed`
-  Expected: no type errors; `806 passed` at time of writing; lint clean.
+  Expected: no type errors; `809 passed` at time of writing; lint clean.
 * [ ] **Commit:** `git add frontend/src/ui2/history && git commit -m "✨ Prompt to re-fetch exchange rates on History"`
 
 ### Task 7: Board and registry
@@ -1486,6 +1646,8 @@ before Yahoo's EUR→INR series.
 * [ ] The dialog lists the four dates newest first; Fetch rates again heals the three 2026 days (real Yahoo closes, `fx_carried: false`, `fx_date` = the day, totals recomputed) and keeps 04 Jan 1999 with "1 date is still missing; retry or choose Not now."
 * [ ] With only healable days flagged, the dialog closes, the notice goes and the toast reads "Exchange rates restored".
 * [ ] Not now hides the notice across navigation; a reload shows it again.
+* [ ] With nothing flagged, Add record for a new date with a EUR amount: the notice appears without leaving the page.
+* [ ] Open the dialog from the keyboard and press Escape: focus returns to "Fetch rates again".
 * [ ] `POST /history/fx-refetch {"dates":[]}` is `400`.
 * [ ] Light and Dark at 1280 px, Light at 390 px: no horizontal page scroll, no console errors; the dialog covers the sidebar.
 * [ ] A Glass account's History shows no notice.
