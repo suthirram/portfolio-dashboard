@@ -39,6 +39,13 @@ function seriesOf(points: MiniChartPoint[], kind: MiniChartKind): (number | null
   return points.map(point => point.daily_vol)
 }
 
+function isIsolatedPoint(values: (number | null)[], index: number): boolean {
+  if (values[index] === null) return false
+  const previousConnected = index > 0 && values[index - 1] !== null
+  const nextConnected = index < values.length - 1 && values[index + 1] !== null
+  return !previousConnected && !nextConnected
+}
+
 // linePath joins consecutive values and lifts the pen over a gap, so a day
 // without data reads as a break rather than a fall to zero.
 export function linePath(values: (number | null)[], xAt: (index: number) => number, yAt: (value: number) => number): string {
@@ -58,7 +65,8 @@ export function Ui2MiniChart({ points, kind, unit, label, markers = true, onExpa
   unit: string
   // Names the asset and period for the accessible chart label.
   label: string
-  // Focusable point markers with a tooltip; off for long full-history series.
+  // Dense point markers with tooltips; isolated valid values remain marked
+  // when this is off so gaps and one-point series stay visible.
   markers?: boolean
   // Makes the chart a button that opens the zoomable full-history page.
   onExpand?: () => void
@@ -101,11 +109,16 @@ export function Ui2MiniChart({ points, kind, unit, label, markers = true, onExpa
           <path className="u2h-invested-line" d={linePath(invested, xAt, yAt)} />
         )}
         <path className={kind === 'volatility' ? 'u2h-move-line' : 'u2h-current-line'} d={linePath(values, xAt, yAt)} />
-        {markers && values.map((value, index) => value === null ? null : (
+        {values.map((value, index) => value === null || (!markers && !isIsolatedPoint(values, index)) ? null : (
           // Inside the expand button the markers stay out of the tab order:
           // a focusable element inside a button is invalid nesting.
           <circle key={index} cx={xAt(index)} cy={yAt(value)} r="3" fill="var(--u2-accent)" tabIndex={onExpand ? undefined : 0}>
             <title>{`${points[index].date} · ${format(value)}${amountSuffix}`}</title>
+          </circle>
+        ))}
+        {kind === 'value' && invested.map((value, index) => value === null || markers || !isIsolatedPoint(invested, index) ? null : (
+          <circle key={`invested-${index}`} cx={xAt(index)} cy={yAt(value)} r="3" fill="var(--u2-muted)" tabIndex={onExpand ? undefined : 0}>
+            <title>{`${points[index].date} · ${format(value)}${amountSuffix} invested`}</title>
           </circle>
         ))}
         <text x={LEFT} y="165" fill="var(--u2-muted)" fontSize="9">{points[0]?.date ?? ''}</text>

@@ -112,11 +112,11 @@ describe('UI_2.0 History page', () => {
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit snapshot 2026-11-16' }))
-    expect(screen.queryByRole('button', { name: 'Delete row' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('button', { name: 'Delete record' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close Edit daily record' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit snapshot 2026-11-13' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete row' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete record' }))
     await waitFor(() => expect(mockApi.deleteHistoryRow).toHaveBeenCalledWith('2026-11-13'))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -126,14 +126,155 @@ describe('UI_2.0 History page', () => {
     renderPage()
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
     fireEvent.click(screen.getByRole('button', { name: 'Edit snapshot 2026-11-16' }))
-    expect(screen.getByRole('button', { name: 'Delete row' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete record' })).toBeInTheDocument()
   })
 
-  it('opens the per-stock breakdown from a value', async () => {
+  it('shows the handoff breakdown: group totals, then holding, quantity and value', async () => {
     renderPage()
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
     fireEvent.click(screen.getByRole('button', { name: 'View INR holdings on 2026-11-16' }))
-    expect(await screen.findByRole('dialog')).toHaveTextContent('TCS')
+    const dialog = await screen.findByRole('dialog', { name: '16 Nov snapshot' })
+    expect(dialog).toHaveTextContent('India · INR · 2026-11-16')
+    expect(dialog).toHaveTextContent('Invested₹1,200.00')
+    expect(dialog).toHaveTextContent('Snapshot value₹1,300.00')
+    expect(within(dialog).getAllByRole('columnheader').map(header => header.textContent))
+      .toEqual(['Holding', 'Quantity', 'Value'])
+    expect(within(dialog).getByRole('rowheader', { name: 'TCS' })).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('₹1,300.00')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('adds one asset group per record', async () => {
+    mockApi.addHistoryRow.mockResolvedValue(novemberRows[2])
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: '＋ Add record' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add daily record' })
+    // Gold is recorded from the Gold page, not here.
+    expect(within(dialog).getAllByRole('option').map(option => option.textContent)).toEqual(['India · INR', 'Europe · EUR'])
+    fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-11-10' } })
+    fireEvent.change(within(dialog).getByLabelText('Asset group'), { target: { value: 'EUR' } })
+    fireEvent.change(within(dialog).getByLabelText('Invested amount (€)'), { target: { value: '2610' } })
+    fireEvent.change(within(dialog).getByLabelText('Snapshot value (€)'), { target: { value: '4144.05' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save record' }))
+    await waitFor(() => expect(mockApi.addHistoryRow).toHaveBeenCalledWith({
+      date: '2026-11-10', regions: { EUR: { invested: 2610, current: 4144.05 } },
+    }))
+  })
+
+  it('refuses an add with no amounts', async () => {
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: '＋ Add record' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save record' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter the invested amount and the snapshot value.')
+    expect(mockApi.addHistoryRow).not.toHaveBeenCalled()
+  })
+
+  it('edits the chosen group pre-filled from the row and sends only a change', async () => {
+    mockApi.patchHistoryRegions.mockResolvedValue(novemberRows[2])
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit snapshot 2026-11-16' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit daily record' })
+    expect(within(dialog).getByLabelText('Date')).toHaveAttribute('readonly')
+    expect(within(dialog).getByLabelText('Invested amount (₹)')).toHaveValue('1,200')
+    fireEvent.change(within(dialog).getByLabelText('Asset group'), { target: { value: 'EUR' } })
+    expect(within(dialog).getByLabelText('Invested amount (€)')).toHaveValue('100')
+    fireEvent.change(within(dialog).getByLabelText('Snapshot value (€)'), { target: { value: '125' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Update record' }))
+    await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith('2026-11-16', {
+      regions: { EUR: { invested: 100, current: 125 } },
+    }))
+  })
+
+  it('closes an unchanged edit without saving', async () => {
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit snapshot 2026-11-16' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Update record' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(mockApi.patchHistoryRegions).not.toHaveBeenCalled()
+  })
+
+  it('pastes the current format and asks about an existing date', async () => {
+    mockApi.pasteHistory.mockResolvedValue({
+      applied: [],
+      rejected: [],
+      conflicts: [{
+        date: '2026-11-13',
+        existing: { INR: { invested: 1000, current: 1150, source: 'manual' } },
+        incoming: { INR: { invested: 1000, current: 1175 } },
+      }],
+    })
+    mockApi.patchHistoryRegions.mockResolvedValue(novemberRows[1])
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: 'Paste month' }))
+    const paste = screen.getByRole('dialog', { name: 'Paste monthly records' })
+    fireEvent.change(within(paste).getByRole('textbox'), { target: { value: '2026-11-13\t1000\t1175\t100\t110' } })
+    fireEvent.click(within(paste).getByRole('button', { name: 'Import rows' }))
+    await waitFor(() => expect(mockApi.pasteHistory).toHaveBeenCalledWith(expect.objectContaining({ month: '2026-11' })))
+
+    const conflict = await screen.findByRole('dialog', { name: 'Record exists · 13 Nov' })
+    fireEvent.click(within(conflict).getByRole('checkbox', { name: 'Replace India · INR' }))
+    fireEvent.click(within(conflict).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith('2026-11-13', {
+      regions: { INR: { invested: 1000, current: 1175 } },
+    }))
+  })
+
+  it('resets region picks between consecutive date conflicts', async () => {
+    mockApi.pasteHistory.mockResolvedValue({
+      applied: [],
+      rejected: [],
+      conflicts: [
+        {
+          date: '2026-11-13',
+          existing: { INR: { invested: 1000, current: 1150, source: 'manual' } },
+          incoming: { INR: { invested: 1000, current: 1175 } },
+        },
+        {
+          date: '2026-11-14',
+          existing: { INR: { invested: 1000, current: 1160, source: 'manual' } },
+          incoming: { INR: { invested: 1000, current: 1180 } },
+        },
+      ],
+    })
+    mockApi.patchHistoryRegions.mockResolvedValue(novemberRows[1])
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: 'Paste month' }))
+    const paste = screen.getByRole('dialog', { name: 'Paste monthly records' })
+    fireEvent.change(within(paste).getByRole('textbox'), {
+      target: { value: '2026-11-13\t1000\t1175\t100\t110\n2026-11-14\t1000\t1180\t100\t110' },
+    })
+    fireEvent.click(within(paste).getByRole('button', { name: 'Import rows' }))
+
+    const first = await screen.findByRole('dialog', { name: 'Record exists · 13 Nov' })
+    fireEvent.click(within(first).getByRole('checkbox', { name: 'Replace India · INR' }))
+    fireEvent.click(within(first).getByRole('button', { name: 'Confirm' }))
+    const second = await screen.findByRole('dialog', { name: 'Record exists · 14 Nov' })
+    expect(within(second).getByRole('checkbox', { name: 'Replace India · INR' })).not.toBeChecked()
+    fireEvent.click(within(second).getByRole('button', { name: 'Confirm' }))
+
+    await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith('2026-11-13', {
+      regions: { INR: { invested: 1000, current: 1175 } },
+    }))
+    expect(mockApi.patchHistoryRegions).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the full-history charts without point markers', async () => {
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    mockApi.listHistory.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Full-history charts' }))
+    const dialog = screen.getByRole('dialog', { name: 'Full-history charts' })
+    await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledWith('2000-01-01', '2026-11-17'))
+    await waitFor(() => expect(within(dialog).getAllByText('Full history').length).toBeGreaterThan(0))
+    expect(dialog.querySelectorAll('circle')).toHaveLength(0)
+    expect(within(dialog).getByRole('button', { name: /Open the full India · INR, Full history/ })).toBeInTheDocument()
   })
 
   it('moves the charts above the table when Charts on top is checked', async () => {

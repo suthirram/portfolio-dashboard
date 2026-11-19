@@ -406,6 +406,56 @@
   border-top-style: dashed;
 }
 
+/* ---------- full-history chart page (slice 14) ---------- */
+
+:root[data-ui="ui2"] .u2h-chart-page-panel { padding: 20px; }
+
+:root[data-ui="ui2"] .u2h-zoom {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 15px;
+}
+
+/* ---------- dialogs (slice 14) ---------- */
+
+:root[data-ui="ui2"] .ui2-dialog-table { margin-top: 20px; }
+
+:root[data-ui="ui2"] .ui2-dialog-table th,
+:root[data-ui="ui2"] .ui2-dialog-table td { padding: 10px 7px; }
+
+:root[data-ui="ui2"] .ui2-dialog-table thead th:first-child { text-align: left; }
+
+:root[data-ui="ui2"] .ui2-dialog-table tbody th {
+  text-align: left;
+  font-size: 11px;
+  color: var(--u2-text);
+  background: transparent;
+  border-bottom: 1px solid var(--u2-border);
+  white-space: normal;
+}
+
+:root[data-ui="ui2"] .ui2-dialog-table tr:last-child th { border-bottom: 0; }
+
+:root[data-ui="ui2"] .ui2-dialog-table small { color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .ui2-breakdown-totals { margin-top: 22px; }
+
+:root[data-ui="ui2"] .ui2-breakdown-empty { margin-top: 20px; }
+
+:root[data-ui="ui2"] .ui2-paste-report {
+  font-size: 12px;
+  margin: 0 0 15px;
+}
+
+:root[data-ui="ui2"] .ui2-paste-report p { margin: 0 0 4px; }
+
+:root[data-ui="ui2"] .ui2-paste-report ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+}
+
 @media (max-width: 1050px) {
   :root[data-ui="ui2"] .u2h-asset-chart-grid { grid-template-columns: 1fr; }
 

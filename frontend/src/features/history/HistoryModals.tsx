@@ -15,7 +15,7 @@ import {
   CURRENCY_BY_REGION, CURRENCY_SYMBOL, REGIONS, REGION_LABELS,
   changedRegions, emptyForm, fmt,
   fmtCurrency, formError, formToBody, groupedInitial, holdingRegion,
-  modalBackdrop, modalCard, parsePasteText, regroupHandler, td, th,
+  modalBackdrop, modalCard, parsePasteText, positiveRegionHoldings, regroupHandler, td, th,
   type RegionFormState, type RegionKey,
 } from './historyShared'
 
@@ -170,11 +170,10 @@ export function EditRowModal({ row, onSubmit, onCancel, onDelete }: {
   )
 }
 
-export function PasteModal({ monthLabel, onSubmit, onCancel }: {
-  monthLabel: string
-  onSubmit: (input: { month: string; rows: ReturnType<typeof parsePasteText> }) => Promise<PasteHistoryReport>
-  onCancel: () => void
-}) {
+// usePasteSubmit is the paste-month dialog's submit flow: parse the pasted
+// text, count client-skipped lines, send the rows and keep the server's
+// report. Shared by the classic PasteModal and UI_2.0's paste dialog.
+export function usePasteSubmit(month: string, onSubmit: PasteSubmit) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [report, setReport] = useState<PasteHistoryReport | null>(null)
@@ -197,7 +196,7 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
         )
         return
       }
-      const submitted = await onSubmit({ month: monthLabel, rows })
+      const submitted = await onSubmit({ month, rows })
       setReport(submitted)
       if (submitted.applied.length === 0 && submitted.conflicts.length === 0 && submitted.rejected.length === 0) {
         alert('Server accepted no rows. They were likely all outside the selected month.')
@@ -208,6 +207,17 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
       setBusy(false)
     }
   }
+  return { text, setText, busy, report, clientSkipped, submit }
+}
+
+export type PasteSubmit = (input: { month: string; rows: ReturnType<typeof parsePasteText> }) => Promise<PasteHistoryReport>
+
+export function PasteModal({ monthLabel, onSubmit, onCancel }: {
+  monthLabel: string
+  onSubmit: PasteSubmit
+  onCancel: () => void
+}) {
+  const { text, setText, busy, report, clientSkipped, submit } = usePasteSubmit(monthLabel, onSubmit)
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!busy) onCancel() })
 
@@ -251,16 +261,23 @@ export function PasteModal({ monthLabel, onSubmit, onCancel }: {
   )
 }
 
-export function ConflictDialog({ conflict, onResolve, onSkip }: {
-  conflict: DateConflict
-  onResolve: (date: string, chosen: Record<string, { invested: number; current: number }>) => Promise<void>
-  onSkip: () => void
-}) {
-  const [picks, setPicks] = useState<Record<RegionKey, boolean>>({
-    INR: false, EUR: false,
-  })
+export type ConflictResolve = (date: string, chosen: Record<string, { invested: number; current: number }>) => Promise<void>
 
-  const toggle = (region: RegionKey) => setPicks(previousPicks => ({ ...previousPicks, [region]: !previousPicks[region] }))
+// useConflictPicks is the conflict dialog's choice: which regions take the
+// incoming value. Shared by the classic ConflictDialog and UI_2.0's.
+export function useConflictPicks(conflict: DateConflict, onResolve: ConflictResolve) {
+  const [selection, setSelection] = useState<{ date: string; picks: Record<RegionKey, boolean> }>({
+    date: conflict.date,
+    picks: { INR: false, EUR: false },
+  })
+  const picks = selection.date === conflict.date
+    ? selection.picks
+    : { INR: false, EUR: false }
+
+  const toggle = (region: RegionKey) => setSelection(previous => {
+    const current = previous.date === conflict.date ? previous.picks : { INR: false, EUR: false }
+    return { date: conflict.date, picks: { ...current, [region]: !current[region] } }
+  })
 
   const submit = async () => {
     const chosen: Record<string, { invested: number; current: number }> = {}
@@ -271,6 +288,15 @@ export function ConflictDialog({ conflict, onResolve, onSkip }: {
     }
     await onResolve(conflict.date, chosen)
   }
+  return { picks, toggle, submit }
+}
+
+export function ConflictDialog({ conflict, onResolve, onSkip }: {
+  conflict: DateConflict
+  onResolve: ConflictResolve
+  onSkip: () => void
+}) {
+  const { picks, toggle, submit } = useConflictPicks(conflict, onResolve)
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, onSkip)
 
@@ -329,8 +355,7 @@ export function HoldingsModal({ row, prev, region, onClose }: {
   // Key by symbol+script so two holdings that share a symbol (e.g. a dual
   // listing) don't collide on the React key or the yesterday-price lookup.
   const keyFor = (holding: HistoryHolding) => `${holding.symbol} ${holding.script}`
-  // Only real (positive-quantity) holdings in this currency.
-  const holdings = (row.holdings ?? []).filter(holding => inRegion(holding) && holding.quantity > 0)
+  const holdings = positiveRegionHoldings(row, region)
   const prevByKey = new Map(
     (prev?.holdings ?? []).filter(inRegion).map(holding => [keyFor(holding), holding]),
   )

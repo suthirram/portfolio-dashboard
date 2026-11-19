@@ -9,6 +9,9 @@ import { formatDate, todayIST } from '../../lib/formDates'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
 import { useAuthOptional } from '../auth/AuthContext'
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
+import '../../ui2/history/history.css'
 import {
   REGIONS, REGION_LABELS, REGION_COLOURS, CURRENCY_BY_REGION, CURRENCY_SYMBOL,
   GOLD_PALETTE, chartTooltipProps, fmtCurrency, fmtAxisAmount, niceDomain,
@@ -21,7 +24,7 @@ import {
 // visible regardless of how many snapshots exist. Reached by clicking the
 // "Invested vs Current" mini-chart on the History page.
 
-const HISTORY_START = '2000-01-01'
+export const HISTORY_START = '2000-01-01'
 // Zoom = pixels of chart width per data point. Higher = more horizontal
 // room per plot (zoom in), lower = denser (zoom out). Clamped to [ZOOM_MIN,
 // ZOOM_MAX]; the container scrolls horizontally past the viewport.
@@ -114,9 +117,14 @@ export default function HistoryChartPage() {
     return () => { cancelled = true }
   }, [])
 
+  // UI_2.0 (PD-059 slice 14, owner: restyle with UI_2.0 parts, no new
+  // layout): its intro, panel and buttons, and the handoff's chart colours.
+  const ui2 = useUiMode() === 'ui2'
   const cur = isGold ? 'INR' : CURRENCY_BY_REGION[region]
   const sym = CURRENCY_SYMBOL[cur]
-  const palette = isGold ? GOLD_PALETTE[theme] : REGION_COLOURS[theme][region]
+  const palette = ui2
+    ? { invested: 'var(--u2-muted)', current: 'var(--u2-accent)' }
+    : isGold ? GOLD_PALETTE[theme] : REGION_COLOURS[theme][region]
   const label = isGold ? 'Gold' : REGION_LABELS[region]
 
   const daily = useMemo(
@@ -139,27 +147,36 @@ export default function HistoryChartPage() {
   const firstDate = data.length ? data[0].date : null
   const lastDate = data.length ? data[data.length - 1].date : null
 
+  const datasetNote = `Full dataset ${firstDate && lastDate ? `(${formatDate(firstDate)} → ${formatDate(lastDate)})` : '(2000 → today)'}. `
+    + 'Scroll horizontally to see every plotted day.'
+
   return (
     <div style={{ minHeight: '100dvh' }}>
-      <header className="nav-glass page-nav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Link to="/history" className="btn-icon" aria-label="Back to historical data" title="Back to historical data">
-            <ArrowLeftIcon size={14} />
-          </Link>
-          <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
-            {label} — Invested vs Current
-          </h1>
-        </div>
-        <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
-      </header>
+      {ui2
+        ? (
+          <Ui2PageIntro title={`${label} · invested vs current`} subtitle={datasetNote}
+            actions={<Link to="/history" className="ui2-btn">‹ Back to History</Link>} />
+        )
+        : (
+          <header className="nav-glass page-nav">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Link to="/history" className="btn-icon" aria-label="Back to historical data" title="Back to historical data">
+                <ArrowLeftIcon size={14} />
+              </Link>
+              <h1 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
+                {label} — Invested vs Current
+              </h1>
+            </div>
+            <ThemePicker variant="inline" theme={theme} premium={auth?.user?.premium} onSelect={setTheme} />
+          </header>
+        )}
 
-      <main className="page-main" style={{ maxWidth: 1400, margin: '0 auto' }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>
-          Full dataset {firstDate && lastDate ? `(${formatDate(firstDate)} → ${formatDate(lastDate)})` : '(2000 → today)'}.
-          Scroll horizontally to see every plotted day.
-        </p>
+      <main className={ui2 ? undefined : 'page-main'} style={ui2 ? undefined : { maxWidth: 1400, margin: '0 auto' }}>
+        {!ui2 && (
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginTop: 0 }}>{datasetNote}</p>
+        )}
 
-        {error && <div className="alert-danger">Error: {error}</div>}
+        {error && <div className={ui2 ? 'u2h-alert' : 'alert-danger'}>Error: {error}</div>}
         {loading && <div style={{ color: 'var(--text-secondary)' }}>Loading full history…</div>}
 
         {!loading && !error && !hasData && (
@@ -172,26 +189,29 @@ export default function HistoryChartPage() {
         )}
 
         {!loading && !error && hasData && (
-          <div style={{
+          <div className={ui2 ? 'ui2-panel u2h-chart-page-panel' : undefined} style={ui2 ? undefined : {
             background: 'var(--bg-secondary)', border: '1px solid var(--border)',
             borderRadius: 8, padding: 16,
           }}>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center',
               flexWrap: 'wrap', marginBottom: 12 }}>
-              <div className="seg-group">
+              <div className={ui2 ? 'u2h-filters' : 'seg-group'} role="group" aria-label="Granularity">
                 {(['week', 'day'] as Granularity[]).map(option => (
-                  <button key={option} className="seg-btn" onClick={() => setGranularity(option)}
+                  <button key={option} type="button" onClick={() => setGranularity(option)}
+                    className={ui2 ? (granularity === option ? 'active' : undefined) : 'seg-btn'}
                     aria-pressed={granularity === option}>
                     {option === 'week' ? 'Weekly' : 'Daily'}
                   </button>
                 ))}
               </div>
               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Zoom</span>
+                <span style={{ fontSize: 12, color: ui2 ? 'var(--u2-muted)' : 'var(--text-secondary)' }}>Zoom</span>
                 <button onClick={() => setZoom(previousZoom => Math.max(ZOOM_MIN, previousZoom - ZOOM_STEP))}
-                  disabled={zoom <= ZOOM_MIN} style={zoomBtnStyle} aria-label="Zoom out (shrink)">−</button>
+                  disabled={zoom <= ZOOM_MIN} className={ui2 ? 'ui2-btn u2h-zoom' : undefined}
+                  style={ui2 ? undefined : zoomBtnStyle} aria-label="Zoom out (shrink)">−</button>
                 <button onClick={() => setZoom(previousZoom => Math.min(ZOOM_MAX, previousZoom + ZOOM_STEP))}
-                  disabled={zoom >= ZOOM_MAX} style={zoomBtnStyle} aria-label="Zoom in">+</button>
+                  disabled={zoom >= ZOOM_MAX} className={ui2 ? 'ui2-btn u2h-zoom' : undefined}
+                  style={ui2 ? undefined : zoomBtnStyle} aria-label="Zoom in">+</button>
               </div>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {data.length} points · {granularity === 'week' ? 'weekly close' : 'daily'}

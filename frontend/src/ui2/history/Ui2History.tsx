@@ -1,16 +1,16 @@
 // The UI_2.0 History page (PD-059 slice 13), laid out 1:1 from the handoff:
 // intro, month toolbar, Month in review, Daily records and the per-asset
 // charts. HistoryPage owns the data and every action (useHistoryMonth); this
-// component only renders them, and reuses the classic dialogs.
+// component only renders them, with the UI_2.0 dialogs (slice 14).
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MIN_YEAR, isAllManual, yearMonth0 } from '../../features/history/historyShared'
 import { shiftMonth } from '../../features/history/MonthNavigator'
 import type { useHistoryMonth } from '../../features/history/useHistoryMonth'
-import {
-  AddRowModal, ConflictDialog, EditRowModal, HoldingsModal, PasteModal,
-} from '../../features/history/HistoryModals'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
+import {
+  Ui2BreakdownDialog, Ui2ConflictDialog, Ui2FullHistoryDialog, Ui2PasteDialog, Ui2RecordDialog,
+} from './Ui2HistoryDialogs'
 import { longMonthLabel, monthOptions, visibleAssets, type AssetFilter, type HistoryAsset } from './historyCells'
 import { Ui2AssetCharts } from './Ui2AssetCharts'
 import { Ui2DailyRecords } from './Ui2DailyRecords'
@@ -25,6 +25,7 @@ export function Ui2History({ history, canForceDelete }: {
 }) {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<AssetFilter>('ALL')
+  const [fullHistoryOpen, setFullHistoryOpen] = useState(false)
   const {
     year, setYear, month, setMonth, today, selectedMonthStart,
     rowsMonthStart, displayRows, loading, error,
@@ -86,6 +87,7 @@ export function Ui2History({ history, canForceDelete }: {
           <label><input type="checkbox" checked={chartsOnTop} onChange={toggleChartsOnTop} /> Charts on top</label>
           <button type="button" className="ui2-btn" onClick={() => setPasteOpen(true)}>Paste month</button>
           <button type="button" className="ui2-btn ui2-btn-primary" onClick={() => setAddOpen(true)}>＋ Add record</button>
+          <button type="button" className="ui2-btn" onClick={() => setFullHistoryOpen(true)}>Full-history charts</button>
         </div>
       </div>
 
@@ -105,21 +107,23 @@ export function Ui2History({ history, canForceDelete }: {
 
       {displayRows.length > 0 && (chartsOnTop ? <>{charts}{table}</> : <>{table}{charts}</>)}
 
-      {addOpen && <AddRowModal onSubmit={handleAddSaved} onCancel={() => setAddOpen(false)} />}
-      {editRow && <EditRowModal row={editRow} onSubmit={handleEditSaved} onCancel={() => setEditRow(null)}
+      {addOpen && <Ui2RecordDialog onAdd={handleAddSaved} onEdit={handleEditSaved} onClose={() => setAddOpen(false)} />}
+      {editRow && <Ui2RecordDialog row={editRow} onAdd={handleAddSaved} onEdit={handleEditSaved}
+        onClose={() => setEditRow(null)}
         onDelete={isAllManual(editRow.regions) || canForceDelete
           ? async date => { if (await handleDelete(date)) setEditRow(null) }
           : undefined} />}
-      {pasteOpen && <PasteModal monthLabel={`${year}-${String(month + 1).padStart(2, '0')}`}
+      {pasteOpen && <Ui2PasteDialog month={`${year}-${String(month + 1).padStart(2, '0')}`}
         onSubmit={async input => {
           const report = await handlePasteSubmit(input)
           if (report.conflicts.length === 0 && report.rejected.length === 0) setPasteOpen(false)
           return report
         }}
-        onCancel={() => setPasteOpen(false)} />}
-      {headConflict && <ConflictDialog conflict={headConflict} onResolve={handleConflictResolve} onSkip={handleConflictSkip} />}
-      {holdingsView && <HoldingsModal row={holdingsView.row} prev={holdingsView.prev} region={holdingsView.region}
+        onClose={() => setPasteOpen(false)} />}
+      {headConflict && <Ui2ConflictDialog conflict={headConflict} onResolve={handleConflictResolve} onSkip={handleConflictSkip} />}
+      {holdingsView && <Ui2BreakdownDialog row={holdingsView.row} region={holdingsView.region}
         onClose={() => setHoldingsView(null)} />}
+      {fullHistoryOpen && <Ui2FullHistoryDialog onExpand={expand} onClose={() => setFullHistoryOpen(false)} />}
     </div>
   )
 }

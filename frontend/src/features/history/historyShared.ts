@@ -626,6 +626,12 @@ export function goldInvestedWentUp(rows: HistoryRow[], i: number): boolean {
   return gold.invested > (prev.gold?.invested ?? 0)
 }
 
+// positiveRegionHoldings is a row's real (positive-quantity) stock lines in
+// one currency: the per-stock breakdown's rows in both interfaces.
+export function positiveRegionHoldings(row: HistoryRow, region: RegionKey): HistoryHolding[] {
+  return (row.holdings ?? []).filter(holding => holdingRegion(holding) === region && holding.quantity > 0)
+}
+
 // bucketCurrency mirrors the backend's CurrencyOf (services/snapshot.go):
 // INR and EUR map to themselves, blank defaults to INR, and anything else
 // (legacy USD) has no bucket at all — the snapshot job excludes such a
