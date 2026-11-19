@@ -1,22 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
-import { api } from '../../lib/api/client'
-import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
+import { useRef, type CSSProperties } from 'react'
+import type { TransactionType } from '../../types'
 import { EditIcon, TrashIcon, PlusIcon } from '../../components/Icon'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
-import { formatDate, todayIST } from '../../lib/formDates'
-import { currencySymbol } from '../../lib/currency'
+import { formatDate } from '../../lib/formDates'
 import { useDialogFocus } from '../../lib/useDialogFocus'
-
-// Ordered for the type picker; opening is managed via the holding's opening
-// balance, but is shown read-only in the list when present.
-const NEW_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'split', 'bonus', 'merger']
-
-export const TYPE_LABEL: Record<string, string> = {
-  opening: 'Opening', buy: 'Buy', sell: 'Sell', dividend: 'Dividend',
-  split: 'Split', bonus: 'Bonus', merger: 'Merger',
-}
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2HoldingLedger } from '../../ui2/transactions/Ui2HoldingLedger'
+import { NEW_TYPES, TYPE_LABEL, useHoldingLedger, type LedgerProps } from './useHoldingLedger'
+export { TYPE_LABEL } from './useHoldingLedger'
 
 const INPUT: CSSProperties = {
   width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
@@ -25,206 +16,17 @@ const INPUT: CSSProperties = {
 }
 const LABEL: CSSProperties = { display: 'block', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
 
-interface FormState {
-  type: TransactionType
-  date: string // yyyy-mm-dd
-  quantity: string
-  price: string // optional per-share price; convenience to compute amount = price × shares
-  amount: string
-  ratio: string
-  realized: string // opening only: realised P&L seed
-  notes: string
+export default function TransactionsModal(props: LedgerProps) {
+  const View = useUiMode() === 'ui2' ? Ui2HoldingLedger : ClassicHoldingLedger
+  return <View key={JSON.stringify([props.holding.id, props.userId])} {...props} />
 }
 
-// Dates default to the IST calendar day: a UTC slice shows yesterday between
-// 00:00 and 05:30 IST.
-const emptyForm = (): FormState => ({ type: 'buy', date: todayIST(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
-
-interface Props {
-  // Holding, not HoldingWithPrice: every field this editor reads
-  // (currency, script, and the four derived position fields) is stored on
-  // the holding itself, so the portfolio-wide view can open it without
-  // fetching live prices first.
-  holding: Holding
-  onClose: () => void
-  // Called after any ledger mutation so the parent refreshes holdings/prices
-  // (the position is recomputed server-side).
-  onChanged: () => void
-  // Set in admin act-as: reads and writes go to the target's ledger (PD-048).
-  userId?: string
-}
-
-export default function TransactionsModal({ holding, onClose, onChanged, userId }: Props) {
-  const sym = currencySymbol(holding.currency)
-  const [txns, setTxns] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState('')
-  const [form, setForm] = useState<FormState>(emptyForm())
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [confirm, setConfirm] = useState<string | null>(null)
+function ClassicHoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
+  const { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
+    recompute, startEdit, submit, remove, money, formatQuantity, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare
+  } = useHoldingLedger({ holding, userId, onChanged })
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!saving) onClose() })
-
-  const load = useCallback(async () => {
-    if (!holding.id) return
-    setLoading(true)
-    try {
-      const data = await api.listTransactions(holding.id, userId)
-      setTxns(data)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [holding.id])
-
-  useEffect(() => { void load() }, [load])
-
-  const resetForm = () => { setForm(emptyForm()); setEditingId(null) }
-
-  // Optional per-share price is a convenience: when both shares and price are
-  // present, auto-fill the total amount (= price × shares). Amount stays
-  // editable so the user can fold in brokerage/charges afterwards (e.g. enter
-  // NAV 41.1086 × 279.733 = 11499.43, then bump to the 11500 actually debited).
-  const recompute = (next: Partial<FormState>) => setForm(previousForm => {
-    const merged = { ...previousForm, ...next }
-    const qty = parseDecimalInput(merged.quantity, { singleSeparator: 'decimal' })
-    const px = parseDecimalInput(merged.price)
-    if (merged.price.trim() !== '' && Number.isFinite(qty) && Number.isFinite(px) && qty > 0) {
-      merged.amount = (qty * px).toFixed(2)
-    }
-    return merged
-  })
-
-  const startEdit = (txn: Transaction) => {
-    setEditingId(txn.id || null)
-    setForm({
-      type: (txn.type as TransactionType) || 'buy',
-      date: txn.date ? txn.date.slice(0, 10) : todayIST(),
-      quantity: txn.quantity != null ? String(txn.quantity) : '',
-      price: '',
-      amount: txn.amount != null ? String(txn.amount) : '',
-      ratio: txn.ratio != null && txn.ratio !== 0 ? String(txn.ratio) : '',
-      realized: txn.realized_seed != null && txn.realized_seed !== 0 ? String(txn.realized_seed) : '',
-      notes: txn.notes || '',
-    })
-  }
-
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!holding.id) return
-    setErr('')
-
-    const quantity = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
-    if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return }
-    // Untouched fields keep the stored number: re-parsing String(1.234) under
-    // the default rule would save the grouped integer 1234.
-    const editing = editingId ? txns.find(txn => txn.id === editingId) : undefined
-    const amount = parseSeededDecimal(form.amount, editing?.amount)
-    if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return }
-    const ratio = parseDecimalInput(form.ratio, { singleSeparator: 'decimal' })
-    if (!Number.isFinite(ratio) || ratio < 0) { setErr('Enter a valid ratio'); return }
-    const realizedSeed = parseSeededDecimal(form.realized, editing?.realized_seed, { allowNegative: true })
-    if (!Number.isFinite(realizedSeed)) { setErr('Enter a valid realised P&L seed'); return }
-
-    const payload: TransactionInput = {
-      type: form.type,
-      // Send a full RFC3339 timestamp; the backend parses date-time.
-      date: new Date(form.date + 'T00:00:00Z').toISOString(),
-      quantity,
-      amount,
-      notes: form.notes.trim() || undefined,
-    }
-    if (form.type === 'split' || form.type === 'bonus') {
-      payload.ratio = ratio
-    }
-    if (form.type === 'opening') {
-      payload.realized_seed = realizedSeed
-    }
-
-    setSaving(true)
-    try {
-      if (editingId) {
-        await api.updateTransaction(editingId, payload, userId)
-      } else {
-        await api.createTransaction(holding.id, payload, userId)
-      }
-      resetForm()
-      await load()
-      onChanged()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const remove = async (id: string) => {
-    setErr('')
-    try {
-      await api.deleteTransaction(id, userId)
-      setConfirm(null)
-      await load()
-      onChanged()
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  const money = (value?: number | null) =>
-    value == null || value === 0 ? '—' : sym + Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const num = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
-
-  // Replay the ledger (mirrors backend RecomputePosition) and return a map of
-  // transaction id → avg cost per share after that event executes.
-  const runningAvgCosts = (() => {
-    const sorted = txns.toSorted((left, right) => {
-      const leftOpening = left.type === 'opening', rightOpening = right.type === 'opening'
-      if (leftOpening !== rightOpening) return leftOpening ? -1 : 1
-      return (left.date || '').localeCompare(right.date || '')
-    })
-    let totalQty = 0, totalBasis = 0
-    const avgCostById = new Map<string, number>()
-    for (const txn of sorted) {
-      const qty = txn.quantity ?? 0
-      const amt = txn.amount ?? 0
-      switch (txn.type) {
-        case 'opening':
-        case 'buy':
-          if (qty > 0) { totalQty += qty; totalBasis += amt }
-          break
-        case 'sell': {
-          const avg = totalQty > 0 ? totalBasis / totalQty : 0
-          const removed = Math.min(qty, totalQty)
-          totalQty -= removed
-          totalBasis -= avg * removed
-          break
-        }
-        case 'split':
-        case 'bonus':
-          if ((txn.ratio ?? 0) > 0) totalQty *= txn.ratio!
-          break
-        // dividend / merger: no position change
-      }
-      if (txn.id) avgCostById.set(txn.id, totalQty > 0 ? totalBasis / totalQty : 0)
-    }
-    return avgCostById
-  })()
-
-  // Quantity/amount are irrelevant for split/bonus/merger; show ratio instead.
-  const isCorporate = form.type === 'split' || form.type === 'bonus'
-  const isMerger = form.type === 'merger'
-  const isOpening = form.type === 'opening'
-
-  const liveQty = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
-  const liveAmt = parseDecimalInput(form.amount)
-  const impliedCostPerShare =
-    !isCorporate && !isMerger && form.type !== 'dividend' &&
-    Number.isFinite(liveQty) && liveQty > 0 &&
-    Number.isFinite(liveAmt) && liveAmt > 0
-      ? liveAmt / liveQty
-      : null
 
   return (
     <div className="modal-overlay" style={{
@@ -280,17 +82,17 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
               )}
               {form.type !== 'dividend' && (
                 <div>
-                  <label style={LABEL}>Price / share ({sym}) <span style={{ textTransform: 'none', color: 'var(--text-muted)' }}>optional</span></label>
+                  <label style={LABEL}>Price / share ({currencySign}) <span style={{ textTransform: 'none', color: 'var(--text-muted)' }}>optional</span></label>
                   <DecimalInput style={INPUT} value={form.price}
                     onValueChange={value => recompute({ price: value })} placeholder="NAV / price" />
                 </div>
               )}
               <div>
                 <label style={LABEL}>
-                  {form.type === 'dividend' ? `Dividend credited (${sym})`
-                    : form.type === 'sell' ? `Total credited (${sym})`
-                    : form.type === 'opening' ? `Total cost (${sym})`
-                    : `Total debited (${sym})`}
+                  {form.type === 'dividend' ? `Dividend credited (${currencySign})`
+                    : form.type === 'sell' ? `Total credited (${currencySign})`
+                    : form.type === 'opening' ? `Total cost (${currencySign})`
+                    : `Total debited (${currencySign})`}
                 </label>
                 <DecimalInput style={INPUT} value={form.amount}
                   onValueChange={value => setForm(previousForm => ({ ...previousForm, amount: value }))} placeholder="0.00" />
@@ -302,14 +104,14 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
             <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
               Implied cost/share:{' '}
               <strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                {sym}{impliedCostPerShare.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {currencySign}{impliedCostPerShare.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </strong>
             </div>
           )}
 
           {isOpening && (
             <div style={{ marginTop: 12 }}>
-              <label style={LABEL}>Realised P&L seed ({sym})</label>
+              <label style={LABEL}>Realised P&L seed ({currencySign})</label>
               <DecimalInput style={INPUT} value={form.realized} allowNegative
                 onValueChange={value => setForm(previousForm => ({ ...previousForm, realized: value }))}
                 placeholder="Carried realised P&L (optional)" />
@@ -370,37 +172,37 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
               {loading && (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>Loading…</td></tr>
               )}
-              {!loading && txns.length === 0 && (
+              {!loading && transactions.length === 0 && (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28, color: 'var(--text-muted)' }}>
                   No transactions yet. Add a buy, sell or dividend above.
                 </td></tr>
               )}
-              {!loading && txns.map(txn => (
-                <tr key={txn.id} style={{ borderTop: '1px solid var(--border)' }}>
-                  <Td style={{ textAlign: 'left' }}>{txn.date ? formatDate(txn.date) : '—'}</Td>
+              {!loading && transactions.map(transaction => (
+                <tr key={transaction.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <Td style={{ textAlign: 'left' }}>{transaction.date ? formatDate(transaction.date) : '—'}</Td>
                   <Td style={{ textAlign: 'left' }}>
-                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[txn.type || ''] || txn.type}</span>
-                    {txn.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{txn.notes}</div>}
+                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[transaction.type || ''] || transaction.type}</span>
+                    {transaction.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{transaction.notes}</div>}
                   </Td>
-                  <Td className="mono">{num(txn.quantity)}</Td>
-                  <Td className="mono">{money(txn.amount)}</Td>
-                  <Td className="mono">{txn.ratio ? `${txn.ratio}×` : '—'}</Td>
-                  <Td className="mono">{(() => { const avgCost = txn.id ? runningAvgCosts.get(txn.id) : undefined; return avgCost ? sym + avgCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
+                  <Td className="mono">{formatQuantity(transaction.quantity)}</Td>
+                  <Td className="mono">{money(transaction.amount)}</Td>
+                  <Td className="mono">{transaction.ratio ? `${transaction.ratio}×` : '—'}</Td>
+                  <Td className="mono">{(() => { const avgCost = transaction.id ? runningAvgCosts.get(transaction.id) : undefined; return avgCost ? currencySign + avgCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
                   <Td style={{ textAlign: 'center' }}>
-                    {confirm === txn.id ? (
+                    {confirm === transaction.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => txn.id && remove(txn.id)} className="btn btn-sm btn-danger-solid">Yes</button>
+                        <button onClick={() => transaction.id && remove(transaction.id)} className="btn btn-sm btn-danger-solid">Yes</button>
                         <button onClick={() => setConfirm(null)} className="btn btn-sm">No</button>
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(txn)} title="Edit"
-                          aria-label={`Edit ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                        <button onClick={() => startEdit(transaction)} title="Edit"
+                          aria-label={`Edit ${TYPE_LABEL[transaction.type || ''] || transaction.type} on ${transaction.date ? formatDate(transaction.date) : 'no date'}`}
                           className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete"
-                          aria-label={`Delete ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                        <button onClick={() => transaction.id && setConfirm(transaction.id)} title="Delete"
+                          aria-label={`Delete ${TYPE_LABEL[transaction.type || ''] || transaction.type} on ${transaction.date ? formatDate(transaction.date) : 'no date'}`}
                           className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
@@ -415,7 +217,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 
         {/* Derived position summary */}
         <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)' }}>
-          <span>Shares: <strong style={{ color: 'var(--text-primary)' }}>{num(holding.stocks_owned)}</strong></span>
+          <span>Shares: <strong style={{ color: 'var(--text-primary)' }}>{formatQuantity(holding.stocks_owned)}</strong></span>
           <span>Avg cost: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.avg_cost_price)}</strong></span>
           <span>Realised: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.realized_pnl)}</strong></span>
           <span>Dividends: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.total_dividends)}</strong></span>

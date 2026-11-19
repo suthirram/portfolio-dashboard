@@ -102,9 +102,10 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
     setLookupLoading(true)
     try {
       const data = await api.getMarketPrice(form.symbol)
-      setLivePrice(data)
-    } catch (e) {
-      setLivePrice({ error: e instanceof Error ? e.message : String(e) })
+      setLivePrice(data.price != null && Number.isFinite(data.price) && data.price > 0
+        ? data : { error: 'No valid quote found for this symbol' })
+    } catch {
+      setLivePrice({ error: 'No valid quote found for this symbol' })
     } finally {
       setLookupLoading(false)
     }

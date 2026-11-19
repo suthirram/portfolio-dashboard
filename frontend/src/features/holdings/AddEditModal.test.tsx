@@ -9,12 +9,29 @@ vi.mock('../../lib/api/client', () => ({
     createHolding: vi.fn().mockResolvedValue({}),
     updateHolding: vi.fn().mockResolvedValue({}),
     getMarketPrice: vi.fn(),
+    getMarketProfile: vi.fn().mockResolvedValue(null),
   },
 }))
 
 describe('AddEditModal numeric input', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('shows a valid Yahoo quote after Test', async () => {
+    vi.mocked(api.getMarketPrice).mockResolvedValueOnce({ price: 123.45, currency: 'USD' })
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'AAPL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText(/123.45 USD/)).toBeVisible()
+  })
+
+  it('shows a clear error for an invalid Yahoo symbol', async () => {
+    vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new Error('upstream response'))
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'BAD-SYMBOL' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    expect(await screen.findByText('Error: No valid quote found for this symbol')).toBeVisible()
   })
 
   it('submits comma decimal costs as numbers', async () => {
