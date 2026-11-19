@@ -1,6 +1,6 @@
 # PD-059: Wave 3c amendment — UI_2.0 History dialogs and chart page (slice 14)
 
-* **Status**: Draft amendment; implementation starts after this docs PR merges
+* **Status**: In review (#346); implementation starts after this docs PR merges
 * **Owner**: Claude; product decisions remain with the project owner
 * **Updated**: 2026-11-19
 * **Goal**: UI_2.0 History opens the handoff's dialogs — Add / Edit daily record, Paste monthly records, the record-exists choice, the snapshot breakdown and the Full-history charts — and shows the full-history chart page in UI_2.0 parts.
@@ -17,7 +17,7 @@ Owner answers (2026-11-19) this slice implements:
 | Add / Edit | The handoff's form: one asset group per save (Date, Asset group, Invested amount, Snapshot value). INR or EUR only — gold comes from the Gold ledger and the API has no gold field. Edit pre-fills the chosen group from the row, the date is read-only, and only a change is sent (`changedRegions`); an unchanged edit closes. Delete stays inside Edit under today's rule (slice 13). |
 | Paste | Today's tab-separated format (C8), in the handoff's dialog. |
 | Breakdown | The handoff's columns only: the group's Invested and Snapshot value, then Holding / Quantity / Value (value at that day's close). Today's price, change and dividend columns are not shown in UI_2.0. |
-| Full-history charts | A header button opens a dialog with the three mini charts per asset over every stored day: daily lines, no point markers. A value chart still opens `/history/chart/:region`. |
+| Full-history charts | A header button opens a dialog with the three mini charts per asset over every stored day. Dense point markers are omitted, while isolated valid values remain marked so a one-point series or a point across data gaps stays visible. A value chart still opens `/history/chart/:region`. |
 | Chart page | No handoff frame: restyle with UI_2.0 parts — intro with Back to History, panel, segment and zoom buttons, the handoff's line colours. Same data, zoom and Daily / Weekly. |
 
 Kept exactly: validation (`formError`, `formToBody`), the 409 conflict flow
@@ -38,6 +38,8 @@ change is that the paste and conflict logic now lives in hooks they call.
 | Modify | `frontend/src/ui2/history/history.css` | Dialog tables, paste report, chart-page panel and zoom |
 | Modify | `frontend/src/ui2/history/Ui2History.tsx` | UI_2.0 dialogs and the Full-history charts button |
 | Modify | `frontend/src/ui2/history/Ui2History.test.tsx` | Dialog behaviour |
+| Modify | `frontend/src/ui2/history/Ui2MiniChart.tsx` | Keep isolated valid points visible when dense markers are disabled |
+| Create | `frontend/src/ui2/history/Ui2MiniChart.test.tsx` | Isolated and connected point marker behaviour |
 | Create | `frontend/src/ui2/history/Ui2HistoryChartPage.test.tsx` | Chart page in UI_2.0 and fallback |
 | Modify | `docs/plans/PD-059-ui-2-status.md` | Slice 14 state, registry rows |
 
@@ -198,8 +200,17 @@ export type ConflictResolve = (date: string, chosen: Record<string, { invested: 
 // useConflictPicks is the conflict dialog's choice: which regions take the
 // incoming value. Shared by the classic ConflictDialog and UI_2.0's.
 export function useConflictPicks(conflict: DateConflict, onResolve: ConflictResolve) {
-  const [picks, setPicks] = useState<Record<RegionKey, boolean>>({
-    INR: false, EUR: false,
+  const [selection, setSelection] = useState<{ date: string; picks: Record<RegionKey, boolean> }>({
+    date: conflict.date,
+    picks: { INR: false, EUR: false },
+  })
+  const picks = selection.date === conflict.date
+    ? selection.picks
+    : { INR: false, EUR: false }
+
+  const toggle = (region: RegionKey) => setSelection(previous => {
+    const current = previous.date === conflict.date ? previous.picks : { INR: false, EUR: false }
+    return { date: conflict.date, picks: { ...current, [region]: !current[region] } }
   })
 ```
 
@@ -797,9 +808,9 @@ export function Ui2BreakdownDialog({ row, region, onClose }: {
   )
 }
 
-// Ui2FullHistoryDialog draws the mini charts over every stored day (owner:
-// daily lines, no point markers). The value charts still open the zoomable
-// full-history page.
+// Ui2FullHistoryDialog draws daily lines over every stored day without dense
+// markers. Isolated valid values stay marked; value charts still open the
+// zoomable full-history page.
 export function Ui2FullHistoryDialog({ onExpand, onClose }: {
   onExpand: (asset: HistoryAsset) => void
   onClose: () => void
@@ -905,11 +916,82 @@ Replace with:
 
 ### Task 4: Open them from the History page
 
-**Files:** `frontend/src/ui2/history/Ui2History.tsx`, `frontend/src/ui2/history/Ui2History.test.tsx` (modify)
+**Files:** `frontend/src/ui2/history/Ui2History.tsx`, `frontend/src/ui2/history/Ui2History.test.tsx` (modify); `frontend/src/ui2/history/Ui2MiniChart.tsx` (modify), `frontend/src/ui2/history/Ui2MiniChart.test.tsx` (create)
 
 The page swaps the classic dialogs for the UI_2.0 ones with the same
 handlers, and adds the handoff's Full-history charts button after Add
 record.
+
+The full-history charts disable dense point markers to keep long series
+readable. That must not hide an isolated valid value: when a series has one
+point or its neighbouring points are unavailable, draw a marker at that
+value. Apply this to both current and invested lines. Connected series keep
+the marker-free appearance. Add `isIsolatedPoint` after `seriesOf`:
+
+```tsx
+function isIsolatedPoint(values: (number | null)[], index: number): boolean {
+  if (values[index] === null) return false
+  const previousConnected = index > 0 && values[index - 1] !== null
+  const nextConnected = index < values.length - 1 && values[index + 1] !== null
+  return !previousConnected && !nextConnected
+}
+```
+
+Current:
+
+```tsx
+{markers && values.map((value, index) => value === null ? null : (
+  <circle key={index} cx={xAt(index)} cy={yAt(value)} r="3" fill="var(--u2-accent)" tabIndex={onExpand ? undefined : 0}>
+    <title>{`${points[index].date} · ${format(value)}${amountSuffix}`}</title>
+  </circle>
+))}
+```
+
+Replace with:
+
+```tsx
+{values.map((value, index) => value === null || (!markers && !isIsolatedPoint(values, index)) ? null : (
+  <circle key={index} cx={xAt(index)} cy={yAt(value)} r="3" fill="var(--u2-accent)" tabIndex={onExpand ? undefined : 0}>
+    <title>{`${points[index].date} · ${format(value)}${amountSuffix}`}</title>
+  </circle>
+))}
+{kind === 'value' && invested.map((value, index) => value === null || markers || !isIsolatedPoint(invested, index) ? null : (
+  <circle key={`invested-${index}`} cx={xAt(index)} cy={yAt(value)} r="3" fill="var(--u2-muted)" tabIndex={onExpand ? undefined : 0}>
+    <title>{`${points[index].date} · ${format(value)}${amountSuffix} invested`}</title>
+  </circle>
+))}
+```
+
+The focused component test covers one isolated current value, one isolated
+invested value and a connected series with dense markers disabled:
+
+```tsx
+import { render } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { Ui2MiniChart, type MiniChartPoint } from './Ui2MiniChart'
+
+const points: MiniChartPoint[] = [
+  { date: '2026-11-14', invested: null, current: null, pnl_pct: null, daily_vol: null },
+  { date: '2026-11-15', invested: 80, current: 100, pnl_pct: null, daily_vol: null },
+  { date: '2026-11-16', invested: null, current: null, pnl_pct: null, daily_vol: null },
+]
+
+describe('Ui2MiniChart isolated values', () => {
+  it('marks isolated current and invested values when dense markers are disabled', () => {
+    const { container } = render(<Ui2MiniChart points={points} kind="value" unit="INR" label="India · INR" markers={false} />)
+    const circles = [...container.querySelectorAll('circle')]
+    expect(circles.map(circle => circle.querySelector('title')?.textContent)).toEqual([
+      '2026-11-15 · 100 INR', '2026-11-15 · 80 INR invested',
+    ])
+  })
+
+  it('omits dense markers for connected points when disabled', () => {
+    const connected = points.map((point, index) => ({ ...point, current: 100 + index, invested: 80 + index }))
+    const { container } = render(<Ui2MiniChart points={connected} kind="value" unit="INR" label="India · INR" markers={false} />)
+    expect(container.querySelectorAll('circle')).toHaveLength(0)
+  })
+})
+```
 
 Current:
 
@@ -1055,7 +1137,7 @@ Tests: the delete tests use the new labels; new tests cover the breakdown
 columns and totals, a one-group add (no Gold option), an empty add, an
 edit pre-filled per group sending only the change, an unchanged edit, a
 paste followed by the record-exists choice, and the full-history dialog
-(range, no markers, expand link).
+(range, no dense markers, isolated-point markers, expand link).
 
 Current:
 
@@ -1213,7 +1295,33 @@ Replace with:
     }))
   })
 
-  it('opens the full-history charts without point markers', async () => {
+  it('resets region picks between consecutive date conflicts', async () => {
+    mockApi.pasteHistory.mockResolvedValue({
+      applied: [], rejected: [], conflicts: [
+        { date: '2026-11-13', existing: { INR: { invested: 1000, current: 1150, source: 'manual' } }, incoming: { INR: { invested: 1000, current: 1175 } } },
+        { date: '2026-11-14', existing: { INR: { invested: 1000, current: 1160, source: 'manual' } }, incoming: { INR: { invested: 1000, current: 1180 } } },
+      ],
+    })
+    renderPage()
+    await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
+    fireEvent.click(screen.getByRole('button', { name: 'Paste month' }))
+    const paste = screen.getByRole('dialog', { name: 'Paste monthly records' })
+    fireEvent.change(within(paste).getByRole('textbox'), { target: { value: '2026-11-13\t1000\t1175\t100\t110\n2026-11-14\t1000\t1180\t100\t110' } })
+    fireEvent.click(within(paste).getByRole('button', { name: 'Import rows' }))
+
+    const first = await screen.findByRole('dialog', { name: 'Record exists · 13 Nov' })
+    fireEvent.click(within(first).getByRole('checkbox', { name: 'Replace India · INR' }))
+    fireEvent.click(within(first).getByRole('button', { name: 'Confirm' }))
+    const second = await screen.findByRole('dialog', { name: 'Record exists · 14 Nov' })
+    expect(within(second).getByRole('checkbox', { name: 'Replace India · INR' })).not.toBeChecked()
+    fireEvent.click(within(second).getByRole('button', { name: 'Confirm' }))
+    await waitFor(() => expect(mockApi.patchHistoryRegions).toHaveBeenCalledWith('2026-11-13', {
+      regions: { INR: { invested: 1000, current: 1175 } },
+    }))
+    expect(mockApi.patchHistoryRegions).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens full-history charts without dense markers', async () => {
     renderPage()
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
     mockApi.listHistory.mockClear()
@@ -1221,16 +1329,16 @@ Replace with:
     const dialog = screen.getByRole('dialog', { name: 'Full-history charts' })
     await waitFor(() => expect(mockApi.listHistory).toHaveBeenCalledWith('2000-01-01', '2026-11-17'))
     await waitFor(() => expect(within(dialog).getAllByText('Full history').length).toBeGreaterThan(0))
-    expect(dialog.querySelectorAll('circle')).toHaveLength(0)
+    expect(dialog.querySelectorAll('circle')).toHaveLength(0) // Connected fixture series need no isolated markers.
     expect(within(dialog).getByRole('button', { name: /Open the full India · INR, Full history/ })).toBeInTheDocument()
   })
 
   it('moves the charts above the table when Charts on top is checked', async () => {
 ```
 
-* [ ] **Verify:** `cd frontend && npx vitest run src/ui2/history/Ui2History.test.tsx`
-  Expected: `17 passed`.
-* [ ] **Commit:** `git add frontend/src/ui2/history/Ui2History.tsx frontend/src/ui2/history/Ui2History.test.tsx && git commit -m "✨ Open UI_2.0 dialogs from History"`
+* [ ] **Verify:** `cd frontend && npx vitest run src/ui2/history/Ui2History.test.tsx src/ui2/history/Ui2MiniChart.test.tsx`
+  Expected: `18 passed`; `Ui2MiniChart.test.tsx` adds 2 behavioral cases.
+* [ ] **Commit:** `git add frontend/src/ui2/history/Ui2History.tsx frontend/src/ui2/history/Ui2History.test.tsx frontend/src/ui2/history/Ui2MiniChart.tsx frontend/src/ui2/history/Ui2MiniChart.test.tsx && git commit -m "✨ Open UI_2.0 dialogs from History"`
 
 ### Task 5: Chart page in UI_2.0 parts
 
@@ -1533,14 +1641,14 @@ describe('full-history chart page in UI_2.0', () => {
 ```
 
 * [ ] **Verify:** `cd frontend && npx tsc -b && npx vitest run src/ui2 src/features/history && npm run lint:changed`
-  Expected: all pass (`796 passed` in the full suite at time of writing: `npx vitest run`); lint clean.
+  Expected: all pass (`799 passed` in the full suite at time of writing: `npx vitest run`); lint clean.
 * [ ] **Commit:** `git add frontend/src/features/history/HistoryChartPage.tsx frontend/src/ui2/history/Ui2HistoryChartPage.test.tsx && git commit -m "🎨 Show the chart page in UI_2.0 parts"`
 
 ### Task 6: Board and registry
 
 **Files:** `docs/plans/PD-059-ui-2-status.md` (modify)
 
-* [ ] Row 14: owner Claude, branch `feat/PD-059-history-dialogs`, PR number, `in review` (→ `merged` on merge).
+* [ ] Row 14: owner Claude, branch `feat/PD-059-history-dialogs`, PR #346, `in review` (→ `merged` on merge).
 * [ ] Registry rows: `Ui2Dialog` (`ui2/shell/Ui2Dialog.tsx`; `title`, `onClose`, `wide`, `busy`; portalled; `useDialogFocus`), the dialog/form classes in `primitives.css` (`.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger`), `usePasteSubmit` / `useConflictPicks` (`features/history/HistoryModals.tsx`).
 * [ ] **Verify:** `npx markdownlint-cli2 docs/plans/PD-059-ui-2-status.md` — Expected: `0 error(s)`.
 * [ ] **Commit:** `git add docs/plans/PD-059-ui-2-status.md && git commit -m "📝 Record slice 14 on the status board"`
@@ -1557,7 +1665,7 @@ Vite on another port proxied to it; never the owner's :8080/:3000. A
 * [ ] Edit: read-only date; switching the group re-fills it; an unchanged save closes without a request; Delete shows only under the rule.
 * [ ] Paste: today's format applies; a conflicting date asks per currency.
 * [ ] Breakdown: Invested and Snapshot value, then Holding / Quantity / Value.
-* [ ] Full-history charts: every stored day, no markers; a value chart opens the chart page.
+* [ ] Full-history charts: every stored day; dense markers are omitted, isolated values remain marked, and a value chart opens the chart page.
 * [ ] Chart page: UI_2.0 intro and panel, Daily / Weekly and zoom work, Back to History returns.
 * [ ] Every dialog covers the sidebar (blurred), closes on ×, Escape and the backdrop, and returns focus.
 * [ ] Light, Dark, Cyber at 1280 px and 390 px: no horizontal page scroll.
