@@ -61,11 +61,19 @@ notes supersede the earlier stacked-editor and generic-Test snippets below.
   and Save event. The inline Keep event / Confirm delete controls replace
   Delete in the same row. Save has its natural width. At phone widths the
   form becomes one column and its action row wraps within the dialog.
-* The ledger uses `.ui2-ledger-table` with left-aligned headers and cells,
-  uppercase muted 10px headers, .6px letter spacing, and 16px by 15px cell
-  padding. Its last header is empty. The subtitle stays above the table;
-  the opening-balance note and left-aligned Add event button follow it.
-  The named table wrapper scrolls horizontally and is keyboard reachable.
+* The ledger list is a split dialog (owner feedback after local testing,
+  2026-11-19). The title reads "Transaction ledger" and a fixed line shows
+  `Holding: <symbol> · Currency: <code>`. Only the events scroll, inside a
+  keyboard-reachable named region with sticky column headings, so a long
+  ledger never pushes the actions out of view. A fixed footer holds the
+  opening-balance note and the actions, **Close** and **Add event**: one
+  identical pair (same width and height, 44 px high, a 2 px border on Close,
+  a 3 px focus ring held off the fill). On a phone they become two equal
+  full-width buttons and every column fits without sideways scrolling down
+  to about 360 px. The list and the editor share one 720 px width.
+  `Ui2Dialog` gained an opt-in `footer` and `className`; other dialogs are
+  unchanged. The table uses `.ui2-ledger-table`: left-aligned, uppercase
+  muted headings, an empty last heading.
 * Holding Symbol → Test reports an HTTP `ApiError` with “Couldn't get a quote
   for this symbol. Check it (for example TCS.NS) and try again.” A network
   failure reports “Couldn't reach the server. Check your connection and try
