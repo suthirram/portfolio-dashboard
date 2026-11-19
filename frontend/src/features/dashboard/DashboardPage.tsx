@@ -432,26 +432,28 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </div>
 
         <div className={ui2 ? 'u2-workspace' : undefined}>
-          {(tab === 'table' || (ui2 && actAsUserId)) && (
-            <HoldingsByCurrency
-              renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
-              holdings={filtered}
-              searchActive={Boolean(filter)}
-              view={positionView} onViewChange={setPositionView}
-              layout={holdingsLayout} onLayoutChange={setHoldingsLayout}
-              sectorTarget={sectorTarget} onSectorTargetHandled={clearSectorTarget}
-              loading={loadingHoldings || loadingPrices}
-              onEdit={holding => setModal(holding)}
-              onDelete={handleDelete}
-              // Transaction endpoints target the caller's own portfolio (no
-              // admin act-as variant yet), so hide the ledger in act-as mode.
-              onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
-              xirr={xirr}
-              sectorColors={sectorColors}
-            />
-          )}
-          {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
-            <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
+          <div>
+            {(tab === 'table' || (ui2 && actAsUserId)) && (
+              <HoldingsByCurrency
+                renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
+                holdings={filtered}
+                searchActive={Boolean(filter)}
+                view={positionView} onViewChange={setPositionView}
+                layout={holdingsLayout} onLayoutChange={setHoldingsLayout}
+                sectorTarget={sectorTarget} onSectorTargetHandled={clearSectorTarget}
+                loading={loadingHoldings || loadingPrices}
+                onEdit={holding => setModal(holding)}
+                onDelete={handleDelete}
+                // Transaction endpoints target the caller's own portfolio (no
+                // admin act-as variant yet), so hide the ledger in act-as mode.
+                onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
+                xirr={xirr}
+                sectorColors={sectorColors}
+              />
+            )}
+            {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
+              <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
+          </div>
           {ui2 && <Ui2Allocation holdings={enriched} onSelectSector={navigateSector} />}
         </div>
       </main>
