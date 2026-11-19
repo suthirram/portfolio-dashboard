@@ -36,7 +36,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
-| 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #346 (plan) | implemented ([wave 3c](PD-059-wave3-history-dialogs.md)) |
+| 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
 | 15 | 4 | FE | Shared ledger hook + UI_2.0 ledger modal | 2 | | | | needs amendment |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
