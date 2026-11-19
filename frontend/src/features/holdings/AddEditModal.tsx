@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChangeEvent, CSSProperties, FormEvent } from 'react'
-import { api } from '../../lib/api/client'
+import { api, ApiError } from '../../lib/api/client'
 import type { Currency, Exchange, Holding, HoldingInput, HoldingType, HoldingWithPrice } from '../../types'
 import ClassificationReview from './ClassificationReview'
 import ProfilePreview, { previewSymbolKey } from './ProfilePreview'
@@ -103,9 +103,11 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
     try {
       const data = await api.getMarketPrice(form.symbol)
       setLivePrice(data.price != null && Number.isFinite(data.price) && data.price > 0
-        ? data : { error: 'No valid quote found for this symbol' })
-    } catch {
-      setLivePrice({ error: 'No valid quote found for this symbol' })
+        ? data : { error: 'No valid quote found for this symbol.' })
+    } catch (error) {
+      setLivePrice({ error: error instanceof ApiError
+        ? "Couldn't get a quote for this symbol. Check it (for example TCS.NS) and try again."
+        : "Couldn't reach the server. Check your connection and try again." })
     } finally {
       setLookupLoading(false)
     }
