@@ -1,6 +1,8 @@
 // The trades CSV import (PD-051): choose a broker export → confirm unknown
 // symbols (map, create or leave) → preview → one atomic commit. Built from
 // the dividend import's shared pieces (features/imports).
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2TradeImport } from '../../ui2/transactions/Ui2TradeImport'
 import { useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { canonicalCurrency } from '../../lib/currency'
@@ -22,6 +24,8 @@ const open = (preview: TradeImportPreview, answers: Answers, created: string[]) 
 export default function TradeImportModal({ holdings, userId, onClose, onImported }: {
   holdings: Holding[]; userId?: string; onClose: () => void; onImported: () => void
 }) {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2TradeImport holdings={holdings} userId={userId} onClose={onClose} onImported={onImported} />
   const [step, setStep] = useState<Step>('pick')
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState<TradeImportRow[]>([])
