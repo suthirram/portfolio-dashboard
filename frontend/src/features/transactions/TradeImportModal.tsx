@@ -21,11 +21,22 @@ const open = (preview: TradeImportPreview, answers: Answers, created: string[]) 
   preview.names.filter(name => (name.status === 'needs_confirmation' || name.status === 'ambiguous')
     && !(name.sheet_name in answers) && !created.includes(name.sheet_name))
 
-export default function TradeImportModal({ holdings, userId, onClose, onImported }: {
-  holdings: Holding[]; userId?: string; onClose: () => void; onImported: () => void
-}) {
+interface Props {
+  holdings: Holding[]
+  userId?: string
+  onClose: () => void
+  onImported: () => void
+}
+
+// Pure dispatcher — only useUiMode() lives here so the hook count is stable
+// if the account's UI mode changes while the modal is open.
+export default function TradeImportModal(props: Props) {
   const ui2 = useUiMode() === 'ui2'
-  if (ui2) return <Ui2TradeImport holdings={holdings} userId={userId} onClose={onClose} onImported={onImported} />
+  if (ui2) return <Ui2TradeImport holdings={props.holdings} userId={props.userId} onClose={props.onClose} onImported={props.onImported} />
+  return <ClassicTradeImportModal {...props} />
+}
+
+function ClassicTradeImportModal({ holdings, userId, onClose, onImported }: Props) {
   const [step, setStep] = useState<Step>('pick')
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState<TradeImportRow[]>([])

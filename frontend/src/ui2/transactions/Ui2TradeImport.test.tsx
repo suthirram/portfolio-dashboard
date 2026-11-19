@@ -63,7 +63,6 @@ describe('Ui2TradeImport', () => {
   it('advances to preview after file upload', async () => {
     render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
-    const input = screen.getByRole('button', { hidden: true }) ?? screen.getByLabelText('Choose CSV file')
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
     expect(await screen.findByRole('dialog', { name: 'Preview import' })).toBeInTheDocument()

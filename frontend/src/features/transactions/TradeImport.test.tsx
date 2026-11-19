@@ -4,9 +4,16 @@ import { ApiError } from '../../lib/api/client'
 import type { Holding } from '../../types'
 
 const mockApi = vi.hoisted(() => ({ previewTradeImport: vi.fn(), importTrades: vi.fn() }))
+const mockUiMode = vi.hoisted(() => ({ mode: 'classic' as string }))
+
 vi.mock('../../lib/api/client', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api/client')>('../../lib/api/client')
   return { ...actual, api: mockApi }
+})
+
+vi.mock('../../lib/uiMode', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/uiMode')>('../../lib/uiMode')
+  return { ...actual, useUiMode: () => mockUiMode.mode }
 })
 
 import TradeImportModal from './TradeImportModal'
@@ -30,6 +37,7 @@ const ready = { counts: { ready: 2, replace: 1, covered: 0, invalid: 0, total: 3
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockUiMode.mode = 'classic'
   mockApi.previewTradeImport.mockResolvedValueOnce(needsLg).mockResolvedValueOnce(ready)
   mockApi.importTrades.mockResolvedValue({ imported: 2, replaced: 1, covered: 0, created_holdings: 1 })
 })
@@ -83,5 +91,21 @@ describe('TradeImportModal', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm import' }))
     expect(await screen.findByText('The data changed since the preview — review it again.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm import' })).toBeDisabled()
+  })
+})
+
+describe('TradeImportModal ui_mode guard', () => {
+  it('re-renders without a hooks error when ui_mode changes from classic to ui2', async () => {
+    mockUiMode.mode = 'classic'
+    const { rerender } = renderModal()
+    expect(screen.getByText(/dates read as/)).toBeInTheDocument()
+
+    // Simulate account flipping to ui2 while modal is open.
+    // Classic hooks in ClassicTradeImportModal must stay stable — React
+    // throws if the hook count changes across re-renders.
+    mockUiMode.mode = 'ui2'
+    expect(() => rerender(<TradeImportModal holdings={holdings} onClose={vi.fn()} onImported={vi.fn()} />)).not.toThrow()
+    // Classic dialog landmark is gone; ui2 path took over.
+    expect(screen.queryByRole('dialog', { name: 'Import trades' })).toBeNull()
   })
 })
