@@ -6,7 +6,7 @@
 * **Implements**: [PRD-015 §4.3](../prds/PRD-015-ui-2.md#43-overview)
 * **Design**: [DD-015](../designs/DD-015-ui-2.md)
 * **Rollout**: [parent plan](PD-059-ui-2.md) and [status board](PD-059-ui-2-status.md)
-* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html) and [review frames](../visuals/PD-059-ui-2.html#frame-title)
+* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html) and [review frames](../visuals/PD-059-ui-2.html#frame-01)
 
 ## 1. Goal and architecture
 
@@ -24,10 +24,9 @@ environment variable or infrastructure change is required.
 
 ## 2. Display and navigation contracts
 
-* Four panels appear in order: **Portfolio value**, **Daily movement**,
-  **Total profit & loss**, **Dividend income**. Total invested sits inside
-  Portfolio value. Unrealised and realised sit inside Total profit & loss.
-  Dividends remain separate. Each panel has its own breakdown trigger.
+* Total portfolio value includes the INR/EUR selector, converted equivalent and
+  Total invested. Show Unrealised return, Today by currency (INR and EUR with
+  the previous close date), Realised gains and Dividends in handoff order.
 * One **Display currency** selector changes combined figures between INR and
   EUR. Native breakdown lines and daily movement keep their currencies. The
   single rate badge displays the inverse of `summary.eur_rate` (EUR per INR).
@@ -36,7 +35,7 @@ environment variable or infrastructure change is required.
 * Currency groups own their sector groups. Search and the Active / Nil / All
   position view survive grouping changes. Keep classification badges, the
   review queue, renames, sector navigation and opening-date prompts. Display
-  share price against previous close with an accessible direction cue.
+  share price against previous close with an visible direction cue. Equal uses blue. An unavailable comparison inherits the default text color.
 * From its first deployment, a row opens Holding details. Edit, Ledger and
   Delete use the existing dashboard handlers. Keep Ledger owner-only. Delete
   cancellation or failure leaves the dialog available. A selected ID is
@@ -47,21 +46,23 @@ environment variable or infrastructure change is required.
   Count unsupported and unpriced positions separately. If a priced position
   lacks its usable INR valuation, show the unavailable state. Never substitute
   cost, total raw INR and EUR together, or report the remainder as 100%.
-* Allocation selection by holding ID opens the same dialog as its row, including
-  when search hides that row. Selecting a sector uses its currency and sector
-  key. A sector present in both currencies offers both destinations. Keep the
-  existing no-match message if a search hides the destination. Currency mode
-  shows shares without mutating holdings, grouping or filters.
+* Slice 7 adds Holdings / Performance and a separate Currency mix panel.
+  Allocation view switches only change the displayed breakdown.
+
+### Open question for the owner
+
+Should selecting an allocation entry navigate to its holdings grouping?
+Slice 7 leaves entries informational pending the owner's decision.
 
 ## 3. File map and PR sequence
 
 | Area | Files under `frontend/src/` | Responsibility |
 | --- | --- | --- |
 | Dashboard | `features/dashboard/DashboardPage.tsx` | Presentation switch, native inputs, selection, permissions and callbacks |
-| Cards | `ui2/overview/Ui2SummaryCards.tsx`, `overview.css` | Four panels, native breakdowns, selected currency and responsive layout |
+| Cards | `ui2/overview/Ui2SummaryCards.tsx`, `overview.css` | Handoff metrics, native breakdowns, selected currency and responsive layout |
 | Holdings | `features/holdings/HoldingsByCurrency.tsx`, `ui2/overview/Ui2Holdings.tsx` | Reuse existing groups and sector targets with an optional UI_2.0 row renderer |
 | Dialog | `ui2/overview/Ui2HoldingDetailsDialog.tsx` | Working actions in slice 5, metrics in slice 6 |
-| Allocation | `features/holdings/sectorAllocationData.ts`, `ui2/overview/Ui2Allocation.tsx` | Shared quote eligibility, INR shares, stable selection |
+| Allocation | `features/holdings/sectorAllocationData.ts`, `ui2/overview/Ui2Allocation.tsx` | Shared quote eligibility, INR shares, currency mix |
 | Tests | `ui2/overview/{Ui2SummaryCards,OverviewDashboard,Ui2Allocation}.test.tsx`, `overview.browser.test.ts` | Values, permissions, end-to-end action routing and viewport checks |
 
 Each branch starts from merged main, carries the `ui-2.0` label, and updates its
@@ -73,12 +74,14 @@ the performance chart as agreed. No slice depends on an unmerged branch.
 
 | Slice and branch | Depends on | Independent value | Regression gate | Test anchor |
 | --- | --- | --- | --- | --- |
-| 4 · `feat/PD-059-overview-cards` | 2, 14 | Inspect summary in either currency | Legacy SummaryCards fallback | Four panels, currency and native breakdown |
+| 4 · `feat/PD-059-overview-cards` | 2, 14 | Inspect summary in either currency | Legacy SummaryCards fallback | Handoff metrics, currency and native breakdown |
 | 5 · `feat/PD-059-overview-holdings` | 4 | Search grouped holdings and act on a row | Edit, Ledger, Delete available immediately | Dashboard click through to target ID and act-as gate |
 | 6 · `feat/PD-059-holding-details` | 5 | Inspect costs, income and XIRR | Same action dialog, forms and handlers | EUR metrics, missing XIRR, existing form tests |
-| 7 · `feat/PD-059-overview-allocation` | 4–6, 10 | Compare allocations and open full performance | Shared exclusions and owner scoping | Mixed currencies, missing conversion, duplicate-name selection, browser widths |
+| 7 · `feat/PD-059-overview-allocation` | 4–6, 10 | Compare allocations and open full performance | Shared exclusions and owner scoping | Mixed currencies, missing conversion, owner-only Performance, browser widths |
 
 ## 4. Executable implementation tasks
+
+Use the registry’s Ui2PageIntro, Ui2Dialog (specified in #346), and primitives.css panel, button and table styles.
 
 The fenced diffs are the complete frontend changes per slice. Removed lines
 show the current code, added lines show the replacement, and context lines
@@ -98,15 +101,17 @@ behavioral test. Register the new components on the board in the same PR.
 * [ ] Branch from current main with `git switch -c feat/PD-059-overview-cards origin/main`.
 * [ ] Apply the implementation and test changes below.
 
-Use the existing dashboard reads and the slice 14 dialog. A local display-currency selector changes combined totals. The four breakdowns continue to use native currency. Keep the existing SummaryCards call as the fallback. The test switches currency, opens a breakdown and checks focus after Escape.
+Use the existing dashboard reads and the slice 14 dialog. A local display-currency selector changes combined totals. The breakdowns continue to use native currency. Keep the existing SummaryCards call as the fallback. The test switches currency, opens a breakdown and checks focus after Escape.
 
 ```diff
 diff --git a/frontend/src/features/dashboard/DashboardPage.tsx b/frontend/src/features/dashboard/DashboardPage.tsx
-index 9e48085..26f5c91 100644
+index 9e48085..4a21bdb 100644
 --- a/frontend/src/features/dashboard/DashboardPage.tsx
 +++ b/frontend/src/features/dashboard/DashboardPage.tsx
-@@ -2,7 +2,9 @@ import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+@@ -1,8 +1,11 @@
+ import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
  import { Link, useLocation, useNavigate } from 'react-router-dom'
++import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
  import SummaryCards from '../../components/SummaryCards'
  import { PortfolioHero } from '../../components/PortfolioHero'
 -import { useUiRevamp } from '../../lib/uiMode'
@@ -116,7 +121,7 @@ index 9e48085..26f5c91 100644
  import { notify } from '../../lib/toast'
  import { type GoldMetrics } from '../../lib/api/client'
  import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
-@@ -90,6 +92,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -90,6 +93,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
    const [regionLabel, setRegionLabel] = useState<string>('')
    const [openingPromptSkipped, setOpeningPromptSkipped] = useState(false)
    const revamp = useUiRevamp()
@@ -124,7 +129,7 @@ index 9e48085..26f5c91 100644
    const location = useLocation()
    const navigate = useNavigate()
    // In the glass shell (PD-054) the brand, page links and user menu live in
-@@ -182,6 +185,31 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -182,6 +186,31 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
    // tables and the pie, so a search or view filter never repaints sectors.
    const sectorColors = useMemo(() => sectorColorsByCurrency(enriched, theme), [enriched, theme])
 
@@ -156,7 +161,25 @@ index 9e48085..26f5c91 100644
    const TAB = (key: Tab, label: string) => (
      <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
        {label}
-@@ -320,7 +348,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -210,7 +239,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
+             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
+           </Link>
+-          <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>
++          {!ui2 && <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>}
+           {roleBadge}
+           {regionLabel && (
+             <span style={{
+@@ -293,6 +322,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+       </header>
+
+       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
++        {ui2 && <Ui2PageIntro title={actAsLabel ? actAsLabel + "'s portfolio" : 'Your portfolio, at a glance'}
++          subtitle="A little clarity for every investment decision." />}
+         {actAsUserId && (
+           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
+@@ -320,7 +351,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
              dayChange={computedDayChangeByCurrency} />
          )}
 
@@ -165,7 +188,7 @@ index 9e48085..26f5c91 100644
            summary={summary}
            loading={loadingPrices}
            goldCurrentInr={goldMetrics?.current ?? null}
-@@ -336,7 +364,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -336,7 +367,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
            stocksUnrealisedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.unrealized_pnl_eur ?? 0), 0)}
            computedDayChangeInr={computedDayChangeByCurrency.INR}
            computedDayChangeEur={computedDayChangeByCurrency.EUR}
@@ -176,26 +199,30 @@ index 9e48085..26f5c91 100644
            <span>{needsReview.length} {needsReview.length === 1 ? 'holding needs' : 'holdings need'} review</span>
 diff --git a/frontend/src/ui2/overview/Ui2SummaryCards.test.tsx b/frontend/src/ui2/overview/Ui2SummaryCards.test.tsx
 new file mode 100644
-index 0000000..fd7db39
+index 0000000..b6f6fc2
 --- /dev/null
 +++ b/frontend/src/ui2/overview/Ui2SummaryCards.test.tsx
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,26 @@
 +import { fireEvent, render, screen, within } from '@testing-library/react'
 +import { expect, it } from 'vitest'
 +import { Ui2SummaryCards } from './Ui2SummaryCards'
 +
 +it('switches portfolio totals while preserving native breakdown values and dialog focus', () => {
-+  render(<Ui2SummaryCards summary={{eur_rate: 0.01}} daily={{EUR: null}} assets={[
++  render(<Ui2SummaryCards summary={{eur_rate: 0.01, previous_close_date: "2026-11-16"}} daily={{EUR: null}} assets={[
 +    { label: 'EUR equities', currency: 'EUR', current: 100, invested: 80, unrealised: 20, realised: 0, income: 5 },
 +    { label: 'Physical gold', currency: 'INR', current: 5000, invested: 4000, unrealised: 1000, realised: 0, income: 0 },
 +  ]} />)
 +  expect(screen.getAllByRole('heading').map(item => item.textContent)).toEqual([
-+    'Portfolio value', 'Daily movement', 'Total profit & loss', 'Dividend income',
++    'Total portfolio value', 'Unrealised return', 'Today by currency', 'Realised gains', 'Dividends',
 +  ])
 +  expect(screen.getByText('₹15,000.00')).toBeVisible()
++  expect(screen.getByText('≈ €150.00 converted equivalent')).toBeVisible()
++  expect(screen.getByText('vs 2026-11-16 close')).toBeVisible()
++  expect(screen.getByText('INR · — (—)')).toBeVisible()
++  expect(screen.getByText('EUR · — (—)')).toBeVisible()
 +  fireEvent.change(screen.getByLabelText('Display currency'), { target: {value: 'EUR'} })
 +  expect(screen.getByText('€150.00')).toBeVisible()
-+  const button = screen.getByRole('button', {name: 'Portfolio value breakdown'})
++  const button = screen.getByRole('button', {name: 'Total portfolio value breakdown'})
 +  button.focus()
 +  fireEvent.click(button)
 +  expect(within(screen.getByRole('dialog')).getByText(/Current ₹5,000.00/)).toBeVisible()
@@ -204,10 +231,10 @@ index 0000000..fd7db39
 +})
 diff --git a/frontend/src/ui2/overview/Ui2SummaryCards.tsx b/frontend/src/ui2/overview/Ui2SummaryCards.tsx
 new file mode 100644
-index 0000000..19a10de
+index 0000000..3a62ed6
 --- /dev/null
 +++ b/frontend/src/ui2/overview/Ui2SummaryCards.tsx
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,85 @@
 +import { useState } from 'react'
 +import type { Summary } from '../../types'
 +import type { GroupDayChange } from '../../features/holdings/dashboardPriceMovement'
@@ -238,20 +265,20 @@ index 0000000..19a10de
 +  daily: Partial<Record<SupportedCurrency, GroupDayChange | null | undefined>>
 +}
 +
-+const titles = ['Portfolio value', 'Daily movement', 'Total profit & loss', 'Dividend income'] as const
++const titles = ['Total portfolio value', 'Unrealised return', 'Today by currency', 'Realised gains', 'Dividends'] as const
 +export function Ui2SummaryCards({ summary, assets, daily }: Props) {
 +  const [currency, setCurrency] = useState<SupportedCurrency>('INR')
 +  const [open, setOpen] = useState<typeof titles[number] | null>(null)
 +  if (!summary) return null
 +  const rate = summary.eur_rate
 +  const validRate = rate != null && Number.isFinite(rate) && rate > 0
-+  function total(field: keyof Pick<AssetLine, 'invested' | 'current' | 'unrealised' | 'realised' | 'income'>) {
++  function total(field: keyof Pick<AssetLine, 'invested' | 'current' | 'unrealised' | 'realised' | 'income'>, display = currency) {
 +    let sum = 0
 +    for (const asset of assets) {
 +      const amount = asset[field]
 +      if (amount == null) return null
-+      if (asset.currency === currency || amount === 0) sum += amount
-+      else if (validRate) sum += currency === 'EUR' ? amount * rate! : amount / rate!
++      if (asset.currency === display || amount === 0) sum += amount
++      else if (validRate) sum += display === 'EUR' ? amount * rate! : amount / rate!
 +      else return null
 +    }
 +    return sum
@@ -259,38 +286,37 @@ index 0000000..19a10de
 +  const unrealised = total('unrealised')
 +  const realised = total('realised')
 +  const invested = total('invested')
-+  const movements = SUPPORTED_CURRENCIES.flatMap(code => {
++  const movements = SUPPORTED_CURRENCIES.map(code => {
 +    const bucket = summary.per_currency?.find(item => item.currency === code)
 +    const change = daily[code]
-+    if (change === undefined && !bucket) return []
-+    return [{ code, gain: change === undefined ? bucket?.change_value : change?.gain,
++    return { code, gain: change === undefined ? bucket?.change_value : change?.gain,
 +      pct: change === undefined ? bucket?.change_pct : change?.pct,
-+      close: change === undefined ? bucket?.previous_close : change?.previousValue }]
++      close: change === undefined ? bucket?.previous_close : change?.previousValue }
 +  })
++  const equivalent = currency === 'INR' ? 'EUR' : 'INR'
 +  const values = [
-+    <>{money(total('current'), currency)}<small>Total invested {money(invested, currency)}</small></>,
-+    <>{movements.map(({code, gain, pct}) => <small key={code}>{code} equities {money(gain, code)} ({pct == null ? '—' : pct.toFixed(2) + '%'})</small>)}<small>{summary.previous_close_date}</small></>,
-+    <>{money(unrealised == null || realised == null ? null : unrealised + realised, currency)}
-+      <small>Unrealised {money(unrealised, currency)} ({invested && unrealised != null ? (100 * unrealised / invested).toFixed(2) + '%' : '—'})</small>
-+      <small>Realised {money(realised, currency)}</small></>,
-+    <>{money(total('income'), currency)}</>,
++    <><label>Display currency <select value={currency} onChange={event => setCurrency(event.target.value as SupportedCurrency)}>
++      {SUPPORTED_CURRENCIES.map(code => <option key={code}>{code}</option>)}</select></label>
++      <strong>{money(total('current'), currency)}</strong>
++      <small>≈ {money(total('current', equivalent), equivalent)} converted equivalent</small>
++      <small>Total invested {money(invested, currency)}</small></>,
++    <>{money(unrealised, currency)}<small>{invested && unrealised != null ? (100 * unrealised / invested).toFixed(2) + '%' : '—'} since purchase</small></>,
++    <>{movements.map(({code, gain, pct}) => <small key={code}>{code} · {money(gain, code)} ({pct == null ? '—' : pct.toFixed(2) + '%'})</small>)}
++      <small>{summary.previous_close_date ? 'vs ' + summary.previous_close_date + ' close' : 'Previous close date unavailable'}</small></>,
++    money(realised, currency), money(total('income'), currency),
 +  ]
 +  return <section aria-label="Portfolio summary" className="u2-summary">
-+    <header><strong>{validRate ? '1 EUR = ' + money(1 / rate!, 'INR') : 'Conversion rate unavailable'}</strong>
-+      <label>Display currency <select value={currency} onChange={event => setCurrency(event.target.value as SupportedCurrency)}>
-+        {SUPPORTED_CURRENCIES.map(code => <option key={code}>{code}</option>)}</select></label></header>
++    <p>{validRate ? '1 EUR = ' + money(1 / rate!, 'INR') : 'Conversion rate unavailable'}</p>
 +    <div className="u2-summary-grid">{titles.map((title, index) => <article key={title} className="ui2-panel">
 +      <h2>{title}</h2>{values[index]}<button className="ui2-btn" onClick={() => setOpen(title)}
 +        aria-label={title + ' breakdown'}>View breakdown</button></article>)}</div>
 +    {open && <Ui2Dialog title={open} onClose={() => setOpen(null)}>
-+      {open === 'Daily movement' ? <>{movements.map(item => <p key={item.code}>{item.code} previous close {money(item.close, item.code)}</p>)}
++      {open === 'Today by currency' ? <>{movements.map(item => <p key={item.code}>{item.code} previous close {money(item.close, item.code)}</p>)}
 +        <p>Gold daily movement —</p></> :
-+        <dl>{assets.filter(asset => open !== 'Dividend income' || asset.label !== 'Physical gold').map(asset =>
-+          <div key={asset.label}><dt>{asset.label}</dt><dd>{open === 'Portfolio value'
++        <dl>{assets.filter(asset => open !== 'Dividends' || asset.label !== 'Physical gold').map(asset =>
++          <div key={asset.label}><dt>{asset.label}</dt><dd>{open === 'Total portfolio value'
 +            ? <>Invested {money(asset.invested, asset.currency)} · Current {money(asset.current, asset.currency)}</>
-+            : open === 'Total profit & loss'
-+              ? <>Unrealised {money(asset.unrealised, asset.currency)} · Realised {money(asset.realised, asset.currency)}</>
-+              : money(asset.income, asset.currency)}</dd></div>)}</dl>}
++            : money(open === 'Unrealised return' ? asset.unrealised : open === 'Realised gains' ? asset.realised : asset.income, asset.currency)}</dd></div>)}</dl>}
 +    </Ui2Dialog>}
 +  </section>
 +}
@@ -319,7 +345,7 @@ The focused suites exercise the new behavior and the existing callers.
 (cd frontend && npx tsc -b && REQUIRE_BROWSER_TESTS=1 npm run test:run -- src/ui2/overview/Ui2SummaryCards.test.tsx src/features/dashboard/DashboardPage.test.tsx && npm run lint:changed)
 ```
 
-Expected: typecheck and lint exit zero and all selected tests pass. Four headings in reference order. The example changes from ₹15,000 to €150 while the Gold breakdown still reads ₹5,000.
+Expected: typecheck and lint exit zero and all selected tests pass. Five headings in reference order. The example changes from ₹15,000 to €150 while the Gold breakdown still reads ₹5,000.
 
 * [ ] Update the registry and slice row, then stage the named files and commit.
 
@@ -331,7 +357,7 @@ git add frontend/src/features/dashboard/DashboardPage.tsx \
   frontend/src/ui2/overview/Ui2SummaryCards.tsx \
   frontend/src/ui2/overview/overview.css \
   docs/plans/PD-059-ui-2-status.md
-git commit -m "✨ Add the four Overview summary panels"
+git commit -m "✨ Add the Overview summary metrics"
 ```
 
 ### Task 2. Slice 5 — Grouped holdings and working row actions
@@ -352,10 +378,10 @@ Give HoldingsByCurrency an optional row renderer. Its existing view, grouping, s
 
 ```diff
 diff --git a/frontend/src/features/dashboard/DashboardPage.tsx b/frontend/src/features/dashboard/DashboardPage.tsx
-index 26f5c91..38ebc82 100644
+index 4a21bdb..972aad0 100644
 --- a/frontend/src/features/dashboard/DashboardPage.tsx
 +++ b/frontend/src/features/dashboard/DashboardPage.tsx
-@@ -5,6 +5,8 @@ import { PortfolioHero } from '../../components/PortfolioHero'
+@@ -6,6 +6,8 @@ import { PortfolioHero } from '../../components/PortfolioHero'
  import { useUiMode, useUiRevamp } from '../../lib/uiMode'
  import { Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
  import { nativeView } from '../holdings/currencyTotals'
@@ -364,7 +390,7 @@ index 26f5c91..38ebc82 100644
  import { notify } from '../../lib/toast'
  import { type GoldMetrics } from '../../lib/api/client'
  import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
-@@ -152,7 +154,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -153,7 +155,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
    }
    const handleDelete = async (id: string) => {
      if (!confirm('Delete this holding?')) return
@@ -373,7 +399,7 @@ index 26f5c91..38ebc82 100644
      catch (e) { notify('Delete failed: ' + (e instanceof Error ? e.message : String(e))) }
    }
 
-@@ -162,6 +164,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -163,6 +165,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
      cost_price: (holding.stocks_owned ?? 0) * (holding.avg_cost_price ?? 0),
    }))
 
@@ -385,7 +411,7 @@ index 26f5c91..38ebc82 100644
    const filtered = displayHoldings.filter(holding =>
      !filter || holding.script?.toLowerCase().includes(filter.toLowerCase()) || holding.symbol?.toLowerCase().includes(filter.toLowerCase())
    )
-@@ -392,6 +399,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -395,6 +402,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
          {tab === 'table' && (
            <HoldingsByCurrency
@@ -393,7 +419,7 @@ index 26f5c91..38ebc82 100644
              holdings={filtered}
              searchActive={Boolean(filter)}
              view={positionView} onViewChange={setPositionView}
-@@ -412,6 +420,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -415,6 +423,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
          }} />}
        </main>
 
@@ -404,7 +430,7 @@ index 26f5c91..38ebc82 100644
        {modal && (
          <AddEditModal
            holding={modal === 'add' ? null : modal}
-@@ -444,7 +456,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -447,7 +459,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
            if (last) requestAnimationFrame(() => document.getElementById(`dashboard-${tab}-tab`)?.focus())
          }} />}
 
@@ -549,7 +575,7 @@ index 0000000..c54a8dd
 +}
 diff --git a/frontend/src/ui2/overview/Ui2Holdings.tsx b/frontend/src/ui2/overview/Ui2Holdings.tsx
 new file mode 100644
-index 0000000..4e06b83
+index 0000000..177472b
 --- /dev/null
 +++ b/frontend/src/ui2/overview/Ui2Holdings.tsx
 @@ -0,0 +1,34 @@
@@ -561,14 +587,14 @@ index 0000000..4e06b83
 +import { money } from './Ui2SummaryCards'
 +
 +export function Ui2Holdings({ rows, select }: {rows: HoldingWithPrice[]; select: (id: string) => void}) {
-+  return <div className="u2-holdings"><table aria-label="Holdings"><thead><tr>
++  return <div className="u2-holdings"><table className="ui2-table" aria-label="Holdings"><thead><tr>
 +    {['Holding', 'Shares', 'Avg cost', 'Share price', 'Value', 'Today', 'Unrealised'].map(label =>
 +      <th scope="col" key={label}>{label}</th>)}
 +  </tr></thead><tbody>{rows.map(holding => {
 +    const currency = canonicalCurrency(holding.currency)
 +    const native = currency === 'EUR' ? 'EUR' : 'INR'
 +    const movement = holdingMovement(holding)
-+    const direction = movement?.tone ?? 'neutral'
++    const direction = movement ? movement.tone ?? 'neutral' : undefined
 +    const selectRow = () => { if (holding.id) select(holding.id) }
 +    return <tr key={holding.id} onClick={event => {
 +      if ((event.target as HTMLElement).closest('button')) return
@@ -579,8 +605,8 @@ index 0000000..4e06b83
 +        <small>{holding.symbol} · {holding.exchange}</small><SectorBadge holding={holding} /></th>
 +      <td>{formatQuantity(holding.stocks_owned)}</td><td>{money(holding.avg_cost_price, currency)}</td>
 +      <td className={direction}>{money(holding.current_price, currency)}
-+        <span className="sr-only">{!movement ? 'Previous close unavailable' : movement.change === 0
-+          ? 'Unchanged from previous close' : movement.change > 0 ? 'Above previous close' : 'Below previous close'}</span></td>
++        <small>{!movement ? 'Previous close unavailable' : movement.change === 0
++          ? 'Unchanged from previous close' : movement.change > 0 ? 'Above previous close' : 'Below previous close'}</small></td>
 +      <td>{money(nativeView(native, holding.current_value, holding.current_value_eur).primary, native)}</td>
 +      <td>{money(holdingDayGain(holding), currency)}</td>
 +      <td>{money(nativeView(native, holding.unrealized_pnl, holding.unrealized_pnl_eur).primary, native)}</td>
@@ -647,10 +673,10 @@ Extend the dialog shipped in slice 5 with the enriched holding and its indexed X
 
 ```diff
 diff --git a/frontend/src/features/dashboard/DashboardPage.tsx b/frontend/src/features/dashboard/DashboardPage.tsx
-index 38ebc82..39f1a11 100644
+index 972aad0..509a312 100644
 --- a/frontend/src/features/dashboard/DashboardPage.tsx
 +++ b/frontend/src/features/dashboard/DashboardPage.tsx
-@@ -420,7 +420,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -423,7 +423,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
          }} />}
        </main>
 
@@ -777,14 +803,14 @@ git commit -m "✨ Show holding metrics in the Overview dialog"
 * [ ] Branch from current main with `git switch -c feat/PD-059-overview-allocation origin/main`.
 * [ ] Apply the implementation and test changes below.
 
-Share the existing priced-position eligibility rule with allocation. Use the INR-valued field for every wedge. Key holding entries by ID, use currency-specific sector targets, and route each choice through DashboardPage. Mount the already-merged OverallPerformance component on the owner's Performance tab when slices 4–6 are present. Test from the legend through to the selected dialog, including an active search and duplicate names.
+Share the existing priced-position eligibility rule with allocation. Use the INR-valued field for every wedge. Group by holding ID, sector or currency. Show the currency mix independently of the active allocation view. Mount the already-merged OverallPerformance component on the owner's Performance tab when slices 4–6 are present. Test both market shares and the act-as permission gate.
 
 ```diff
 diff --git a/frontend/src/features/dashboard/DashboardPage.tsx b/frontend/src/features/dashboard/DashboardPage.tsx
-index 39f1a11..43a72e2 100644
+index 509a312..922f393 100644
 --- a/frontend/src/features/dashboard/DashboardPage.tsx
 +++ b/frontend/src/features/dashboard/DashboardPage.tsx
-@@ -7,6 +7,8 @@ import { Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCa
+@@ -8,6 +8,8 @@ import { Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCa
  import { nativeView } from '../holdings/currencyTotals'
  import { Ui2HoldingDetailsDialog } from '../../ui2/overview/Ui2HoldingDetailsDialog'
  import { Ui2Holdings } from '../../ui2/overview/Ui2Holdings'
@@ -793,7 +819,7 @@ index 39f1a11..43a72e2 100644
  import { notify } from '../../lib/toast'
  import { type GoldMetrics } from '../../lib/api/client'
  import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
-@@ -217,6 +219,12 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -218,6 +220,12 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
        unrealised: goldMetrics?.current == null ? null : goldMetrics.current - goldMetrics.invested })
    }
 
@@ -806,7 +832,7 @@ index 39f1a11..43a72e2 100644
    const TAB = (key: Tab, label: string) => (
      <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
        {label}
-@@ -381,7 +389,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -384,7 +392,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
            <div className="seg-group">
              {TAB('table', 'Holdings')}
@@ -815,7 +841,7 @@ index 39f1a11..43a72e2 100644
            </div>
            {tab === 'table' && (
              <input
-@@ -397,7 +405,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -400,7 +408,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
            )}
          </div>
 
@@ -825,16 +851,16 @@ index 39f1a11..43a72e2 100644
            <HoldingsByCurrency
              renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
              holdings={filtered}
-@@ -415,9 +424,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
+@@ -418,9 +427,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
              sectorColors={sectorColors}
            />
          )}
 -        {tab === 'charts' && <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={selection => {
 -          setHoldingsLayout('sector'); setSectorTarget(selection); setTab('table')
 -        }} />}
-+        {tab === 'charts' && (ui2 ? <OverallPerformance isActingAs={Boolean(actAsUserId)} /> :
++        {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
 +          <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
-+        {ui2 && <Ui2Allocation holdings={enriched} selectHolding={selectHolding} selectSector={navigateSector} />}
++        {ui2 && <Ui2Allocation holdings={enriched} />}
 +        </div>
        </main>
 
@@ -868,40 +894,38 @@ index 0ce9ea4..604bf1f 100644
    for (const holding of rows) if (currentValue(holding) === null) unpriced++
    const groups = groupBySector(rows).map(group => ({
 diff --git a/frontend/src/ui2/overview/OverviewDashboard.test.tsx b/frontend/src/ui2/overview/OverviewDashboard.test.tsx
-index 2ff9079..76861d9 100644
+index 2ff9079..1b60196 100644
 --- a/frontend/src/ui2/overview/OverviewDashboard.test.tsx
 +++ b/frontend/src/ui2/overview/OverviewDashboard.test.tsx
-@@ -51,6 +51,18 @@ it('shows native EUR amounts, current shares and unavailable XIRR for the select
+@@ -51,6 +51,16 @@ it('shows native EUR amounts, current shares and unavailable XIRR for the select
    expect(dialog.getByText('Shares').nextElementSibling).toHaveTextContent('1')
    expect(dialog.getByText('XIRR').nextElementSibling).toHaveTextContent('—')
  })
-+it('opens the matching holding ID from the allocation legend despite duplicate names and a search', () => {
-+  mount()
-+  fireEvent.change(screen.getByPlaceholderText(/Filter by script/), {target: {value: 'TWIN.NS'}})
-+  const allocation = within(screen.getByRole('complementary', {name: 'Portfolio allocation'}))
-+  fireEvent.click(allocation.getAllByRole('button', {name: 'Twin'})[1])
-+  expect(screen.getByRole('dialog')).toHaveTextContent('TWIN.DE')
-+  fireEvent.keyDown(document, {key: 'Escape'})
-+  expect(screen.getByPlaceholderText(/Filter by script/)).toHaveValue('TWIN.NS')
-+  fireEvent.click(allocation.getByRole('button', {name: 'Currency'}))
-+  expect(allocation.getByText(/EUR · ₹10,000.00 · 50.0%/)).toBeVisible()
-+  expect(allocation.getByText(/INR · ₹10,000.00 · 50.0%/)).toBeVisible()
++it('shows the currency mix alongside allocation and restricts Performance to the owner', () => {
++  const owner = mount()
++  const mix = within(screen.getByRole('region', {name: 'Currency mix'}))
++  expect(mix.getByText('EUR · 50.0%')).toBeVisible()
++  expect(mix.getByText('INR · 50.0%')).toBeVisible()
++  expect(screen.getByRole('button', {name: 'Performance'})).toBeVisible()
++  owner.unmount()
++  mount('target')
++  expect(screen.queryByRole('button', {name: 'Performance'})).toBeNull()
 +})
  it.each(['classic','glass'])('keeps existing row actions in %s', mode => {
    state.mode = mode
    mount()
 diff --git a/frontend/src/ui2/overview/Ui2Allocation.test.tsx b/frontend/src/ui2/overview/Ui2Allocation.test.tsx
 new file mode 100644
-index 0000000..eea5efe
+index 0000000..dcaa346
 --- /dev/null
 +++ b/frontend/src/ui2/overview/Ui2Allocation.test.tsx
 @@ -0,0 +1,12 @@
 +import { render, screen } from '@testing-library/react'
-+import { expect, it, vi } from 'vitest'
++import { expect, it } from 'vitest'
 +import { Ui2Allocation } from './Ui2Allocation'
 +
 +it('withholds percentages when a priced EUR holding lacks an INR valuation', () => {
-+  render(<Ui2Allocation selectHolding={vi.fn()} selectSector={vi.fn()} holdings={[
++  render(<Ui2Allocation holdings={[
 +    {currency: 'INR', id: 'one', stocks_owned: 1, current_price: 10000, current_value: 10000},
 +    {currency: 'EUR', id: 'two', stocks_owned: 1, current_price: 100, current_value_eur: 100},
 +  ]} />)
@@ -910,13 +934,13 @@ index 0000000..eea5efe
 +})
 diff --git a/frontend/src/ui2/overview/Ui2Allocation.tsx b/frontend/src/ui2/overview/Ui2Allocation.tsx
 new file mode 100644
-index 0000000..1f75da7
+index 0000000..1f67253
 --- /dev/null
 +++ b/frontend/src/ui2/overview/Ui2Allocation.tsx
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,60 @@
 +import { useState } from 'react'
 +import type { HoldingWithPrice } from '../../types'
-+import { classificationBucket, type SectorSelection } from '../../features/holdings/classification'
++import { classificationBucket } from '../../features/holdings/classification'
 +import { groupByCurrency } from '../../features/holdings/groupByCurrency'
 +import { filterByView } from '../../features/holdings/holdingViews'
 +import { pricedNativeValue } from '../../features/holdings/sectorAllocationData'
@@ -924,17 +948,16 @@ index 0000000..1f75da7
 +import { money } from './Ui2SummaryCards'
 +
 +type View = 'Holding' | 'Sector' | 'Currency'
-+interface Bucket { key: string; label: string; value: number; currencies: Set<SupportedCurrency> }
++interface Bucket { key: string; label: string; value: number }
 +interface Props {
 +  holdings: HoldingWithPrice[]
-+  selectHolding: (id: string) => void
-+  selectSector: (selection: SectorSelection) => void
 +}
 +const palette = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--yellow)']
 +
-+export function Ui2Allocation({holdings, selectHolding, selectSector}: Props) {
++export function Ui2Allocation({holdings}: Props) {
 +  const [view, setView] = useState<View>('Holding')
 +  const groups = new Map<string, Bucket>()
++  const mix: Record<SupportedCurrency, number> = { INR: 0, EUR: 0 }
 +  let unsupported = 0
 +  let unpriced = 0
 +  let missingConversion = false
@@ -946,13 +969,13 @@ index 0000000..1f75da7
 +      if (native <= 0) continue
 +      const value = holding.current_value
 +      if (value == null || !Number.isFinite(value) || value <= 0) { missingConversion = true; continue }
++      mix[currency] += value
 +      const sector = classificationBucket(holding)
 +      const key = view === 'Holding' ? holding.id : view === 'Sector' ? sector.key : currency
 +      if (!key) continue
 +      const label = view === 'Holding' ? holding.script || holding.symbol || key : view === 'Sector' ? sector.label : currency
-+      const entry = groups.get(key) ?? {key, label, value: 0, currencies: new Set<SupportedCurrency>()}
++      const entry = groups.get(key) ?? {key, label, value: 0}
 +      entry.value += value
-+      entry.currencies.add(currency)
 +      groups.set(key, entry)
 +    }
 +  }
@@ -964,18 +987,16 @@ index 0000000..1f75da7
 +    cumulative += entry.value / total * 100
 +    return palette[index % palette.length] + ' ' + start + '% ' + cumulative + '%'
 +  })
-+  return <aside className="ui2-panel" aria-label="Portfolio allocation"><h2>Portfolio allocation</h2>
++  return <aside><section className="ui2-panel" aria-label="Portfolio allocation"><h2>Portfolio allocation</h2>
 +    <div role="group" aria-label="Allocation view">{(['Holding','Sector','Currency'] as const).map(choice =>
 +      <button className="ui2-btn" key={choice} aria-pressed={choice === view} onClick={() => setView(choice)}>{choice}</button>)}</div>
 +    {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
 +      <><div aria-hidden="true" className="u2-allocation-ring" style={{background: 'conic-gradient(' + stops.join(', ') + ')'}} />
-+        <ul>{entries.map(entry => <li key={entry.key}>{view === 'Holding'
-+          ? <button onClick={() => selectHolding(entry.key)}>{entry.label}</button> : entry.label}
-+          {' · '}{money(entry.value, 'INR')} · {(100 * entry.value / total).toFixed(1)}%
-+          {view === 'Sector' && [...entry.currencies].map(currency => <button key={currency}
-+            onClick={() => selectSector({currency, key: entry.key})}>View {entry.label} · {currency}</button>)}</li>)}</ul></>}
++        <ul>{entries.map(entry => <li key={entry.key}>{entry.label} · {money(entry.value, 'INR')} · {(100 * entry.value / total).toFixed(1)}%</li>)}</ul></>}
 +    {(unpriced > 0 || unsupported > 0) && <p>{unpriced} unpriced · {unsupported} unsupported</p>}
-+  </aside>
++  </section><section className="ui2-panel" aria-label="Currency mix"><h2>Currency mix</h2>
++    {(['INR', 'EUR'] as const).map(code => <p key={code}>{code} · {missingConversion || !total ? '—' : (100 * mix[code] / total).toFixed(1) + '%'}</p>)}
++  </section></aside>
 +}
 diff --git a/frontend/src/ui2/overview/overview.browser.test.ts b/frontend/src/ui2/overview/overview.browser.test.ts
 new file mode 100644
@@ -1047,7 +1068,7 @@ The focused suites exercise the new behavior and the existing callers.
 (cd frontend && npx tsc -b && REQUIRE_BROWSER_TESTS=1 npm run test:run -- src/ui2/overview src/features/holdings/SectorAllocation.test.tsx src/features/holdings/SectorNavigation.test.tsx && npm run lint:changed)
 ```
 
-Expected: typecheck and lint exit zero and all selected tests pass. The mixed-currency fixture displays two 50.0% shares. Missing INR valuation suppresses percentages. The selected holding ID survives a search and duplicate labels. Chromium passes keyboard and page-width checks at 1280, 768 and 390 px.
+Expected: typecheck and lint exit zero and all selected tests pass. The mixed-currency fixture displays two 50.0% shares. Missing INR valuation suppresses percentages. The Currency mix panel shows both shares. Act-as hides Performance. Chromium passes keyboard and page-width checks at 1280, 768 and 390 px.
 
 * [ ] Update the registry and slice row, then stage the named files and commit.
 
@@ -1079,7 +1100,7 @@ git commit -m "✨ Show allocation and performance on Overview"
   save/skip. Verify the existing Add/Edit fields and validation in all modes.
 * [ ] Compare the same priced positions across all allocation views. Test two
   equal INR-valued positions in different currencies and a missing conversion.
-  Select a holding with a duplicate display name, then a sector in each currency.
+  Switch the allocation view and verify that Currency mix keeps the same shares.
 * [ ] Open Performance as the owner. In act-as verify that editing targets the
   selected user and that no owner-only ledger, Gold or performance request runs.
 * [ ] Run the complete frontend checks before opening the final implementation PR.
