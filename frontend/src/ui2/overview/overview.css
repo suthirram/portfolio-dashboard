@@ -209,6 +209,17 @@
   :root[data-ui="ui2"] .u2-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* Workspace grid and allocation panel (slice 7). */
+:root[data-ui="ui2"] .u2-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); gap: 1rem; align-items: start; }
+:root[data-ui="ui2"] .u2-allocation-ring { width: 8rem; aspect-ratio: 1; margin: 1rem auto; border-radius: 50%; mask: radial-gradient(circle, transparent 48%, black 49%); }
+:root[data-ui="ui2"] .u2-allocation-entry { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: .35rem .5rem; margin: 0 -.5rem; border-radius: .4rem; cursor: pointer; }
+:root[data-ui="ui2"] .u2-allocation-entry:hover { background: var(--u2-accentsoft); text-decoration: underline; }
+:root[data-ui="ui2"] .u2-allocation-entry:focus-visible { outline: 3px solid var(--u2-accent); outline-offset: 2px; }
+
+@media (max-width: 1200px) {
+  :root[data-ui="ui2"] .u2-workspace { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Holdings table (slice 5). */
 :root[data-ui="ui2"] .u2-holdings { max-width: 100%; overflow-x: auto; }
 :root[data-ui="ui2"] .u2-holdings table { border-collapse: collapse; width: 100%; }

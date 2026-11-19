@@ -56,6 +56,27 @@ it('omits ledger in act-as and returns focus to the selected holding', () => {
   expect(opener).toHaveFocus()
 })
 
+it('shows the currency mix alongside allocation and restricts Performance to the owner', () => {
+  const owner = mount()
+  const mix = within(screen.getByRole('region', { name: 'Currency mix' }))
+  expect(mix.getByText('EUR · 50.0%')).toBeVisible()
+  expect(mix.getByText('INR · 50.0%')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Performance' })).toBeVisible()
+  owner.unmount()
+  mount('target')
+  expect(screen.queryByRole('button', { name: 'Performance' })).toBeNull()
+})
+
+it('selecting a sector entry opens the sector grouping and focuses its heading', () => {
+  mount()
+  const allocationView = within(screen.getByRole('group', { name: 'Allocation view' }))
+  fireEvent.click(allocationView.getByRole('button', { name: 'Sector' }))
+  // Both rows are unclassified here, so they share one "Needs review" entry.
+  fireEvent.click(screen.getByRole('button', { name: /Show Needs review holdings/ }))
+  expect(document.activeElement).toHaveAttribute('id', 'sector-INR-needs_review')
+  expect(screen.getByRole('button', { name: 'Holdings' })).toHaveAttribute('aria-pressed', 'true')
+})
+
 it.each(['classic', 'glass'])('keeps existing row actions in %s', mode => {
   state.mode = mode
   mount()

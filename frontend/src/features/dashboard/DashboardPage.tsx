@@ -8,6 +8,8 @@ import { GOLD_LABEL, Ui2SummaryCards, type AssetLine } from '../../ui2/overview/
 import { nativeView } from '../holdings/currencyTotals'
 import { Ui2HoldingDetailsDialog } from '../../ui2/overview/Ui2HoldingDetailsDialog'
 import { Ui2Holdings } from '../../ui2/overview/Ui2Holdings'
+import { Ui2Allocation } from '../../ui2/overview/Ui2Allocation'
+import OverallPerformance from '../../ui2/overview/OverallPerformance'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
 import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
@@ -230,6 +232,12 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     if (user?.gold_enabled && !actAsUserId) assets.push(goldAssetLine(goldMetrics))
   }
 
+  const navigateSector = (selection: SectorSelection) => {
+    setHoldingsLayout('sector')
+    setSectorTarget(selection)
+    setTab('table')
+  }
+
   const TAB = (key: Tab, label: string) => (
     <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
       {label}
@@ -407,7 +415,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
           <div className="seg-group">
             {TAB('table', 'Holdings')}
-            {TAB('charts', 'Charts')}
+            {(!ui2 || !actAsUserId) && TAB('charts', ui2 ? 'Performance' : 'Charts')}
           </div>
           {tab === 'table' && (
             <input
@@ -423,27 +431,29 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
         </div>
 
-        {tab === 'table' && (
-          <HoldingsByCurrency
-            renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
-            holdings={filtered}
-            searchActive={Boolean(filter)}
-            view={positionView} onViewChange={setPositionView}
-            layout={holdingsLayout} onLayoutChange={setHoldingsLayout}
-            sectorTarget={sectorTarget} onSectorTargetHandled={clearSectorTarget}
-            loading={loadingHoldings || loadingPrices}
-            onEdit={holding => setModal(holding)}
-            onDelete={handleDelete}
-            // Transaction endpoints target the caller's own portfolio (no
-            // admin act-as variant yet), so hide the ledger in act-as mode.
-            onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
-            xirr={xirr}
-            sectorColors={sectorColors}
-          />
-        )}
-        {tab === 'charts' && <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={selection => {
-          setHoldingsLayout('sector'); setSectorTarget(selection); setTab('table')
-        }} />}
+        <div className={ui2 ? 'u2-workspace' : undefined}>
+          {(tab === 'table' || (ui2 && actAsUserId)) && (
+            <HoldingsByCurrency
+              renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
+              holdings={filtered}
+              searchActive={Boolean(filter)}
+              view={positionView} onViewChange={setPositionView}
+              layout={holdingsLayout} onLayoutChange={setHoldingsLayout}
+              sectorTarget={sectorTarget} onSectorTargetHandled={clearSectorTarget}
+              loading={loadingHoldings || loadingPrices}
+              onEdit={holding => setModal(holding)}
+              onDelete={handleDelete}
+              // Transaction endpoints target the caller's own portfolio (no
+              // admin act-as variant yet), so hide the ledger in act-as mode.
+              onTransactions={actAsUserId ? undefined : (holding => setTxnModal(holding))}
+              xirr={xirr}
+              sectorColors={sectorColors}
+            />
+          )}
+          {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
+            <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
+          {ui2 && <Ui2Allocation holdings={enriched} onSelectSector={navigateSector} />}
+        </div>
       </main>
 
       {selected && <Ui2HoldingDetailsDialog holding={selected} close={() => setSelection(null)}
