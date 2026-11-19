@@ -219,6 +219,76 @@
 :root[data-ui="ui2"] .asset-error { color: var(--u2-red); font-size: 12px; }
 :root[data-ui="ui2"] .asset-period .ui2-btn { padding: 7px 10px; }
 
+:root[data-ui="ui2"] .asset-table .computed {
+  background: color-mix(in srgb, var(--u2-accentsoft) 35%, transparent);
+}
+
+:root[data-ui="ui2"] .asset-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 22px 0;
+}
+
+:root[data-ui="ui2"] .asset-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .asset-form input,
+:root[data-ui="ui2"] .asset-form select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px;
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+}
+
+:root[data-ui="ui2"] .asset-form .full { grid-column: 1 / -1; }
+
+:root[data-ui="ui2"] .asset-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+:root[data-ui="ui2"] .asset-alert {
+  border: 1px solid #c59544;
+  background: color-mix(in srgb, #c59544 10%, var(--u2-panel));
+  padding: 14px 18px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+:root[data-ui="ui2"] .asset-alert strong { display: block; font-size: 12px; margin-bottom: 5px; }
+:root[data-ui="ui2"] .asset-alert span { font-size: 11px; color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .asset-metric-help {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  cursor: help;
+  text-align: left;
+  font: inherit;
+}
+
+@media (max-width: 1100px) {
+  :root[data-ui="ui2"] .asset-form { grid-template-columns: 1fr; }
+  :root[data-ui="ui2"] .asset-form .full { grid-column: auto; }
+  :root[data-ui="ui2"] .asset-alert { align-items: flex-start; flex-direction: column; }
+}
+
 @media (max-width: 900px) {
   :root[data-ui="ui2"] .asset-stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   :root[data-ui="ui2"] .asset-split { grid-template-columns: 1fr; }
