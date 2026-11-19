@@ -45,9 +45,16 @@ interface Props {
   actAsLabel?: string
 }
 
+// TransactionsPage is a pure dispatcher: only useUiMode() lives here.
+// All Classic hooks live in ClassicTransactionsPage so the hook count is
+// stable across mode changes.
 export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const ui2 = useUiMode() === 'ui2'
   if (ui2) return <Ui2TransactionsPage actAsUserId={actAsUserId} />
+  return <ClassicTransactionsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
+}
+
+function ClassicTransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const { transactions, holdings, loading, error, refresh } = useAllTransactions(actAsUserId)
