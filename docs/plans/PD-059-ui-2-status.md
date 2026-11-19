@@ -32,7 +32,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
-| 10 | 3 | FE | Overview overall performance chart | 2, 8 | | | | needs amendment |
+| 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | in review |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
 | 13 | 3 | FE | History page | 2 | Claude | `feat/PD-059-history` | | amendment in review ([wave 3b](PD-059-wave3-history.md)) |
@@ -70,6 +70,7 @@ shared piece.
 | `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (planned) |
 | `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
 | `UiModeSelect` | `frontend/src/features/admin/AdminUserSettings.tsx` | interface picker | slice 2 (planned) |
+| `OverallPerformance` | `frontend/src/ui2/overview/OverallPerformance.tsx` | standalone daily overall chart; stays unmounted until Overview slices 4–7 land | slice 10 (#342) |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 `useHoldings`, `useAllTransactions`, `useDividends`, `usePagination`,
@@ -101,6 +102,11 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   USD), gold on read; rate carried on weekends; failed fetch → flagged,
   user-triggered re-fetch on `/history` (own rows, not in act-as, Not now,
   re-prompt). Backfill additive, dry-run, backup, zero data loss.
+* Overall chart (owner, 2026-11-19): build slice 10 as a standalone
+  `OverallPerformance` component and mount it when Overview slices 4–7 land.
+  Keep the handoff labels, including **Daily movement**, the **View chart
+  data** table and the absence of the preview-state selector. The History
+  table's **Daily volatility** label remains specific to History.
 * Gold in the overall chart: a day without a price copies the previous
   day's (heals when the price is entered). Gold held before its first price
   ⇒ that day's total is unavailable (`gold_unvalued`), not valued at cost.

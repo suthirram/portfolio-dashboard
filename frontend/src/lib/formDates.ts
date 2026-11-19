@@ -3,6 +3,9 @@
 // formatters below share it so they can never disagree on what parses or on
 // field order.
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+const DAY_MONTH_NAME_FORMAT = new Intl.DateTimeFormat('en', {
+  day: '2-digit', month: 'short', timeZone: 'UTC',
+})
 
 function splitISO(iso: string | null | undefined): { y: string; m: string; d: string } | null {
   if (!iso) return null
@@ -26,6 +29,17 @@ export function formatDate(iso: string | null | undefined): string {
 export function formatDayMonth(iso: string | null | undefined): string {
   const parts = splitISO(iso)
   return parts ? `${parts.d}-${parts.m}` : iso ?? ''
+}
+
+// formatDayMonthName renders YYYY-MM-DD as "16 Nov" for compact chart axes.
+export function formatDayMonthName(iso: string | null | undefined): string {
+  const parts = splitISO(iso)
+  if (!parts) return iso ?? ''
+  const date = new Date(Date.UTC(Number(parts.y), Number(parts.m) - 1, Number(parts.d)))
+  const formatted = DAY_MONTH_NAME_FORMAT.formatToParts(date)
+  const day = formatted.find(part => part.type === 'day')?.value
+  const month = formatted.find(part => part.type === 'month')?.value
+  return day && month ? `${day} ${month}` : DAY_MONTH_NAME_FORMAT.format(date)
 }
 
 // todayIST is the current IST calendar day as YYYY-MM-DD — the browser twin

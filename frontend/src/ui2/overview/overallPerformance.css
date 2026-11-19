@@ -1,0 +1,279 @@
+:root[data-ui="ui2"] .ui2-overall {
+  container-name: ui2-overall;
+  container-type: inline-size;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--u2-border);
+  border-radius: 13px;
+  background: var(--u2-panel);
+  box-shadow: var(--u2-shadow);
+  color: var(--u2-text);
+  font-family: var(--u2-font);
+}
+
+:root[data-ui="ui2"] .ui2-overall__header,
+:root[data-ui="ui2"] .ui2-overall__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .ui2-overall__header h2 {
+  margin: 0;
+  color: var(--u2-text);
+  font: 700 17px var(--u2-font-display);
+}
+
+:root[data-ui="ui2"] .ui2-overall__header p,
+:root[data-ui="ui2"] .ui2-overall__note {
+  color: var(--u2-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+:root[data-ui="ui2"] .ui2-overall__header p { margin: 6px 0 0; }
+:root[data-ui="ui2"] .ui2-overall__note { margin: 0; }
+
+:root[data-ui="ui2"] .ui2-overall__currency {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--u2-muted);
+  font-size: 11px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__currency select {
+  max-width: 170px;
+  padding: 8px;
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  font: 11px var(--u2-font);
+}
+
+:root[data-ui="ui2"] .ui2-overall__controls {
+  justify-content: space-between;
+  margin: 18px 0;
+}
+
+:root[data-ui="ui2"] .ui2-overall__segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__segments button {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--u2-muted);
+  font: 10px var(--u2-font);
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .ui2-overall__segments button.selected {
+  color: var(--u2-accent);
+  background: var(--u2-accentsoft);
+}
+
+:root[data-ui="ui2"] .ui2-overall__segments button:focus-visible,
+:root[data-ui="ui2"] .ui2-overall__currency select:focus-visible,
+:root[data-ui="ui2"] .ui2-overall__data summary:focus-visible {
+  outline: 3px solid var(--u2-accent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__chart {
+  min-width: 0;
+  min-height: 230px;
+  padding: 8px 0;
+}
+
+:root[data-ui="ui2"] .ui2-overall__chart p {
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg text {
+  fill: var(--u2-muted);
+  font-family: var(--u2-font);
+  font-size: 11px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .grid {
+  fill: none;
+  stroke: var(--u2-line);
+  stroke-dasharray: 3 5;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .value-path {
+  fill: none;
+  stroke: var(--u2-accent);
+  stroke-width: 2.5;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .invested-path {
+  fill: none;
+  stroke: var(--u2-muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .point-marker {
+  stroke: var(--u2-panel);
+  stroke-width: 2;
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .current-marker {
+  fill: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .ui2-overall__svg .invested-marker {
+  fill: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-overall__legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 2px 0 10px;
+  color: var(--u2-muted);
+  font-size: 10px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__legend i {
+  display: inline-block;
+  width: 17px;
+  height: 0;
+  border-top: 2px solid var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .ui2-overall__legend i.invested-line {
+  border-color: var(--u2-muted);
+  border-top-style: dashed;
+}
+
+:root[data-ui="ui2"] .ui2-overall__error {
+  color: var(--u2-red) !important;
+}
+
+:root[data-ui="ui2"] .ui2-overall__notice {
+  padding: 13px 15px;
+  border: 1px solid var(--u2-border);
+  border-radius: 12px;
+  background: var(--u2-wash);
+  color: var(--u2-text);
+  font-size: 11px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__unavailable {
+  min-height: 210px;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-overall__unavailable strong {
+  color: var(--u2-text);
+  font-size: 13px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__unavailable p {
+  max-width: 420px;
+  margin: 8px auto 0;
+  line-height: 1.7;
+}
+
+:root[data-ui="ui2"] .ui2-overall__data {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--u2-border);
+  color: var(--u2-text);
+}
+
+:root[data-ui="ui2"] .ui2-overall__data summary {
+  width: fit-content;
+  color: var(--u2-accent);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap {
+  max-height: 320px;
+  margin-top: 14px;
+  overflow: auto;
+}
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap th:first-child,
+:root[data-ui="ui2"] .ui2-overall__table-wrap td:first-child { text-align: left; }
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap caption {
+  padding: 8px;
+  color: var(--u2-muted);
+  text-align: left;
+  font-size: 10px;
+}
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap th,
+:root[data-ui="ui2"] .ui2-overall__table-wrap td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--u2-border);
+  vertical-align: top;
+}
+
+:root[data-ui="ui2"] .ui2-overall__table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: var(--u2-panel);
+  color: var(--u2-muted);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+@container ui2-overall (max-width: 640px) {
+  :root[data-ui="ui2"] .ui2-overall__header {
+    align-items: flex-start;
+  }
+
+  :root[data-ui="ui2"] .ui2-overall__chart {
+    min-height: 230px;
+  }
+
+  :root[data-ui="ui2"] .ui2-overall__controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  :root[data-ui="ui2"] .ui2-overall__segments {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
