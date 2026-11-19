@@ -51,5 +51,6 @@ describe.skipIf(!browser)('UI_2.0 portfolio summary', () => {
         expect(await page.locator('html').getAttribute('data-theme')).toBe(theme)
       }
     } finally { await page.close() }
-  })
+    // Three theme reloads per width: well past Vitest's 5 s default on a busy runner.
+  }, 60_000)
 })
