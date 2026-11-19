@@ -32,7 +32,8 @@ export function Ui2Holdings({ rows, select }: { rows: HoldingWithPrice[]; select
             const cost = eur ? holding.cost_price_eur : holding.cost_price
             const unrealisedPct = unrealised != null && cost ? (unrealised / cost) * 100 : null
             const selectRow = () => { if (holding.id) select(holding.id) }
-            const icon = holding.symbol.split('.')[0].slice(0, 4)
+            const sym = holding.symbol ?? ''
+            const icon = sym.split('.')[0].slice(0, 4)
             return (
               <tr key={holding.id} className="u2-holding-row" onClick={event => {
                 if ((event.target as HTMLElement).closest('button')) return
@@ -41,7 +42,7 @@ export function Ui2Holdings({ rows, select }: { rows: HoldingWithPrice[]; select
               }}>
                 <td>
                   <div className="u2-holding">
-                    <div className="u2-stock-icon" style={stockIconStyle(holding.symbol)} aria-hidden="true">
+                    <div className="u2-stock-icon" style={stockIconStyle(sym)} aria-hidden="true">
                       {icon}
                     </div>
                     <div>
