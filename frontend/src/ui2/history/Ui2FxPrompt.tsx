@@ -7,7 +7,7 @@
 // (refreshKey), so a day an add or paste flags shows without leaving the
 // page. History is always the caller's own portfolio, so act-as never
 // reaches this.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthOptional } from '../../features/auth/AuthContext'
 import { api } from '../../lib/api/client'
 import { formatDayMonthName } from '../../lib/formDates'
@@ -19,12 +19,13 @@ export const FX_LISTED_DATES = 10
 
 // Not now lasts until the app reloads: module state, not storage. It
 // belongs to the account that chose it, so another login in the same tab
-// (logout does not reload) still sees its own notice.
-let dismissedFor: string | null = null
+// (logout does not reload) still sees its own notice, and each account that
+// dismissed keeps its choice when others sign in and out.
+const dismissedFor = new Set<string>()
 
 // Test-only: forget Not now between cases.
 export function __resetFxPromptForTests() {
-  dismissedFor = null
+  dismissedFor.clear()
 }
 
 function datesPhrase(count: number) {
@@ -46,28 +47,38 @@ export function Ui2FxPrompt({ refreshKey }: {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
-  const dismissed = dismissedFor === userId
+  const dismissed = dismissedFor.has(userId)
+  // Only the newest list read may set the dates: a re-fetch (or a later read)
+  // bumps it, so a slow earlier GET cannot put healed dates back.
+  const latestRead = useRef(0)
 
   useEffect(() => {
-    if (dismissedFor === userId) return
+    if (dismissedFor.has(userId)) return
     let active = true
+    const token = ++latestRead.current
     // A failed read shows no notice: the days stay flagged for next time.
-    api.getFxMissing().then(result => { if (active) setDates(result.dates) }).catch(() => {})
+    api.getFxMissing().then(result => {
+      if (active && token === latestRead.current) setDates(result.dates)
+    }).catch(() => {})
     return () => { active = false }
   }, [userId, refreshKey])
 
   if (dismissed || dates.length === 0) return null
 
   const notNow = () => {
-    dismissedFor = userId
+    dismissedFor.add(userId)
     setOpen(false)
     setDismissals(count => count + 1)
   }
   const fetchAgain = async () => {
     setBusy(true)
     setFeedback('')
+    // A list read still in flight predates this fetch.
+    latestRead.current++
     try {
       const result = await api.refetchFx(dates)
+      // So does one started while it ran: the answer below is the newest state.
+      latestRead.current++
       if (result.dates.length === 0) {
         setOpen(false)
         setDates([])

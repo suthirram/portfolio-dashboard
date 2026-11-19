@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { __resetToastsForTests, currentToasts } from '../../lib/toast'
 
 const mockApi = vi.hoisted(() => ({
@@ -109,6 +109,42 @@ describe('UI_2.0 exchange-rate prompt', () => {
     mockAuth.userId = 'u2'
     render(<Ui2FxPrompt />)
     expect(await screen.findByText('Review exchange rates')).toBeInTheDocument()
+  })
+
+  it('keeps each account\'s Not now when others dismiss and sign in', async () => {
+    mockApi.getFxMissing.mockResolvedValue({ dates: ['2026-11-16'] })
+    // Account A dismisses, then B signs in the same tab and dismisses too.
+    for (const userId of ['u1', 'u2']) {
+      mockAuth.userId = userId
+      const { unmount } = render(<Ui2FxPrompt />)
+      fireEvent.click(within(await openDialog()).getByRole('button', { name: 'Not now' }))
+      unmount()
+    }
+    // A signs back in without a reload: still dismissed, and nothing is read.
+    mockAuth.userId = 'u1'
+    mockApi.getFxMissing.mockClear()
+    render(<Ui2FxPrompt />)
+    expect(screen.queryByText('Review exchange rates')).not.toBeInTheDocument()
+    expect(mockApi.getFxMissing).not.toHaveBeenCalled()
+  })
+
+  it('ignores a slow list read that resolves after a successful re-fetch', async () => {
+    let resolveStale: (result: { dates: string[] }) => void = () => {}
+    mockApi.getFxMissing
+      .mockResolvedValueOnce({ dates: ['2026-11-16'] })
+      .mockReturnValueOnce(new Promise(resolve => { resolveStale = resolve }))
+    mockApi.refetchFx.mockResolvedValue({ dates: [] })
+    const { rerender } = render(<Ui2FxPrompt refreshKey={1} />)
+    await screen.findByText('Review exchange rates')
+    // History reloaded, and that read is still pending while the user heals.
+    rerender(<Ui2FxPrompt refreshKey={2} />)
+    await waitFor(() => expect(mockApi.getFxMissing).toHaveBeenCalledTimes(2))
+    fireEvent.click(within(await openDialog()).getByRole('button', { name: 'Fetch rates again' }))
+    await waitFor(() => expect(screen.queryByText('Review exchange rates')).not.toBeInTheDocument())
+    expect(currentToasts().map(queued => queued.message)).toEqual(['Exchange rates restored'])
+    // The old read answers late with the dates that were just healed.
+    await act(async () => { resolveStale({ dates: ['2026-11-16'] }) })
+    expect(screen.queryByText('Review exchange rates')).not.toBeInTheDocument()
   })
 
   it('reads the list again when History reloads its rows', async () => {
