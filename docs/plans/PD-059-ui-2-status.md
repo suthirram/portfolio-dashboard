@@ -31,7 +31,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 4 | 2 | FE | Handoff Overview metrics, currency selector and shared breakdown dialogs | 2, 14 (shared dialog) | Codex | `feat/PD-059-overview-cards` | #356 | merged ([wave 2](PD-059-wave2-overview.md)) |
 | 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Claude | `feat/PD-059-overview-holdings` | #347 (plan) | in progress ([wave 2](PD-059-wave2-overview.md)) |
 | 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `feat/PD-059-holding-details` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
-| 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Codex | `feat/PD-059-overview-allocation` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
+| 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Claude | `feat/PD-059-overview-allocation` | #347 (plan) | in progress ([wave 2](PD-059-wave2-overview.md)) |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |

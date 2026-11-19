@@ -12,15 +12,17 @@ export interface SectorAllocationBucket extends ClassificationBucket {
 }
 
 /** Native current values only; missing quotes never fall back to invested cost. */
+export function pricedNativeValue(holding: HoldingWithPrice, currency: SupportedCurrency): number | null {
+  const value = nativeView(currency, holding.current_value, holding.current_value_eur).primary
+  if (holding.price_error || !Number.isFinite(holding.current_price) || (holding.current_price ?? 0) <= 0 ||
+      value == null || !Number.isFinite(value) || value < 0) return null
+  return value
+}
+
 export function sectorAllocation(holdings: HoldingWithPrice[], currency: SupportedCurrency) {
   const currencies = groupByCurrency(filterByView(holdings, 'active'))
   const rows = currencies.find(group => group.currency === currency)?.holdings ?? []
-  const currentValue = (holding: HoldingWithPrice) => {
-    const value = nativeView(currency, holding.current_value, holding.current_value_eur).primary
-    if (holding.price_error || !Number.isFinite(holding.current_price) || (holding.current_price ?? 0) <= 0 ||
-        value == null || !Number.isFinite(value) || value < 0) return null
-    return value
-  }
+  const currentValue = (holding: HoldingWithPrice) => pricedNativeValue(holding, currency)
   let unpriced = 0
   for (const holding of rows) if (currentValue(holding) === null) unpriced++
   const groups = groupBySector(rows).map(group => ({
