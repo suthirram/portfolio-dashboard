@@ -4,7 +4,7 @@
 // component only renders them, and reuses the classic dialogs.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MIN_YEAR, isAllManual } from '../../features/history/historyShared'
+import { MIN_YEAR, isAllManual, yearMonth0 } from '../../features/history/historyShared'
 import { shiftMonth } from '../../features/history/MonthNavigator'
 import type { useHistoryMonth } from '../../features/history/useHistoryMonth'
 import {
@@ -41,6 +41,12 @@ export function Ui2History({ history, canForceDelete }: {
   const atMin = year === min.year && month === min.month0
   const atMax = year === today.year && month === today.month0
   const monthLabel = longMonthLabel(year, month)
+  // A reload keeps the previous month's rows until the new ones land (and
+  // keeps them if it fails), so anything describing the rows is labelled by
+  // the month they were loaded for, never by the picker.
+  const loadedMonth = rowsMonthStart ? yearMonth0(rowsMonthStart) : null
+  const rowsLabel = loadedMonth ? longMonthLabel(loadedMonth.year, loadedMonth.month0) : monthLabel
+  const rowsAreSelectedMonth = rowsMonthStart === selectedMonthStart
   const hasGold = displayRows.some(row => row.gold)
   // A month without gold has no Gold filter: show All assets, but keep the
   // choice so returning to a gold month restores it.
@@ -53,7 +59,7 @@ export function Ui2History({ history, canForceDelete }: {
       onEdit={row => setEditRow(row)}
       onSelectRegion={(row, prev, region) => setHoldingsView({ row, prev, region })} />
   )
-  const charts = <Ui2AssetCharts rows={displayRows} assets={assets} periodLabel={monthLabel} onExpand={expand} />
+  const charts = <Ui2AssetCharts rows={displayRows} assets={assets} periodLabel={rowsLabel} onExpand={expand} />
 
   return (
     <div className="u2h-page">
@@ -85,7 +91,7 @@ export function Ui2History({ history, canForceDelete }: {
 
       {error && <div className="u2h-alert" role="alert">Error: {error}</div>}
 
-      {!loading && displayRows.length === 0 && (
+      {!loading && rowsAreSelectedMonth && displayRows.length === 0 && (
         <div className="ui2-panel u2h-empty">
           No data for {monthLabel} yet. Your first snapshot will be taken at the next daily run, or you can add records manually.
         </div>
@@ -93,7 +99,7 @@ export function Ui2History({ history, canForceDelete }: {
 
       {/* Only when the loaded rows are the selected month's: mid-reload, or
           after a failed one, the rows still hold the previous month. */}
-      {rowsMonthStart === selectedMonthStart && (
+      {rowsAreSelectedMonth && (
         <Ui2MonthReview rows={displayRows} monthStart={selectedMonthStart} monthLabel={monthLabel} />
       )}
 

@@ -171,6 +171,31 @@ describe('UI_2.0 History page', () => {
     expect(screen.getByRole('button', { name: 'Gold' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('labels the charts with the month their rows came from while a new month loads or fails', async () => {
+    let failOctober: (reason: Error) => void = () => {}
+    mockApi.listHistory.mockImplementation((from: string) => from === '2026-11-01'
+      ? Promise.resolve(list(novemberRows))
+      : new Promise((_, reject) => { failOctober = reject }))
+    renderPage()
+    const charts = await screen.findByRole('region', { name: 'Supporting history charts' })
+    expect(within(charts).getAllByText('November 2026').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    // Loading October: November's rows are still shown, so still November.
+    await waitFor(() => expect(mockApi.listHistory).toHaveBeenLastCalledWith('2026-10-01', '2026-10-31', true))
+    const loading = screen.getByRole('region', { name: 'Supporting history charts' })
+    expect(within(loading).queryByText('October 2026')).not.toBeInTheDocument()
+    expect(within(loading).getAllByText('November 2026').length).toBeGreaterThan(0)
+
+    failOctober(new Error('offline'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('offline')
+    const failed = screen.getByRole('region', { name: 'Supporting history charts' })
+    expect(within(failed).queryByText('October 2026')).not.toBeInTheDocument()
+    expect(within(failed).getAllByText('November 2026').length).toBeGreaterThan(0)
+    // Nor do the stale rows count as "October has no data".
+    expect(screen.queryByText(/No data for October 2026/)).not.toBeInTheDocument()
+  })
+
   it('steps months with the arrows and loads that month', async () => {
     renderPage()
     await screen.findByRole('table', { name: 'Daily portfolio snapshots' })
