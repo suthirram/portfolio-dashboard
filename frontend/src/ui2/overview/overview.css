@@ -209,6 +209,18 @@
   :root[data-ui="ui2"] .u2-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* Holdings table (slice 5). */
+:root[data-ui="ui2"] .u2-holdings { max-width: 100%; overflow-x: auto; }
+:root[data-ui="ui2"] .u2-holdings table { border-collapse: collapse; width: 100%; }
+:root[data-ui="ui2"] .u2-holdings :is(th, td) { padding: .7rem; text-align: end; }
+:root[data-ui="ui2"] .u2-holdings th:first-child { text-align: start; }
+:root[data-ui="ui2"] .u2-holdings small { display: block; }
+:root[data-ui="ui2"] .u2-holdings .neutral { color: var(--u2-accent); }
+
+@media (max-width: 760px) {
+  :root[data-ui="ui2"] .u2-holdings :is(td, th):is(:nth-child(2), :nth-child(3), :nth-child(6)) { display: none; }
+}
+
 @media (max-width: 760px) {
   /* The handoff keeps only the icon on a phone; the button keeps its aria-label. */
   :root[data-ui="ui2"] .u2-refresh-text { display: none; }

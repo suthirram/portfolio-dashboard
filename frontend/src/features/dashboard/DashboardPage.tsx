@@ -6,6 +6,8 @@ import { PortfolioHero } from '../../components/PortfolioHero'
 import { useUiMode, useUiRevamp } from '../../lib/uiMode'
 import { GOLD_LABEL, Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
 import { nativeView } from '../holdings/currencyTotals'
+import { Ui2HoldingDetailsDialog } from '../../ui2/overview/Ui2HoldingDetailsDialog'
+import { Ui2Holdings } from '../../ui2/overview/Ui2Holdings'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
 import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
@@ -165,7 +167,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   }
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this holding?')) return
-    try { await remove(id) }
+    try { await remove(id); return true }
     catch (e) { notify('Delete failed: ' + (e instanceof Error ? e.message : String(e))) }
   }
 
@@ -174,6 +176,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
     ...holding,
     cost_price: (holding.stocks_owned ?? 0) * (holding.avg_cost_price ?? 0),
   }))
+
+  const [selection, setSelection] = useState<{owner?: string; id: string} | null>(null)
+  const selected = ui2 && selection && selection.owner === actAsUserId
+    ? displayHoldings.find(holding => holding.id === selection.id) : undefined
+  const selectHolding = (id: string) => setSelection({owner: actAsUserId, id})
 
   const filtered = displayHoldings.filter(holding =>
     !filter || holding.script?.toLowerCase().includes(filter.toLowerCase()) || holding.symbol?.toLowerCase().includes(filter.toLowerCase())
@@ -418,6 +425,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
 
         {tab === 'table' && (
           <HoldingsByCurrency
+            renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
             holdings={filtered}
             searchActive={Boolean(filter)}
             view={positionView} onViewChange={setPositionView}
@@ -437,6 +445,11 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           setHoldingsLayout('sector'); setSectorTarget(selection); setTab('table')
         }} />}
       </main>
+
+      {selected && <Ui2HoldingDetailsDialog holding={selected} close={() => setSelection(null)}
+        edit={() => { setSelection(null); setModal(selected) }}
+        ledger={actAsUserId ? undefined : () => { setSelection(null); setTxnModal(selected) }}
+        remove={async () => { if (selected.id && await handleDelete(selected.id)) setSelection(null) }} />}
 
       {modal && (
         <AddEditModal
@@ -470,7 +483,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           if (last) requestAnimationFrame(() => document.getElementById(`dashboard-${tab}-tab`)?.focus())
         }} />}
 
-      {showOpeningPrompt && !modal && !reviewQueue && (
+      {showOpeningPrompt && !modal && !reviewQueue && !selected && !txnModal && (
         <OpeningDateModal
           holdings={needsOpeningDate}
           userId={actAsUserId}
