@@ -390,6 +390,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/history/fx-missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's days with a fallback or missing EUR→INR rate
+         * @description PD-059 (DD-015 §2.7). Days whose portfolio_overall rate is flagged
+         *     (fx_carried): a fallback after a failed fetch, or no rate yet. History
+         *     offers to re-fetch them. Own portfolio only; act-as has no route here.
+         */
+        get: operations["getFxMissing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/history/fx-refetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-fetch the EUR→INR rate for flagged days
+         * @description PD-059 (DD-015 §2.7). Fetches the rate of each requested day that is
+         *     still flagged (one Yahoo call; the live quote for the current trading
+         *     day), rewrites the day's rate and stock totals and clears its flag.
+         *     Days that are not flagged are ignored. A failed fetch is not an
+         *     error: the response lists the days that stay flagged.
+         */
+        post: operations["refetchFx"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/history/{date}/regions": {
         parameters: {
             query?: never;
@@ -2148,6 +2194,10 @@ export interface components {
             /** @description Gold could not be read for a gold-enabled account; every amount is absent */
             gold_unavailable: boolean;
         };
+        FxDates: {
+            /** @description Days with a flagged EUR→INR rate (PD-059) */
+            dates: string[];
+        };
         PatchHistoryRegionsInput: {
             regions: {
                 [key: string]: components["schemas"]["HistoryRegionInput"];
@@ -3216,6 +3266,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverallHistory"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    getFxMissing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flagged days, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxDates"];
+                };
+            };
+        };
+    };
+    refetchFx: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FxDates"];
+            };
+        };
+        responses: {
+            /** @description The requested days still flagged, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxDates"];
                 };
             };
             400: components["responses"]["BadRequest"];
