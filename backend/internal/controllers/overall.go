@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
@@ -41,6 +42,50 @@ func (h *Controller) GetOverallHistory(ctx context.Context, request api.GetOvera
 		})
 	}
 	return api.GetOverallHistory200JSONResponse(out), nil
+}
+
+// GetFxMissing lists the caller's days with a flagged EUR→INR rate, newest
+// first, for History's re-fetch prompt (PD-059, DD-015 §2.7). Own portfolio
+// only: act-as has no route here.
+func (h *Controller) GetFxMissing(ctx context.Context, _ api.GetFxMissingRequestObject) (api.GetFxMissingResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dates, err := h.fxRefetch.Missing(ctx, currentUserId)
+	if err != nil {
+		return nil, err
+	}
+	return api.GetFxMissing200JSONResponse(toAPIFxDates(dates)), nil
+}
+
+// RefetchFx re-fetches the rate of the requested flagged days and answers
+// with the ones still flagged. A failed fetch is not an error.
+func (h *Controller) RefetchFx(ctx context.Context, request api.RefetchFxRequestObject) (api.RefetchFxResponseObject, error) {
+	currentUserId, err := currentUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if request.Body == nil || len(request.Body.Dates) == 0 {
+		return api.RefetchFx400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("dates required")}}, nil
+	}
+	dates := make([]time.Time, 0, len(request.Body.Dates))
+	for _, date := range request.Body.Dates {
+		dates = append(dates, date.Time)
+	}
+	missing, err := h.fxRefetch.Refetch(ctx, currentUserId, dates)
+	if err != nil {
+		return nil, err
+	}
+	return api.RefetchFx200JSONResponse(toAPIFxDates(missing)), nil
+}
+
+func toAPIFxDates(dates []string) api.FxDates {
+	out := api.FxDates{Dates: make([]openapi_types.Date, 0, len(dates))}
+	for _, date := range dates {
+		out.Dates = append(out.Dates, mustParseAPIDate(date))
+	}
+	return out
 }
 
 // overallGold reads the gold side for the days: the overlay History uses

@@ -277,6 +277,9 @@ type UpdateGoldTransactionJSONRequestBody = GoldTransactionInput
 // AddHistoryRowJSONRequestBody defines body for AddHistoryRow for application/json ContentType.
 type AddHistoryRowJSONRequestBody = AddHistoryRowInput
 
+// RefetchFxJSONRequestBody defines body for RefetchFx for application/json ContentType.
+type RefetchFxJSONRequestBody = FxDates
+
 // PasteHistoryJSONRequestBody defines body for PasteHistory for application/json ContentType.
 type PasteHistoryJSONRequestBody = PasteHistoryInput
 
@@ -489,6 +492,12 @@ type ServerInterface interface {
 	// Add a manual snapshot row
 	// (POST /history)
 	AddHistoryRow(ctx echo.Context) error
+	// The caller's days with a fallback or missing EUR→INR rate
+	// (GET /history/fx-missing)
+	GetFxMissing(ctx echo.Context) error
+	// Re-fetch the EUR→INR rate for flagged days
+	// (POST /history/fx-refetch)
+	RefetchFx(ctx echo.Context) error
 	// Overall portfolio worth per day (stocks + gold, INR and EUR)
 	// (GET /history/overall)
 	GetOverallHistory(ctx echo.Context, params GetOverallHistoryParams) error
@@ -1608,6 +1617,28 @@ func (w *ServerInterfaceWrapper) AddHistoryRow(ctx echo.Context) error {
 	return err
 }
 
+// GetFxMissing converts echo context to params.
+func (w *ServerInterfaceWrapper) GetFxMissing(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetFxMissing(ctx)
+	return err
+}
+
+// RefetchFx converts echo context to params.
+func (w *ServerInterfaceWrapper) RefetchFx(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(string(CookieAuthScopes), []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.RefetchFx(ctx)
+	return err
+}
+
 // GetOverallHistory converts echo context to params.
 func (w *ServerInterfaceWrapper) GetOverallHistory(ctx echo.Context) error {
 	var err error
@@ -2118,6 +2149,8 @@ func RegisterHandlersWithOptions(router EchoRouter, si ServerInterface, options 
 	router.PUT(options.BaseURL+"/gold/transactions/:id", wrapper.UpdateGoldTransaction, options.OperationMiddlewares["updateGoldTransaction"]...)
 	router.GET(options.BaseURL+"/history", wrapper.ListHistory, options.OperationMiddlewares["listHistory"]...)
 	router.POST(options.BaseURL+"/history", wrapper.AddHistoryRow, options.OperationMiddlewares["addHistoryRow"]...)
+	router.GET(options.BaseURL+"/history/fx-missing", wrapper.GetFxMissing, options.OperationMiddlewares["getFxMissing"]...)
+	router.POST(options.BaseURL+"/history/fx-refetch", wrapper.RefetchFx, options.OperationMiddlewares["refetchFx"]...)
 	router.GET(options.BaseURL+"/history/overall", wrapper.GetOverallHistory, options.OperationMiddlewares["getOverallHistory"]...)
 	router.POST(options.BaseURL+"/history/paste", wrapper.PasteHistory, options.OperationMiddlewares["pasteHistory"]...)
 	router.DELETE(options.BaseURL+"/history/:date", wrapper.DeleteHistoryRow, options.OperationMiddlewares["deleteHistoryRow"]...)
@@ -5047,6 +5080,63 @@ func (response AddHistoryRow409JSONResponse) VisitAddHistoryRowResponse(w http.R
 	return err
 }
 
+type GetFxMissingRequestObject struct {
+}
+
+type GetFxMissingResponseObject interface {
+	VisitGetFxMissingResponse(w http.ResponseWriter) error
+}
+
+type GetFxMissing200JSONResponse FxDates
+
+func (response GetFxMissing200JSONResponse) VisitGetFxMissingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefetchFxRequestObject struct {
+	Body *RefetchFxJSONRequestBody
+}
+
+type RefetchFxResponseObject interface {
+	VisitRefetchFxResponse(w http.ResponseWriter) error
+}
+
+type RefetchFx200JSONResponse FxDates
+
+func (response RefetchFx200JSONResponse) VisitRefetchFxResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefetchFx400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RefetchFx400JSONResponse) VisitRefetchFxResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetOverallHistoryRequestObject struct {
 	Params GetOverallHistoryParams
 }
@@ -6195,6 +6285,12 @@ type StrictServerInterface interface {
 	// Add a manual snapshot row
 	// (POST /history)
 	AddHistoryRow(ctx context.Context, request AddHistoryRowRequestObject) (AddHistoryRowResponseObject, error)
+	// The caller's days with a fallback or missing EUR→INR rate
+	// (GET /history/fx-missing)
+	GetFxMissing(ctx context.Context, request GetFxMissingRequestObject) (GetFxMissingResponseObject, error)
+	// Re-fetch the EUR→INR rate for flagged days
+	// (POST /history/fx-refetch)
+	RefetchFx(ctx context.Context, request RefetchFxRequestObject) (RefetchFxResponseObject, error)
 	// Overall portfolio worth per day (stocks + gold, INR and EUR)
 	// (GET /history/overall)
 	GetOverallHistory(ctx context.Context, request GetOverallHistoryRequestObject) (GetOverallHistoryResponseObject, error)
@@ -7948,6 +8044,58 @@ func (sh *strictHandler) AddHistoryRow(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(AddHistoryRowResponseObject); ok {
 		return validResponse.VisitAddHistoryRowResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetFxMissing operation middleware
+func (sh *strictHandler) GetFxMissing(ctx echo.Context) error {
+	var request GetFxMissingRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFxMissing(ctx.Request().Context(), request.(GetFxMissingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFxMissing")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetFxMissingResponseObject); ok {
+		return validResponse.VisitGetFxMissingResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RefetchFx operation middleware
+func (sh *strictHandler) RefetchFx(ctx echo.Context) error {
+	var request RefetchFxRequestObject
+
+	var body RefetchFxJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RefetchFx(ctx.Request().Context(), request.(RefetchFxRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefetchFx")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RefetchFxResponseObject); ok {
+		return validResponse.VisitRefetchFxResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

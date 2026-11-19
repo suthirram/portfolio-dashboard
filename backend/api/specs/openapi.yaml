@@ -80,6 +80,10 @@ paths:
     $ref: "./history/history.yaml#/history"
   /history/overall:
     $ref: "./history/history.yaml#/history_overall"
+  /history/fx-missing:
+    $ref: "./history/history.yaml#/history_fx_missing"
+  /history/fx-refetch:
+    $ref: "./history/history.yaml#/history_fx_refetch"
   /history/{date}/regions:
     $ref: "./history/history.yaml#/history_date_regions"
   /history/{date}:
