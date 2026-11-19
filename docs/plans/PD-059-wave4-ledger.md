@@ -1,6 +1,7 @@
 # PD-059: Wave 4 holding ledger dialog (slice 15)
 
-* **Status**: Amendment in review, implementation follows its merge.
+* **Status**: Review updates complete, ready for merge.
+* **Updated**: 2026-11-19
 * **Owner**: Codex
 * **Goal**: Open a holding’s dated ledger from Overview or Transactions in UI_2.0. Add, edit and delete individual events, including corrections to an existing opening and its realised seed.
 * **Architecture**: Both pages call TransactionsModal. It selects the view by account mode and keys the editor by holding and owner. Both views share one hook for reads, validation, mutations and refresh. The server recomputes the holding after a write.
@@ -11,14 +12,13 @@
 
 Slices 2 and 14 supply the interface switch and shared dialog. Both are merged.
 The existing Overview and Transactions routes already open the ledger.
-The event picker allows corrections to an existing opening and reserves creation
-of an opening for the holding workflow. Deploy through the per-account UI mode.
+The event picker allows corrections to an existing opening and its realised
+seed. Opening creation remains managed on the holding. Deploy through the per-account UI mode.
 Switch an account to Classic or Glass to restore the inline layout.
 
-Classic and Glass retain their inline form and table. The shared load callback
-depends on `userId`, so changing owners refetches the ledger. Delete now sets
-`saving`: Classic’s submit button reads “Saving…” and Escape is blocked while
-the delete is pending. Clearing the date now produces an inline validation error.
+Owner approval (2026-11-19) covers the shared-hook changes: loading refetches
+when `userId` changes; delete sets `saving`, so Classic reads “Saving…” and
+blocks Escape during deletion; an empty date shows “Enter a valid date”.
 
 ## 2. File map
 
@@ -28,30 +28,315 @@ the delete is pending. Clearing the date now produces an inline validation error
 | Create | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | List, event editor and delete confirmation |
 | Modify | `frontend/src/features/holdings/TransactionsModal.tsx` | Dispatch by mode and retain Classic and Glass views |
 | Modify | `frontend/src/features/holdings/TransactionsModal.test.tsx` | Exercise shared entry point, payloads and error recovery |
+| Modify | `frontend/src/features/holdings/AddEditModal.tsx`, `AddEditModal.test.tsx` | Show a clear Yahoo symbol test error and cover valid quotes |
 
 ## 3. PR sequence
 
 | Branch | Scope | No regression | Adds value | Test that fails without it |
 | --- | --- | --- | --- | --- |
 | `docs/PD-059-ledger-dialog` (#350) | Amendment and board | Docs only | Reviewable inline implementation | Markdown lint and replay of the replacement blocks |
-| `feat/PD-059-ledger-dialog` | Slice 15, one frontend PR | Classic and Glass share the same fee-inclusive parsing and owner-scoped endpoints | UI_2.0 users can maintain a holding ledger | Cancel after invalid amount, edit opening seed, reject empty date, confirm owner-scoped deletion |
+| `feat/PD-059-ledger-dialog` | Slice 15, one frontend PR | Classic and Glass retain inline views; approved hook changes are covered | UI_2.0 ledger editing and symbol validation | UI_2.0 interactions, valid and invalid Yahoo symbol responses, owner scoping |
 
-## 4. Implementation
+## 4. Owner decisions
 
-### Task 1. Share the ledger state and wire both views
+Resolved (owner, 2026-11-19): existing Opening events and their realised seed
+are editable; split, bonus and merger remain available with ratio inputs;
+Delete lives inside Edit; the optional Price / share helper remains. Opening
+creation stays managed on the holding.
+
+## 5. Implementation
+
+### Task 1. Extract the shared hook without behavior changes
 
 **Files:**
 
 * `frontend/src/features/holdings/useHoldingLedger.ts`
-* `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx`
-* `frontend/src/features/holdings/TransactionsModal.tsx`
-* `frontend/src/features/holdings/TransactionsModal.test.tsx`
 
-* [ ] After the amendment merges, branch from current main with `git switch -c feat/PD-059-ledger-dialog origin/main`. Use the four complete source files below to implement the slice.
+* [ ] Branch from current main with `git switch -c feat/PD-059-ledger-dialog origin/main`. Extract the shared hook and keep Classic and Glass markup unchanged. Existing Classic behavior tests must remain unchanged.
 
 * [ ] **Create the shared ledger hook** in `frontend/src/features/holdings/useHoldingLedger.ts`. One hook keeps parsing, running cost basis, owner scoping and server refresh consistent across both editors. Resetting form state also clears its validation message.
 
 Complete new file implementing the behavior above.
+
+```ts
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { api } from '../../lib/api/client'
+import type { Holding, Transaction, TransactionInput, TransactionType } from '../../types'
+import { parseDecimalInput, parseSeededDecimal } from '../../lib/formNumbers'
+import { todayIST } from '../../lib/formDates'
+import { currencySymbol } from '../../lib/currency'
+
+// Ordered for the type picker; opening is managed via the holding's opening
+// balance, but is shown read-only in the list when present.
+export const NEW_TYPES: TransactionType[] = ['buy', 'sell', 'dividend', 'split', 'bonus', 'merger']
+
+export const TYPE_LABEL: Record<string, string> = {
+  opening: 'Opening', buy: 'Buy', sell: 'Sell', dividend: 'Dividend',
+  split: 'Split', bonus: 'Bonus', merger: 'Merger',
+}
+
+interface FormState {
+  type: TransactionType
+  date: string // yyyy-mm-dd
+  quantity: string
+  price: string // optional per-share price; convenience to compute amount = price × shares
+  amount: string
+  ratio: string
+  realized: string // opening only: realised P&L seed
+  notes: string
+}
+
+// Dates default to the IST calendar day: a UTC slice shows yesterday between
+// 00:00 and 05:30 IST.
+const emptyForm = (): FormState => ({ type: 'buy', date: todayIST(), quantity: '', price: '', amount: '', ratio: '', realized: '', notes: '' })
+
+export interface LedgerProps {
+  // Holding, not HoldingWithPrice: every field this editor reads
+  // (currency, script, and the four derived position fields) is stored on
+  // the holding itself, so the portfolio-wide view can open it without
+  // fetching live prices first.
+  holding: Holding
+  onClose: () => void
+  // Called after any ledger mutation so the parent refreshes holdings/prices
+  // (the position is recomputed server-side).
+  onChanged: () => void
+  // Set in admin act-as: reads and writes go to the target's ledger (PD-048).
+  userId?: string
+}
+
+export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProps, 'onClose'>) {
+  const currencySign = currencySymbol(holding.currency)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  const [form, setForm] = useState<FormState>(emptyForm())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [confirm, setConfirm] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!holding.id) return
+    setLoading(true)
+    try {
+      const data = await api.listTransactions(holding.id, userId)
+      setTransactions(data)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [holding.id])
+
+  useEffect(() => { void load() }, [load])
+
+  const resetForm = () => {
+    setForm(emptyForm())
+    setEditingId(null)
+  }
+
+  // Optional per-share price is a convenience: when both shares and price are
+  // present, auto-fill the total amount (= price × shares). Amount stays
+  // editable so the user can fold in brokerage/charges afterwards (e.g. enter
+  // NAV 41.1086 × 279.733 = 11499.43, then bump to the 11500 actually debited).
+  const recompute = (next: Partial<FormState>) => setForm(previousForm => {
+    const merged = { ...previousForm, ...next }
+    const quantity = parseDecimalInput(merged.quantity, { singleSeparator: 'decimal' })
+    const pricePerShare = parseDecimalInput(merged.price)
+    if (merged.price.trim() !== '' && Number.isFinite(quantity) && Number.isFinite(pricePerShare) && quantity > 0) {
+      merged.amount = (quantity * pricePerShare).toFixed(2)
+    }
+    return merged
+  })
+
+  const startEdit = (transaction: Transaction) => {
+    setEditingId(transaction.id || null)
+    setForm({
+      type: (transaction.type as TransactionType) || 'buy',
+      date: transaction.date ? transaction.date.slice(0, 10) : todayIST(),
+      quantity: transaction.quantity != null ? String(transaction.quantity) : '',
+      price: '',
+      amount: transaction.amount != null ? String(transaction.amount) : '',
+      ratio: transaction.ratio != null && transaction.ratio !== 0 ? String(transaction.ratio) : '',
+      realized: transaction.realized_seed != null ? String(transaction.realized_seed) : '',
+      notes: transaction.notes || '',
+    })
+  }
+
+  const submit = async (e: FormEvent<HTMLFormElement>): Promise<boolean> => {
+    e.preventDefault()
+    if (!holding.id) return false
+    setErr('')
+
+    const quantity = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
+    if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return false }
+    // Untouched fields keep the stored number: re-parsing String(1.234) under
+    // the default rule would save the grouped integer 1234.
+    const editing = editingId ? transactions.find(transaction => transaction.id === editingId) : undefined
+    const amount = parseSeededDecimal(form.amount, editing?.amount)
+    if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return false }
+    const ratio = parseDecimalInput(form.ratio, { singleSeparator: 'decimal' })
+    if (!Number.isFinite(ratio) || ratio < 0) { setErr('Enter a valid ratio'); return false }
+    const realizedSeed = parseSeededDecimal(form.realized, editing?.realized_seed, { allowNegative: true })
+    if (!Number.isFinite(realizedSeed)) { setErr('Enter a valid realised P&L seed'); return false }
+
+    const payload: TransactionInput = {
+      type: form.type,
+      // Send a full RFC3339 timestamp; the backend parses date-time.
+      date: new Date(form.date + 'T00:00:00Z').toISOString(),
+      quantity,
+      amount,
+      notes: form.notes.trim() || undefined,
+    }
+    if (form.type === 'split' || form.type === 'bonus') {
+      payload.ratio = ratio
+    }
+    if (form.type === 'opening') {
+      payload.realized_seed = realizedSeed
+    }
+
+    setSaving(true)
+    try {
+      if (editingId) {
+        await api.updateTransaction(editingId, payload, userId)
+      } else {
+        await api.createTransaction(holding.id, payload, userId)
+      }
+      resetForm()
+      await load()
+      onChanged()
+      return true
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const remove = async (id: string) => {
+    setErr('')
+    try {
+      await api.deleteTransaction(id, userId)
+      setConfirm(null)
+      await load()
+      onChanged()
+      return true
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+      return false
+    }
+  }
+
+  const money = (value?: number | null) =>
+    value == null || value === 0 ? '—' : currencySign + Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const formatQuantity = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
+
+  // Replay the ledger (mirrors backend RecomputePosition) and return a map of
+  // transaction id → average cost per share after that event executes.
+  const runningAvgCosts = (() => {
+    const sorted = transactions.toSorted((left, right) => {
+      const leftOpening = left.type === 'opening', rightOpening = right.type === 'opening'
+      if (leftOpening !== rightOpening) return leftOpening ? -1 : 1
+      return (left.date || '').localeCompare(right.date || '')
+    })
+    let totalQuantity = 0, totalBasis = 0
+    const averageCostById = new Map<string, number>()
+    for (const transaction of sorted) {
+      const quantity = transaction.quantity ?? 0
+      const amount = transaction.amount ?? 0
+      switch (transaction.type) {
+        case 'opening':
+        case 'buy':
+          if (quantity > 0) { totalQuantity += quantity; totalBasis += amount }
+          break
+        case 'sell': {
+          const averageCost = totalQuantity > 0 ? totalBasis / totalQuantity : 0
+          const removed = Math.min(quantity, totalQuantity)
+          totalQuantity -= removed
+          totalBasis -= averageCost * removed
+          break
+        }
+        case 'split':
+        case 'bonus':
+          if ((transaction.ratio ?? 0) > 0) totalQuantity *= transaction.ratio!
+          break
+        // dividend / merger: no position change
+      }
+      if (transaction.id) averageCostById.set(transaction.id, totalQuantity > 0 ? totalBasis / totalQuantity : 0)
+    }
+    return averageCostById
+  })()
+
+  // Quantity/amount are irrelevant for split/bonus/merger; show ratio instead.
+  const isCorporate = form.type === 'split' || form.type === 'bonus'
+  const isMerger = form.type === 'merger'
+  const isOpening = form.type === 'opening'
+
+  const liveQuantity = parseDecimalInput(form.quantity, { singleSeparator: 'decimal' })
+  const liveAmount = parseDecimalInput(form.amount)
+  const impliedCostPerShare =
+    !isCorporate && !isMerger && form.type !== 'dividend' &&
+    Number.isFinite(liveQuantity) && liveQuantity > 0 &&
+    Number.isFinite(liveAmount) && liveAmount > 0
+      ? liveAmount / liveQuantity
+      : null
+
+  return { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
+    recompute, startEdit, submit, remove, money, formatQuantity, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare }
+}
+```
+
+* [ ] Verify the extracted hook does not change Classic behavior with `cd frontend && npm run test:run -- src/features/holdings/TransactionsModal.test.tsx`. Expected: the existing Classic tests pass.
+* [ ] Commit with `git add frontend/src/features/holdings/useHoldingLedger.ts` and `git commit -m "♻️ Extract holding ledger state"`.
+
+### Task 2. Apply the approved Classic changes
+
+**Files:** `frontend/src/features/holdings/useHoldingLedger.ts`,
+`frontend/src/features/holdings/TransactionsModal.test.tsx`
+
+The owner approved refetching when the owner changes, showing “Saving…” and
+blocking Escape during deletion, and reporting an empty date. Apply the behavior changes after extracting the hook. The complete replacement below includes them.
+
+The load callback must refetch when the owner changes.
+
+Current:
+
+```ts
+  }, [holding.id])
+```
+
+Replace with:
+
+```ts
+  }, [holding.id, userId])
+```
+
+The delete state activates Classic's existing busy indicator and Escape guard.
+
+Current:
+
+```ts
+  const remove = async (id: string) => {
+    setErr('')
+    try {
+```
+
+Replace with:
+
+```ts
+  const remove = async (id: string) => {
+    setErr('')
+    setSaving(true)
+    try {
+```
+
+The hook validates the date before timestamp formatting, so a cleared date
+displays an inline error. Task 3 includes the complete integration tests.
+
+The extracted hook is the current code for this task. Replace it with the
+complete implementation below so every approved behavior has its final form.
+
+Replace with:
 
 ```ts
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
@@ -144,17 +429,17 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
     return merged
   })
 
-  const startEdit = (txn: Transaction) => {
-    setEditingId(txn.id || null)
+  const startEdit = (transaction: Transaction) => {
+    setEditingId(transaction.id || null)
     setForm({
-      type: (txn.type as TransactionType) || 'buy',
-      date: txn.date ? txn.date.slice(0, 10) : todayIST(),
-      quantity: txn.quantity != null ? String(txn.quantity) : '',
+      type: (transaction.type as TransactionType) || 'buy',
+      date: transaction.date ? transaction.date.slice(0, 10) : todayIST(),
+      quantity: transaction.quantity != null ? String(transaction.quantity) : '',
       price: '',
-      amount: txn.amount != null ? String(txn.amount) : '',
-      ratio: txn.ratio != null && txn.ratio !== 0 ? String(txn.ratio) : '',
-      realized: txn.realized_seed != null ? String(txn.realized_seed) : '',
-      notes: txn.notes || '',
+      amount: transaction.amount != null ? String(transaction.amount) : '',
+      ratio: transaction.ratio != null && transaction.ratio !== 0 ? String(transaction.ratio) : '',
+      realized: transaction.realized_seed != null ? String(transaction.realized_seed) : '',
+      notes: transaction.notes || '',
     })
   }
 
@@ -167,7 +452,7 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
     if (!Number.isFinite(quantity) || quantity < 0) { setErr('Enter a valid share quantity'); return false }
     // Untouched fields keep the stored number: re-parsing String(1.234) under
     // the default rule would save the grouped integer 1234.
-    const editing = editingId ? transactions.find(txn => txn.id === editingId) : undefined
+    const editing = editingId ? transactions.find(transaction => transaction.id === editingId) : undefined
     const amount = parseSeededDecimal(form.amount, editing?.amount)
     if (!Number.isFinite(amount) || amount < 0) { setErr('Enter a valid amount'); return false }
     const ratio = parseDecimalInput(form.ratio, { singleSeparator: 'decimal' })
@@ -234,7 +519,7 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
 
   const money = (value?: number | null) =>
     value == null || value === 0 ? '—' : currencySign + Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const num = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
+  const formatQuantity = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
 
   // Replay the ledger (mirrors backend RecomputePosition) and return a map of
   // transaction id → average cost per share after that event executes.
@@ -246,10 +531,10 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
     })
     let totalQuantity = 0, totalBasis = 0
     const averageCostById = new Map<string, number>()
-    for (const txn of sorted) {
-      const quantity = txn.quantity ?? 0
-      const amount = txn.amount ?? 0
-      switch (txn.type) {
+    for (const transaction of sorted) {
+      const quantity = transaction.quantity ?? 0
+      const amount = transaction.amount ?? 0
+      switch (transaction.type) {
         case 'opening':
         case 'buy':
           if (quantity > 0) { totalQuantity += quantity; totalBasis += amount }
@@ -263,11 +548,11 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
         }
         case 'split':
         case 'bonus':
-          if ((txn.ratio ?? 0) > 0) totalQuantity *= txn.ratio!
+          if ((transaction.ratio ?? 0) > 0) totalQuantity *= transaction.ratio!
           break
         // dividend / merger: no position change
       }
-      if (txn.id) averageCostById.set(txn.id, totalQuantity > 0 ? totalBasis / totalQuantity : 0)
+      if (transaction.id) averageCostById.set(transaction.id, totalQuantity > 0 ? totalBasis / totalQuantity : 0)
     }
     return averageCostById
   })()
@@ -287,9 +572,23 @@ export function useHoldingLedger({ holding, onChanged, userId }: Omit<LedgerProp
       : null
 
   return { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
-    recompute, startEdit, submit, remove, money, num, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare }
+    recompute, startEdit, submit, remove, money, formatQuantity, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare }
 }
 ```
+
+* [ ] Verify with `cd frontend && npm run test:run -- src/features/holdings/TransactionsModal.test.tsx`.
+  Expected: the Classic scenarios and empty-date regression pass.
+* [ ] Commit with `git add frontend/src/features/holdings/useHoldingLedger.ts frontend/src/features/holdings/TransactionsModal.test.tsx`
+  and `git commit -m "🐛 Guard Classic ledger mutations"`.
+
+### Task 3. Add the UI_2.0 ledger view
+
+**Files:** `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx`,
+`frontend/src/features/holdings/TransactionsModal.tsx`,
+`frontend/src/features/holdings/TransactionsModal.test.tsx`
+
+The complete component above uses the handoff's stacked editor and a table
+wrapper that scrolls horizontally on a phone.
 
 * [ ] **Create the UI_2.0 ledger view** in `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx`. The list and editor share a dialog shell. Saving returns to the list only after a successful write. Existing openings keep their type and expose their realised seed.
 
@@ -306,12 +605,12 @@ import { Ui2Dialog } from '../shell/Ui2Dialog'
 export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
   const [editor, setEditor] = useState(false)
   const { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
-    recompute, startEdit, submit, remove, money, num, isCorporate, isMerger, isOpening, impliedCostPerShare
+    recompute, startEdit, submit, remove, money, formatQuantity, isCorporate, isMerger, isOpening, impliedCostPerShare
   } = useHoldingLedger({ holding, userId, onChanged })
   const ledgerForm = <form className="ui2-form" onSubmit={async event => {
     if (await submit(event)) setEditor(false)
   }}>
-    <div className="ui2-formrow">
+    <div>
       <label>Event type<select value={form.type} disabled={isOpening} onChange={event =>
         setForm(previousForm => ({ ...previousForm, type: event.target.value as TransactionType }))}>
         {(isOpening ? ['opening'] : NEW_TYPES).map(type => <option key={type} value={type}>{TYPE_LABEL[type]}</option>)}
@@ -319,14 +618,11 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
       <label>Date<input type="date" required value={form.date} onChange={event => setForm(previousForm => ({ ...previousForm, date: event.target.value }))} /></label>
     </div>
     {!isCorporate && !isMerger && <>
-      {form.type !== 'dividend' && <div className="ui2-formrow">
-        <label>Shares<DecimalInput value={form.quantity} onValueChange={quantity => recompute({ quantity })} /></label>
+      {form.type !== 'dividend' && <div>
+        <label>Shares (not used for dividends)<DecimalInput value={form.quantity} onValueChange={quantity => recompute({ quantity })} /></label>
         <label>Price / share ({currencySign}, optional)<DecimalInput value={form.price} onValueChange={price => recompute({ price })} /></label>
       </div>}
-      <label>Total amount ({currencySign})<DecimalInput value={form.amount} onValueChange={amount => setForm(previousForm => ({ ...previousForm, amount }))} /></label>
-      {(form.type === 'buy' || form.type === 'sell') && <p className="ui2-dialog-note">
-        Enter the total debited for a buy or the total credited for a sell, fees included.
-      </p>}
+      <label>Total amount · {currencySign}<DecimalInput value={form.amount} onValueChange={amount => setForm(previousForm => ({ ...previousForm, amount }))} /></label>
       {impliedCostPerShare !== null && <p className="ui2-dialog-note">Implied cost/share: {money(impliedCostPerShare)}</p>}
     </>}
     {isCorporate && <label>Ratio (new shares per old)<DecimalInput value={form.ratio} onValueChange={ratio => setForm(previousForm => ({ ...previousForm, ratio }))} /></label>}
@@ -334,10 +630,9 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
       onValueChange={realized => setForm(previousForm => ({ ...previousForm, realized }))} /></label>}
     {isMerger && <p className="ui2-dialog-note">Merger records an audit event. Record a sell and a buy for changes to the position.</p>}
     <label>Notes<input value={form.notes} onChange={event => setForm(previousForm => ({ ...previousForm, notes: event.target.value }))} /></label>
-    <div className="ui2-dialog-actions">
-      <button type="button" className="ui2-btn" disabled={saving} onClick={() => { resetForm(); setConfirm(null); setEditor(false) }}>Cancel</button>
-      <button className="ui2-btn ui2-btn-primary" disabled={saving}>Save event</button>
-    </div>
+    <p className="ui2-dialog-note">A buy is the total debited and a sell the total credited, fees included.</p>
+    <button className="ui2-btn ui2-btn-primary" style={{ width: '100%' }} disabled={saving}>Save event</button>
+    <button type="button" className="ui2-btn" disabled={saving} onClick={() => { resetForm(); setConfirm(null); setEditor(false) }}>Cancel</button>
   </form>
   const title = editor
     ? `${editingId ? 'Edit' : 'Add'} event · ${holding.script}`
@@ -355,15 +650,16 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
           </div>
         : <button className="ui2-btn ui2-btn-danger" disabled={saving} onClick={() => setConfirm(editingId)}>Delete event</button>)}
     </> : <>
-      <p className="ui2-dialog-note">{holding.symbol} · {holding.currency}</p>
-      <div className="table-scroll"><table className="ui2-table">
-        <thead><tr>{['Date', 'Type', 'Shares', 'Amount', 'Actions'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
-        <tbody>{transactions.toSorted((left, right) => (right.date || '').localeCompare(left.date || '')).map(txn =>
-          <tr key={txn.id}>
-            <td>{txn.date ? formatDate(txn.date) : '—'}</td><td>{(TYPE_LABEL[txn.type || ''] || txn.type)}</td>
-            <td>{num(txn.quantity)}</td><td>{money(txn.amount)}</td>
-            <td><button className="ui2-btn" onClick={() => { startEdit(txn); setEditor(true) }}
-              aria-label={`Edit ${(TYPE_LABEL[txn.type || ''] || txn.type)} on ${txn.date ? formatDate(txn.date) : 'unknown date'}`}>Edit</button></td>
+      <p className="ui2-subtitle">{holding.symbol} · {holding.currency}</p>
+      <p className="ui2-dialog-note">Opening balances are managed on the holding. These events belong to this holding.</p>
+      <div style={{ maxWidth: '100%', overflowX: 'auto' }}><table className="ui2-table" style={{ minWidth: '32rem' }}>
+        <thead><tr>{['Date', 'Type', 'Shares', 'Amount', ''].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
+        <tbody>{transactions.toSorted((left, right) => (right.date || '').localeCompare(left.date || '')).map(transaction =>
+          <tr key={transaction.id}>
+            <td>{transaction.date ? formatDate(transaction.date) : '—'}</td><td>{(TYPE_LABEL[transaction.type || ''] || transaction.type)}</td>
+            <td>{formatQuantity(transaction.quantity)}</td><td>{money(transaction.amount)}</td>
+            <td><button className="ui2-btn" onClick={() => { startEdit(transaction); setEditor(true) }}
+              aria-label={`Edit ${(TYPE_LABEL[transaction.type || ''] || transaction.type)} on ${transaction.date ? formatDate(transaction.date) : 'unknown date'}`}>Edit</button></td>
           </tr>)}</tbody>
       </table></div>
       {loading ? <p>Loading…</p> : !err && !transactions.length && <p>No transactions yet.</p>}
@@ -556,7 +852,7 @@ export default function TransactionsModal({ holding, onClose, onChanged, userId 
 
   const money = (value?: number | null) =>
     value == null || value === 0 ? '—' : sym + Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const num = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
+  const formatQuantity = (value?: number | null) => (value == null || value === 0 ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: 3 }))
 
   // Replay the ledger (mirrors backend RecomputePosition) and return a map of
   // transaction id → avg cost per share after that event executes.
@@ -843,7 +1139,7 @@ export default function TransactionsModal(props: LedgerProps) {
 
 function ClassicHoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
   const { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
-    recompute, startEdit, submit, remove, money, num, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare
+    recompute, startEdit, submit, remove, money, formatQuantity, runningAvgCosts, isCorporate, isMerger, isOpening, impliedCostPerShare
   } = useHoldingLedger({ holding, userId, onChanged })
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!saving) onClose() })
@@ -997,32 +1293,32 @@ function ClassicHoldingLedger({ holding, onClose, onChanged, userId }: LedgerPro
                   No transactions yet. Add a buy, sell or dividend above.
                 </td></tr>
               )}
-              {!loading && transactions.map(txn => (
-                <tr key={txn.id} style={{ borderTop: '1px solid var(--border)' }}>
-                  <Td style={{ textAlign: 'left' }}>{txn.date ? formatDate(txn.date) : '—'}</Td>
+              {!loading && transactions.map(transaction => (
+                <tr key={transaction.id} style={{ borderTop: '1px solid var(--border)' }}>
+                  <Td style={{ textAlign: 'left' }}>{transaction.date ? formatDate(transaction.date) : '—'}</Td>
                   <Td style={{ textAlign: 'left' }}>
-                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[txn.type || ''] || txn.type}</span>
-                    {txn.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{txn.notes}</div>}
+                    <span style={{ fontWeight: 600 }}>{TYPE_LABEL[transaction.type || ''] || transaction.type}</span>
+                    {transaction.notes && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{transaction.notes}</div>}
                   </Td>
-                  <Td className="mono">{num(txn.quantity)}</Td>
-                  <Td className="mono">{money(txn.amount)}</Td>
-                  <Td className="mono">{txn.ratio ? `${txn.ratio}×` : '—'}</Td>
-                  <Td className="mono">{(() => { const avgCost = txn.id ? runningAvgCosts.get(txn.id) : undefined; return avgCost ? currencySign + avgCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
+                  <Td className="mono">{formatQuantity(transaction.quantity)}</Td>
+                  <Td className="mono">{money(transaction.amount)}</Td>
+                  <Td className="mono">{transaction.ratio ? `${transaction.ratio}×` : '—'}</Td>
+                  <Td className="mono">{(() => { const avgCost = transaction.id ? runningAvgCosts.get(transaction.id) : undefined; return avgCost ? currencySign + avgCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—' })()}</Td>
                   <Td style={{ textAlign: 'center' }}>
-                    {confirm === txn.id ? (
+                    {confirm === transaction.id ? (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => txn.id && remove(txn.id)} className="btn btn-sm btn-danger-solid">Yes</button>
+                        <button onClick={() => transaction.id && remove(transaction.id)} className="btn btn-sm btn-danger-solid">Yes</button>
                         <button onClick={() => setConfirm(null)} className="btn btn-sm">No</button>
                       </span>
                     ) : (
                       <span style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button onClick={() => startEdit(txn)} title="Edit"
-                          aria-label={`Edit ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                        <button onClick={() => startEdit(transaction)} title="Edit"
+                          aria-label={`Edit ${TYPE_LABEL[transaction.type || ''] || transaction.type} on ${transaction.date ? formatDate(transaction.date) : 'no date'}`}
                           className="btn-row btn-row-accent">
                           <EditIcon size={12} />
                         </button>
-                        <button onClick={() => txn.id && setConfirm(txn.id)} title="Delete"
-                          aria-label={`Delete ${TYPE_LABEL[txn.type || ''] || txn.type} on ${txn.date ? formatDate(txn.date) : 'no date'}`}
+                        <button onClick={() => transaction.id && setConfirm(transaction.id)} title="Delete"
+                          aria-label={`Delete ${TYPE_LABEL[transaction.type || ''] || transaction.type} on ${transaction.date ? formatDate(transaction.date) : 'no date'}`}
                           className="btn-row btn-row-danger">
                           <TrashIcon size={12} />
                         </button>
@@ -1037,7 +1333,7 @@ function ClassicHoldingLedger({ holding, onClose, onChanged, userId }: LedgerPro
 
         {/* Derived position summary */}
         <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)' }}>
-          <span>Shares: <strong style={{ color: 'var(--text-primary)' }}>{num(holding.stocks_owned)}</strong></span>
+          <span>Shares: <strong style={{ color: 'var(--text-primary)' }}>{formatQuantity(holding.stocks_owned)}</strong></span>
           <span>Avg cost: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.avg_cost_price)}</strong></span>
           <span>Realised: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.realized_pnl)}</strong></span>
           <span>Dividends: <strong style={{ color: 'var(--text-primary)' }}>{money(holding.total_dividends)}</strong></span>
@@ -1184,7 +1480,7 @@ describe('TransactionsModal numeric input', () => {
     const onChanged = vi.fn()
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={onChanged} />)
     fireEvent.click(screen.getByRole('button', { name: 'Add event' }))
-    fireEvent.change(screen.getByLabelText('Shares'), { target: { value: '1,5' } })
+    fireEvent.change(screen.getByLabelText('Shares (not used for dividends)'), { target: { value: '1,5' } })
     fireEvent.change(screen.getByLabelText(/Price \/ share/), { target: { value: '10' } })
     expect(screen.getByLabelText(/Total amount/)).toHaveValue('15.00')
     fireEvent.change(screen.getByLabelText(/Total amount/), { target: { value: '15,25' } })
@@ -1219,7 +1515,7 @@ describe('TransactionsModal numeric input', () => {
     render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
     await screen.findByText('No transactions yet.')
     fireEvent.click(screen.getByRole('button', { name: 'Add event' }))
-    fireEvent.change(screen.getByLabelText('Shares'), { target: { value: '1' } })
+    fireEvent.change(screen.getByLabelText('Shares (not used for dividends)'), { target: { value: '1' } })
     fireEvent.change(screen.getByLabelText(/Total amount/), { target: { value: '1,2,3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save event' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid amount')
@@ -1314,23 +1610,85 @@ describe('TransactionsModal numeric input', () => {
 })
 ```
 
-* [ ] Verify TypeScript and the ledger behavior from the repository root. The focused suite exercises the Classic error path and UI_2.0 transitions before the broader browser run.
+* [ ] Verify with `cd frontend && npx tsc --noEmit && npm run lint:changed && npm run test:run -- src/features/holdings/TransactionsModal.test.tsx`.
+  Expected: typecheck and lint exit zero, and all ledger tests pass.
+* [ ] Commit with `git add frontend/src/ui2/transactions/Ui2HoldingLedger.tsx frontend/src/features/holdings/TransactionsModal.tsx frontend/src/features/holdings/TransactionsModal.test.tsx`
+  and `git commit -m "✨ Add the UI_2.0 ledger editor"`.
 
-```bash
-(cd frontend && npx tsc --noEmit && npm run test:run -- src/features/holdings/TransactionsModal.test.tsx)
+### Task 4. Fix the holding symbol test
+
+**Files:** `frontend/src/features/holdings/AddEditModal.tsx`,
+`frontend/src/features/holdings/AddEditModal.test.tsx`
+
+The holding form already has a Yahoo Test button. A rejected lookup currently
+shows its raw upstream error. Use a stable, visible error for an invalid
+symbol and keep the valid quote preview.
+
+* [ ] In `AddEditModal.tsx`, replace the lookup result handling. The current
+  code displays a raw request error and accepts an empty quote.
+
+Current:
+
+```tsx
+      const data = await api.getMarketPrice(form.symbol)
+      setLivePrice(data)
+    } catch (e) {
+      setLivePrice({ error: e instanceof Error ? e.message : String(e) })
 ```
 
-Expected: TypeScript exits zero. Vitest reports one file and 10 tests passed.
+Replace with:
 
-* [ ] Commit the four files together so the shared entry point resolves both views and the branch-based linter sees the implementation.
-
-```bash
-git add frontend/src/features/holdings/useHoldingLedger.ts frontend/src/ui2/transactions/Ui2HoldingLedger.tsx
-git add frontend/src/features/holdings/TransactionsModal.tsx frontend/src/features/holdings/TransactionsModal.test.tsx
-git commit -m '✨ Add the UI_2.0 holding ledger dialog'
+```tsx
+      const data = await api.getMarketPrice(form.symbol)
+      setLivePrice(data.price != null && Number.isFinite(data.price) && data.price > 0
+        ? data : { error: 'No valid quote found for this symbol' })
+    } catch {
+      setLivePrice({ error: 'No valid quote found for this symbol' })
 ```
 
-### Task 2. Verify the end-to-end ledger flows
+* [ ] In `AddEditModal.test.tsx`, add the following behavior tests for the
+  existing Test button.
+
+Current mock:
+
+```tsx
+    getMarketPrice: vi.fn(),
+```
+
+Replace with:
+
+```tsx
+    getMarketPrice: vi.fn(),
+    getMarketProfile: vi.fn().mockResolvedValue(null),
+```
+
+The profile mock keeps the existing symbol preview from making an unrelated
+request during these focused tests.
+
+```tsx
+it('shows a valid Yahoo quote after Test', async () => {
+  vi.mocked(api.getMarketPrice).mockResolvedValueOnce({ price: 123.45, currency: 'USD' })
+  render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+  fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'AAPL' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+  expect(await screen.findByText(/123.45 USD/)).toBeVisible()
+})
+
+it('shows a clear error for an invalid Yahoo symbol', async () => {
+  vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new Error('upstream response'))
+  render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+  fireEvent.change(screen.getByLabelText('Yahoo Symbol'), { target: { value: 'BAD-SYMBOL' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+  expect(await screen.findByText('Error: No valid quote found for this symbol')).toBeVisible()
+})
+```
+
+* [ ] Verify with `cd frontend && npm run test:run -- src/features/holdings/AddEditModal.test.tsx`.
+  Expected: the valid quote and invalid symbol tests pass with the existing holding tests.
+* [ ] Commit with `git add frontend/src/features/holdings/AddEditModal.tsx frontend/src/features/holdings/AddEditModal.test.tsx`
+  and `git commit -m "🐛 Explain failed Yahoo symbol tests"`.
+
+### Task 5. Verify the end-to-end ledger flows
 
 **Files:**
 
@@ -1344,7 +1702,7 @@ git commit -m '✨ Add the UI_2.0 holding ledger dialog'
 (cd frontend && npm run lint:changed && REQUIRE_BROWSER_TESTS=1 npm run test:run && npm run build)
 ```
 
-Expected: ESLint checks four source files and exits zero. On the verified base, Vitest reports 89 files and 804 tests passed with Chromium enabled. TypeScript and Vite produce the production bundle.
+Expected: ESLint exits zero. The full Vitest suite reports 89 files and 806 tests passed, and the production build succeeds.
 
 * [ ] Using the [dev runbook](../../.claude/skills/run-app/SKILL.md), open a UI_2.0 ledger from both Overview and Transactions. At desktop and phone widths, check focus, Escape and scrolling in Light, Dark and Cyber.
 * [ ] Add a buy, adjust the computed cash total for fees, save, then edit its notes. Confirm the holding refreshes. Enter Shares `1` and Total amount `1,2,3` on an empty ledger. Cancel the error and check the empty list and the next Add event.
@@ -1352,10 +1710,10 @@ Expected: ESLint checks four source files and exits zero. On the verified base, 
 * [ ] Check Classic and Glass inline editing. Clear the Classic date and save. Expect “Enter a valid date”. Switch target owners and confirm the list refetches. During a pending Classic delete, verify “Saving…” and that Escape keeps the modal open.
 * [ ] Open the frontend PR with the `ui-2.0` label and record the implementation branch, PR and shared components on the [status board](PD-059-ui-2-status.md).
 
-## 5. Done and next
+## 6. Done and next
 
 * [x] Specify the complete implementation and behavioral tests inline.
-* [x] Verify the replacement files against the scratch implementation.
+* [x] Verified the final code in a scratch checkout: TypeScript, ESLint, 18 focused tests, 806 full-suite tests and production build pass.
 * [ ] Merge the amendment and ship slice 15 through its frontend PR.
 * [ ] Record dev-stack verification on the board.
 
