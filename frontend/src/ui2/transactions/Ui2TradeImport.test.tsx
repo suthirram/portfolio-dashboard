@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Ui2TradeImport } from './Ui2TradeImport'
 import type { Holding } from '../../types'
@@ -67,7 +67,7 @@ describe('Ui2TradeImport', () => {
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    await screen.findByDisplayValue('header\nrow')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue('header\nrow'))
     expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue('header\nrow')
     expect(screen.getByRole('button', { name: 'Validate CSV' })).toBeEnabled()
     await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
@@ -91,7 +91,7 @@ describe('Ui2TradeImport', () => {
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    await screen.findByDisplayValue('header\nrow')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue('header\nrow'))
     await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
     await screen.findByRole('button', { name: 'Confirm import' })
     await userEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
@@ -105,7 +105,7 @@ describe('Ui2TradeImport', () => {
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    await screen.findByDisplayValue('header\nrow')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue('header\nrow'))
     await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
     await screen.findByRole('button', { name: 'Confirm import' })
     await userEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
