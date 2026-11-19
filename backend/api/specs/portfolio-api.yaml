@@ -1160,6 +1160,17 @@ components:
           type: boolean
           description: Gold could not be read for a gold-enabled account; every amount is absent
 
+    FxDates:
+      type: object
+      required: [dates]
+      properties:
+        dates:
+          type: array
+          items:
+            type: string
+            format: date
+          description: Days with a flagged EUR→INR rate (PD-059)
+
     HistoryList:
       type: object
       required: [currency, rows]

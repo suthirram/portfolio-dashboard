@@ -30,6 +30,7 @@ type Controller struct {
 	stockXirr    *services.StockXirrService
 	history      *services.HistoryService
 	overall      *services.OverallService
+	fxRefetch    *services.OverallRefetch
 	dividends    *services.DividendsService
 	tradeImport  *services.TradeImportService
 	gold         *services.GoldService // nil when Postgres is not configured (DD-003 §1) — gold routes answer 503
@@ -71,6 +72,9 @@ func NewWithProfiles(db *mongo.Database, logger *zap.Logger, cookieSecure bool, 
 // unclassified.
 func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, profiles services.ProfileFetcher, logger *zap.Logger, cookieSecure bool) *Controller {
 	recomputer := services.NewSnapshotRecomputer(store.Holdings, store.Transactions, store.Snapshots, logger)
+	// PriceService also serves daily closes; a test fake without them
+	// leaves past days flagged on a re-fetch.
+	closer, _ := priceService.(services.DailyCloser)
 	return &Controller{
 		store:        store,
 		priceService: priceService,
@@ -81,6 +85,7 @@ func newWithDeps(store *persistence.Store, priceService services.PriceFetcher, p
 		stockXirr:    services.NewStockXirrService(store.Holdings, store.Transactions, priceService, logger),
 		history:      services.NewHistoryService(store.Snapshots, logger),
 		overall:      services.NewOverallService(store.Overall, logger),
+		fxRefetch:    services.NewOverallRefetch(store.Overall, store.Snapshots, priceService, closer, logger),
 		dividends:    services.NewDividendsService(store.Transactions, store.Holdings, store, logger),
 		tradeImport:  services.NewTradeImportService(store.Transactions, store.Holdings, store, recomputer, logger),
 		logger:       logger,

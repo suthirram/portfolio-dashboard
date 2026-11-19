@@ -174,3 +174,47 @@ history_overall:
               $ref: "../portfolio-api.yaml#/components/schemas/OverallHistory"
       "400":
         $ref: "../portfolio-api.yaml#/components/responses/BadRequest"
+
+history_fx_missing:
+  get:
+    tags: [History]
+    summary: The caller's days with a fallback or missing EUR→INR rate
+    description: |
+      PD-059 (DD-015 §2.7). Days whose portfolio_overall rate is flagged
+      (fx_carried): a fallback after a failed fetch, or no rate yet. History
+      offers to re-fetch them. Own portfolio only; act-as has no route here.
+    operationId: getFxMissing
+    responses:
+      "200":
+        description: Flagged days, newest first
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/FxDates"
+
+history_fx_refetch:
+  post:
+    tags: [History]
+    summary: Re-fetch the EUR→INR rate for flagged days
+    description: |
+      PD-059 (DD-015 §2.7). Fetches the rate of each requested day that is
+      still flagged (one Yahoo call; the live quote for the current trading
+      day), rewrites the day's rate and stock totals and clears its flag.
+      Days that are not flagged are ignored. A failed fetch is not an
+      error: the response lists the days that stay flagged.
+    operationId: refetchFx
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../portfolio-api.yaml#/components/schemas/FxDates"
+    responses:
+      "200":
+        description: The requested days still flagged, newest first
+        content:
+          application/json:
+            schema:
+              $ref: "../portfolio-api.yaml#/components/schemas/FxDates"
+      "400":
+        $ref: "../portfolio-api.yaml#/components/responses/BadRequest"

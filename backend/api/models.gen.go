@@ -840,6 +840,12 @@ type Error struct {
 	Error *string `json:"error,omitempty"`
 }
 
+// FxDates defines model for FxDates.
+type FxDates struct {
+	// Dates Days with a flagged EUR→INR rate (PD-059)
+	Dates []openapi_types.Date `json:"dates"`
+}
+
 // GoldHistoryOverlay Physical-gold position as of a history row's date (PRD-003 §8) —
 // present only for gold-enabled users, only on dates on/after their
 // first purchase with a valuation price available. Computed on read

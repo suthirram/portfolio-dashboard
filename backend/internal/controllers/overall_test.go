@@ -101,3 +101,49 @@ func TestGetOverallHistory(t *testing.T) {
 		}
 	})
 }
+
+func TestGetFxMissing(t *testing.T) {
+	t.Parallel()
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("lists the caller's flagged days", func(mt *mtest.T) {
+		caller := scopedUser()
+		flagged := bson.D{
+			{Key: "user_id", Value: caller.ID},
+			{Key: "date", Value: time.Date(2026, 11, 13, 0, 0, 0, 0, time.UTC)},
+			{Key: "fx_carried", Value: true},
+		}
+		mt.AddMockResponses(mtest.CreateCursorResponse(0, "portfolio.portfolio_overall", mtest.FirstBatch, flagged))
+		resp, err := overallHandler(mt).GetFxMissing(userCtx(caller), api.GetFxMissingRequestObject{})
+		if err != nil {
+			t.Fatalf("GetFxMissing: %v", err)
+		}
+		got, ok := resp.(api.GetFxMissing200JSONResponse)
+		if !ok || len(got.Dates) != 1 || got.Dates[0].Format("2006-01-02") != "2026-11-13" {
+			t.Fatalf("response = %#v; want 200 with 2026-11-13", resp)
+		}
+		command := mt.GetStartedEvent().Command
+		userId, ok := commandFilterUserID(t, command, "find")
+		if !ok || userId != caller.ID {
+			t.Errorf("read scoped to %v; want the caller %v", userId, caller.ID)
+		}
+		if carried, _ := command.Lookup("filter", "fx_carried").BooleanOK(); !carried {
+			t.Error("the read must select only flagged days")
+		}
+	})
+}
+
+func TestRefetchFxRequiresDates(t *testing.T) {
+	t.Parallel()
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("empty dates is a 400", func(mt *mtest.T) {
+		resp, err := overallHandler(mt).RefetchFx(userCtx(scopedUser()), api.RefetchFxRequestObject{Body: &api.FxDates{}})
+		if err != nil {
+			t.Fatalf("RefetchFx: %v", err)
+		}
+		if _, ok := resp.(api.RefetchFx400JSONResponse); !ok {
+			t.Fatalf("response = %T, want 400", resp)
+		}
+	})
+}
