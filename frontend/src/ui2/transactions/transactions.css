@@ -44,24 +44,34 @@
 :root[data-ui="ui2"] .u2-tx-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  padding: 16px;
+  padding: 18px;
   border-bottom: 1px solid var(--u2-border);
 }
 
 :root[data-ui="ui2"] .u2-tx-filters input[type="text"],
 :root[data-ui="ui2"] .u2-tx-filters input[type="search"],
-:root[data-ui="ui2"] .u2-tx-filters select {
+:root[data-ui="ui2"] .u2-tx-filters input[type="date"] {
   background: var(--u2-bg);
   color: var(--u2-text);
   border: 1px solid var(--u2-border);
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 9px;
   font: 12px var(--u2-font);
 }
 
-:root[data-ui="ui2"] .u2-tx-search { flex: 1; min-width: 200px; }
+:root[data-ui="ui2"] .u2-tx-filters select {
+  max-width: 140px;
+  padding: 8px;
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+  background: var(--u2-panel);
+  color: var(--u2-muted);
+  font: 11px var(--u2-font);
+}
+
+:root[data-ui="ui2"] .u2-tx-search { flex: 1 1 230px; min-width: min(230px, 100%); }
 
 :root[data-ui="ui2"] .u2-tx-filter-label {
   display: flex;
@@ -70,6 +80,11 @@
   color: var(--u2-muted);
   font-size: 11px;
   white-space: nowrap;
+}
+
+:root[data-ui="ui2"] .u2-tx-filter-label input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Transaction table */
@@ -122,6 +137,9 @@
 }
 
 @media (max-width: 760px) {
-  :root[data-ui="ui2"] .u2-tx-filter-label span { display: none; }
+  :root[data-ui="ui2"] .u2-tx-filters { padding: 14px; }
+  :root[data-ui="ui2"] .u2-tx-filters select { flex: 1 1 130px; }
+  :root[data-ui="ui2"] .u2-tx-filter-label { flex: 1 1 150px; }
+  :root[data-ui="ui2"] .u2-tx-filter-label input[type="date"] { flex: 1; }
   :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
 }
