@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HoldingWithPrice } from '../../types'
 import { api } from '../../lib/api/client'
@@ -27,6 +27,46 @@ describe('TransactionsModal numeric input', () => {
     vi.clearAllMocks()
     vi.mocked(useUiMode).mockReturnValue('classic')
     vi.mocked(api.listTransactions).mockResolvedValue([])
+  })
+
+  it('lists UI_2.0 events under an empty last header with the opening note after the table', async () => {
+    vi.mocked(useUiMode).mockReturnValue('ui2')
+    vi.mocked(api.listTransactions).mockResolvedValueOnce([
+      { id: 'opening-1', type: 'opening', date: '2026-01-01', quantity: 4, amount: 80 },
+      { id: 'buy-1', type: 'buy', date: '2026-02-01', quantity: 2, amount: 50 },
+    ])
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
+    const table = await screen.findByRole('table')
+    expect(screen.getAllByRole('columnheader').map(header => header.textContent)).toEqual(['Date', 'Type', 'Shares', 'Amount', ''])
+    const note = screen.getByText('Opening balances are managed on the holding. These events belong to this holding.')
+    expect(table.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // The sideways-scrolling table is reachable by keyboard.
+    expect(screen.getByRole('region', { name: 'Transaction events' })).toHaveAttribute('tabindex', '0')
+  })
+
+  it('keeps one action row and the validation error inside the UI_2.0 editor', async () => {
+    vi.mocked(useUiMode).mockReturnValue('ui2')
+    vi.mocked(api.listTransactions).mockResolvedValueOnce([
+      { id: 'buy-1', type: 'buy', date: '2026-02-01', quantity: 2, amount: 50 },
+    ])
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Edit Buy/ }))
+    const form = screen.getByRole('button', { name: 'Save event' }).closest('form') as HTMLFormElement
+    // An existing event offers Delete between Cancel and Save, in the same row.
+    expect(within(form).getAllByRole('button').map(button => button.textContent)).toEqual(['Cancel', 'Delete event', 'Save event'])
+    fireEvent.change(screen.getByLabelText(/Total amount/), { target: { value: '1,2,3' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save event' }))
+    const alert = await within(form).findByRole('alert')
+    expect(alert).toHaveTextContent('Enter a valid amount')
+    expect(alert.compareDocumentPosition(screen.getByRole('button', { name: 'Cancel' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('offers no Delete in the UI_2.0 editor for a new event', async () => {
+    vi.mocked(useUiMode).mockReturnValue('ui2')
+    render(<TransactionsModal holding={holding} onClose={() => {}} onChanged={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add event' }))
+    const form = screen.getByRole('button', { name: 'Save event' }).closest('form') as HTMLFormElement
+    expect(within(form).getAllByRole('button').map(button => button.textContent)).toEqual(['Cancel', 'Save event'])
   })
 
   it('creates a UI_2.0 buy using the editable total after price and shares prefill it', async () => {
