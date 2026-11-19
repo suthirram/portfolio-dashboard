@@ -1,12 +1,12 @@
 # PD-059: Wave 2 amendment — Overview (slices 4–7)
 
-* **Status**: PR #347 in review. Implementation patches are specified and verified in isolation.
+* **Status**: Plan merged (#347); implementation not started. Sector selection in the allocation is approved (OVW-1, owner 2026-11-19) and planned for slice 7; see the [status board](PD-059-ui-2-status.md).
 * **Owner**: Codex. Product decisions belong to the project owner.
 * **Updated**: 2026-11-19
 * **Implements**: [PRD-015 §4.3](../prds/PRD-015-ui-2.md#43-overview)
 * **Design**: [DD-015](../designs/DD-015-ui-2.md)
 * **Rollout**: [parent plan](PD-059-ui-2.md) and [status board](PD-059-ui-2-status.md)
-* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html) and [review frames](../visuals/PD-059-ui-2.html#frame-01)
+* **Visual authority**: [owner reference](../visuals/PD-059-ui-2-reference.html)
 
 ## 1. Goal and architecture
 
@@ -49,10 +49,19 @@ environment variable or infrastructure change is required.
 * Slice 7 adds Holdings / Performance and a separate Currency mix panel.
   Allocation view switches only change the displayed breakdown.
 
-### Open question for the owner
+### Decision: selecting a sector (OVW-1, owner 2026-11-19, option b)
 
-Should selecting an allocation entry navigate to its holdings grouping?
-Slice 7 leaves entries informational pending the owner's decision.
+Classic's sector allocation already opens the holdings grouped by a selected
+sector (`onSelectSector` → `sectorTarget`). UI_2.0 keeps that behaviour:
+only **Sector** entries are selectable. Selecting one opens Holdings in the
+sector layout, scrolls to that sector's heading and focuses it, through the
+same `navigateSector` / `sectorTarget` path Classic uses. The Holding and
+Currency views stay static, as in the handoff. UI_2.0's allocation sums
+both currencies, so an entry jumps to the first currency group that holds
+the sector (INR before EUR); the other group stays visible below. If the
+current search or position view hides the sector, the existing message
+appears. The owner-updated handoff shows this: select **By sector** in the
+allocation, then a sector.
 
 ## 3. File map and PR sequence
 
@@ -1060,6 +1069,270 @@ index 3c07c14..3e21f3d 100644
    display: flex;
 ```
 
+* [ ] **Make sector entries selectable (OVW-1, option b).** Apply this after
+  the patch above. `Ui2Allocation` takes `onSelectSector`; in the Sector view
+  each entry becomes a button that reports the first currency group holding
+  it and its bucket key (`SectorSelection`, the key `sectorSectionId` already
+  uses), so the existing `sectorTarget` effect scrolls to and focuses the
+  heading. `DashboardPage` passes the `navigateSector` the patch already
+  defines for Classic. Holding and Currency entries are unchanged.
+
+Current:
+
+```tsx
+import { useState } from 'react'
+import type { HoldingWithPrice } from '../../types'
+import { classificationBucket } from '../../features/holdings/classification'
+import { groupByCurrency } from '../../features/holdings/groupByCurrency'
+import { filterByView } from '../../features/holdings/holdingViews'
+import { pricedNativeValue } from '../../features/holdings/sectorAllocationData'
+```
+
+Replace with:
+
+```tsx
+import { useState } from 'react'
+import type { HoldingWithPrice } from '../../types'
+import { classificationBucket, type SectorSelection } from '../../features/holdings/classification'
+import { groupByCurrency } from '../../features/holdings/groupByCurrency'
+import { filterByView } from '../../features/holdings/holdingViews'
+import { pricedNativeValue } from '../../features/holdings/sectorAllocationData'
+```
+
+Current:
+
+```tsx
+import { money } from './Ui2SummaryCards'
+
+type View = 'Holding' | 'Sector' | 'Currency'
+interface Bucket { key: string; label: string; value: number }
+interface Props {
+  holdings: HoldingWithPrice[]
+}
+const palette = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--yellow)']
+
+export function Ui2Allocation({holdings}: Props) {
+  const [view, setView] = useState<View>('Holding')
+  const groups = new Map<string, Bucket>()
+  const mix: Record<SupportedCurrency, number> = { INR: 0, EUR: 0 }
+```
+
+Replace with:
+
+```tsx
+import { money } from './Ui2SummaryCards'
+
+type View = 'Holding' | 'Sector' | 'Currency'
+// currency is the first (INR before EUR) currency group holding the entry, the
+// one a sector selection jumps to.
+interface Bucket { key: string; label: string; value: number; currency: SupportedCurrency }
+interface Props {
+  holdings: HoldingWithPrice[]
+  // Selecting a sector entry opens the holdings grouped by that sector, as the
+  // classic sector allocation does. Holding and currency entries stay static.
+  onSelectSector?: (selection: SectorSelection) => void
+}
+const palette = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--yellow)']
+
+export function Ui2Allocation({holdings, onSelectSector}: Props) {
+  const [view, setView] = useState<View>('Holding')
+  const groups = new Map<string, Bucket>()
+  const mix: Record<SupportedCurrency, number> = { INR: 0, EUR: 0 }
+```
+
+Current:
+
+```tsx
+      const key = view === 'Holding' ? holding.id : view === 'Sector' ? sector.key : currency
+      if (!key) continue
+      const label = view === 'Holding' ? holding.script || holding.symbol || key : view === 'Sector' ? sector.label : currency
+      const entry = groups.get(key) ?? {key, label, value: 0}
+      entry.value += value
+      groups.set(key, entry)
+    }
+```
+
+Replace with:
+
+```tsx
+      const key = view === 'Holding' ? holding.id : view === 'Sector' ? sector.key : currency
+      if (!key) continue
+      const label = view === 'Holding' ? holding.script || holding.symbol || key : view === 'Sector' ? sector.label : currency
+      const entry = groups.get(key) ?? {key, label, value: 0, currency}
+      entry.value += value
+      groups.set(key, entry)
+    }
+```
+
+Current:
+
+```tsx
+      <button className="ui2-btn" key={choice} aria-pressed={choice === view} onClick={() => setView(choice)}>{choice}</button>)}</div>
+    {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
+      <><div aria-hidden="true" className="u2-allocation-ring" style={{background: 'conic-gradient(' + stops.join(', ') + ')'}} />
+        <ul>{entries.map(entry => <li key={entry.key}>{entry.label} · {money(entry.value, 'INR')} · {(100 * entry.value / total).toFixed(1)}%</li>)}</ul></>}
+    {(unpriced > 0 || unsupported > 0) && <p>{unpriced} unpriced · {unsupported} unsupported</p>}
+  </section><section className="ui2-panel" aria-label="Currency mix"><h2>Currency mix</h2>
+    {(['INR', 'EUR'] as const).map(code => <p key={code}>{code} · {missingConversion || !total ? '—' : (100 * mix[code] / total).toFixed(1) + '%'}</p>)}
+```
+
+Replace with:
+
+```tsx
+      <button className="ui2-btn" key={choice} aria-pressed={choice === view} onClick={() => setView(choice)}>{choice}</button>)}</div>
+    {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
+      <><div aria-hidden="true" className="u2-allocation-ring" style={{background: 'conic-gradient(' + stops.join(', ') + ')'}} />
+        <ul>{entries.map(entry => {
+          const text = entry.label + ' · ' + money(entry.value, 'INR') + ' · ' + (100 * entry.value / total).toFixed(1) + '%'
+          return <li key={entry.key}>{view === 'Sector' && onSelectSector
+            ? <button type="button" className="u2-allocation-entry" aria-label={'Show ' + entry.label + ' holdings, ' + text}
+                onClick={() => onSelectSector({currency: entry.currency, key: entry.key})}>{text}</button>
+            : text}</li>
+        })}</ul>
+        {view === 'Sector' && onSelectSector && <p>Select a sector to see its holdings.</p>}</>}
+    {(unpriced > 0 || unsupported > 0) && <p>{unpriced} unpriced · {unsupported} unsupported</p>}
+  </section><section className="ui2-panel" aria-label="Currency mix"><h2>Currency mix</h2>
+    {(['INR', 'EUR'] as const).map(code => <p key={code}>{code} · {missingConversion || !total ? '—' : (100 * mix[code] / total).toFixed(1) + '%'}</p>)}
+```
+
+`DashboardPage.tsx`:
+
+Current:
+
+```tsx
+        )}
+        {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
+          <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
+        {ui2 && <Ui2Allocation holdings={enriched} />}
+        </div>
+      </main>
+```
+
+Replace with:
+
+```tsx
+        )}
+        {tab === 'charts' && (ui2 ? (!actAsUserId && <OverallPerformance />) :
+          <Charts holdings={enriched} sectorColors={sectorColors} onSelectSector={navigateSector} />)}
+        {ui2 && <Ui2Allocation holdings={enriched} onSelectSector={navigateSector} />}
+        </div>
+      </main>
+```
+
+`overview.css`:
+
+Current:
+
+```css
+:root[data-ui="ui2"] .classification-banner { padding: .85rem 1rem; border-radius: .9rem; }
+:root[data-ui="ui2"] .u2-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); gap: 1rem; align-items: start; }
+:root[data-ui="ui2"] .u2-allocation-ring { width: 8rem; aspect-ratio: 1; margin: 1rem auto; border-radius: 50%; mask: radial-gradient(circle, transparent 48%, black 49%); }
+@media (max-width: 1200px) {
+  :root[data-ui="ui2"] .u2-workspace { grid-template-columns: minmax(0, 1fr); }
+}
+```
+
+Replace with:
+
+```css
+:root[data-ui="ui2"] .classification-banner { padding: .85rem 1rem; border-radius: .9rem; }
+:root[data-ui="ui2"] .u2-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); gap: 1rem; align-items: start; }
+:root[data-ui="ui2"] .u2-allocation-ring { width: 8rem; aspect-ratio: 1; margin: 1rem auto; border-radius: 50%; mask: radial-gradient(circle, transparent 48%, black 49%); }
+:root[data-ui="ui2"] .u2-allocation-entry { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: .35rem .5rem; margin: 0 -.5rem; border-radius: .4rem; cursor: pointer; }
+:root[data-ui="ui2"] .u2-allocation-entry:hover { background: var(--u2-accentsoft); text-decoration: underline; }
+:root[data-ui="ui2"] .u2-allocation-entry:focus-visible { outline: 3px solid var(--u2-accent); outline-offset: 2px; }
+@media (max-width: 1200px) {
+  :root[data-ui="ui2"] .u2-workspace { grid-template-columns: minmax(0, 1fr); }
+}
+```
+
+Tests: the unit test selects the Technology entry of an INR + EUR pair and
+expects the INR group, only in the Sector view; the dashboard test selects
+the shared "Needs review" entry and expects the sector heading focused and
+Holdings pressed.
+
+Current:
+
+```tsx
+import { render, screen } from '@testing-library/react'
+import { expect, it } from 'vitest'
+import { Ui2Allocation } from './Ui2Allocation'
+
+it('withholds percentages when a priced EUR holding lacks an INR valuation', () => {
+  render(<Ui2Allocation holdings={[
+    {currency: 'INR', id: 'one', stocks_owned: 1, current_price: 10000, current_value: 10000},
+```
+
+Replace with:
+
+```tsx
+import { fireEvent, render, screen } from '@testing-library/react'
+import { expect, it, vi } from 'vitest'
+import type { HoldingWithPrice } from '../../types'
+import { Ui2Allocation } from './Ui2Allocation'
+
+const classification = (symbol: string) => ({ status: 'resolved' as const, symbol, sector: 'Technology' })
+const technology: HoldingWithPrice[] = [
+  { currency: 'EUR', id: 'sap', symbol: 'SAP.DE', stocks_owned: 1, current_price: 100, current_value_eur: 100, current_value: 10000, classification: classification('SAP.DE') },
+  { currency: 'INR', id: 'tcs', symbol: 'TCS.NS', stocks_owned: 1, current_price: 10000, current_value: 10000, classification: classification('TCS.NS') },
+]
+
+it('selects the sector at its first currency group, only in the Sector view', () => {
+  const onSelectSector = vi.fn()
+  render(<Ui2Allocation holdings={technology} onSelectSector={onSelectSector} />)
+  // Holding view: entries are plain text.
+  expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Sector' }))
+  expect(screen.getByText('Select a sector to see its holdings.')).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: /Show Technology holdings/ }))
+  // INR is listed before EUR, so the jump lands on the first group.
+  expect(onSelectSector).toHaveBeenCalledWith({ currency: 'INR', key: 'sector:technology' })
+  fireEvent.click(screen.getByRole('button', { name: 'Currency' }))
+  expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
+})
+
+it('keeps sector entries static when nothing handles the selection', () => {
+  render(<Ui2Allocation holdings={technology} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Sector' }))
+  expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
+})
+
+it('withholds percentages when a priced EUR holding lacks an INR valuation', () => {
+  render(<Ui2Allocation holdings={[
+    {currency: 'INR', id: 'one', stocks_owned: 1, current_price: 10000, current_value: 10000},
+```
+
+Current:
+
+```tsx
+  mount('target')
+  expect(screen.queryByRole('button', {name: 'Performance'})).toBeNull()
+})
+it.each(['classic','glass'])('keeps existing row actions in %s', mode => {
+  state.mode = mode
+  mount()
+```
+
+Replace with:
+
+```tsx
+  mount('target')
+  expect(screen.queryByRole('button', {name: 'Performance'})).toBeNull()
+})
+it('selecting a sector entry opens the sector grouping and focuses its heading', () => {
+  mount()
+  const view = within(screen.getByRole('group', {name: 'Allocation view'}))
+  fireEvent.click(view.getByRole('button', {name: 'Sector'}))
+  // Both rows are unclassified here, so they share one "Needs review" entry.
+  fireEvent.click(screen.getByRole('button', {name: /Show Needs review holdings/}))
+  expect(document.activeElement).toHaveAttribute('id', 'sector-INR-needs_review')
+  expect(screen.getByRole('button', {name: 'Holdings'})).toHaveAttribute('aria-pressed', 'true')
+})
+it.each(['classic','glass'])('keeps existing row actions in %s', mode => {
+  state.mode = mode
+  mount()
+```
+
 * [ ] Verify the slice from the repository root with the following command.
 
 The focused suites exercise the new behavior and the existing callers.
@@ -1068,7 +1341,7 @@ The focused suites exercise the new behavior and the existing callers.
 (cd frontend && npx tsc -b && REQUIRE_BROWSER_TESTS=1 npm run test:run -- src/ui2/overview src/features/holdings/SectorAllocation.test.tsx src/features/holdings/SectorNavigation.test.tsx && npm run lint:changed)
 ```
 
-Expected: typecheck and lint exit zero and all selected tests pass. The mixed-currency fixture displays two 50.0% shares. Missing INR valuation suppresses percentages. The Currency mix panel shows both shares. Act-as hides Performance. Chromium passes keyboard and page-width checks at 1280, 768 and 390 px.
+Expected: typecheck and lint exit zero and all selected tests pass. The mixed-currency fixture displays two 50.0% shares. Missing INR valuation suppresses percentages. The Currency mix panel shows both shares. Act-as hides Performance. Selecting a Sector entry opens the sector grouping and focuses its heading. Chromium passes keyboard and page-width checks at 1280, 768 and 390 px.
 
 * [ ] Update the registry and slice row, then stage the named files and commit.
 
@@ -1101,6 +1374,10 @@ git commit -m "✨ Show allocation and performance on Overview"
 * [ ] Compare the same priced positions across all allocation views. Test two
   equal INR-valued positions in different currencies and a missing conversion.
   Switch the allocation view and verify that Currency mix keeps the same shares.
+* [ ] In the Sector view select an entry: Holdings opens grouped by sector and
+  the first currency group's heading is scrolled to and focused. With a search
+  that hides the sector the existing message appears. Holding and Currency
+  entries stay static. Reach it by keyboard (Tab, Enter) at 390 px.
 * [ ] Open Performance as the owner. In act-as verify that editing targets the
   selected user and that no owner-only ledger, Gold or performance request runs.
 * [ ] Run the complete frontend checks before opening the final implementation PR.
@@ -1121,4 +1398,4 @@ revert dependent slices first. No stored data needs rollback.
 * [ ] Ship slices 4, 5, 6 and 7 in order after the shared dialog lands.
 * [ ] Record implementation PRs and dev-stack acceptance on the status board.
 
-**Next:** review this amendment, then implement slice 4 on its own branch.
+**Next:** implement slice 4 on its own branch; slice 7 includes the sector selection above.
