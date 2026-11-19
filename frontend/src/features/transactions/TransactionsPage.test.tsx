@@ -13,9 +13,16 @@ const mockApi = vi.hoisted(() => ({
   deleteTransaction: vi.fn(),
 }))
 
+const mockUiMode = vi.hoisted(() => ({ mode: 'classic' as string }))
+
 vi.mock('../../lib/api/client', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api/client')>('../../lib/api/client')
   return { ...actual, api: mockApi }
+})
+
+vi.mock('../../lib/uiMode', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/uiMode')>('../../lib/uiMode')
+  return { ...actual, useUiMode: () => mockUiMode.mode }
 })
 
 import TransactionsPage from './TransactionsPage'
@@ -281,5 +288,23 @@ describe('TransactionsPage pagination', () => {
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'lot 1' } })
     // lot 1 and lot 10–19: 11 rows, one page.
     expect(screen.getByRole('navigation', { name: 'Transactions pages' })).toHaveTextContent('1–11 of 11')
+  })
+})
+
+describe('TransactionsPage ui_mode guard', () => {
+  it('re-renders without a hooks error when ui_mode changes from classic to ui2', async () => {
+    mockApi.listAllTransactions.mockResolvedValue(txns)
+    mockApi.listHoldings.mockResolvedValue(holdings)
+    mockUiMode.mode = 'classic'
+    const { rerender } = render(<MemoryRouter><TransactionsPage /></MemoryRouter>)
+    await screen.findByText('SIP tranche')
+
+    // Simulate the user's account changing to ui2 (e.g. admin flips the toggle).
+    // The dispatcher re-renders with a different child component; hooks must
+    // remain stable — React throws if the count changes.
+    mockUiMode.mode = 'ui2'
+    expect(() => rerender(<MemoryRouter><TransactionsPage /></MemoryRouter>)).not.toThrow()
+    // Classic content is gone; ui2 page intro is shown instead.
+    expect(screen.queryByText('SIP tranche')).toBeNull()
   })
 })

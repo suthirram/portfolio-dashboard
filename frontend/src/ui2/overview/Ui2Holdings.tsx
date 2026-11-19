@@ -3,13 +3,7 @@ import { canonicalCurrency, formatQuantity } from '../../lib/currency'
 import { holdingMovement, holdingDayGain } from '../../features/holdings/dashboardPriceMovement'
 import { nativeView } from '../../features/holdings/currencyTotals'
 import { money, signedMoney, signedPercent, tone } from './Ui2SummaryCards'
-
-function stockIconStyle(symbol: string): { background: string; color: string } {
-  const ticker = symbol.split('.')[0]
-  let hash = 0
-  for (const char of ticker.toUpperCase()) hash = (hash * 31 + char.charCodeAt(0)) % 360
-  return { background: `hsl(${hash},55%,92%)`, color: `hsl(${hash},60%,38%)` }
-}
+import { stockIconStyle } from './holdingIcon'
 
 const HEADERS = ['HOLDING', 'SHARES', 'AVG COST', 'SHARE PRICE', 'VALUE', 'TODAY', 'UNREALISED']
 

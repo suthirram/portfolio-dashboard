@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import HoldingsByCurrency from './HoldingsByCurrency'
 import type { HoldingWithPrice } from '../../types'
 import { indexXirr } from './stockXirr'
@@ -420,5 +420,111 @@ describe('HoldingsByCurrency', () => {
     expect(within(section).queryByText('XIRR', { selector: 'div' })).not.toBeInTheDocument()
     const row = within(section).getByText('TCS').closest('tr') as HTMLElement
     expect(within(row).getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
+describe('HoldingsByCurrency ui2Panel mode', () => {
+  const twoHoldings = [
+    testHolding({ id: '1', script: 'TCS', symbol: 'TCS.NS', currency: 'INR', current_value: 1200, current_value_eur: 13.2 }),
+    testHolding({ id: '2', script: 'SAP', symbol: 'SAP.DE', currency: 'EUR', current_value: 10800, current_value_eur: 1300 }),
+  ]
+
+  it('renders inside a panel section with aria-label "Holdings"', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    expect(screen.getByRole('region', { name: 'Holdings' })).toBeInTheDocument()
+  })
+
+  it('renders a search input inside the panel', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel searchValue="" onSearch={noop}
+    />)
+    expect(screen.getByRole('searchbox', { name: 'Search holdings' })).toBeInTheDocument()
+  })
+
+  it('calls onSearch when the search input changes', () => {
+    const onSearch = vi.fn()
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel searchValue="" onSearch={onSearch}
+    />)
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search holdings' }), { target: { value: 'TCS' } })
+    expect(onSearch).toHaveBeenCalledWith('TCS')
+  })
+
+  it('renders a currency filter select with all currencies visible by default', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    const select = screen.getByRole('combobox', { name: 'Filter holdings by currency' })
+    expect(select).toHaveValue('all')
+    // Both currency groups appear
+    expect(screen.getByText('Indian Rupee')).toBeInTheDocument()
+    expect(screen.getByText('Euro')).toBeInTheDocument()
+  })
+
+  it('filters to INR only when currency filter is changed to INR', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter holdings by currency' }), { target: { value: 'INR' } })
+    expect(screen.getByText('Indian Rupee')).toBeInTheDocument()
+    expect(screen.queryByText('Euro')).not.toBeInTheDocument()
+  })
+
+  it('shows currency-filter empty state when selected currency has no holdings', () => {
+    // INR-only portfolio filtered to EUR: positions not exited, just filtered out.
+    const inrOnly = [twoHoldings[0]] // INR holding only
+    render(<HoldingsByCurrency
+      holdings={inrOnly} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter holdings by currency' }), { target: { value: 'EUR' } })
+    expect(screen.getByText('No EUR holdings in your portfolio.')).toBeInTheDocument()
+    expect(screen.queryByText(/all positions exited/)).not.toBeInTheDocument()
+  })
+
+  it('shows compact market header with currency name and current value instead of stat blocks', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    // Compact header present
+    expect(screen.getByText('Indian Rupee')).toBeInTheDocument()
+    // Stat blocks absent in ui2Panel mode
+    expect(screen.queryByText(/Cost \(INR\)/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Current value \(INR\)/)).not.toBeInTheDocument()
+  })
+
+  it('renders a footer with holding count', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    expect(screen.getByText(/2 holdings/)).toBeInTheDocument()
+    expect(screen.getByText(/Open a holding for all metrics/)).toBeInTheDocument()
+  })
+
+  it('footer count reflects currency filter', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+      ui2Panel
+    />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter holdings by currency' }), { target: { value: 'INR' } })
+    expect(screen.getByText(/1 of 2 holdings/)).toBeInTheDocument()
+  })
+
+  it('does not render the panel wrapper in classic mode', () => {
+    render(<HoldingsByCurrency
+      holdings={twoHoldings} loading={false} onEdit={noop} onDelete={noop}
+    />)
+    expect(screen.queryByRole('region', { name: 'Holdings' })).not.toBeInTheDocument()
+    // Classic stat block present
+    expect(screen.getByText(/Cost \(INR\)/)).toBeInTheDocument()
   })
 })
