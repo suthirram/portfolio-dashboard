@@ -10,49 +10,48 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
   const { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
     recompute, startEdit, submit, remove, money, formatQuantity, isCorporate, isMerger, isOpening, impliedCostPerShare
   } = useHoldingLedger({ holding, userId, onChanged })
-  const ledgerForm = <form className="ui2-form" onSubmit={async event => {
+  const ledgerForm = <form className="ui2-form ui2-asset-form" onSubmit={async event => {
     if (await submit(event)) setEditor(false)
   }}>
-    <div>
       <label>Event type<select value={form.type} disabled={isOpening} onChange={event =>
         setForm(previousForm => ({ ...previousForm, type: event.target.value as TransactionType }))}>
         {(isOpening ? ['opening'] : NEW_TYPES).map(type => <option key={type} value={type}>{TYPE_LABEL[type]}</option>)}
       </select></label>
       <label>Date<input type="date" required value={form.date} onChange={event => setForm(previousForm => ({ ...previousForm, date: event.target.value }))} /></label>
-    </div>
     {!isCorporate && !isMerger && <>
-      {form.type !== 'dividend' && <div>
+      {form.type !== 'dividend' && <>
         <label>Shares (not used for dividends)<DecimalInput value={form.quantity} onValueChange={quantity => recompute({ quantity })} /></label>
-        <label>Price / share ({currencySign}, optional)<DecimalInput value={form.price} onValueChange={price => recompute({ price })} /></label>
-      </div>}
+      </>}
       <label>Total amount · {currencySign}<DecimalInput value={form.amount} onValueChange={amount => setForm(previousForm => ({ ...previousForm, amount }))} /></label>
-      {impliedCostPerShare !== null && <p className="ui2-dialog-note">Implied cost/share: {money(impliedCostPerShare)}</p>}
+      {form.type !== 'dividend' && <label>Price / share ({currencySign}, optional)<DecimalInput value={form.price} onValueChange={price => recompute({ price })} /></label>}
+      {impliedCostPerShare !== null && <p className="ui2-dialog-note ui2-form-full">Implied cost/share: {money(impliedCostPerShare)}</p>}
     </>}
     {isCorporate && <label>Ratio (new shares per old)<DecimalInput value={form.ratio} onValueChange={ratio => setForm(previousForm => ({ ...previousForm, ratio }))} /></label>}
     {isOpening && <label>Realised P&amp;L seed ({currencySign})<DecimalInput allowNegative value={form.realized}
       onValueChange={realized => setForm(previousForm => ({ ...previousForm, realized }))} /></label>}
-    {isMerger && <p className="ui2-dialog-note">Merger records an audit event. Record a sell and a buy for changes to the position.</p>}
-    <label>Notes<input value={form.notes} onChange={event => setForm(previousForm => ({ ...previousForm, notes: event.target.value }))} /></label>
-    <p className="ui2-dialog-note">A buy is the total debited and a sell the total credited, fees included.</p>
-    <button className="ui2-btn ui2-btn-primary" style={{ width: '100%' }} disabled={saving}>Save event</button>
-    <button type="button" className="ui2-btn" disabled={saving} onClick={() => { resetForm(); setConfirm(null); setEditor(false) }}>Cancel</button>
+    {isMerger && <p className="ui2-dialog-note ui2-form-full">Merger records an audit event. Record a sell and a buy for changes to the position.</p>}
+    <label className="ui2-form-full">Notes<input value={form.notes} onChange={event => setForm(previousForm => ({ ...previousForm, notes: event.target.value }))} /></label>
+    <p className="ui2-dialog-note ui2-form-full">A buy is the total debited and a sell the total credited, fees included.</p>
+    {err && <p role="alert" className="ui2-form-error ui2-form-full">{err}</p>}
+    <div className="ui2-dialog-actions ui2-form-full">
+      <button type="button" className="ui2-btn" disabled={saving} onClick={() => { resetForm(); setConfirm(null); setEditor(false) }}>Cancel</button>
+      {editingId && (confirm === editingId
+        ? <>
+            <button type="button" className="ui2-btn" disabled={saving} onClick={() => setConfirm(null)}>Keep event</button>
+            <button type="button" className="ui2-btn ui2-btn-danger" disabled={saving} onClick={async () => {
+              if (await remove(editingId)) { resetForm(); setEditor(false) }
+            }}>Confirm delete</button>
+          </>
+        : <button type="button" className="ui2-btn ui2-btn-danger" disabled={saving} onClick={() => setConfirm(editingId)}>Delete event</button>)}
+      <button className="ui2-btn ui2-btn-primary" disabled={saving}>Save event</button>
+    </div>
   </form>
   const title = editor
     ? `${editingId ? 'Edit' : 'Add'} event · ${holding.script}`
     : `${holding.script} · transaction ledger`
   return <Ui2Dialog key={editor ? 'editor' : 'list'} title={title} busy={saving} onClose={onClose} wide>
-    {err && <p role="alert" className="ui2-form-error">{err}</p>}
-    {editor ? <>
-      {ledgerForm}
-      {editingId && (confirm === editingId
-        ? <div className="ui2-dialog-actions">
-            <button className="ui2-btn" disabled={saving} onClick={() => setConfirm(null)}>Keep event</button>
-            <button className="ui2-btn ui2-btn-danger" disabled={saving} onClick={async () => {
-              if (await remove(editingId)) { resetForm(); setEditor(false) }
-            }}>Confirm delete</button>
-          </div>
-        : <button className="ui2-btn ui2-btn-danger" disabled={saving} onClick={() => setConfirm(editingId)}>Delete event</button>)}
-    </> : <>
+    {!editor && err && <p role="alert" className="ui2-form-error">{err}</p>}
+    {editor ? ledgerForm : <>
       <p className="ui2-subtitle">{holding.symbol} · {holding.currency}</p>
       <p className="ui2-dialog-note">Opening balances are managed on the holding. These events belong to this holding.</p>
       <div style={{ maxWidth: '100%', overflowX: 'auto' }}><table className="ui2-table" style={{ minWidth: '32rem' }}>
