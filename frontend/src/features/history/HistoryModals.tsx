@@ -87,10 +87,14 @@ export function AddRowModal({ onSubmit, onCancel }: {
 // PUT /api/history/:date/regions, which flips every patched region's
 // source to manual (server-side rule). Use to override cron values or
 // fix an existing manual entry. PRD-002 §7.3 / DD-002 §4.4.
-export function EditRowModal({ row, onSubmit, onCancel }: {
+// onDelete, when given, adds a Delete button to the dialog. UI_2.0 passes it
+// (its rows carry only Edit, PD-059); the classic table keeps its own
+// per-row Delete and omits it.
+export function EditRowModal({ row, onSubmit, onCancel, onDelete }: {
   row: HistoryRow
   onSubmit: (date: string, regions: Record<string, { invested: number; current: number }>) => Promise<void>
   onCancel: () => void
+  onDelete?: (date: string) => void
 }) {
   const initial: RegionFormState = {
     INR: { invested: groupedInitial(row.regions.INR?.invested), current: groupedInitial(row.regions.INR?.current) },
@@ -154,6 +158,10 @@ export function EditRowModal({ row, onSubmit, onCancel }: {
         ))}
         {error && <div style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          {onDelete && (
+            <button onClick={() => onDelete(row.date)} disabled={busy} className="btn btn-danger"
+              style={{ marginRight: 'auto' }}>Delete row</button>
+          )}
           <button onClick={onCancel} disabled={busy} className="btn">Cancel</button>
           <button onClick={submit} disabled={busy} className="btn-primary">{busy ? 'Saving…' : 'Save'}</button>
         </div>
