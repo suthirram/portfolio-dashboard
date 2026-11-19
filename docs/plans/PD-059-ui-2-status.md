@@ -29,16 +29,16 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
 | 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | merged |
 | 4 | 2 | FE | Handoff Overview metrics, currency selector and shared breakdown dialogs | 2, 14 (shared dialog) | Codex | `feat/PD-059-overview-cards` | #356 | merged ([wave 2](PD-059-wave2-overview.md)) |
-| 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Claude | `feat/PD-059-overview-holdings` | #347 (plan) | in progress ([wave 2](PD-059-wave2-overview.md)) |
-| 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `feat/PD-059-holding-details` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
-| 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Claude | `feat/PD-059-overview-allocation` | #347 (plan) | in progress ([wave 2](PD-059-wave2-overview.md)) |
+| 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Claude | `feat/PD-059-overview-holdings` | #359 | merged ([wave 2](PD-059-wave2-overview.md)) |
+| 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `feat/PD-059-overview-holdings` | #359 | merged ([wave 2](PD-059-wave2-overview.md)) |
+| 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Claude | `feat/PD-059-overview-allocation` | #360 | merged ([wave 2](PD-059-wave2-overview.md)) |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
 | 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | merged |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | Claude | `feat/PD-059-fx-refetch` | #352 | merged ([wave 4a](PD-059-wave4-fx-refetch.md)) |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #353 | merged ([wave 4a](PD-059-wave4-fx-refetch.md)) |
-| 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
+| 13 | 3 | FE | History page and responsive table overflow fix ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344, #361 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
 | 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | merged |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |

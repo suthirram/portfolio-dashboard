@@ -45,15 +45,15 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 
 | Step | Kind | Scope (board slice) | Depends on | State |
 | --- | --- | --- | --- | --- |
-| R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | ready |
+| R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | merged (#359) |
 | R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | ready |
 | R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | ready |
 | R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | ready |
 | R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens, delta sub-route (22–27) | — | ready |
 | R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | ready |
-| R07 | FE | Guard the History table against page-width overflow (`position: relative`, browser test at 390 / 768 px) | — | ready |
-| R08 | FE | Holding details: costs, income, XIRR, and the existing holding, opening-date and review forms (6) | R01 | blocked |
-| R09 | FE | Overview allocation, Currency mix, Holdings / Performance tabs, sector jump (OVW-1), mount `OverallPerformance` (7) | R01, R08 | blocked |
+| R07 | FE | Guard the History table against page-width overflow (`position: relative`, browser test at 390 / 768 px) | — | merged (#361) |
+| R08 | FE | Holding details: costs, income, XIRR, and the existing holding, opening-date and review forms (6) | R01 | merged (#359) |
+| R09 | FE | Overview allocation, Currency mix, Holdings / Performance tabs, sector jump (OVW-1), mount `OverallPerformance` (7) | R01, R08 | merged (#360) |
 | R10 | FE | Transactions page (16) | R02 | blocked |
 | R11 | FE | Trade import: upload, paste, example (17) | R10 | blocked |
 | R12 | FE | Dividends page (18) | R03 | blocked |
