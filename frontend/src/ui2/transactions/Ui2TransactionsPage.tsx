@@ -108,43 +108,37 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
             value={filters.search}
             onChange={event => setFilter('search', event.target.value)}
           />
-          <label className="u2-tx-filter-label">
-            <span>Holding</span>
-            <select
-              aria-label="Filter by holding"
-              value={filters.holdingIds[0] ?? ''}
-              onChange={event => setFilter('holdingIds', event.target.value ? [event.target.value] : [])}
-            >
-              <option value="">All holdings</option>
-              {holdings.map(holding => (
-                <option key={holding.id} value={holding.id ?? ''}>{holding.script ?? holding.symbol}</option>
-              ))}
-            </select>
-          </label>
+          <select
+            className="u2-tx-filter-select"
+            aria-label="Filter by holding"
+            value={filters.holdingIds[0] ?? ''}
+            onChange={event => setFilter('holdingIds', event.target.value ? [event.target.value] : [])}
+          >
+            <option value="">All holdings</option>
+            {holdings.map(holding => (
+              <option key={holding.id} value={holding.id ?? ''}>{holding.script ?? holding.symbol}</option>
+            ))}
+          </select>
           {currencies.length > 1 && (
-            <label className="u2-tx-filter-label">
-              <span>Currency</span>
-              <select
-                aria-label="Filter by currency"
-                value={filters.currencies[0] ?? ''}
-                onChange={event => setFilter('currencies', event.target.value ? [event.target.value] : [])}
-              >
-                <option value="">All currencies</option>
-                {currencies.map(code => <option key={code} value={code}>{code}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="u2-tx-filter-label">
-            <span>Type</span>
             <select
-              aria-label="Filter by event type"
-              value={filters.types[0] ?? ''}
-              onChange={event => setFilter('types', event.target.value ? [event.target.value as typeof filters.types[0]] : [])}
+              className="u2-tx-filter-select"
+              aria-label="Filter by currency"
+              value={filters.currencies[0] ?? ''}
+              onChange={event => setFilter('currencies', event.target.value ? [event.target.value] : [])}
             >
-              <option value="">All event types</option>
-              {types.map(type => <option key={type} value={type}>{type}</option>)}
+              <option value="">All currencies</option>
+              {currencies.map(code => <option key={code} value={code}>{code}</option>)}
             </select>
-          </label>
+          )}
+          <select
+            className="u2-tx-filter-select"
+            aria-label="Filter by event type"
+            value={filters.types[0] ?? ''}
+            onChange={event => setFilter('types', event.target.value ? [event.target.value as typeof filters.types[0]] : [])}
+          >
+            <option value="">All event types</option>
+            {types.map(type => <option key={type} value={type}>{type}</option>)}
+          </select>
           <label className="u2-tx-filter-label">
             <span>From</span>
             <input type="date" aria-label="From date" value={filters.from}
@@ -155,11 +149,9 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
             <input type="date" aria-label="To date" value={filters.to}
               onChange={event => setFilter('to', event.target.value)} />
           </label>
-          {(filters.search || filters.holdingIds.length || filters.types.length || filters.currencies.length || filters.from || filters.to) && (
-            <button type="button" className="ui2-btn" onClick={() => setFilters(emptyFilters)}>
-              Clear filters
-            </button>
-          )}
+          <button type="button" className="ui2-btn" onClick={() => setFilters(emptyFilters)}>
+            Clear filters
+          </button>
         </div>
 
         {loading && <p className="ui2-note" aria-live="polite">Loading transactions…</p>}
