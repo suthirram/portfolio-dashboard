@@ -1,0 +1,127 @@
+/* UI_2.0 Transactions page (PD-059 slice 16). */
+
+:root[data-ui="ui2"] .u2-tx-summaries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+:root[data-ui="ui2"] .u2-tx-summary { padding: 20px; }
+
+:root[data-ui="ui2"] .u2-tx-summary-eyebrow {
+  color: var(--u2-muted);
+  font: 700 9px var(--u2-font);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+:root[data-ui="ui2"] .u2-tx-totals {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .u2-tx-totals > div { min-width: 0; }
+
+:root[data-ui="ui2"] .u2-tx-totals span {
+  display: block;
+  color: var(--u2-muted);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+
+:root[data-ui="ui2"] .u2-tx-totals strong {
+  display: block;
+  font: 700 14px var(--u2-font-display);
+  letter-spacing: -.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Filters panel */
+:root[data-ui="ui2"] .u2-tx-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2-tx-filters input[type="text"],
+:root[data-ui="ui2"] .u2-tx-filters input[type="search"],
+:root[data-ui="ui2"] .u2-tx-filters select {
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font: 12px var(--u2-font);
+}
+
+:root[data-ui="ui2"] .u2-tx-search { flex: 1; min-width: 200px; }
+
+:root[data-ui="ui2"] .u2-tx-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--u2-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Transaction table */
+:root[data-ui="ui2"] .u2-tx-scroll { overflow-x: auto; }
+
+:root[data-ui="ui2"] .u2-tx-table { white-space: nowrap; }
+
+:root[data-ui="ui2"] .u2-tx-table td small {
+  display: block;
+  margin-top: 4px;
+  color: var(--u2-muted);
+  font-size: 10px;
+}
+
+/* Event type chips */
+:root[data-ui="ui2"] .u2-tx-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2-tx-tag-sell {
+  background: var(--u2-redsoft, hsl(0,80%,95%));
+  color: var(--u2-red);
+}
+
+:root[data-ui="ui2"] .u2-tx-tag-dividend {
+  background: var(--u2-greensoft, hsl(145,60%,92%));
+  color: var(--u2-green);
+}
+
+:root[data-ui="ui2"] .u2-tx-tag-opening { color: #a46ad5; background: #f3eafd; }
+
+/* Table footer with pagination */
+:root[data-ui="ui2"] .u2-tx-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  font-size: 11px;
+  color: var(--u2-muted);
+  border-top: 1px solid var(--u2-border);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  :root[data-ui="ui2"] .u2-tx-filter-label span { display: none; }
+  :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
+}

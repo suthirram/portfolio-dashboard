@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import type { Holding, TransactionType, TransactionWithHolding } from '../../types'
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2TransactionsPage } from '../../ui2/transactions/Ui2TransactionsPage'
 import { useAllTransactions } from './useAllTransactions'
 import TransactionsAllTable from './TransactionsAllTable'
 import { InvestmentDeltaPanel } from './InvestmentDeltaPanel'
@@ -44,6 +46,8 @@ interface Props {
 }
 
 export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2TransactionsPage actAsUserId={actAsUserId} />
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const { transactions, holdings, loading, error, refresh } = useAllTransactions(actAsUserId)
