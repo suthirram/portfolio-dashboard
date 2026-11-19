@@ -31,8 +31,8 @@ export function Ui2HoldingDetailsDialog({ holding, xirr, close, edit, ledger, re
   return <Ui2Dialog title={holding.script || 'Holding details'} onClose={close}>
     <p>{holding.symbol} · {holding.exchange}</p>
     <SectorBadge holding={holding} />
-    <dl className="ui2-detailgrid">{metrics.map(([label, value]) =>
-      <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    <div className="ui2-detailgrid">{metrics.map(([label, value]) =>
+      <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
     <div className="ui2-dialog-actions">
       <button className="ui2-btn" onClick={edit}>Edit</button>
       {ledger && <button className="ui2-btn" onClick={ledger}>Ledger</button>}

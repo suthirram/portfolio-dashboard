@@ -82,3 +82,15 @@ it.each(['classic', 'glass'])('keeps existing row actions in %s', mode => {
   mount()
   expect(screen.getAllByRole('button', { name: 'Edit Twin' })).toHaveLength(2)
 })
+
+it('clears selection when act-as owner changes', () => {
+  const { rerender } = render(<MemoryRouter><DashboardPage actAsUserId="user-a" /></MemoryRouter>)
+  fireEvent.click(screen.getAllByRole('button', { name: 'Twin' })[0])
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  // Switch to a different act-as owner
+  rerender(<MemoryRouter><DashboardPage actAsUserId="user-b" /></MemoryRouter>)
+  expect(screen.queryByRole('dialog')).toBeNull()
+  // Switch back to the original owner — dialog must not reopen
+  rerender(<MemoryRouter><DashboardPage actAsUserId="user-a" /></MemoryRouter>)
+  expect(screen.queryByRole('dialog')).toBeNull()
+})
