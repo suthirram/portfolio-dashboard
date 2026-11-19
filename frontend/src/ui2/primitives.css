@@ -298,3 +298,58 @@
 
   :root[data-ui="ui2"] .ui2-dialog-actions { flex-wrap: wrap; }
 }
+
+/* ---------- toast and notice (handoff .toast, .asset-alert, .asset-note) ---------- */
+
+:root[data-ui="ui2"] .ui2-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--u2-text);
+  color: var(--u2-bg);
+  padding: 13px 20px;
+  border-radius: 10px;
+  z-index: 110;
+  font: 12px var(--u2-font);
+  box-shadow: 0 5px 30px #0002;
+  max-width: calc(100% - 32px);
+}
+
+:root[data-ui="ui2"] .ui2-notice {
+  border: 1px solid #c59544;
+  background: color-mix(in srgb, #c59544 10%, var(--u2-panel));
+  color: var(--u2-text);
+  padding: 14px 18px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+:root[data-ui="ui2"] .ui2-notice strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+:root[data-ui="ui2"] .ui2-notice span {
+  font-size: 11px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .ui2-note {
+  color: var(--u2-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  :root[data-ui="ui2"] .ui2-notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

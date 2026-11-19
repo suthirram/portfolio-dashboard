@@ -6,6 +6,7 @@ import { navItems, type NavItem } from '../../components/shell/navItems'
 import '../ui2.css'
 import '../cyberEntrance.css'
 import { useCyberEntrance } from './useCyberEntrance'
+import { Ui2Toaster } from './Ui2Toaster'
 
 // Ui2Shell is the UI_2.0 app frame (PD-059), built 1:1 from the owner's
 // handoff mockup (docs/visuals/PD-059-ui-2-reference.html): a fixed sidebar
@@ -178,6 +179,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
         </header>
         {children}
       </div>
+      <Ui2Toaster />
     </div>
   )
 }

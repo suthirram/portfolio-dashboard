@@ -25,19 +25,19 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
 | 3 | 2 | FE | Cyber entrance animation | 2 | Codex | `feat/PD-059-cyber-entrance` | #339 | merged |
-| 4 | 2 | FE | Overview summary cards + dialogs + conversion rate | 2 | | | | needs amendment |
-| 5 | 2 | FE | Holdings by currency → sector, price colours | 2 | | | | needs amendment |
-| 6 | 2 | FE | Holding details dialog, add/edit, opening prompt, sector review | 5 | | | | needs amendment |
-| 7 | 2 | FE | Allocation by holding / sector / currency | 2 | | | | needs amendment |
+| 4 | 2 | FE | Handoff Overview metrics, currency selector and shared breakdown dialogs | 2, 14 (shared dialog) | Codex | `feat/PD-059-overview-cards` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
+| 5 | 2 | FE | Grouped holdings, price colours and row dialog with working Edit / Ledger / Delete | 4 | Codex | `feat/PD-059-overview-holdings` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
+| 6 | 2 | FE | Holding details metrics and existing holding, opening-date and review forms | 5 | Codex | `feat/PD-059-holding-details` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
+| 7 | 2 | FE | Holdings / Performance tabs, portfolio allocation and Currency mix | 4–6, 10 | Codex | `feat/PD-059-overview-allocation` | #347 (plan) | plan merged; not started ([wave 2](PD-059-wave2-overview.md)) |
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
 | 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | merged |
-| 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | Claude | `feat/PD-059-fx-refetch` | #352 | in review ([wave 4a](PD-059-wave4-fx-refetch.md)) |
-| 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #351 (plan) | plan merged; starts when slice 11 merges ([wave 4a](PD-059-wave4-fx-refetch.md)) |
+| 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | Claude | `feat/PD-059-fx-refetch` | #352 | merged ([wave 4a](PD-059-wave4-fx-refetch.md)) |
+| 12 | 4 | FE | History re-fetch prompt | 11, 13 | Claude | `feat/PD-059-fx-prompt` | #353 | in review ([wave 4a](PD-059-wave4-fx-refetch.md)) |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
 | 14 | 3 | FE | History modals + full-history chart page | 13 | Codex | `feat/PD-059-history-dialogs` | #348 | merged ([wave 3c](PD-059-wave3-history-dialogs.md)) |
-| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | implementation in review (#350 plan merged) |
+| 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | in review |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
 | 18 | 5 | FE | Dividends page | 2 | | | | needs amendment |
@@ -55,9 +55,11 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 merge before the slice starts.
 
 Slice 3's independent [Wave 2a amendment](PD-059-wave2-cyber-entrance.md)
-contains its implementation and test plan. It is merged as #338, and the
-slice 3 implementation is merged as #339 (`feat/PD-059-cyber-entrance`).
-Slices 4–7 still need their own amendment.
+contains its implementation and test plan. It is merged as #338; slice 3
+implementation is merged as #339 on `feat/PD-059-cyber-entrance`. Its
+dependency (#334) is merged; slice 8 is not a dependency. Slices 4–7 are
+covered by the [Wave 2 Overview amendment](PD-059-wave2-overview.md);
+implementation remains gated on that docs PR merging.
 
 ## UI_2.0 components registry
 
@@ -80,6 +82,8 @@ shared piece.
 | `Ui2HoldingLedger` | `frontend/src/ui2/transactions/Ui2HoldingLedger.tsx` | Holding event list and editor inside `Ui2Dialog`. | slice 15 |
 | Dialog and form styles | `frontend/src/ui2/primitives.css` | `.ui2-dialog*`, `.ui2-form`, `.ui2-formrow`, `.ui2-dialog-note`, `.ui2-detailgrid`, `.ui2-dialog-actions`, `.ui2-btn-danger` | slice 14 |
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
+| `Ui2Toaster` | `frontend/src/ui2/shell/Ui2Toaster.tsx` | Handoff toast: renders the newest message of the `lib/toast` queue; mounted by `Ui2Shell`, so `toast()` works in UI_2.0 | slice 12 |
+| `.ui2-toast`, `.ui2-notice`, `.ui2-note` | `frontend/src/ui2/primitives.css` | Handoff `.toast`, `.asset-alert` and `.asset-note` | slice 12 |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 `useHoldings`, `useAllTransactions`, `useDividends`, `usePagination`,
@@ -165,6 +169,15 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   the toast only when all heal; Not now hides the notice until the app
   reloads; the dialog lists the 10 most recent dates and "and N more".
 
+## Owner decisions log (2026-11-19, Overview allocation)
+
+* OVW-1 (slice 7): UI_2.0 keeps Classic's sector jump. In the allocation's
+  **Sector** view each entry is selectable and opens Holdings grouped by
+  that sector, scrolled to and focused on its heading; Holding and Currency
+  entries stay static. The handoff reference (`docs/visuals/
+  PD-059-ui-2-reference.html`, same as `handoff/design.html`) was updated to
+  show it at the owner's request.
+
 ## Open questions
 
 Use the template; never pre-fill the owner's answer.
@@ -181,4 +194,28 @@ Owner response (exact):
 Status: awaiting owner / approved / implemented
 ```
 
-*None open.*
+```text
+ID: OVW-1
+Raised by / date: Codex, 2026-11-19 (wave 2 Overview plan, #347)
+Affected slice and files: slice 7, `ui2/overview` allocation panel
+Existing behaviour and evidence: Classic's Charts takes `onSelectSector`:
+  selecting a sector in the Sector allocation view sets `sectorTarget` in
+  DashboardPage and opens the holdings grouped by that sector. The Holding
+  and Currency views are not selectable. The handoff Overview shows the
+  donut and legend only, with no navigation.
+What is missing or ambiguous: whether UI_2.0 keeps the sector selection.
+  The wave 2 plan leaves every entry informational, which drops today's
+  sector behaviour in UI_2.0.
+Options and consequences: (a) informational only, as in the handoff: no
+  navigation, and the sector jump is lost in UI_2.0. (b) keep Classic's
+  behaviour: only sector entries are selectable and open the sector
+  grouping through the same `sectorTarget` path; needs a keyboard path and
+  a visible affordance the handoff does not show. (c) make every entry
+  selectable: new unmocked behaviour for holding and currency.
+Independent work that can continue: everything else in slice 7; entries
+  stay informational in the plan until the owner decides.
+Owner response (exact): "go with b also update the handoff design
+  accordingly and give the link to the hosted view" (2026-11-19)
+Status: approved; implementation planned for slice 7 (option b; in the
+  wave 2 plan and the updated handoff)
+```
