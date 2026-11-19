@@ -44,6 +44,39 @@ are editable; split, bonus and merger remain available with ratio inputs;
 Delete lives inside Edit; the optional Price / share helper remains. Opening
 creation stays managed on the holding.
 
+### Implementation notes for #354
+
+The handoff's later `txEdit = function (symbol, id)` overrides the earlier
+definition at runtime. The final implementation follows that override. These
+notes supersede the earlier stacked-editor and generic-Test snippets below.
+
+* The editor uses the shared `.ui2-asset-form` two-column grid. Event type and
+  Date share the first row; Shares and Total amount share the next row.
+  Price / share stays inside the grid. Ratio is shown for split and bonus;
+  an existing Opening keeps its type locked and exposes its realised seed.
+* Notes, the fee-inclusive explanatory note, and the validation alert span
+  both columns. The error appears inside the editor above the buttons. The
+  list displays its error at the top.
+* One right-aligned action row contains Cancel, Delete event when editing,
+  and Save event. The inline Keep event / Confirm delete controls replace
+  Delete in the same row. Save has its natural width. At phone widths the
+  form becomes one column and its action row wraps within the dialog.
+* The ledger uses `.ui2-ledger-table` with left-aligned headers and cells,
+  uppercase muted 10px headers, .6px letter spacing, and 16px by 15px cell
+  padding. Its last header is empty. The subtitle stays above the table;
+  the opening-balance note and left-aligned Add event button follow it.
+  The named table wrapper scrolls horizontally and is keyboard reachable.
+* Holding Symbol → Test reports an HTTP `ApiError` with “Couldn't get a quote
+  for this symbol. Check it (for example TCS.NS) and try again.” A network
+  failure reports “Couldn't reach the server. Check your connection and try
+  again.” A 200 response with a missing, non-finite or non-positive price
+  reports “No valid quote found for this symbol.” Other HTTP errors use the
+  generic quote message. Raw upstream text is never shown. A valid response
+  still displays its price and currency.
+* After the main sync, the implementation passed TypeScript, changed-file
+  lint, all 827 frontend tests in 91 files with Chromium required, and the
+  production build. Browser stack verification is recorded on PR #354.
+
 ## 5. Implementation
 
 ### Task 1. Extract the shared hook without behavior changes
