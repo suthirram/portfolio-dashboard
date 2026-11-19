@@ -212,6 +212,6 @@ Independent work that can continue: everything else in slice 7; entries
   stay informational in the plan until the owner decides.
 Owner response (exact): "go with b also update the handoff design
   accordingly and give the link to the hosted view" (2026-11-19)
-Status: approved (option b; in the wave 2 plan and the updated handoff;
-  implemented with slice 7)
+Status: approved; implementation planned for slice 7 (option b; in the
+  wave 2 plan and the updated handoff)
 ```
