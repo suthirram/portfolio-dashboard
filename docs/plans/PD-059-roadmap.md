@@ -46,7 +46,7 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | Step | Kind | Scope (board slice) | Depends on | State |
 | --- | --- | --- | --- | --- |
 | R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | merged (#359) |
-| R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | ready |
+| R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | merged (#362) |
 | R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | ready |
 | R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | ready |
 | R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens, delta sub-route (22–27) | — | ready |
