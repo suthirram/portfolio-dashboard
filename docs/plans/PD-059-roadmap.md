@@ -34,8 +34,9 @@ test that fails without the change).
 Merged: shell and picker (1–2), cyber entrance (3), Overview (4–7),
 `portfolio_overall` data and backfill command (8, 9a), overall chart component
 (10), exchange-rate re-fetch (11–12), History page and dialogs (13–14), ledger
-dialog (15), Transactions page (16, #364), and trade import (17, #366).
-Dividends, Gold, admin, profile and auth still need their UI_2.0 pages.
+dialog (15), Transactions page (16, #364), and trade import (17, #366; its handoff-parity
+follow-up is R28, #372, in review). Dividends, Gold, admin, profile and auth
+still need their UI_2.0 pages.
 
 ## The steps
 
@@ -67,10 +68,11 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05 | blocked |
 | R22 | FE | Investment delta as a Transactions sub-route (27, tentative) | R10, owner | owner |
 | R23 | BE | Register migration step `20261118_02` (9b) | owner's production dry run of `migrate overall` | owner |
-| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21 | blocked |
+| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21, R28 | blocked |
 | R25 | BE | New accounts default to `ui2`; migration step moves existing `classic` accounts | R24, owner approval | blocked |
 | R26 | FE | Remove the Classic shell and pages; Glass stays | R25 | blocked |
-| R27 | docs | Close out PD-059: archive the board, update CLAUDE.md architecture notes | R26 | blocked |
+| R27 | docs | Close out PD-059: archive the board, update CLAUDE.md architecture notes | R26, R28 | blocked |
+| R28 | FE | UI_2.0 trade import handoff parity: upload, paste, example, explicit validation and preview (board slice 29) | R11 | in review (#372) |
 
 R18 may turn out to be unnecessary: check whether the server already exposes
 the allowed font list before opening it. If it does, drop it and R19 depends
@@ -102,7 +104,7 @@ graph LR
   R05 --> R20
   R05 --> R21
   R09 --> R24
-  R11 --> R24
+  R11 --> R28 --> R24
   R13 --> R24
   R15 --> R24
   R16 --> R24

@@ -14,7 +14,7 @@ const COLUMNS = {
   exchange: 'exchange', executed: 'execution date and time', status: 'order status',
 } as const
 const REQUIRED = ['symbol', 'type', 'quantity', 'value', 'exchange', 'executed'] as const
-const HEADER = 'Stock name, Symbol, ISIN, Type, Quantity, Value, Exchange, Exchange Order Id, Execution date and time, Order status'
+export const TRADE_CSV_EXAMPLE_HEADER = 'Stock name, Symbol, ISIN, Type, Quantity, Value, Exchange, Exchange Order Id, Execution date and time, Order status'
 
 export interface TradeCsv { rows: TradeImportRow[]; errors: InvalidLine[]; skipped: InvalidLine[]; total: number }
 
@@ -28,7 +28,7 @@ export function parseTradeCsv(text: string, today: string): TradeCsv {
   const col = Object.fromEntries(Object.entries(COLUMNS).map(([key, name]) => [key, header.indexOf(name)])) as Record<keyof typeof COLUMNS, number>
   const missing = REQUIRED.filter(key => col[key] < 0).map(key => COLUMNS[key])
   if (missing.length) {
-    return { rows: [], errors: [{ line: headerIndex + 1, reason: `Missing column(s): ${missing.join(', ')}. Expected header: ${HEADER}` }], skipped: [], total: 0 }
+    return { rows: [], errors: [{ line: headerIndex + 1, reason: `Missing column(s): ${missing.join(', ')}. Expected header: ${TRADE_CSV_EXAMPLE_HEADER}` }], skipped: [], total: 0 }
   }
 
   const cell = (cells: string[], key: keyof typeof COLUMNS) => (col[key] >= 0 ? (cells[col[key]] ?? '').trim() : '')

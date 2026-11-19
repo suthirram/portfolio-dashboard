@@ -54,6 +54,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | | | | needs amendment |
 | 27 | 6 | FE | Investment delta → sub-route (tentative) | 16 | | | | needs amendment |
 | 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Claude | `docs/PD-059-wave5a-dividends` | #369 | in review |
+| 29 | 4 | FE | UI_2.0 trade import handoff parity (paste, example, validation and preview) | 17 | Claude | `feat/PD-059-trade-import-handoff` | #372 | in review |
 
 "needs amendment" = its wave's plan-amendment docs PR (complete code) must
 merge before the slice starts.
