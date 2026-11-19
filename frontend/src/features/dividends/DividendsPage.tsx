@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SUPPORTED_CURRENCIES, currencySymbol, formatMoney } from '../../lib/currency'
 import { formatDate } from '../../lib/formDates'
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2DividendsPage } from '../../ui2/dividends/Ui2DividendsPage'
 import { useAuthOptional } from '../auth/AuthContext'
 import { useTheme } from '../../lib/useTheme'
 import ThemePicker from '../../components/ThemePicker'
@@ -34,7 +36,16 @@ export function tabFrom(raw: string | null): DividendCurrency {
   return (SUPPORTED_CURRENCIES as readonly string[]).includes(raw ?? '') ? (raw as DividendCurrency) : 'INR'
 }
 
+// DividendsPage is a pure dispatcher: only useUiMode() lives here. All
+// Classic hooks live in ClassicDividendsPage so the hook count is stable
+// across mode changes.
 export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2DividendsPage actAsUserId={actAsUserId} />
+  return <ClassicDividendsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
+}
+
+function ClassicDividendsPage({ actAsUserId, actAsLabel }: Props) {
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
   const [params, setParams] = useSearchParams()
