@@ -14,18 +14,18 @@ it('selects the sector at its first currency group, only in the Sector view', ()
   render(<Ui2Allocation holdings={technology} onSelectSector={onSelectSector} />)
   // Holding view: entries are plain text.
   expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
-  fireEvent.click(screen.getByRole('button', { name: 'Sector' }))
-  expect(screen.getByText('Select a sector to see its holdings.')).toBeVisible()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Group allocation' }), { target: { value: 'Sector' } })
+  expect(screen.getByText(/Select a sector to see its holdings/)).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: /Show Technology holdings/ }))
   // INR is listed before EUR, so the jump lands on the first group.
   expect(onSelectSector).toHaveBeenCalledWith({ currency: 'INR', key: 'sector:technology' })
-  fireEvent.click(screen.getByRole('button', { name: 'Currency' }))
+  fireEvent.change(screen.getByRole('combobox', { name: 'Group allocation' }), { target: { value: 'Currency' } })
   expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
 })
 
 it('keeps sector entries static when nothing handles the selection', () => {
   render(<Ui2Allocation holdings={technology} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Sector' }))
+  fireEvent.change(screen.getByRole('combobox', { name: 'Group allocation' }), { target: { value: 'Sector' } })
   expect(screen.queryByRole('button', { name: /Show .* holdings/ })).toBeNull()
 })
 

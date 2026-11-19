@@ -211,9 +211,31 @@
 
 /* Workspace grid and allocation panel (slice 7). */
 :root[data-ui="ui2"] .u2-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(15rem, 22rem); gap: 1rem; align-items: start; }
-:root[data-ui="ui2"] .u2-allocation-ring { width: 8rem; aspect-ratio: 1; margin: 1rem auto; border-radius: 50%; mask: radial-gradient(circle, transparent 48%, black 49%); }
-:root[data-ui="ui2"] .u2-allocation-entry { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: .35rem .5rem; margin: 0 -.5rem; border-radius: .4rem; cursor: pointer; }
-:root[data-ui="ui2"] .u2-allocation-entry:hover { background: var(--u2-accentsoft); text-decoration: underline; }
+:root[data-ui="ui2"] .u2-overview-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--u2-border); }
+:root[data-ui="ui2"] .u2-overview-tab { border: 0; border-bottom: 2px solid transparent; background: none; padding: 0 0 .75rem; color: var(--u2-muted); font-size: .8125rem; font-weight: 600; }
+:root[data-ui="ui2"] .u2-overview-tab[aria-selected="true"] { border-bottom-color: var(--u2-accent); color: var(--u2-accent); }
+:root[data-ui="ui2"] .u2-overview-count { display: inline-grid; place-items: center; margin-inline-start: .4rem; padding: .15rem .35rem; border-radius: .3rem; background: var(--u2-accentsoft); color: var(--u2-accent); font-size: .625rem; }
+:root[data-ui="ui2"] .u2-allocation-aside { display: grid; gap: 1.125rem; min-width: 0; }
+:root[data-ui="ui2"] .u2-allocation-head { display: flex; align-items: start; justify-content: space-between; gap: .5rem; }
+:root[data-ui="ui2"] .u2-allocation-view { color: var(--u2-muted); font-size: 0; }
+:root[data-ui="ui2"] .u2-allocation-view select { max-width: 9rem; padding: .5rem; border: 1px solid var(--u2-border); border-radius: .4rem; background: var(--u2-panel); color: var(--u2-text); font-size: .6875rem; }
+:root[data-ui="ui2"] .u2-allocation-ring { position: relative; display: grid; place-items: center; width: 8.875rem; aspect-ratio: 1; margin: 1.4rem auto; border-radius: 50%; }
+:root[data-ui="ui2"] .u2-allocation-ring::before { content: ''; position: absolute; inset: 1.0625rem; border-radius: 50%; background: var(--u2-panel); }
+:root[data-ui="ui2"] .u2-allocation-center { position: relative; display: grid; text-align: center; font-size: 1.5rem; }
+:root[data-ui="ui2"] .u2-allocation-center small { color: var(--u2-muted); font-size: .625rem; }
+:root[data-ui="ui2"] .u2-allocation-legend { list-style: none; padding: 0; margin: 0; }
+:root[data-ui="ui2"] .u2-allocation-entry { width: 100%; display: flex; justify-content: space-between; gap: .5rem; align-items: center; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: .5rem 0; }
+:root[data-ui="ui2"] button.u2-allocation-entry { cursor: pointer; }
+:root[data-ui="ui2"] button.u2-allocation-entry:hover { background: var(--u2-accentsoft); text-decoration: underline; }
+:root[data-ui="ui2"] .u2-allocation-dot { display: inline-block; width: .45rem; height: .45rem; margin-inline-end: .45rem; border-radius: 50%; }
+:root[data-ui="ui2"] .u2-allocation-foot { margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--u2-border); color: var(--u2-muted); font-size: .625rem; line-height: 1.7; }
+:root[data-ui="ui2"] .u2-mix-eyebrow { color: var(--u2-accent); font-size: .5625rem; font-weight: 700; letter-spacing: .06rem; text-transform: uppercase; }
+:root[data-ui="ui2"] .u2-currency-mix h2 { margin-top: .55rem; }
+:root[data-ui="ui2"] .u2-mix-bar { display: flex; height: .3125rem; margin: 1rem 0 .75rem; overflow: hidden; border-radius: .2rem; background: var(--u2-border); }
+:root[data-ui="ui2"] .u2-mix-bar span:first-child { background: #e8b66a; }
+:root[data-ui="ui2"] .u2-mix-bar span:last-child { background: #6678e6; }
+:root[data-ui="ui2"] .u2-mix-values { display: flex; justify-content: space-between; font-size: .625rem; }
+:root[data-ui="ui2"] .u2-currency-mix p { color: var(--u2-muted); font-size: .6875rem; line-height: 1.8; }
 :root[data-ui="ui2"] .u2-allocation-entry:focus-visible { outline: 3px solid var(--u2-accent); outline-offset: 2px; }
 
 @media (max-width: 1200px) {

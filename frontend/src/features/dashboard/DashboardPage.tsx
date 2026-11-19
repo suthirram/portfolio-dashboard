@@ -137,7 +137,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   useEffect(() => {
     if (previousOwner.current !== actAsUserId) {
       setReviewQueue(null); setModal(null); setSectorTarget(null)
-      setPositionView('active'); setHoldingsLayout('holding'); setSelection(null)
+      setPositionView('active'); setHoldingsLayout('holding'); setSelection(null); setTab('table')
     }
     previousOwner.current = actAsUserId
   }, [actAsUserId])
@@ -239,8 +239,10 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   }
 
   const TAB = (key: Tab, label: string) => (
-    <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
-      {label}
+    <button id={`dashboard-${key}-tab`} className={ui2 ? 'u2-overview-tab' : 'seg-btn'}
+      role={ui2 ? 'tab' : undefined} aria-selected={ui2 ? tab === key : undefined}
+      aria-pressed={ui2 ? undefined : tab === key} onClick={() => setTab(key)}>
+      {label}{ui2 && key === 'table' && <span className="u2-overview-count">{filtered.length}</span>}
     </button>
   )
 
@@ -413,7 +415,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
         </aside>}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '24px 0 16px', flexWrap: 'wrap', gap: 10 }}>
-          <div className="seg-group">
+          <div className={ui2 ? 'u2-overview-tabs' : 'seg-group'} role={ui2 ? 'tablist' : undefined} aria-label={ui2 ? 'Portfolio views' : undefined}>
             {TAB('table', 'Holdings')}
             {(!ui2 || !actAsUserId) && TAB('charts', ui2 ? 'Performance' : 'Charts')}
           </div>
@@ -431,7 +433,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           )}
         </div>
 
-        <div className={ui2 ? 'u2-workspace' : undefined}>
+        <div className={ui2 ? 'u2-workspace' : undefined} role={ui2 ? 'tabpanel' : undefined}
+          aria-labelledby={ui2 ? `dashboard-${tab}-tab` : undefined} tabIndex={ui2 ? 0 : undefined}>
           <div>
             {(tab === 'table' || (ui2 && actAsUserId)) && (
               <HoldingsByCurrency

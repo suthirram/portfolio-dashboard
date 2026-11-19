@@ -59,22 +59,21 @@ it('omits ledger in act-as and returns focus to the selected holding', () => {
 it('shows the currency mix alongside allocation and restricts Performance to the owner', () => {
   const owner = mount()
   const mix = within(screen.getByRole('region', { name: 'Currency mix' }))
-  expect(mix.getByText('EUR · 50.0%')).toBeVisible()
-  expect(mix.getByText('INR · 50.0%')).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Performance' })).toBeVisible()
+  expect(mix.getByText('EUR').parentElement).toHaveTextContent('50.0%')
+  expect(mix.getByText('INR').parentElement).toHaveTextContent('50.0%')
+  expect(screen.getByRole('tab', { name: 'Performance' })).toBeVisible()
   owner.unmount()
   mount('target')
-  expect(screen.queryByRole('button', { name: 'Performance' })).toBeNull()
+  expect(screen.queryByRole('tab', { name: 'Performance' })).toBeNull()
 })
 
 it('selecting a sector entry opens the sector grouping and focuses its heading', () => {
   mount()
-  const allocationView = within(screen.getByRole('group', { name: 'Allocation view' }))
-  fireEvent.click(allocationView.getByRole('button', { name: 'Sector' }))
+  fireEvent.change(screen.getByRole('combobox', { name: 'Group allocation' }), { target: { value: 'Sector' } })
   // Both rows are unclassified here, so they share one "Needs review" entry.
   fireEvent.click(screen.getByRole('button', { name: /Show Needs review holdings/ }))
   expect(document.activeElement).toHaveAttribute('id', 'sector-INR-needs_review')
-  expect(screen.getByRole('button', { name: 'Holdings' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('tab', { name: /Holdings/ })).toHaveAttribute('aria-selected', 'true')
 })
 
 it.each(['classic', 'glass'])('keeps existing row actions in %s', mode => {

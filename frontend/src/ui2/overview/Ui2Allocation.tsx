@@ -5,7 +5,6 @@ import { groupByCurrency } from '../../features/holdings/groupByCurrency'
 import { filterByView } from '../../features/holdings/holdingViews'
 import { pricedNativeValue } from '../../features/holdings/sectorAllocationData'
 import type { SupportedCurrency } from '../../lib/currency'
-import { money } from './Ui2SummaryCards'
 
 type View = 'Holding' | 'Sector' | 'Currency'
 // currency is the first (INR before EUR) currency group holding the entry, the
@@ -52,28 +51,43 @@ export function Ui2Allocation({ holdings, onSelectSector }: Props) {
     cumulative += entry.value / total * 100
     return palette[index % palette.length] + ' ' + start + '% ' + cumulative + '%'
   })
-  return <aside>
-    <section className="ui2-panel" aria-label="Portfolio allocation">
-      <h2>Portfolio allocation</h2>
-      <div role="group" aria-label="Allocation view">
-        {(['Holding', 'Sector', 'Currency'] as const).map(choice =>
-          <button className="ui2-btn" key={choice} aria-pressed={choice === view} onClick={() => setView(choice)}>{choice}</button>)}
+  const viewLabel = view === 'Holding' ? 'holdings' : view === 'Sector' ? 'sectors' : 'currencies'
+  return <aside className="u2-allocation-aside">
+    <section className="ui2-panel u2-allocation-panel" aria-label="Portfolio allocation">
+      <div className="u2-allocation-head">
+        <h2>Equity allocation</h2>
+        <label className="u2-allocation-view">Group allocation
+          <select value={view} onChange={event => setView(event.target.value as View)}>
+            <option value="Holding">By holding</option>
+            <option value="Sector">By sector</option>
+            <option value="Currency">By currency</option>
+          </select>
+        </label>
       </div>
       {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
-        <><div aria-hidden="true" className="u2-allocation-ring" style={{ background: 'conic-gradient(' + stops.join(', ') + ')' }} />
-          <ul>{entries.map(entry => {
-            const text = entry.label + ' · ' + money(entry.value, 'INR') + ' · ' + (100 * entry.value / total).toFixed(1) + '%'
+        <><div role="img" aria-label={`Allocation by ${view.toLowerCase()}`} className="u2-allocation-ring" style={{ background: 'conic-gradient(' + stops.join(', ') + ')' }}>
+            <div className="u2-allocation-center"><strong>{entries.length}</strong><small>{viewLabel}</small></div>
+          </div>
+          <ul className="u2-allocation-legend">{entries.map((entry, index) => {
+            const percent = (100 * entry.value / total).toFixed(1) + '%'
+            const content = <><span><i className="u2-allocation-dot" style={{ background: palette[index % palette.length] }} />{entry.label}</span><strong>{percent}</strong></>
             return <li key={entry.key}>{view === 'Sector' && onSelectSector
-              ? <button type="button" className="u2-allocation-entry" aria-label={'Show ' + entry.label + ' holdings, ' + text}
-                onClick={() => onSelectSector({ currency: entry.currency, key: entry.key })}>{text}</button>
-              : text}</li>
+              ? <button type="button" className="u2-allocation-entry" aria-label={'Show ' + entry.label + ' holdings, ' + percent + ' of allocation'}
+                onClick={() => onSelectSector({ currency: entry.currency, key: entry.key })}>{content}</button>
+              : <div className="u2-allocation-entry">{content}</div>}</li>
           })}</ul>
-          {view === 'Sector' && onSelectSector && <p>Select a sector to see its holdings.</p>}</>}
-      {(unpriced > 0 || unsupported > 0) && <p>{unpriced} unpriced · {unsupported} unsupported</p>}
+          </>}
+      <p className="u2-allocation-foot">{view === 'Sector' && onSelectSector && 'Select a sector to see its holdings. '}Allocation uses current values converted to INR.
+        {(unpriced > 0 || unsupported > 0) && ` ${unpriced} unpriced · ${unsupported} unsupported.`}</p>
     </section>
-    <section className="ui2-panel" aria-label="Currency mix">
-      <h2>Currency mix</h2>
-      {(['INR', 'EUR'] as const).map(code => <p key={code}>{code} · {missingConversion || !total ? '—' : (100 * mix[code] / total).toFixed(1) + '%'}</p>)}
+    <section className="ui2-panel u2-currency-mix" aria-label="Currency mix">
+      <span className="u2-mix-eyebrow">Currency mix</span>
+      <h2>Two markets. One clear view.</h2>
+      <div className="u2-mix-bar" aria-hidden="true">
+        {!missingConversion && total > 0 && <><span style={{ width: `${100 * mix.INR / total}%` }} /><span style={{ width: `${100 * mix.EUR / total}%` }} /></>}
+      </div>
+      <div className="u2-mix-values">{(['INR', 'EUR'] as const).map(code => <span key={code}>{code} <strong>{missingConversion || !total ? '—' : (100 * mix[code] / total).toFixed(1) + '%'}</strong></span>)}</div>
+      <p>Daily movement stays in its original currency, so each market tells its own story.</p>
     </section>
   </aside>
 }
