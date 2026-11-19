@@ -120,6 +120,48 @@ func (s *OverallStore) FillUnrated(ctx context.Context, userId primitive.ObjectI
 	return err == nil, err
 }
 
+// ListCarried returns the user's flagged days, newest first, with only
+// their date and updated_at: fx_carried marks a fallback rate after a
+// failed fetch, or no rate yet. These are the days History offers to
+// re-fetch (DD-015 §2.7); updated_at is the version HealCarried checks.
+func (s *OverallStore) ListCarried(ctx context.Context, userId primitive.ObjectID) ([]domain.OverallDay, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+	opts := options.Find().SetSort(bson.D{{Key: "date", Value: -1}}).SetProjection(bson.M{"date": 1, "updated_at": 1})
+	cursor, err := s.col.Find(ctx, bson.M{"user_id": userId, "fx_carried": true}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+	var days []domain.OverallDay
+	if err := cursor.All(ctx, &days); err != nil {
+		return nil, err
+	}
+	return days, nil
+}
+
+// HealCarried writes a re-fetched rate and the totals at that rate only
+// while the day is still flagged and unchanged since ListCarried read it
+// (seen is its updated_at). A good rate the snapshot job stored, or newer
+// totals a History edit wrote in the meantime, are never overwritten, and
+// no document is created. Reports whether it wrote; false leaves the day
+// flagged for the user to retry with fresh data.
+func (s *OverallStore) HealCarried(ctx context.Context, userId primitive.ObjectID, date, seen time.Time, rate domain.FxRate, buckets map[string]domain.RegionSnapshot) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	filter := overallFilter(userId, date)
+	filter["fx_carried"] = true
+	filter["updated_at"] = seen
+	if seen.IsZero() {
+		filter["updated_at"] = bson.M{"$exists": false}
+	}
+	result, err := s.col.UpdateOne(ctx, filter, overallUpdate(rate, buckets))
+	if err != nil {
+		return false, err
+	}
+	return result.MatchedCount > 0, nil
+}
+
 // Get returns one day's document, or ErrNotFound.
 func (s *OverallStore) Get(ctx context.Context, userId primitive.ObjectID, date time.Time) (domain.OverallDay, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
