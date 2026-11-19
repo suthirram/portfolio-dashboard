@@ -1,8 +1,11 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
-import { useUiRevamp } from '../../lib/uiMode'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
+import { GOLD_LABEL, Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
+import { nativeView } from '../holdings/currencyTotals'
 import { notify } from '../../lib/toast'
 import { type GoldMetrics } from '../../lib/api/client'
 import HoldingsByCurrency, { type HoldingsLayout } from '../holdings/HoldingsByCurrency'
@@ -41,6 +44,18 @@ export function dividendIncome(holdings: HoldingWithPrice[]): { inr: number; eur
     else if (currency === 'EUR') income.eur += holding.total_dividends ?? 0
   }
   return income
+}
+
+// goldAssetLine is physical gold as a UI_2.0 summary line. A read that is
+// still loading or failed (null), and gold that is held but has no price,
+// leave the amounts unknown. An account with no gold at all (zero grams) has
+// nothing to value, so it contributes zero instead of withholding the totals.
+function goldAssetLine(metrics: GoldMetrics | null): AssetLine {
+  const line = { label: GOLD_LABEL, currency: 'INR' as const, income: 0, realised: 0 }
+  if (!metrics) return { ...line, invested: null, current: null, unrealised: null }
+  const current = metrics.grams === 0 ? (metrics.current ?? 0) : metrics.current
+  return { ...line, invested: metrics.invested, current,
+    unrealised: current == null ? null : current - metrics.invested }
 }
 
 type ModalState = 'add' | HoldingWithPrice | null
@@ -90,6 +105,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const [regionLabel, setRegionLabel] = useState<string>('')
   const [openingPromptSkipped, setOpeningPromptSkipped] = useState(false)
   const revamp = useUiRevamp()
+  const ui2 = useUiMode() === 'ui2'
   const location = useLocation()
   const navigate = useNavigate()
   // In the glass shell (PD-054) the brand, page links and user menu live in
@@ -182,6 +198,31 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // tables and the pie, so a search or view filter never repaints sectors.
   const sectorColors = useMemo(() => sectorColorsByCurrency(enriched, theme), [enriched, theme])
 
+  const assets: AssetLine[] = []
+  if (ui2) {
+    for (const {currency, holdings: rows} of groupByCurrency(displayHoldings)) {
+      if (currency === 'OTHER') continue
+      const sum = (read: (holding: HoldingWithPrice) => number | undefined) => {
+        let total = 0
+        for (const holding of rows) {
+          const amount = read(holding)
+          if (amount == null || !Number.isFinite(amount)) return null
+          total += amount
+        }
+        return total
+      }
+      assets.push({ label: currency + ' equities', currency,
+        invested: sum(holding => nativeView(currency, holding.cost_price, holding.cost_price_eur).primary),
+        current: sum(holding => (holding.stocks_owned ?? 0) === 0 ? 0 : holding.price_error ? undefined
+          : nativeView(currency, holding.current_value, holding.current_value_eur).primary),
+        unrealised: sum(holding => (holding.stocks_owned ?? 0) === 0 ? 0 : holding.price_error ? undefined
+          : nativeView(currency, holding.unrealized_pnl, holding.unrealized_pnl_eur).primary),
+        realised: sum(holding => holding.realized_pnl ?? 0),
+        income: sum(holding => holding.total_dividends ?? 0) })
+    }
+    if (user?.gold_enabled && !actAsUserId) assets.push(goldAssetLine(goldMetrics))
+  }
+
   const TAB = (key: Tab, label: string) => (
     <button id={`dashboard-${key}-tab`} className="seg-btn" aria-pressed={tab === key} onClick={() => setTab(key)}>
       {label}
@@ -210,7 +251,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             <div className="brand-tile" style={{ width: 32, height: 32 }}><ChartLineIcon size={18} /></div>
             <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Portfolio Dashboard</span>
           </Link>
-          <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>
+          {!ui2 && <h1 className="shell-only page-title">{actAsLabel ? `${actAsLabel}'s portfolio` : 'Portfolio'}</h1>}
           {roleBadge}
           {regionLabel && (
             <span style={{
@@ -253,13 +294,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               Updated {lastRefresh.toLocaleTimeString()}
             </span>
           )}
-          <button onClick={fetchPrices} disabled={loadingPrices} className="btn dash-nav-btn"
-            style={{ opacity: loadingPrices ? 0.6 : 1 }}>
-            {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
-          </button>
-          <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
-            <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
-          </button>
+          {/* UI_2.0 carries Refresh and Add holding in its page intro, as the handoff does. */}
+          {!ui2 && <>
+            <button onClick={fetchPrices} disabled={loadingPrices} className="btn dash-nav-btn"
+              style={{ opacity: loadingPrices ? 0.6 : 1 }}>
+              {loadingPrices ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshIcon size={14} />} <span className="dash-nav-label-sm">Refresh</span>
+            </button>
+            <button onClick={() => setModal('add')} aria-label="Add Holding" className="btn-primary dash-nav-btn">
+              <PlusIcon size={14} /> <span className="dash-nav-label-sm">Add Holding</span>
+            </button>
+          </>}
           <div ref={userMenuRoot} className="dash-nav-user shell-dup" style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(wasOpen => !wasOpen)} className="btn dash-nav-btn"
               aria-expanded={menuOpen}
@@ -293,6 +337,16 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       </header>
 
       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
+        {ui2 && <Ui2PageIntro title={actAsLabel ? actAsLabel + "'s portfolio" : 'Your portfolio, at a glance'}
+          subtitle="A little clarity for every investment decision."
+          actions={<>
+            <button type="button" className="ui2-btn" aria-label="Refresh" onClick={fetchPrices} disabled={loadingPrices}>
+              <RefreshIcon size={15} /> <span className="u2-refresh-text">Refresh</span>
+            </button>
+            <button type="button" className="ui2-btn ui2-btn-primary" onClick={() => setModal('add')}>
+              <span aria-hidden="true">＋</span> Add holding
+            </button>
+          </>} />}
         {actAsUserId && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
@@ -320,7 +374,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             dayChange={computedDayChangeByCurrency} />
         )}
 
-        <SummaryCards
+        {ui2 ? <Ui2SummaryCards summary={summary} assets={assets} daily={computedDayChangeByCurrency} /> : <SummaryCards
           summary={summary}
           loading={loadingPrices}
           goldCurrentInr={goldMetrics?.current ?? null}
@@ -336,7 +390,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
           stocksUnrealisedEur={enriched.filter(holding => holding.currency === 'EUR').reduce((sum, holding) => sum + (holding.unrealized_pnl_eur ?? 0), 0)}
           computedDayChangeInr={computedDayChangeByCurrency.INR}
           computedDayChangeEur={computedDayChangeByCurrency.EUR}
-        />
+        />}
 
         {needsReview.length > 0 && <aside className="classification-banner" aria-label="Classification review">
           <span>{needsReview.length} {needsReview.length === 1 ? 'holding needs' : 'holdings need'} review</span>
