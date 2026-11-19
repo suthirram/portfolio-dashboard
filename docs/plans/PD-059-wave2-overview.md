@@ -1,6 +1,6 @@
 # PD-059: Wave 2 amendment — Overview (slices 4–7)
 
-* **Status**: Draft; slice implementation starts after this amendment merges
+* **Status**: In review (#347); slice implementation starts after this amendment merges
 * **Owner**: Codex; product decisions remain with the project owner
 * **Updated**: 2026-11-19
 * **Implements**: [PRD-015 §4.3](../prds/PRD-015-ui-2.md#43-overview)
