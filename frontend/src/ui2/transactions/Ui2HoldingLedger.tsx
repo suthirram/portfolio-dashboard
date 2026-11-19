@@ -24,14 +24,14 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
       </>}
       <label>Total amount · {currencySign}<DecimalInput value={form.amount} onValueChange={amount => setForm(previousForm => ({ ...previousForm, amount }))} /></label>
       {form.type !== 'dividend' && <label>Price / share ({currencySign}, optional)<DecimalInput value={form.price} onValueChange={price => recompute({ price })} /></label>}
-      {impliedCostPerShare !== null && <p className="ui2-dialog-note ui2-form-full">Implied cost/share: {money(impliedCostPerShare)}</p>}
+      {impliedCostPerShare !== null && <p className="ui2-note ui2-form-full">Implied cost/share: {money(impliedCostPerShare)}</p>}
     </>}
     {isCorporate && <label>Ratio (new shares per old)<DecimalInput value={form.ratio} onValueChange={ratio => setForm(previousForm => ({ ...previousForm, ratio }))} /></label>}
     {isOpening && <label>Realised P&amp;L seed ({currencySign})<DecimalInput allowNegative value={form.realized}
       onValueChange={realized => setForm(previousForm => ({ ...previousForm, realized }))} /></label>}
-    {isMerger && <p className="ui2-dialog-note ui2-form-full">Merger records an audit event. Record a sell and a buy for changes to the position.</p>}
+    {isMerger && <p className="ui2-note ui2-form-full">Merger records an audit event. Record a sell and a buy for changes to the position.</p>}
     <label className="ui2-form-full">Notes<input value={form.notes} onChange={event => setForm(previousForm => ({ ...previousForm, notes: event.target.value }))} /></label>
-    <p className="ui2-dialog-note ui2-form-full">A buy is the total debited and a sell the total credited, fees included.</p>
+    <p className="ui2-note ui2-form-full">A buy is the total debited and a sell the total credited, fees included.</p>
     {err && <p role="alert" className="ui2-form-error ui2-form-full">{err}</p>}
     <div className="ui2-dialog-actions ui2-form-full">
       <button type="button" className="ui2-btn" disabled={saving} onClick={() => { resetForm(); setConfirm(null); setEditor(false) }}>Cancel</button>
