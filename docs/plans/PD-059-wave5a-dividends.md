@@ -1070,7 +1070,7 @@ The page needs a router because it reads `?currency=`, so each render is wrapped
 
 ```tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { Ui2DividendsPage } from './Ui2DividendsPage'
@@ -1192,7 +1192,11 @@ describe('Ui2DividendsPage', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Dividend holding' }), 'h2')
     expect(screen.getByText('1 of 2 payments')).toBeInTheDocument()
     // 800 is the tab-wide running total: filtering must not recompute it.
-    expect(screen.getByText('₹800.00')).toBeInTheDocument()
+    // Scope to the one visible data row — the stat card and yearly table also
+    // show ₹800.00, so getByText without within throws "Found multiple elements".
+    const rows = screen.getAllByRole('row')
+    expect(rows).toHaveLength(2) // header + 1 Infosys row
+    expect(within(rows[1]).getByText('₹800.00')).toBeInTheDocument()
     expect(screen.queryByText('TCS.NS')).not.toBeInTheDocument()
   })
 
