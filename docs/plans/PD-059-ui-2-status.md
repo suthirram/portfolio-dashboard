@@ -20,7 +20,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 ## Slices
 
 | # | Wave | Layer | Slice | Depends on | Owner | Branch | PR | State |
-|---|---|---|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 0 | — | docs | PRD-015, DD-015, PD-059 plan, this board | — | Claude | `docs/PD-059-ui-2` | #332 | merged |
 | 1 | 1 | BE | `ui_mode` + endpoint + step `20261118_01` | 0 | Claude | `feat/PD-059-ui-mode` | #333 | merged |
 | 2 | 1 | FE | Interface picker + `Ui2Shell` | 1 | Claude | `feat/PD-059-ui2-shell` | #334 | merged |
@@ -36,7 +36,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | merged |
-| 14 | 3 | FE | History modals + full-history chart page | 13 | Claude | | | needs amendment (after 13) |
+| 14 | 3 | FE | History modals + full-history chart page | 13 | Claude | `feat/PD-059-history-dialogs` | #346 | amendment in review ([wave 3c](PD-059-wave3-history-dialogs.md)) |
 | 15 | 4 | FE | Shared ledger hook + UI_2.0 ledger modal | 2 | | | | needs amendment |
 | 16 | 4 | FE | Transactions page | 15 | | | | needs amendment |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | | | | needs amendment |
@@ -65,7 +65,7 @@ Check before building; reuse if listed. Add a row in the PR that creates a
 shared piece.
 
 | Component / hook | Path | Purpose / props | Added in |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `Ui2Shell` | `frontend/src/ui2/shell/Ui2Shell.tsx` | app frame (mockup layout): sidebar nav, Appearance, account, breadcrumb | slice 2 (planned) |
 | `navItems` | `frontend/src/components/shell/navItems.tsx` | page list shared by both shells | slice 2 (planned) |
 | `useUiMode` | `frontend/src/lib/uiMode.ts` | the account's interface | slice 2 (planned) |
@@ -144,6 +144,13 @@ Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
   the Edit dialog under today's rule; the Gold value stays plain text.
 * Page pattern: the page stays the data owner and renders its UI_2.0
   component for `ui2` (as in the wave 2 Overview amendment).
+* History dialogs (slice 14): Add / Edit is the handoff's one-group form,
+  INR or EUR only (gold comes from the Gold ledger); the breakdown shows
+  the handoff's columns only (Invested, Snapshot value, then Holding /
+  Quantity / Value); the chart page is restyled with UI_2.0 parts, no new
+  layout; Full-history charts draw daily lines without dense markers, while
+  isolated valid values remain marked across data gaps and one-point series.
+  Paste keeps today's format (C8).
 
 ## Open questions
 
