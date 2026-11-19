@@ -1,6 +1,6 @@
 # PD-059: Wave 2 amendment — Overview (slices 4–7)
 
-* **Status**: Plan merged (#347); implementation not started. Sector selection in the allocation is approved (OVW-1, owner 2026-11-19) and planned for slice 7; see the [status board](PD-059-ui-2-status.md).
+* **Status**: Plans merged (#347, #355); slice 4 implementation in review (#356). Slices 5–7 follow in order. Sector selection in the allocation is approved (OVW-1, owner 2026-11-19) and planned for slice 7; see the [status board](PD-059-ui-2-status.md).
 * **Owner**: Codex. Product decisions belong to the project owner.
 * **Updated**: 2026-11-19
 * **Implements**: [PRD-015 §4.3](../prds/PRD-015-ui-2.md#43-overview)
