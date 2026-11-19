@@ -1,10 +1,11 @@
 // "Month in review" (handoff): the classic period performance card's figures
 // (periodPerformance, PD-049) in the reference's layout.
 import type { HistoryRow } from '../../lib/api/client'
+import { formatDayMonthName } from '../../lib/formDates'
 import {
   PERFORMANCE_COLUMN_SYMBOL, fmtSignedCurrency, periodPerformance, type PeriodPerformance,
 } from '../../features/history/historyShared'
-import { ASSET_LABELS, shortDate, signedPercent } from './historyCells'
+import { ASSET_LABELS, signedPercent } from './historyCells'
 
 const tone = (value: number | null) => value === null ? '' : value > 0 ? 'u2-positive' : value < 0 ? 'u2-negative' : ''
 
@@ -40,7 +41,7 @@ export function Ui2MonthReview({ rows, monthStart, monthLabel }: {
         <div>
           <h2 id="u2h-month-review">Month in review</h2>
           <p>
-            {shortDate(openingDate)} – {shortDate(closingDate)}{closingTentative ? ' (live)' : ''} · {monthLabel}
+            {formatDayMonthName(openingDate)} – {formatDayMonthName(closingDate)}{closingTentative ? ' (live)' : ''} · {monthLabel}
           </p>
         </div>
       </div>

@@ -113,12 +113,6 @@ export function rowSource(row: HistoryRow): string {
   return 'Daily snapshot'
 }
 
-// shortDate renders YYYY-MM-DD as the handoff's day-first "16 Nov" / "09 Nov".
-export function shortDate(iso: string): string {
-  const [, month, day] = iso.split('-')
-  return `${day} ${MONTHS[Number(month) - 1]}`
-}
-
 // signedPercent renders "+1.24%" / "−1.01%" (U+2212, like the handoff).
 export function signedPercent(value: number): string {
   const sign = value > 0 ? '+' : value < 0 ? '−' : ''

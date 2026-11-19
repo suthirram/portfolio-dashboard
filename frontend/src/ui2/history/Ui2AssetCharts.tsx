@@ -2,10 +2,11 @@
 // and Gold, each with the three mini charts. Series reuse the classic chart
 // helpers; only the date labels switch to the handoff's "16 Nov".
 import type { HistoryRow } from '../../lib/api/client'
+import { formatDayMonthName } from '../../lib/formDates'
 import {
   goldChartData, perCurrencyChartData, regionHasData,
 } from '../../features/history/historyShared'
-import { ASSET_LABELS, shortDate, type HistoryAsset } from './historyCells'
+import { ASSET_LABELS, type HistoryAsset } from './historyCells'
 import { Ui2MiniChart, type MiniChartKind, type MiniChartPoint } from './Ui2MiniChart'
 
 const KINDS: MiniChartKind[] = ['value', 'pl', 'volatility']
@@ -15,7 +16,7 @@ const KINDS: MiniChartKind[] = ['value', 'pl', 'volatility']
 export function assetSeries(rows: HistoryRow[], asset: HistoryAsset): MiniChartPoint[] {
   const oldestFirst = rows.toSorted((left, right) => left.date.localeCompare(right.date))
   const series = asset === 'GOLD' ? goldChartData(rows) : perCurrencyChartData(rows, asset)
-  return series.map((point, index) => ({ ...point, date: shortDate(oldestFirst[index].date) }))
+  return series.map((point, index) => ({ ...point, date: formatDayMonthName(oldestFirst[index].date) }))
 }
 
 // chartedAssets keeps the assets that have something to plot, as the classic

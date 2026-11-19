@@ -32,7 +32,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 8 | 1 | BE | `portfolio_overall` + rate at snapshot + `GET /history/overall` | 0 | Claude | `feat/PD-059-overall-worth` | #336 | merged |
 | 9a | 1 | BE | `migrate overall` (dry-run / apply / rebuild) | 8 | Claude | `feat/PD-059-overall-backfill` | #340, #341 | merged |
 | 9b | 1 | BE | step `20261118_02` (after owner's prod dry run) | 9a + owner | | | | blocked: owner dry run |
-| 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | in review |
+| 10 | 3 | FE | Overview overall performance chart (standalone; mount after slices 4–7) | 2, 8 | Codex | `feat/PD-059-overall-performance` | #342 | merged |
 | 11 | 4 | BE | `fx-missing` + `fx-refetch` | 8 | | | | needs amendment |
 | 12 | 4 | FE | History re-fetch prompt | 11, 13 | | | | needs amendment |
 | 13 | 3 | FE | History page ([wave 3b](PD-059-wave3-history.md)) | 2 | Claude | `feat/PD-059-history` | #344 | in review |

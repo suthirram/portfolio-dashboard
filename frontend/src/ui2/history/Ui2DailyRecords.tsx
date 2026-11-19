@@ -4,10 +4,11 @@
 // investment. Figures come from assetCells, so they equal the classic table.
 import { useMemo, useState } from 'react'
 import type { HistoryRow } from '../../lib/api/client'
+import { formatDayMonthName } from '../../lib/formDates'
 import { fmtCurrency, type RegionKey } from '../../features/history/historyShared'
 import {
   ASSET_LABELS, ASSET_SYMBOL, DIRECTION_CUE, DIRECTION_TITLE, FILTER_LABELS,
-  assetCells, rowSource, shortDate, signedPercent, visibleAssets,
+  assetCells, rowSource, signedPercent, visibleAssets,
   type AssetFilter, type HistoryAsset,
 } from './historyCells'
 
@@ -77,7 +78,7 @@ export function Ui2DailyRecords({ rows, filter, onFilter, onEdit, onSelectRegion
               return (
                 <tr key={row.date}>
                   <td>
-                    <strong>{shortDate(row.date)}</strong>
+                    <strong>{formatDayMonthName(row.date)}</strong>
                     {row.tentative && <span className="u2h-live-label">LIVE</span>}
                     <span className="u2h-source">{rowSource(row)}</span>
                   </td>

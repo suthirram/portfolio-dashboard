@@ -4,7 +4,7 @@ import {
   regionDailyVolatility, regionPnLPct,
 } from '../../features/history/historyShared'
 import {
-  assetCells, longMonthLabel, monthOptions, rowSource, shortDate, signedPercent, visibleAssets,
+  assetCells, longMonthLabel, monthOptions, rowSource, signedPercent, visibleAssets,
 } from './historyCells'
 import { linePath } from './Ui2MiniChart'
 
@@ -105,8 +105,7 @@ describe('rowSource', () => {
 })
 
 describe('formatting', () => {
-  it('writes the handoff short date and signed percentages', () => {
-    expect(shortDate('2026-11-06')).toBe('06 Nov')
+  it('writes signed percentages like the handoff', () => {
     expect(signedPercent(1.236)).toBe('+1.24%')
     expect(signedPercent(-1.01)).toBe('−1.01%')
     expect(signedPercent(0)).toBe('0.00%')
