@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Ui2TradeImport } from './Ui2TradeImport'
 import type { Holding } from '../../types'
+import { TRADE_CSV_EXAMPLE_HEADER } from '../../features/transactions/tradeCsv'
 
 const HOLDINGS: Holding[] = [
   { id: 'h1', script: 'TCS', symbol: 'TCS.NS', currency: 'INR', exchange: 'NSE',
@@ -60,13 +61,28 @@ describe('Ui2TradeImport', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 
-  it('advances to preview after file upload', async () => {
+  it('loads a selected CSV into the editor and validates it on request', async () => {
     render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    expect(await screen.findByRole('dialog', { name: 'Preview import' })).toBeInTheDocument()
+    await screen.findByDisplayValue('header\nrow')
+    expect(screen.getByRole('textbox', { name: 'CSV contents' })).toHaveValue('header\nrow')
+    expect(screen.getByRole('button', { name: 'Validate CSV' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    expect(await screen.findByRole('table', { name: 'Trade preview' })).toBeInTheDocument()
     expect(screen.getByText('1 ready')).toBeInTheDocument()
+  })
+
+  it('loads the example header and validates pasted CSV contents', async () => {
+    render(<Ui2TradeImport holdings={HOLDINGS} onClose={onClose} onImported={onImported} />)
+    const textarea = screen.getByRole('textbox', { name: 'CSV contents' })
+    await userEvent.click(screen.getByRole('button', { name: 'Load example' }))
+    expect(textarea).toHaveValue(TRADE_CSV_EXAMPLE_HEADER)
+    await userEvent.clear(textarea)
+    await userEvent.type(textarea, 'Stock name,Symbol,Type,Quantity,Value,Exchange,Execution date and time\nTCS,TCS.NS,BUY,5,5000,NSE,01/10/2026')
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    expect(await screen.findByRole('table', { name: 'Trade preview' })).toBeInTheDocument()
   })
 
   it('calls onImported after successful import', async () => {
@@ -74,10 +90,12 @@ describe('Ui2TradeImport', () => {
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    await screen.findByRole('dialog', { name: 'Preview import' })
+    await screen.findByDisplayValue('header\nrow')
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    await screen.findByRole('button', { name: 'Confirm import' })
     await userEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
-    expect(await screen.findByRole('dialog', { name: 'Import complete' })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(await screen.findByRole('status')).toHaveTextContent('1 imported')
+    await userEvent.click(await screen.findByRole('button', { name: 'Done' }))
     expect(onImported).toHaveBeenCalledOnce()
   })
 
@@ -86,9 +104,11 @@ describe('Ui2TradeImport', () => {
     const file = new File(['header\nrow'], 'trades.csv', { type: 'text/csv' })
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
     await userEvent.upload(fileInput, file)
-    await screen.findByRole('dialog', { name: 'Preview import' })
+    await screen.findByDisplayValue('header\nrow')
+    await userEvent.click(screen.getByRole('button', { name: 'Validate CSV' }))
+    await screen.findByRole('button', { name: 'Confirm import' })
     await userEvent.click(screen.getByRole('button', { name: 'Confirm import' }))
-    await screen.findByRole('dialog', { name: 'Import complete' })
+    await screen.findByRole('status')
     // Dismiss via × / backdrop (the Dismiss button in the mock stands in for both).
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(onImported).toHaveBeenCalledOnce()
