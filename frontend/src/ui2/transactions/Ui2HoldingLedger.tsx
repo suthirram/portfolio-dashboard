@@ -53,8 +53,8 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
     {!editor && err && <p role="alert" className="ui2-form-error">{err}</p>}
     {editor ? ledgerForm : <>
       <p className="ui2-subtitle">{holding.symbol} · {holding.currency}</p>
-      <p className="ui2-dialog-note">Opening balances are managed on the holding. These events belong to this holding.</p>
-      <div style={{ maxWidth: '100%', overflowX: 'auto' }}><table className="ui2-table" style={{ minWidth: '32rem' }}>
+      <div role="region" aria-label="Transaction events" tabIndex={0} style={{ maxWidth: '100%', overflowX: 'auto' }}>
+        <table className="ui2-table ui2-ledger-table" style={{ minWidth: '32rem' }}>
         <thead><tr>{['Date', 'Type', 'Shares', 'Amount', ''].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
         <tbody>{transactions.toSorted((left, right) => (right.date || '').localeCompare(left.date || '')).map(transaction =>
           <tr key={transaction.id}>
@@ -65,9 +65,10 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
           </tr>)}</tbody>
       </table></div>
       {loading ? <p>Loading…</p> : !err && !transactions.length && <p>No transactions yet.</p>}
-      <div className="ui2-dialog-actions"><button className="ui2-btn ui2-btn-primary" onClick={() => {
+      <p className="ui2-dialog-note">Opening balances are managed on the holding. These events belong to this holding.</p>
+      <button className="ui2-btn ui2-btn-primary" onClick={() => {
         resetForm(); setEditor(true)
-      }}>Add event</button></div>
+      }}>Add event</button>
     </>}
   </Ui2Dialog>
 }

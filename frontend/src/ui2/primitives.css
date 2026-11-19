@@ -280,6 +280,18 @@
 :root[data-ui="ui2"] .ui2-form-full { grid-column: 1 / -1; }
 :root[data-ui="ui2"] .ui2-asset-form .ui2-dialog-actions .ui2-btn-primary { width: auto; }
 
+/* Handoff .tx-table: the ledger is a left-aligned event list. */
+:root[data-ui="ui2"] .ui2-ledger-table { font-size: 12px; margin-top: 18px; }
+:root[data-ui="ui2"] .ui2-ledger-table th {
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: .6px;
+  color: var(--u2-muted);
+  padding: 15px;
+}
+:root[data-ui="ui2"] .ui2-ledger-table td { text-align: left; padding: 16px 15px; }
+
 @media (max-width: 760px) {
   :root[data-ui="ui2"] .ui2-asset-form { grid-template-columns: minmax(0, 1fr); }
   :root[data-ui="ui2"] .ui2-formrow { grid-template-columns: 1fr; }
