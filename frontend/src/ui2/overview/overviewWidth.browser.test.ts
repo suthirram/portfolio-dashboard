@@ -38,8 +38,9 @@ describe.skipIf(!browser)('UI_2.0 Overview width', () => {
       })
       await page.route('https://fonts.googleapis.com/**', route => route.fulfill({ contentType: 'text/css', body: '' }))
       await page.goto(fixture.baseUrl, { waitUntil: 'domcontentloaded' })
-      // The caveat note is on the page, so the check below is not vacuous.
-      await page.locator('.holdings-table-wrap .sr-only').first().waitFor({ state: 'attached' })
+      // Wait for the UI_2.0 holdings table (not .holdings-table-wrap: UI_2.0
+      // renders Ui2Holdings via renderRows, skipping the classic sr-only path).
+      await page.locator('.u2-holdings').first().waitFor({ state: 'attached' })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     } finally { await page.close() }
   }, 60_000)

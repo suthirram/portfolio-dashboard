@@ -25,8 +25,8 @@ export function money(value: Amount, currency: string) {
 export function signedMoney(value: Amount, currency: string) {
   return !usable(value) ? '—' : (value < 0 ? '−' : '+') + money(Math.abs(value), currency)
 }
-const signedPercent = (value: Amount) => !usable(value) ? '—' : (value < 0 ? '−' : '+') + Math.abs(value).toFixed(2) + '%'
-const tone = (value: Amount) => !usable(value) ? '' : value < 0 ? 'u2-negative' : 'u2-positive'
+export const signedPercent = (value: Amount) => !usable(value) ? '—' : (value < 0 ? '−' : '+') + Math.abs(value).toFixed(2) + '%'
+export const tone = (value: Amount) => !usable(value) ? '' : value < 0 ? 'u2-negative' : 'u2-positive'
 
 export const GOLD_LABEL = 'Physical gold'
 
