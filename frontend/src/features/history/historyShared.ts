@@ -223,6 +223,12 @@ export function changedRegions(
   return out
 }
 
+// isAllManual reports whether every currency on the row was entered by hand.
+// Only such a row may be deleted, except by a super admin (ErrCronProtected).
+export function isAllManual(regions: Record<string, RegionSnapshot>): boolean {
+  return Object.values(regions).every(snapshot => snapshot.source === 'manual')
+}
+
 // ---- Currency mapping ----
 // Region → display currency. Holdings are stored per-region in the
 // snapshot (DD-002 §2.1); the UI here translates to original currency
@@ -606,6 +612,18 @@ export function goldCurrentDirection(
   if (!gold || !prevGold) return null
   const delta = gold.current - prevGold.current
   return delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
+}
+
+// goldInvestedWentUp mirrors regionInvestedWentUp for the gold overlay: the
+// purple "new investment" tint when gold invested rose versus the prior row.
+// Rows newest-first. A prior row without an overlay (before the first
+// purchase) counts as zero invested, so the day gold first appears is
+// marked, as a currency's first investment is; no prior row at all is not.
+export function goldInvestedWentUp(rows: HistoryRow[], i: number): boolean {
+  const prev = rows[i + 1]
+  const gold = rows[i].gold
+  if (!prev || !gold) return false
+  return gold.invested > (prev.gold?.invested ?? 0)
 }
 
 // bucketCurrency mirrors the backend's CurrencyOf (services/snapshot.go):

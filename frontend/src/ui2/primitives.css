@@ -1,0 +1,137 @@
+/* Shared UI_2.0 building blocks (PD-059), ported 1:1 from the handoff's
+ * .intro, h1, .subtitle, .panel, .btn, table and tone rules. Every UI_2.0
+ * page uses these classes instead of its own copy; page files keep only
+ * their own layout. Scoped under :root[data-ui="ui2"] like ui2.css. */
+
+:root[data-ui="ui2"] .ui2-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 28px 0 22px;
+  gap: 18px;
+}
+
+:root[data-ui="ui2"] .ui2-intro h1 {
+  font: 800 27px var(--u2-font-display);
+  letter-spacing: -1px;
+  margin: 0 0 7px;
+  color: var(--u2-text);
+}
+
+:root[data-ui="ui2"] .ui2-subtitle {
+  margin: 0;
+  color: var(--u2-muted);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .ui2-intro-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .ui2-panel {
+  background: var(--u2-panel);
+  border: 1px solid var(--u2-border);
+  border-radius: 13px;
+  box-shadow: var(--u2-shadow);
+  overflow: hidden;
+  color: var(--u2-text);
+}
+
+:root[data-ui="ui2"] .ui2-panel h2 {
+  font: 700 15px var(--u2-font-display);
+  margin: 0;
+}
+
+:root[data-ui="ui2"] .ui2-btn {
+  border: 1px solid var(--u2-border);
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  border-radius: 8px;
+  padding: 10px 13px;
+  font: 600 12px var(--u2-font);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .ui2-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+:root[data-ui="ui2"] .ui2-btn:focus-visible {
+  outline: 3px solid var(--u2-accent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="ui2"] .ui2-btn-primary {
+  background: #5265d8;
+  color: white;
+  border-color: #5265d8;
+  box-shadow: 0 4px 10px #5265d81a;
+}
+
+:root[data-ui="ui2"][data-theme="cyberpunk"] .ui2-btn-primary {
+  background: #6ee7ef;
+  border-color: #6ee7ef;
+  color: #172238;
+}
+
+:root[data-ui="ui2"] .ui2-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="ui2"] .ui2-table th {
+  text-align: right;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  color: var(--u2-muted);
+  font-weight: 500;
+  padding: 10px 12px;
+  background: var(--u2-bg);
+  white-space: nowrap;
+}
+
+:root[data-ui="ui2"] .ui2-table td {
+  text-align: right;
+  padding: 15px 12px;
+  border-bottom: 1px solid var(--u2-border);
+  white-space: nowrap;
+}
+
+:root[data-ui="ui2"] .ui2-table tr:last-child td {
+  border-bottom: 0;
+}
+
+:root[data-ui="ui2"] .u2-positive { color: var(--u2-green); }
+:root[data-ui="ui2"] .u2-negative { color: var(--u2-red); }
+:root[data-ui="ui2"] .u2-muted { color: var(--u2-muted); }
+
+@media (min-width: 1500px) {
+  :root[data-ui="ui2"] .ui2-table td {
+    padding-top: 19px;
+    padding-bottom: 19px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-ui="ui2"] .ui2-intro {
+    margin: 23px 0 18px;
+    align-items: flex-start;
+  }
+
+  :root[data-ui="ui2"] .ui2-intro h1 { font-size: 23px; }
+
+  :root[data-ui="ui2"] .ui2-subtitle {
+    font-size: 10px;
+    line-height: 1.7;
+  }
+}

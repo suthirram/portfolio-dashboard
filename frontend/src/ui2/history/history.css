@@ -1,0 +1,453 @@
+/* UI_2.0 History (PD-059 slice 13), ported 1:1 from the handoff's
+ * .history-*, .month-summary, .snapshot-* and .snapshot-graph rules onto the
+ * --u2-* palette. Class names carry a u2h- prefix; shared pieces (panel,
+ * button, table, tones) live in ../primitives.css. */
+
+:root[data-ui="ui2"] .u2h-page { color: var(--u2-text); }
+
+:root[data-ui="ui2"] .u2h-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 25px 0 20px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .u2h-month-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+:root[data-ui="ui2"] .u2h-month-select {
+  border: 1px solid var(--u2-border);
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  border-radius: 6px;
+  font: 700 15px var(--u2-font);
+  padding: 10px 15px;
+}
+
+:root[data-ui="ui2"] .u2h-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+:root[data-ui="ui2"] .u2h-controls label {
+  font-size: 11px;
+  color: var(--u2-muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+:root[data-ui="ui2"] .u2h-alert {
+  border: 1px solid var(--u2-red);
+  background: var(--u2-redsoft);
+  color: var(--u2-red);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2h-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--u2-muted);
+  margin-bottom: 20px;
+}
+
+:root[data-ui="ui2"] .u2h-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+:root[data-ui="ui2"] .u2h-intro p {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: var(--u2-muted);
+}
+
+/* ---------- Month in review ---------- */
+
+:root[data-ui="ui2"] .u2h-month-summary {
+  padding: 20px 23px;
+  margin-bottom: 20px;
+}
+
+:root[data-ui="ui2"] .u2h-month-summary table { margin-top: 18px; }
+
+:root[data-ui="ui2"] .u2h-month-summary th,
+:root[data-ui="ui2"] .u2h-month-summary td { padding: 11px 16px; }
+
+:root[data-ui="ui2"] .u2h-month-summary th:first-child,
+:root[data-ui="ui2"] .u2h-month-summary td:first-child {
+  width: 29%;
+  padding-left: 0;
+  text-align: left;
+}
+
+:root[data-ui="ui2"] .u2h-month-summary thead th { background: transparent; }
+
+/* The metric names are row headers: body text, not column-header type. */
+:root[data-ui="ui2"] .u2h-month-summary tbody th {
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--u2-text);
+  background: transparent;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2h-month-summary tr:last-child th { border-bottom: 0; }
+
+:root[data-ui="ui2"] .u2h-month-summary td:last-child { padding-right: 0; }
+
+:root[data-ui="ui2"] .u2h-method-note {
+  color: var(--u2-muted);
+  font-size: 10px;
+  line-height: 1.7;
+  margin: 13px 0 0;
+}
+
+/* ---------- Daily records ---------- */
+
+:root[data-ui="ui2"] .u2h-snapshot-panel { margin-bottom: 20px; }
+
+:root[data-ui="ui2"] .u2h-snapshot-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 19px 22px;
+  border-bottom: 1px solid var(--u2-border);
+  gap: 10px;
+}
+
+:root[data-ui="ui2"] .u2h-snapshot-top .ui2-subtitle { margin-top: 6px; }
+
+:root[data-ui="ui2"] .u2h-filters {
+  display: flex;
+  gap: 5px;
+}
+
+:root[data-ui="ui2"] .u2h-filters button {
+  font: 11px var(--u2-font);
+  padding: 7px 11px;
+  border: 1px solid var(--u2-border);
+  background: none;
+  border-radius: 7px;
+  color: var(--u2-muted);
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .u2h-filters button.active {
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  border-color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2h-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 18px;
+  font-size: 10px;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  border-radius: 5px;
+  margin-left: 6px;
+}
+
+:root[data-ui="ui2"] .u2h-snap-scroll { overflow-x: auto; }
+
+:root[data-ui="ui2"] .u2h-snapshots { min-width: 1050px; }
+
+:root[data-ui="ui2"] .u2h-snapshots[data-single="true"] { min-width: 650px; }
+
+:root[data-ui="ui2"] .u2h-snapshots thead tr:first-child th {
+  padding: 13px 12px;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2h-snapshots th {
+  font-size: 9px;
+  padding: 10px 12px;
+}
+
+:root[data-ui="ui2"] .u2h-snapshots td { padding: 14px 12px; }
+
+:root[data-ui="ui2"] .u2h-snapshots th:first-child,
+:root[data-ui="ui2"] .u2h-snapshots td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--u2-panel);
+  z-index: 1;
+  text-align: left;
+  min-width: 125px;
+}
+
+:root[data-ui="ui2"] .u2h-snapshots .u2h-group-border { border-left: 1px solid var(--u2-border); }
+
+:root[data-ui="ui2"] .u2h-day-link {
+  border: 0;
+  background: none;
+  color: var(--u2-accent);
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .u2h-source {
+  display: block;
+  font-size: 8px;
+  margin-top: 5px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .u2h-live-label {
+  font-size: 8px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  margin-left: 4px;
+}
+
+:root[data-ui="ui2"] .u2h-edit {
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+:root[data-ui="ui2"] .u2h-up { background: rgba(34, 197, 94, 0.18); }
+:root[data-ui="ui2"] .u2h-down { background: rgba(239, 68, 68, 0.18); }
+:root[data-ui="ui2"] .u2h-flat { background: rgba(59, 130, 246, 0.18); }
+
+:root[data-ui="ui2"] .u2h-new {
+  background: rgba(168, 85, 247, 0.18);
+  font-weight: 600;
+}
+
+:root[data-ui="ui2"] .u2h-dividend-day { background: var(--u2-greensoft); }
+
+:root[data-ui="ui2"] .u2h-move { color: var(--u2-text); }
+
+:root[data-ui="ui2"] .u2h-cue {
+  display: block;
+  font-size: 8px;
+  font-weight: 500;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+:root[data-ui="ui2"] .u2h-none .u2h-cue { color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2h-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--u2-border);
+  font-size: 10px;
+}
+
+:root[data-ui="ui2"] .u2h-legend > span {
+  border-radius: 5px;
+  padding: 6px 9px;
+}
+
+:root[data-ui="ui2"] .u2h-legend small {
+  width: 100%;
+  font-size: 10px;
+  color: var(--u2-muted);
+  line-height: 1.6;
+}
+
+:root[data-ui="ui2"] .u2h-overflow-note {
+  font-size: 10px;
+  color: var(--u2-muted);
+  padding: 12px 20px;
+}
+
+/* ---------- per-asset charts ---------- */
+
+:root[data-ui="ui2"] .u2h-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+:root[data-ui="ui2"] .u2h-asset-charts { padding: 20px; }
+
+:root[data-ui="ui2"] .u2h-asset-charts .u2h-intro {
+  border-bottom: 1px solid var(--u2-border);
+  padding-bottom: 15px;
+}
+
+:root[data-ui="ui2"] .u2h-asset-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+:root[data-ui="ui2"] .u2h-graph {
+  padding: 0;
+  min-width: 0;
+}
+
+:root[data-ui="ui2"] .u2h-graph svg {
+  width: 100%;
+  height: auto;
+  min-height: 125px;
+  margin-top: 12px;
+  display: block;
+}
+
+:root[data-ui="ui2"] .u2h-graph p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--u2-muted);
+  margin: 6px 0 0;
+}
+
+:root[data-ui="ui2"] .u2h-graph circle:focus { outline: 2px solid var(--u2-accent); }
+
+:root[data-ui="ui2"] .u2h-graph-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+:root[data-ui="ui2"] .u2h-graph-title h3 {
+  font-size: 11px;
+  margin: 0;
+  color: var(--u2-muted);
+  font-weight: 500;
+}
+
+:root[data-ui="ui2"] .u2h-graph-title span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+:root[data-ui="ui2"] .u2h-graph-expand {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+:root[data-ui="ui2"] .u2h-graph-expand:focus-visible {
+  outline: 3px solid var(--u2-accent);
+  outline-offset: 2px;
+}
+
+:root[data-ui="ui2"] .u2h-graph-empty {
+  min-height: 125px;
+  display: grid;
+  place-content: center;
+}
+
+:root[data-ui="ui2"] .u2h-current-line {
+  fill: none;
+  stroke: var(--u2-accent);
+  stroke-width: 2.2;
+}
+
+:root[data-ui="ui2"] .u2h-move-line {
+  fill: none;
+  stroke: var(--u2-muted);
+  stroke-width: 2.2;
+}
+
+:root[data-ui="ui2"] .u2h-invested-line {
+  fill: none;
+  stroke: var(--u2-muted);
+  stroke-width: 2.2;
+  stroke-dasharray: 6 4;
+}
+
+:root[data-ui="ui2"] .u2h-legend-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 10px;
+  color: var(--u2-muted);
+  margin: 2px 0 10px;
+}
+
+:root[data-ui="ui2"] .u2h-legend-lines span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:root[data-ui="ui2"] .u2h-legend-line {
+  width: 17px;
+  border-top: 2px solid var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2h-legend-invested {
+  border-color: var(--u2-muted);
+  border-top-style: dashed;
+}
+
+@media (max-width: 1050px) {
+  :root[data-ui="ui2"] .u2h-asset-chart-grid { grid-template-columns: 1fr; }
+
+  :root[data-ui="ui2"] .u2h-graph {
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--u2-border);
+  }
+
+  :root[data-ui="ui2"] .u2h-graph:last-child { border: 0; }
+
+  :root[data-ui="ui2"] .u2h-graph svg { max-height: 220px; }
+}
+
+@media (max-width: 760px) {
+  :root[data-ui="ui2"] .u2h-toolbar {
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  :root[data-ui="ui2"] .u2h-controls { flex-wrap: wrap; }
+
+  :root[data-ui="ui2"] .u2h-controls label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  :root[data-ui="ui2"] .u2h-month-summary { padding: 17px; }
+
+  :root[data-ui="ui2"] .u2h-month-summary th,
+  :root[data-ui="ui2"] .u2h-month-summary td {
+    padding: 10px 7px;
+    font-size: 10px;
+  }
+
+  :root[data-ui="ui2"] .u2h-month-summary th:first-child,
+  :root[data-ui="ui2"] .u2h-month-summary td:first-child { width: 31%; }
+
+  :root[data-ui="ui2"] .u2h-snapshot-top {
+    padding: 17px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :root[data-ui="ui2"] .u2h-intro { align-items: flex-start; }
+}

@@ -772,6 +772,14 @@ describe('HistoryTable gold cell tints', () => {
     expect(norm(goldCells('2026-06-17')[11].style.background)).toBe('rgba(168,85,247,0.18)') // purple
   })
 
+  it('gold invested cell is purple on the day gold first appears', () => {
+    render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
+      row({ date: '2026-06-17', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 7300, 1) }),
+      row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') } }), // before the first purchase
+    ]} />)
+    expect(norm(goldCells('2026-06-17')[11].style.background)).toBe('rgba(168,85,247,0.18)') // purple
+  })
+
   it('gold cells keep the plain gold tint when nothing changed / no prior', () => {
     render(<HistoryTable currency="INR" onDelete={() => {}} rows={[
       row({ date: '2026-06-16', regions: { INR: region(100, 200, 'cron') }, gold: gold(7200, 14000, 94) }),
