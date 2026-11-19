@@ -10,7 +10,8 @@ const HOLDINGS: Holding[] = [
     stocks_owned: 10, avg_cost_price: 1000 },
 ]
 
-vi.mock('../../features/transactions/tradeCsv', () => ({
+vi.mock('../../features/transactions/tradeCsv', async importOriginal => ({
+  ...await importOriginal<typeof import('../../features/transactions/tradeCsv')>(),
   parseTradeCsv: (_text: string, _today: string) => ({
     rows: [{ symbol: 'TCS.NS', type: 'buy', date: '2026-10-01', quantity: 5, amount: 5000, line: 2, status: 'ready' }],
     errors: [],
