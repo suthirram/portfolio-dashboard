@@ -108,6 +108,19 @@ describe('Ui2TransactionsPage', () => {
     expect(screen.getByRole('link', { name: 'Exit act-as' })).toHaveAttribute('href', '/admin')
   })
 
+  it('aligns columns like the Classic table: words left, codes centred, numbers right', () => {
+    render(<Ui2TransactionsPage />)
+    const table = screen.getByRole('table', { name: 'Transactions' })
+    const header = (name: RegExp) => screen.getAllByRole('columnheader').find(th => name.test(th.textContent ?? ''))!
+    for (const name of [/^Date/, /^Holding/, /^Event/]) expect(header(name)).toHaveClass('u2-left')
+    expect(header(/^Currency/)).toHaveClass('u2-center')
+    expect(header(/^Amount/)).not.toHaveClass('u2-left')
+    const firstRow = table.querySelectorAll('tbody tr')[0]
+    const cells = [...firstRow.querySelectorAll('td')]
+    expect(cells.slice(0, 3).every(cell => cell.classList.contains('u2-left'))).toBe(true)
+    expect(cells.some(cell => cell.classList.contains('u2-center') && /^(INR|EUR)$/.test(cell.textContent ?? ''))).toBe(true)
+  })
+
   it('shows currency summary panels', () => {
     render(<Ui2TransactionsPage />)
     expect(screen.getByRole('region', { name: 'INR transaction totals' })).toBeInTheDocument()
