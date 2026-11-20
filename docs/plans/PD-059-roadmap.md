@@ -47,25 +47,25 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | --- | --- | --- | --- | --- |
 | R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | merged (#359) |
 | R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | merged (#362) |
-| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | in progress (Codex; board #28) |
-| R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | ready |
-| R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens, delta sub-route (22–27) | — | ready |
-| R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | ready |
+| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | merged (#369, #371) |
+| R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | in review (#375) |
+| R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens (22–26); delta sub-route (27) waits on R22 | — | in review (#378) |
+| R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | in review (#380) |
 | R07 | FE | Guard the History table against page-width overflow (`position: relative`, browser test at 390 / 768 px) | — | merged (#361) |
 | R08 | FE | Holding details: costs, income, XIRR, and the existing holding, opening-date and review forms (6) | R01 | merged (#359) |
 | R09 | FE | Overview allocation, Currency mix, Holdings / Performance tabs, sector jump (OVW-1), mount `OverallPerformance` (7) | R01, R08 | merged (#360) |
 | R10 | FE | Transactions page (16) | R02 | merged (#364) |
 | R11 | FE | Trade import: upload, paste, example (17) | R10 | merged (#366) |
-| R12 | FE | Dividends page (18) | R03 | blocked |
-| R13 | FE | Dividend import: upload, paste, example (19) | R12 | blocked |
-| R14 | FE | Gold table (15 columns), Details, modal, metrics (20) | R04 | blocked |
-| R15 | FE | Gold prices (daily, 30 days, all months) and missing-price prompt (21) | R14 | blocked |
-| R16 | FE | Act-as in UI_2.0 under the banner, gold excluded (22) | R05, R09 | blocked |
-| R17 | FE | Admin user list and detail (23) | R05 | blocked |
-| R18 | BE | Allowed Branding fonts from the server, only if not already exposed (needed by R19) | R05 | blocked |
-| R19 | FE | Super-admin pages: Manage admins, Branding with DM Sans and Manrope (24) | R17, R18 | blocked |
-| R20 | FE | Profile (25) | R05 | blocked |
-| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05 | blocked |
+| R12 | FE | Dividends page (18) | R03 | in review (#373) |
+| R13 | FE | Dividend import: upload, paste, example (19) | R12 | in review (#374, stacked on #373) |
+| R14 | FE | Gold table (15 columns), Details, modal, metrics (20) | R04, R12 | in review (#376, stacked on #373) |
+| R15 | FE | Gold prices (daily, 30 days, all months) and missing-price prompt (21) | R14 | in review (#377, stacked on #376) |
+| R16 | FE | Act-as in UI_2.0 under the banner, gold excluded (22) | R05, R09, R12 | in review (#383, stacked on #373) |
+| R17 | FE | Admin user list and detail (23) | R05 | in review (#379) |
+| R18 | BE | Add DM Sans and Manrope to the allowed fonts with measured fallback faces (the list itself is already exposed) | PD-059-Q-6b-1 | owner |
+| R19 | FE | Super-admin pages: Manage admins, Branding (24); new fonts appear when R18 lands | R17 | in review (#381, stacked on #379) |
+| R20 | FE | Profile (25) | R05 | in review (#382) |
+| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05, PD-059-Q-6e-1 | in review (#384) |
 | R22 | FE | Investment delta as a Transactions sub-route (27, tentative) | R10, owner | owner |
 | R23 | BE | Register migration step `20261118_02` (9b) | owner's production dry run of `migrate overall` | owner |
 | R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21, R28 | blocked |
