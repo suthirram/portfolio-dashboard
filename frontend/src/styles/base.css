@@ -45,6 +45,190 @@
   line-gap-override: 0%;
 }
 
+/* The PD-059 Branding fonts, measured the same way against Arial / Arial
+ * Bold (weighted average glyph width and hhea ascent / descent / line gap
+ * of the google/fonts files at weight 400 and 700). */
+@font-face {
+  font-family: "DM Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 106.77%;
+  ascent-override: 92.91%;
+  descent-override: 29.03%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "DM Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 104.41%;
+  ascent-override: 95.01%;
+  descent-override: 29.69%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 103.74%;
+  ascent-override: 102.76%;
+  descent-override: 28.92%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 100.93%;
+  ascent-override: 105.62%;
+  descent-override: 29.72%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 107.35%;
+  ascent-override: 90.24%;
+  descent-override: 22.47%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 102.02%;
+  ascent-override: 94.96%;
+  descent-override: 23.64%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Source Sans 3 Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 94.38%;
+  ascent-override: 108.49%;
+  descent-override: 42.38%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Source Sans 3 Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 92.21%;
+  ascent-override: 111.05%;
+  descent-override: 43.38%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Lato Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 99.35%;
+  ascent-override: 99.34%;
+  descent-override: 21.44%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Lato Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 92.89%;
+  ascent-override: 106.25%;
+  descent-override: 22.93%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Nunito Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 101.62%;
+  ascent-override: 99.49%;
+  descent-override: 34.74%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Nunito Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 97.63%;
+  ascent-override: 103.55%;
+  descent-override: 36.16%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "IBM Plex Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 101.32%;
+  ascent-override: 101.16%;
+  descent-override: 27.14%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "IBM Plex Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 98.22%;
+  ascent-override: 104.36%;
+  descent-override: 28%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Open Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 105.81%;
+  ascent-override: 101.02%;
+  descent-override: 27.69%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Open Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 105.15%;
+  ascent-override: 101.65%;
+  descent-override: 27.86%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Poppins Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 113.86%;
+  ascent-override: 92.22%;
+  descent-override: 30.74%;
+  line-gap-override: 8.78%;
+}
+@font-face {
+  font-family: "Poppins Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 107.61%;
+  ascent-override: 97.58%;
+  descent-override: 32.53%;
+  line-gap-override: 9.29%;
+}
+@font-face {
+  font-family: "Work Sans Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  font-weight: 100 500;
+  size-adjust: 113.27%;
+  ascent-override: 82.10%;
+  descent-override: 21.45%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Work Sans Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  font-weight: 600 900;
+  size-adjust: 104.64%;
+  ascent-override: 88.88%;
+  descent-override: 23.22%;
+  line-gap-override: 0%;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

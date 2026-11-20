@@ -8,9 +8,16 @@ const DEFAULT_FONT: BrandingFont = 'roboto'
 // load errors). The server's allowed_fonts is the source of truth once loaded.
 // Each stack's second family is its metric-adjusted fallback face
 // (styles/base.css), matching the server's stacks.
+const sansStack = (label: string) => `"${label}", "${label} Fallback", Arial, sans-serif`
+
 export const FONT_CATALOG: { id: BrandingFont; label: string; css_family: string }[] = [
   { id: 'roboto', label: 'Roboto', css_family: 'Roboto, "Roboto Fallback", Arial, sans-serif' },
   { id: 'jetbrains_mono', label: 'JetBrains Mono', css_family: '"JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+  ...([
+    ['dm_sans', 'DM Sans'], ['manrope', 'Manrope'], ['inter', 'Inter'], ['source_sans_3', 'Source Sans 3'],
+    ['lato', 'Lato'], ['nunito_sans', 'Nunito Sans'], ['ibm_plex_sans', 'IBM Plex Sans'], ['open_sans', 'Open Sans'],
+    ['poppins', 'Poppins'], ['work_sans', 'Work Sans'],
+  ] as Array<[BrandingFont, string]>).map(([id, label]) => ({ id, label, css_family: sansStack(label) })),
 ]
 
 const FONT_STACKS = Object.fromEntries(FONT_CATALOG.map(option => [option.id, option.css_family])) as Record<BrandingFont, string>
