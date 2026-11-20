@@ -4,9 +4,14 @@ import { DecimalInput } from '../../components/DecimalInput'
 import { formatDate } from '../../lib/formDates'
 import { NEW_TYPES, TYPE_LABEL, useHoldingLedger, type LedgerProps } from '../../features/holdings/useHoldingLedger'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
+import { useAuthOptional } from '../../features/auth/AuthContext'
+import { useTheme } from '../../lib/useTheme'
+import { CurrencyPill } from './TransactionCurrency'
 import './ledger.css'
 
 export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
+  const auth = useAuthOptional()
+  const { theme: activeTheme } = useTheme({ premium: auth?.user?.premium })
   const [editor, setEditor] = useState(false)
   const { currencySign, transactions, loading, err, form, setForm, editingId, saving, confirm, setConfirm, resetForm,
     recompute, startEdit, submit, remove, money, formatQuantity, isCorporate, isMerger, isOpening, impliedCostPerShare
@@ -63,7 +68,7 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
     {editor ? ledgerForm : <>
       <p className="u2-ledger-meta">
         <span>Holding: <strong>{holding.symbol || holding.script}</strong></span>
-        <span>Currency: <strong>{holding.currency}</strong></span>
+        <span>Currency: <strong><CurrencyPill currency={holding.currency} theme={activeTheme} /></strong></span>
       </p>
       <div role="region" aria-label="Transaction events" tabIndex={0} className="u2-ledger-scroll">
         <table className="ui2-table ui2-ledger-table">
