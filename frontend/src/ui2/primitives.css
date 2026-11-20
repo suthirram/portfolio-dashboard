@@ -108,6 +108,12 @@
   white-space: nowrap;
 }
 
+/* Column alignment follows the Classic tables: numbers right (the default),
+   words left, short codes centred. Put the class on the th and every td of
+   the column so header and values line up. */
+:root[data-ui="ui2"] .ui2-table :is(th, td).u2-left { text-align: left; }
+:root[data-ui="ui2"] .ui2-table :is(th, td).u2-center { text-align: center; }
+
 :root[data-ui="ui2"] .ui2-table tr:last-child td {
   border-bottom: 0;
 }

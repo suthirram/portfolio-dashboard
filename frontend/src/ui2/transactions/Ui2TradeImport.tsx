@@ -125,11 +125,11 @@ export function Ui2TradeImport({ holdings, userId, onClose, onImported }: Props)
           {visiblePreviewRows.length > 0 && (
             <div style={{ overflowX: 'auto', marginTop: 16 }}>
               <table className="ui2-table" aria-label="Trade preview">
-                <thead><tr><th scope="col">Date</th><th scope="col">Symbol</th><th scope="col">Type</th><th scope="col">Shares</th><th scope="col">Amount</th></tr></thead>
+                <thead><tr><th scope="col" className="u2-left">Date</th><th scope="col" className="u2-left">Symbol</th><th scope="col" className="u2-left">Type</th><th scope="col">Shares</th><th scope="col">Amount</th></tr></thead>
                 <tbody>
                   {visiblePreviewRows.map((row, index) => (
                     <tr key={`${row.line}-${index}`}>
-                      <td>{row.date}</td><td>{row.symbol}</td><td>{row.type}</td>
+                      <td className="u2-left">{row.date}</td><td className="u2-left">{row.symbol}</td><td className="u2-left">{row.type}</td>
                       <td>{row.quantity.toLocaleString('en-IN', { maximumFractionDigits: 4 })}</td>
                       <td>₹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
