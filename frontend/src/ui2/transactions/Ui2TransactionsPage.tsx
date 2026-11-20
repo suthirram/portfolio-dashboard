@@ -11,6 +11,7 @@ import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
+import { TransactionCurrency, currencyFlag } from './TransactionCurrency'
 import { Ui2HoldingLedger } from './Ui2HoldingLedger'
 import TradeImportModal from '../../features/transactions/TradeImportModal'
 import { stockIconStyle } from '../overview/holdingIcon'
@@ -91,7 +92,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
         <div className="u2-tx-summaries">
           {subtotals.map(sub => (
             <section key={sub.currency} className="ui2-panel u2-tx-summary" aria-label={`${sub.currency} transaction totals`}>
-              <div className="u2-tx-summary-eyebrow">{sub.currency} · filtered totals</div>
+              <div className="u2-tx-summary-eyebrow"><TransactionCurrency currency={sub.currency} /> · filtered totals</div>
               <div className="u2-tx-totals">
                 <div><span>Bought</span><strong>{money(sub.bought, sub.currency)}</strong></div>
                 <div><span>Sold</span><strong>{money(sub.sold, sub.currency)}</strong></div>
@@ -136,7 +137,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
               onChange={event => setFilter('currencies', event.target.value ? [event.target.value] : [])}
             >
               <option value="">All currencies</option>
-              {currencies.map(code => <option key={code} value={code}>{code}</option>)}
+                {currencies.map(code => <option key={code} value={code}>{currencyFlag(code)} {code}</option>)}
             </select>
           )}
           <select
@@ -243,7 +244,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
                         {cols.ratio && <td>{txn.ratio != null && txn.ratio !== 0 ? txn.ratio : '—'}</td>}
                         {cols.realizedSeed && <td>{txn.realized_seed != null && txn.realized_seed !== 0 ? money(txn.realized_seed, currency) : '—'}</td>}
                         {cols.openingDate && <td>{txn.type === 'opening' ? (txn.opening_date ?? '—') : ''}</td>}
-                        <td>{currency}</td>
+                        <td><TransactionCurrency currency={currency} /></td>
                         {cols.notes && <td>{txn.notes || '—'}</td>}
                         <td>
                           {holding && (

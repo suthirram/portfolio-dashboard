@@ -4,6 +4,7 @@ import { DecimalInput } from '../../components/DecimalInput'
 import { formatDate } from '../../lib/formDates'
 import { NEW_TYPES, TYPE_LABEL, useHoldingLedger, type LedgerProps } from '../../features/holdings/useHoldingLedger'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
+import { TransactionCurrency } from './TransactionCurrency'
 import './ledger.css'
 
 export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: LedgerProps) {
@@ -63,7 +64,7 @@ export function Ui2HoldingLedger({ holding, onClose, onChanged, userId }: Ledger
     {editor ? ledgerForm : <>
       <p className="u2-ledger-meta">
         <span>Holding: <strong>{holding.symbol || holding.script}</strong></span>
-        <span>Currency: <strong>{holding.currency}</strong></span>
+        <span>Currency: <strong><TransactionCurrency currency={holding.currency} /></strong></span>
       </p>
       <div role="region" aria-label="Transaction events" tabIndex={0} className="u2-ledger-scroll">
         <table className="ui2-table ui2-ledger-table">

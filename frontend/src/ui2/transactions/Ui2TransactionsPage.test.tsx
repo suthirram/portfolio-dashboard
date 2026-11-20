@@ -122,6 +122,8 @@ describe('Ui2TransactionsPage', () => {
 
   it('shows currency summary panels', () => {
     render(<Ui2TransactionsPage />)
-    expect(screen.getByRole('region', { name: 'INR transaction totals' })).toBeInTheDocument()
+    const summary = screen.getByRole('region', { name: 'INR transaction totals' })
+    expect(summary).toHaveTextContent('🇮🇳 INR · filtered totals')
+    expect(screen.getAllByRole('cell', { name: 'INR' })).toHaveLength(3)
   })
 })
