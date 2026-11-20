@@ -39,13 +39,13 @@ function ClassicProfilePage() {
   }
   const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }
 
-  const message = (m: FormMessage) =>
-    m && (
+  const message = (formMessage: FormMessage) =>
+    formMessage && (
       <div style={{
         marginTop: 8,
-        color: m.kind === 'ok' ? 'var(--green)' : 'var(--red)',
+        color: formMessage.kind === 'ok' ? 'var(--green)' : 'var(--red)',
         fontSize: 13,
-      }}>{m.text}</div>
+      }}>{formMessage.text}</div>
     )
 
   return (
@@ -115,10 +115,10 @@ function ClassicProfilePage() {
                 onChange={e => updateQA(i, { questionId: e.target.value })}
                 style={{ ...inputStyle, marginBottom: 8 }}>
                 <option value="">Question {i + 1}…</option>
-                {questions.map(q => (
-                  <option key={q.id} value={q.id}
-                    disabled={q.id !== qa.questionId && usedIds.has(q.id)}>
-                    {q.prompt}
+                {questions.map(question => (
+                  <option key={question.id} value={question.id}
+                    disabled={question.id !== qa.questionId && usedIds.has(question.id)}>
+                    {question.prompt}
                   </option>
                 ))}
               </select>
