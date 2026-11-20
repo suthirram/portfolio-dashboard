@@ -48,7 +48,7 @@ vi.mock('./Ui2HoldingLedger', () => ({
 }))
 
 vi.mock('./Ui2InvestmentDelta', () => ({
-  Ui2InvestmentDelta: () => <div data-testid="investment-delta" />,
+  Ui2InvestmentDeltaLink: () => <div data-testid="investment-delta-link" />,
 }))
 
 vi.mock('../shell/Ui2PageIntro', () => ({
@@ -63,12 +63,12 @@ describe('Ui2TransactionsPage', () => {
     load.refresh.mockClear()
   })
 
-  it('shows the investment delta on the user’s own ledger, not in act-as', () => {
+  it('links to the investment delta on the user’s own ledger, not in act-as', () => {
     const { unmount } = render(<Ui2TransactionsPage />)
-    expect(screen.getByTestId('investment-delta')).toBeInTheDocument()
+    expect(screen.getByTestId('investment-delta-link')).toBeInTheDocument()
     unmount()
     render(<MemoryRouter><Ui2TransactionsPage actAsUserId="u9" actAsLabel="alice's transactions" /></MemoryRouter>)
-    expect(screen.queryByTestId('investment-delta')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('investment-delta-link')).not.toBeInTheDocument()
   })
 
   it('keeps the filters and offers a retry after a load error', async () => {

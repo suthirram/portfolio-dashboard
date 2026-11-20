@@ -163,7 +163,24 @@
   :root[data-ui="ui2"] .u2-tx-filters :is(input, select, button) { min-block-size: 44px; }
 }
 
-/* Investment delta, inline (PD-059 R22) */
+/* Investment delta link card on Transactions (PD-059 R33) */
+:root[data-ui="ui2"] .u2-tx-delta-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  color: var(--u2-text);
+  text-decoration: none;
+}
+
+:root[data-ui="ui2"] .u2-tx-delta-link strong { display: block; font: 700 15px var(--u2-font-display); }
+:root[data-ui="ui2"] .u2-tx-delta-link small { display: block; margin-top: 4px; color: var(--u2-muted); font-size: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-link-go { color: var(--u2-accent); font-weight: 700; white-space: nowrap; }
+:root[data-ui="ui2"] .u2-tx-delta-link:is(:hover, :focus-visible) { border-color: var(--u2-accent); }
+
+/* Investment delta graph, on its sub-route (PD-059 R22, R33) */
 :root[data-ui="ui2"] .u2-tx-delta { padding: 18px; margin-bottom: 20px; }
 
 :root[data-ui="ui2"] .u2-tx-delta-head {
@@ -179,9 +196,9 @@
 :root[data-ui="ui2"] .u2-tx-delta-year .ui2-btn { padding: 6px 10px; }
 :root[data-ui="ui2"] .u2-tx-delta-columns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 :root[data-ui="ui2"] .u2-tx-delta-columns .ui2-btn { padding: 6px 12px; font-size: 12px; }
-:root[data-ui="ui2"] .u2-tx-delta-chart { height: 260px; margin-top: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-chart { height: 420px; margin-top: 12px; }
 
 @media (max-width: 760px) {
   :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
-  :root[data-ui="ui2"] .u2-tx-delta-chart { height: 220px; }
+  :root[data-ui="ui2"] .u2-tx-delta-chart { height: 300px; }
 }
