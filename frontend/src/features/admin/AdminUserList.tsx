@@ -1,41 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type Region, type User } from '../../lib/api/client'
-import { useUiRevamp } from '../../lib/uiMode'
+import { api, type User } from '../../lib/api/client'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
+import { Ui2AdminUsers } from '../../ui2/admin/Ui2AdminUsers'
 import { AdminShell } from './AdminShell'
 import { AdminUserSettings, FEATURE_SWITCHES, UiModeSelect, type FeatureSwitch } from './AdminUserSettings'
 import { useAdminActions } from './useAdminActions'
+import { useAdminUsers } from './useAdminUsers'
 
 type StatusFilter = 'active' | 'all'
 
+// AdminUserList is a pure dispatcher: only useUiMode() lives here. All
+// Classic and Glass hooks live in ClassicAdminUserList so the hook count is
+// stable across mode changes.
 export default function AdminUserList() {
-  const [users, setUsers] = useState<User[]>([])
-  const [regions, setRegions] = useState<Region[]>([])
-  const [loading, setLoading] = useState(true)
-  const [status, setStatus] = useState<StatusFilter>('active')
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2AdminUsers />
+  return <ClassicAdminUserList />
+}
+
+function ClassicAdminUserList() {
+  const { users, regions, includeHidden, setIncludeHidden, loading, err, load, regionLabel } = useAdminUsers()
   const [filter, setFilter] = useState('')
-  const [err, setErr] = useState<string | null>(null)
+  const status: StatusFilter = includeHidden ? 'all' : 'active'
+  const setStatus = (next: StatusFilter) => setIncludeHidden(next === 'all')
 
   const revamp = useUiRevamp()
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setErr(null)
-    try {
-      const data = await api.adminListUsers(status === 'all')
-      setUsers(data)
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }, [status])
-
-  useEffect(() => { void load() }, [load])
-  useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])
-
-  const regionLabel = useCallback((id: string) =>
-    regions.find(region => region.id === id)?.label ?? id, [regions])
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase()
