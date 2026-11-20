@@ -1,0 +1,202 @@
+/* UI_2.0 Administration (PD-059 slices 23–24), ported from the handoff's
+ * .admin-* / .perspective-* rules onto the --u2-* palette. Prefixed u2-admin-
+ * because Glass already owns the bare .admin-* names. */
+
+:root[data-ui="ui2"] .u2-admin-root { display: grid; gap: 20px; }
+
+:root[data-ui="ui2"] .u2-admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+
+:root[data-ui="ui2"] .u2-admin-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-admin-workspace {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+:root[data-ui="ui2"] .u2-admin-list { overflow: hidden; padding: 0; }
+
+:root[data-ui="ui2"] .u2-admin-list-tools {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--u2-border);
+  font-size: 12px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .u2-admin-list-tools input[type="search"] {
+  width: 100%;
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  border: 1px solid var(--u2-border);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+:root[data-ui="ui2"] .u2-admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-admin-check input { accent-color: var(--u2-accent); min-width: 18px; min-height: 18px; }
+
+:root[data-ui="ui2"] .u2-admin-user-list { max-height: 600px; overflow: auto; }
+
+:root[data-ui="ui2"] .u2-admin-user {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px 16px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--u2-border);
+  background: transparent;
+  color: var(--u2-text);
+  cursor: pointer;
+  font: inherit;
+}
+
+:root[data-ui="ui2"] .u2-admin-user[aria-pressed="true"] {
+  background: var(--u2-accentsoft);
+  box-shadow: inset 3px 0 var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2-admin-user strong { display: block; font-size: 12px; margin-bottom: 5px; }
+:root[data-ui="ui2"] .u2-admin-user small { font-size: 11px; color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2-admin-avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  border-radius: 14px;
+  font-weight: 800;
+}
+
+:root[data-ui="ui2"] .u2-admin-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--u2-green);
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+:root[data-ui="ui2"] .u2-admin-dot.locked { background: #c99b42; }
+:root[data-ui="ui2"] .u2-admin-dot.hidden { background: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2-admin-footer { padding: 15px 18px; color: var(--u2-muted); font-size: 11px; }
+
+:root[data-ui="ui2"] .u2-admin-detail { display: grid; gap: 16px; min-width: 0; }
+
+:root[data-ui="ui2"] .u2-admin-head {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .u2-admin-head h2 { font: 800 21px var(--u2-font-display); margin: 0 0 7px; }
+
+:root[data-ui="ui2"] .u2-admin-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--u2-muted);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-admin-role {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+:root[data-ui="ui2"] .u2-admin-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--u2-greensoft);
+  color: var(--u2-green);
+}
+
+:root[data-ui="ui2"] .u2-admin-status.locked { background: #bc973020; color: #bd9434; }
+:root[data-ui="ui2"] .u2-admin-status.hidden { background: var(--u2-bg); color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2-admin-section { padding: 22px; }
+:root[data-ui="ui2"] .u2-admin-section h2 { font: 700 15px var(--u2-font-display); margin: 0 0 8px; }
+:root[data-ui="ui2"] .u2-admin-danger { border-color: color-mix(in srgb, var(--u2-red) 35%, var(--u2-border)); }
+
+:root[data-ui="ui2"] .u2-admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2-admin-row:last-child { border-bottom: 0; padding-bottom: 0; }
+:root[data-ui="ui2"] .u2-admin-row strong { font-size: 12px; font-weight: 600; }
+:root[data-ui="ui2"] .u2-admin-row p { font-size: 11px; color: var(--u2-muted); line-height: 1.6; margin: 6px 0 0; }
+
+:root[data-ui="ui2"] .u2-admin-label { display: grid; gap: 7px; font-size: 12px; color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2-admin-select {
+  border: 1px solid var(--u2-border);
+  background: var(--u2-panel);
+  color: var(--u2-text);
+  padding: 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  max-width: 170px;
+}
+
+:root[data-ui="ui2"] .u2-admin-confirm-input {
+  width: 100%;
+  margin: 18px 0 0;
+  padding: 11px;
+  color: var(--u2-text);
+  background: var(--u2-bg);
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+}
+
+:root[data-ui="ui2"] .u2-admin-empty { text-align: center; color: var(--u2-muted); padding: 34px 16px; }
+
+@media (max-width: 1050px) {
+  :root[data-ui="ui2"] .u2-admin-workspace { grid-template-columns: 240px 1fr; }
+}
+
+@media (max-width: 700px) {
+  :root[data-ui="ui2"] .u2-admin-workspace { grid-template-columns: 1fr; }
+  :root[data-ui="ui2"] .u2-admin-user-list { max-height: 230px; }
+  :root[data-ui="ui2"] .u2-admin-row { gap: 12px; flex-wrap: wrap; }
+  :root[data-ui="ui2"] .u2-admin-section { padding: 18px; }
+  :root[data-ui="ui2"] .u2-admin-head .ui2-btn { width: 100%; text-align: center; }
+}
