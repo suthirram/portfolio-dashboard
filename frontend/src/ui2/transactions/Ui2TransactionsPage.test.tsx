@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { Ui2TransactionsPage } from './Ui2TransactionsPage'
 
+const load = vi.hoisted(() => ({ error: '', refresh: vi.fn() }))
+
 vi.mock('../../features/transactions/useAllTransactions', () => ({
   useAllTransactions: () => ({
     transactions: [
@@ -30,8 +32,8 @@ vi.mock('../../features/transactions/useAllTransactions', () => ({
         stocks_owned: 100, avg_cost_price: 1500 },
     ],
     loading: false,
-    error: null,
-    refresh: vi.fn(),
+    error: load.error,
+    refresh: load.refresh,
   }),
 }))
 
@@ -51,7 +53,21 @@ vi.mock('../shell/Ui2PageIntro', () => ({
 }))
 
 describe('Ui2TransactionsPage', () => {
-  beforeEach(() => { document.documentElement.setAttribute('data-ui', 'ui2') })
+  beforeEach(() => {
+    document.documentElement.setAttribute('data-ui', 'ui2')
+    load.error = ''
+    load.refresh.mockClear()
+  })
+
+  it('keeps the filters and offers a retry after a load error', async () => {
+    load.error = 'Network down'
+    render(<Ui2TransactionsPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Network down')
+    expect(screen.getByRole('search', { name: 'Filter transactions' })).toBeInTheDocument()
+    expect(screen.queryByText('No transactions match the current filters.')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(load.refresh).toHaveBeenCalledOnce()
+  })
 
   it('renders all transactions by default', () => {
     render(<Ui2TransactionsPage />)
