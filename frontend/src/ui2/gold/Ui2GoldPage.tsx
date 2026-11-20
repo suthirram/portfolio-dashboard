@@ -3,14 +3,14 @@ import type { GoldTransaction } from '../../lib/api/client'
 import { formatDate } from '../../lib/formDates'
 import { formatRate } from '../../lib/rate'
 import { useGoldData } from '../../features/gold/useGoldData'
-import GoldPricesPanel from '../../features/gold/GoldPricesPanel'
-import MissingPricesModal from '../../features/gold/MissingPricesModal'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { AssetStats, type AssetStat } from '../asset/AssetStats'
 import { money, signedMoney } from '../overview/Ui2SummaryCards'
 import { GOLD_COLUMNS, goldCell, grams, nimmiTone } from './goldColumns'
 import { Ui2GoldDetails } from './Ui2GoldDetails'
 import { Ui2GoldEditor } from './Ui2GoldEditor'
+import { Ui2GoldPrices } from './Ui2GoldPrices'
+import { MissingPricesAlert, Ui2MissingPrices } from './Ui2MissingPrices'
 import '../asset/asset.css'
 import './gold.css'
 
@@ -102,6 +102,10 @@ export function Ui2GoldPage() {
           ))}
         </section>
 
+        {!loading && missing.length > 0 && (
+          <MissingPricesAlert count={missing.length} onReview={() => setPromptSkipped(false)} />
+        )}
+
         <section className="ui2-panel">
           <div className="asset-search">
             <h2 style={{ font: '700 15px var(--u2-font-display)', margin: 0 }}>Purchase ledger</h2>
@@ -153,7 +157,7 @@ export function Ui2GoldPage() {
           </div>
         </section>
 
-        {!loading && <GoldPricesPanel prices={prices} onSaved={() => void refresh()} />}
+        {!loading && <Ui2GoldPrices prices={prices} onSaved={() => void refresh()} />}
       </section>
 
       {editing && (
@@ -168,7 +172,7 @@ export function Ui2GoldPage() {
         />
       )}
       {!loading && !promptSkipped && missing.length > 0 && !editing && !details && (
-        <MissingPricesModal missing={missing} onSkip={() => setPromptSkipped(true)} onSaved={() => void refresh()} />
+        <Ui2MissingPrices missing={missing} onSkip={() => setPromptSkipped(true)} onSaved={refresh} />
       )}
     </>
   )
