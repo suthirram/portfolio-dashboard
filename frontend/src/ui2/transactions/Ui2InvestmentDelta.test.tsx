@@ -1,8 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { Ui2InvestmentDelta, Ui2InvestmentDeltaLink, Ui2InvestmentDeltaPage } from './Ui2InvestmentDelta'
+import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
+
+const OPEN_KEY = 'pd_u2_txn_delta_open'
+
+// Node 22 exposes localStorage only with --localstorage-file; provide a simple
+// in-memory stand-in so the component's window.localStorage?.* calls work.
+const lsStore: Record<string, string> = {}
+const lsMock = {
+  getItem: (key: string) => lsStore[key] ?? null,
+  setItem: (key: string, val: string) => { lsStore[key] = val },
+  removeItem: (key: string) => { delete lsStore[key] },
+  clear: () => { for (const key of Object.keys(lsStore)) delete lsStore[key] },
+}
+Object.defineProperty(window, 'localStorage', { value: lsMock, configurable: true })
 
 const mockApi = vi.hoisted(() => ({ getInvestmentDelta: vi.fn(), listHistory: vi.fn() }))
 vi.mock('../../lib/api/client', async () => {
@@ -29,6 +41,7 @@ const months = (count: number) => Array.from({ length: count }, (_, month0) => (
 beforeEach(() => {
   vi.clearAllMocks()
   drawn.column = ''
+  try { window.localStorage?.clear() } catch { /* unavailable in this env */ }
   mockApi.getInvestmentDelta.mockImplementation(async (year: number) => ({
     year,
     columns: [{ column: 'INR', months: months(12) }, { column: 'EUR', months: months(6) }],
@@ -36,8 +49,64 @@ beforeEach(() => {
 })
 
 describe('Ui2InvestmentDelta', () => {
-  it('charts the current year’s first column from the ledger', async () => {
-    render(<Ui2InvestmentDelta />)
+  async function openPanel() {
+    // The banner div[role=button] and the inner toggle <button> both expose
+    // 'Show chart' text; pick the last match which is the actual <button>.
+    const buttons = screen.getAllByRole('button', { name: /show chart/i })
+    await userEvent.click(buttons[buttons.length - 1])
+  }
+
+  it('starts collapsed and shows "Show chart" toggle', () => {
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    // Both the banner div[role=button] and inner <button> expose this text.
+    expect(screen.getAllByRole('button', { name: /show chart/i }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('img', { name: /Investment delta/ })).toBeNull()
+  })
+
+  it('opens and closes on toggle click, persisting to localStorage', async () => {
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    await openPanel()
+    expect(window.localStorage?.getItem(OPEN_KEY)).toBe('1')
+    await screen.findAllByRole('button', { name: /hide chart/i })
+    const hideButtons = screen.getAllByRole('button', { name: /hide chart/i })
+    await userEvent.click(hideButtons[hideButtons.length - 1])
+    expect(window.localStorage?.getItem(OPEN_KEY)).toBe('0')
+    expect(screen.getAllByRole('button', { name: /show chart/i })).not.toHaveLength(0)
+  })
+
+  it('restores saved open state from localStorage', async () => {
+    window.localStorage?.setItem(OPEN_KEY, '1')
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    expect(await screen.findByRole('img', { name: /Investment delta/ })).toBeInTheDocument()
+  })
+
+  it('shows teaser net change with sign (positive)', async () => {
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    // 12 months x delta 1000 = net +12000
+    expect(await screen.findByText(/\+₹12,000/)).toBeInTheDocument()
+  })
+
+  it('shows teaser net change with minus sign for negative annual delta', async () => {
+    mockApi.getInvestmentDelta.mockResolvedValue({
+      year: new Date().getFullYear(),
+      columns: [{ column: 'INR', months: months(12).map(mo => ({ ...mo, delta: -500 })) }],
+    })
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    // 12 months x delta -500 = net -6000; must display minus prefix, not bare 6,000
+    expect(await screen.findByText(/−₹6,000/)).toBeInTheDocument()
+    expect(screen.queryByText(/^\+/)).toBeNull()
+  })
+
+  it('collapsed body is inert so inner buttons are out of tab order', async () => {
+    const { container } = render(<Ui2InvestmentDelta refreshKey={0} />)
+    expect(container.querySelector('.u2-tx-delta-body')).toHaveAttribute('inert')
+    await openPanel()
+    await waitFor(() => expect(container.querySelector('.u2-tx-delta-body')).not.toHaveAttribute('inert'))
+  })
+
+  it('charts the current year first column from the ledger after opening', async () => {
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    await openPanel()
     const year = new Date().getFullYear()
     expect(await screen.findByRole('img', { name: new RegExp(`Investment delta ${year}`) })).toBeInTheDocument()
     expect(mockApi.getInvestmentDelta).toHaveBeenCalledWith(year)
@@ -47,7 +116,8 @@ describe('Ui2InvestmentDelta', () => {
   })
 
   it('switches column and year', async () => {
-    render(<Ui2InvestmentDelta />)
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    await openPanel()
     const year = new Date().getFullYear()
     const group = await screen.findByRole('group', { name: 'Investment delta column' })
     const eur = [...group.querySelectorAll('button')].find(button => button.getAttribute('aria-pressed') === 'false')!
@@ -59,42 +129,17 @@ describe('Ui2InvestmentDelta', () => {
 
   it('says when nothing was invested in the year', async () => {
     mockApi.getInvestmentDelta.mockResolvedValue({ year: 2026, columns: [] })
-    render(<Ui2InvestmentDelta />)
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    await openPanel()
     expect(await screen.findByText(/Nothing invested in/)).toBeInTheDocument()
   })
 
-})
-
-// Both routes, so following a link shows which page it reached.
-const renderAt = (path: string) => render(
-  <MemoryRouter initialEntries={[path]}>
-    <Routes>
-      <Route path="/transactions" element={<><p>Transactions page</p><Ui2InvestmentDeltaLink /></>} />
-      <Route path="/transactions/delta" element={<Ui2InvestmentDeltaPage />} />
-    </Routes>
-  </MemoryRouter>,
-)
-
-describe('investment delta sub-route', () => {
-  it('opens from the Transactions link card', async () => {
-    renderAt('/transactions')
-    await userEvent.click(screen.getByRole('link', { name: 'Open the investment delta' }))
-    expect(screen.getByRole('heading', { level: 1, name: 'Money in, month by month.' })).toBeInTheDocument()
-    expect(await screen.findByRole('img', { name: /Investment delta/ })).toBeInTheDocument()
-  })
-
-  it('reads the ledger afresh on every visit', async () => {
-    const { unmount } = renderAt('/transactions/delta')
-    await screen.findByRole('img', { name: /Investment delta/ })
-    unmount()
-    renderAt('/transactions/delta')
-    await screen.findByRole('img', { name: /Investment delta/ })
-    expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2)
-  })
-
-  it('leads back to Transactions', async () => {
-    renderAt('/transactions/delta')
-    await userEvent.click(screen.getByRole('link', { name: '‹ Back to Transactions' }))
-    expect(screen.getByText('Transactions page')).toBeInTheDocument()
+  it('reloads when the ledger changes', async () => {
+    render(<Ui2InvestmentDelta refreshKey={0} />)
+    // Data fetches eagerly (active: true) even while collapsed.
+    await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(1))
+    const { rerender } = render(<Ui2InvestmentDelta refreshKey={1} />)
+    await act(async () => { rerender(<Ui2InvestmentDelta refreshKey={1} />) })
+    await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2))
   })
 })

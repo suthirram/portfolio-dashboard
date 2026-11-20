@@ -163,42 +163,80 @@
   :root[data-ui="ui2"] .u2-tx-filters :is(input, select, button) { min-block-size: 44px; }
 }
 
-/* Investment delta link card on Transactions (PD-059 R33) */
-:root[data-ui="ui2"] .u2-tx-delta-link {
+/* Investment delta, inline collapsible with teaser (PD-059 R22, R33 resolved as inline) */
+:root[data-ui="ui2"] .u2-tx-delta { padding: 0; margin-bottom: 20px; overflow: hidden; }
+
+:root[data-ui="ui2"] .u2-tx-delta-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
-  margin-bottom: 20px;
-  color: var(--u2-text);
-  text-decoration: none;
+  gap: 14px;
+  padding: 15px 18px;
+  cursor: pointer;
+  user-select: none;
 }
 
-:root[data-ui="ui2"] .u2-tx-delta-link strong { display: block; font: 700 15px var(--u2-font-display); }
-:root[data-ui="ui2"] .u2-tx-delta-link small { display: block; margin-top: 4px; color: var(--u2-muted); font-size: 12px; }
-:root[data-ui="ui2"] .u2-tx-delta-link-go { color: var(--u2-accent); font-weight: 700; white-space: nowrap; }
-:root[data-ui="ui2"] .u2-tx-delta-link:is(:hover, :focus-visible) { border-color: var(--u2-accent); }
+:root[data-ui="ui2"] .u2-tx-delta-banner:hover { background: var(--u2-surface-hover, rgba(0,0,0,.03)); }
 
-/* Investment delta graph, on its sub-route (PD-059 R22, R33) */
-:root[data-ui="ui2"] .u2-tx-delta { padding: 18px; margin-bottom: 20px; }
+:root[data-ui="ui2"] .u2-tx-delta-title-col { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+:root[data-ui="ui2"] .u2-tx-delta-title { font: 700 15px var(--u2-font-display); }
+:root[data-ui="ui2"] .u2-tx-delta-year-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+  background: var(--u2-surface-bg, rgba(0,0,0,.06)); color: var(--u2-muted);
+}
+:root[data-ui="ui2"] .u2-tx-delta-sub {
+  width: 100%; margin: 0; font-size: 12px; color: var(--u2-muted); order: 1; flex-basis: 100%;
+}
 
-:root[data-ui="ui2"] .u2-tx-delta-head {
+:root[data-ui="ui2"] .u2-tx-delta-banner-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+:root[data-ui="ui2"] .u2-tx-delta-teaser {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--u2-border);
+  border-radius: 9px;
+  color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .u2-tx-delta-teaser-val { font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+:root[data-ui="ui2"] .u2-tx-delta-toggle { font-size: 12px; padding: 6px 11px; }
+
+/* Collapsible body — smooth grid-row transition */
+:root[data-ui="ui2"] .u2-tx-delta-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s ease;
+}
+
+:root[data-ui="ui2"] .u2-tx-delta-body.is-open { grid-template-rows: 1fr; }
+
+:root[data-ui="ui2"] .u2-tx-delta-inner { overflow: hidden; }
+
+:root[data-ui="ui2"] .u2-tx-delta-panel {
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .u2-tx-delta-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-:root[data-ui="ui2"] .u2-tx-delta-head h2 { font: 700 15px var(--u2-font-display); margin: 0; }
 :root[data-ui="ui2"] .u2-tx-delta-year { display: flex; align-items: center; gap: 8px; }
 :root[data-ui="ui2"] .u2-tx-delta-year .ui2-btn { padding: 6px 10px; }
-:root[data-ui="ui2"] .u2-tx-delta-columns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-columns { display: flex; flex-wrap: wrap; gap: 6px; }
 :root[data-ui="ui2"] .u2-tx-delta-columns .ui2-btn { padding: 6px 12px; font-size: 12px; }
-:root[data-ui="ui2"] .u2-tx-delta-chart { height: 420px; margin-top: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-chart { height: 260px; margin-top: 12px; }
 
 @media (max-width: 760px) {
   :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
-  :root[data-ui="ui2"] .u2-tx-delta-chart { height: 300px; }
+  :root[data-ui="ui2"] .u2-tx-delta-chart { height: 220px; }
+  :root[data-ui="ui2"] .u2-tx-delta-teaser { display: none; }
 }

@@ -4,7 +4,7 @@
 * **Updated**: 2026-11-19
 * **Owner**: Claude
 * **Goal**: Render the portfolio-wide ledger view and the Groww CSV trade import in the UI_2.0 shell, reusing all existing pure logic (filters, sort, pagination, CSV parsing) and replacing only the shell and styling layer.
-* **Architecture**: `TransactionsPage` gains a `useUiMode()` guard that renders `Ui2TransactionsPage` for UI_2.0 accounts, leaving every Classic and Glass path unchanged. The new page uses `transactionFilters.ts`, `useAllTransactions`, `Pager`, `Ui2HoldingLedger`, and `InvestmentDeltaPanel` without modification. `TradeImportModal` gains the same guard: when `ui2`, it delegates to `Ui2TradeImport`, which wraps the same `parseTradeCsv` / `api.importTrades` flow in a `Ui2Dialog`.
+* **Architecture**: `TransactionsPage` gains a `useUiMode()` guard that renders `Ui2TransactionsPage` for UI_2.0 accounts, leaving every Classic and Glass path unchanged. The new page uses `transactionFilters.ts`, `useAllTransactions`, `Pager`, `Ui2HoldingLedger`, and `Ui2InvestmentDelta` (inline collapsible with teaser; R22 resolved). `TradeImportModal` gains the same guard: when `ui2`, it delegates to `Ui2TradeImport`, which wraps the same `parseTradeCsv` / `api.importTrades` flow in a `Ui2Dialog`.
 * **Tech stack**: React 18, TypeScript, Vitest + Testing Library, existing typed API client.
 * **Spec links**: [PRD-015](../prds/PRD-015-ui-2.md), [DD-015](../designs/DD-015-ui-2.md), [handoff (txRender, txDelta, txImport)](../visuals/PD-059-ui-2-reference.html), [parent plan](PD-059-ui-2.md), [status board](PD-059-ui-2-status.md).
 
@@ -51,7 +51,7 @@ Deploy through the per-account `ui_mode` flag. Classic and Glass routes are unch
 
 Resolved (owner, 2026-11-19):
 
-* The investment delta (R22) is tentative and gated on a future decision — do not add it to slice 16. The delta button is hidden in UI_2.0 until R22 is scoped. `InvestmentDeltaPanel` is not rendered in the UI_2.0 page.
+* The investment delta (R22, resolved 2026-11-20) renders inline as a **collapsible banner with teaser sparkline** — no sub-route (R33 resolved as inline). Collapsed state: banner shows title, year badge, subtitle, and a mini sparkline with the year's net change. Expanded: full chart drops down via CSS grid-row transition. Data fetches eagerly (`active: true`) so the teaser has figures without user interaction. `Ui2InvestmentDelta` owns the open/closed state in `localStorage` (`pd_u2_txn_delta_open`).
 * The UI_2.0 trade import uses the same validation rules and API call as the Classic import; the only difference is the dialog chrome.
 * Pagination keeps the existing `PAGE_SIZE = 15` from `usePagination.ts`.
 * The stock icon in the transaction table uses the same `stockIconStyle` as Overview; extract it to `holdingIcon.ts` in slice 16 to avoid duplication.
@@ -266,7 +266,7 @@ The reference design defines the transactions table with `.tx-table`, `.tx-tag` 
 
 * `frontend/src/ui2/transactions/Ui2TransactionsPage.tsx` (create)
 
-The page owns the filter state, sort state, ledger-open state, and paginated rows. It delegates all pure logic to the existing `transactionFilters.ts` exports and renders using `primitives.css` table, panel, and button classes. The investment delta button is hidden (R22 is not in scope); the Import button opens the existing `TradeImportModal` (which will be ui2-guarded in task 5). `Ui2HoldingLedger` is opened inline as a dialog keyed to the selected holding.
+The page owns the filter state, sort state, ledger-open state, and paginated rows. It delegates all pure logic to the existing `transactionFilters.ts` exports and renders using `primitives.css` table, panel, and button classes. `Ui2InvestmentDelta` renders inline between the summary cards and the filter bar as a collapsible banner with teaser sparkline (R22, R33 resolved as inline). The Import button opens the existing `TradeImportModal` (which will be ui2-guarded in task 5). `Ui2HoldingLedger` is opened inline as a dialog keyed to the selected holding.
 
 * [ ] Create `frontend/src/ui2/transactions/Ui2TransactionsPage.tsx`:
 
