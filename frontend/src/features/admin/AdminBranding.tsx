@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { ApiError, type BrandingFont } from '../../lib/api/client'
 import { FONT_CATALOG, useBranding } from '../../lib/useBranding'
-import { useUiRevamp } from '../../lib/uiMode'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
+import { Ui2AdminBranding } from '../../ui2/admin/Ui2AdminBranding'
 import { AdminShell } from './AdminShell'
 
+// AdminBranding is a pure dispatcher: only useUiMode() lives here, so the
+// hook count is stable across mode changes.
 export default function AdminBranding() {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2AdminBranding />
+  return <ClassicAdminBranding />
+}
+
+function ClassicAdminBranding() {
   const { settings, font, loading, error, setFont } = useBranding()
   const [saving, setSaving] = useState<BrandingFont | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)

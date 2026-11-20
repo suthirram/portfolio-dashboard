@@ -5,7 +5,7 @@ import { api, type Region, type User } from '../../lib/api/client'
 import { UI_MODE_LABELS, type UiMode } from '../../lib/uiMode'
 import { FEATURE_SWITCHES, initials, statusOf, type FeatureSwitch } from '../../features/admin/AdminUserSettings'
 import { useAdminActions } from '../../features/admin/useAdminActions'
-import { useAdminUsers } from '../../features/admin/useAdminUsers'
+import { useAdminUsers, type AdminSection } from '../../features/admin/useAdminUsers'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
 import './admin.css'
@@ -38,8 +38,11 @@ interface Confirmation {
 // selected account's settings. Every permission rule and API call is the one
 // Classic and Glass already use (useAdminActions); only the layout differs,
 // and confirmations are dialogs instead of browser prompts.
-export function Ui2AdminUsers() {
-  const { users, regions, includeHidden, setIncludeHidden, loading, err, load, regionLabel } = useAdminUsers()
+// section 'admins' is the super admin's Administrators tab: the same layout
+// over the administrator list, which has no hidden accounts to include.
+export function Ui2AdminUsers({ section = 'users' }: { section?: AdminSection }) {
+  const { users, regions, includeHidden, setIncludeHidden, loading, err, load, regionLabel } = useAdminUsers(section)
+  const listLabel = section === 'admins' ? 'Administrators' : 'Users'
   const { caller, busy, runAction, toggleFeature, setUiMode } = useAdminActions(load)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -73,15 +76,17 @@ export function Ui2AdminUsers() {
         {err && <p className="ui2-note" role="alert">{err}</p>}
 
         <div className="u2-admin-workspace">
-          <section className="ui2-panel u2-admin-list" aria-label="Users">
+          <section className="ui2-panel u2-admin-list" aria-label={listLabel}>
             <div className="u2-admin-list-tools">
-              <label htmlFor="u2-admin-search">Search users</label>
+              <label htmlFor="u2-admin-search">Search {listLabel.toLowerCase()}</label>
               <input id="u2-admin-search" type="search" placeholder="Name or username" value={query}
                 onChange={event => setQuery(event.target.value)} />
-              <label className="u2-admin-check">
-                <input type="checkbox" checked={includeHidden} onChange={event => setIncludeHidden(event.target.checked)} />
-                Include hidden accounts
-              </label>
+              {section === 'users' && (
+                <label className="u2-admin-check">
+                  <input type="checkbox" checked={includeHidden} onChange={event => setIncludeHidden(event.target.checked)} />
+                  Include hidden accounts
+                </label>
+              )}
             </div>
             <div className="u2-admin-user-list">
               {loading && users.length === 0 && <p className="u2-admin-empty" aria-live="polite">Loading…</p>}
