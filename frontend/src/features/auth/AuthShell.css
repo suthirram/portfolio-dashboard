@@ -1,0 +1,43 @@
+/* Signup, forgot-password and onboarding on the login's sunrise design
+ * (PD-059 slice 26, Light only; login itself is #330). The card, title,
+ * subtitle, error, submit and footer reuse LoginPage.css; these rules add
+ * what those forms have and the login does not: plain inputs and selects
+ * without a leading icon, hints and field errors. */
+
+/* Light only, whatever theme the browser last used: the pages' own inline
+   styles read these tokens, so they are pinned to light values here. */
+.sunrise-auth {
+  --border: #d5d8e4;
+  --bg-card: rgb(255 255 255 / 45%);
+  --bg-input: rgb(255 255 255 / 42%);
+  --text-primary: #0b1024;
+  --text-secondary: #444d64;
+  --text-muted: #555d73;
+  --red: #a51b35;
+  --blue: #073dc7;
+}
+
+.sunrise-auth .sunrise-login-card { width: min(100%, 30rem); }
+
+.sunrise-auth .sunrise-login-field > label :is(input, select) { display: block; margin-top: .375rem; }
+
+/* Every text field and select in the card, including the ones signup lays
+   out itself (its security-question blocks) outside FormField. */
+.sunrise-auth .sunrise-login-card :is(input:not([type="checkbox"]):not([type="radio"]), select) {
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: .625rem 1rem;
+  color: #151b30;
+  background: rgb(255 255 255 / 42%);
+  border: 1px solid #858b9c;
+  border-radius: var(--radius-sm, 12px);
+  font-size: max(1rem, 1em);
+}
+
+.sunrise-auth .sunrise-login-card :is(input, select):focus { outline: none; box-shadow: var(--ring); border-color: #245dbb; }
+
+.sunrise-auth-hint { margin-top: .375rem; font-size: .75rem; color: #555d73; }
+.sunrise-auth-field-error { margin-top: .375rem; font-size: .75rem; color: #a51b35; }
+
+.sunrise-auth .sunrise-login-submit { margin-top: .5rem; }
