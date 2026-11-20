@@ -1,6 +1,6 @@
 # PD-059: Wave 6f — Investment delta sub-route (slice 27, R33)
 
-* **Status**: Planned; implementation in review on `feat/PD-059-r33-delta-route`.
+* **Status**: Implemented and merged: slice 27 (#400); plan #399.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: In UI_2.0 the investment delta graph moves off the Transactions page to its own page, `/transactions/delta`. Transactions keeps a compact link card to it, so the ledger table sits higher.
@@ -119,6 +119,6 @@ export default function InvestmentDeltaRoute() {
 
 ## Done
 
-* Slice 27 specified.
+* Slice 27 specified and merged (#400).
 
 Next: R23 (owner's production dry run), then R25 → R26 → R27.

@@ -6,6 +6,9 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 const DAY_MONTH_NAME_FORMAT = new Intl.DateTimeFormat('en', {
   day: '2-digit', month: 'short', timeZone: 'UTC',
 })
+const DAY_MONTH_YEAR_NAME_FORMAT = new Intl.DateTimeFormat('en', {
+  day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC',
+})
 
 function splitISO(iso: string | null | undefined): { y: string; m: string; d: string } | null {
   if (!iso) return null
@@ -31,15 +34,30 @@ export function formatDayMonth(iso: string | null | undefined): string {
   return parts ? `${parts.d}-${parts.m}` : iso ?? ''
 }
 
-// formatDayMonthName renders YYYY-MM-DD as "16 Nov" for compact chart axes.
-export function formatDayMonthName(iso: string | null | undefined): string {
+// formatNamed renders a YYYY-MM-DD through a month-name format as its parts
+// in day-first order joined by spaces, so the result never follows the
+// locale's own order or punctuation ("Nov 16, 2026"). Non-parseable input is
+// returned unchanged, same as formatDate.
+function formatNamed(iso: string | null | undefined, format: Intl.DateTimeFormat): string {
   const parts = splitISO(iso)
   if (!parts) return iso ?? ''
   const date = new Date(Date.UTC(Number(parts.y), Number(parts.m) - 1, Number(parts.d)))
-  const formatted = DAY_MONTH_NAME_FORMAT.formatToParts(date)
-  const day = formatted.find(part => part.type === 'day')?.value
-  const month = formatted.find(part => part.type === 'month')?.value
-  return day && month ? `${day} ${month}` : DAY_MONTH_NAME_FORMAT.format(date)
+  const formatted = format.formatToParts(date)
+  const pieces = (['day', 'month', 'year'] as const)
+    .map(type => formatted.find(part => part.type === type)?.value)
+    .filter((value): value is string => value !== undefined)
+  return pieces.length > 0 ? pieces.join(' ') : format.format(date)
+}
+
+// formatDayMonthName renders YYYY-MM-DD as "16 Nov" for compact chart axes.
+export function formatDayMonthName(iso: string | null | undefined): string {
+  return formatNamed(iso, DAY_MONTH_NAME_FORMAT)
+}
+
+// formatDayMonthYearName renders YYYY-MM-DD as "16 Nov 2026", the handoff's
+// date style on the UI_2.0 asset pages, Dividends and Gold (PD-059 Q-5b-1).
+export function formatDayMonthYearName(iso: string | null | undefined): string {
+  return formatNamed(iso, DAY_MONTH_YEAR_NAME_FORMAT)
 }
 
 // todayIST is the current IST calendar day as YYYY-MM-DD — the browser twin

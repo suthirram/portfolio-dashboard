@@ -69,7 +69,7 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05, PD-059-Q-6e-1 | merged (#384); visual sign-off is an optional follow-up (Q-6e-1) |
 | R22 | FE | Investment delta graph back in UI_2.0, inline on the Transactions page (owner: the graph went missing); the sub-route waits on R33 | R10 | merged (#390) |
 | R23 | BE | Register migration step `20261118_02` (9b) | owner's production dry run of `migrate overall` | owner |
-| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left, and the same `Pager` on every paged list (Q-5a-1) | R09, R11, R13, R15, R16, R19, R20, R21, R22, R28, R29, R30 | merged (`test/PD-059-cutover-readiness`) |
+| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left, and the same `Pager` on every paged list (Q-5a-1) | R09, R11, R13, R15, R16, R19, R20, R21, R22, R28, R29, R30 | merged (#396) |
 | R25 | BE | New accounts default to `ui2`; migration step moves existing `classic` accounts | R24, owner approval | blocked |
 | R26 | FE | Remove the Classic shell and pages; Glass stays | R25 | blocked |
 | R27 | docs | Close out PD-059: archive the board, update CLAUDE.md architecture notes | R26, R28 | blocked |
@@ -77,9 +77,9 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | R29 | FE | Dividend add / edit / delete / delete-all dialogs in the handoff's `asset-form` inside `Ui2Dialog` (wave 5a follow-up; today they keep Classic chrome) | R13 | merged (#388) |
 | R30 | FE | UI_2.0 Transactions keeps its filters and offers Try again after a load error, like Dividends (#373 review) | R11 | merged (#387) |
 | R31 | FE | Monthly dividend chart labels thinned so they never overlap; the newest period always labelled (owner: fix) | R12 | merged (#389) |
-| R32 | FE | Asset-page dates in the handoff format `18 Nov 2026` (Q-5b-1), shipped with other minor UI fixes | owner go (2026-11-20) | in review (#398) |
-| R33 | FE | Investment delta as a Transactions sub-route (27; owner: move it, [wave 6f](PD-059-wave6f-delta-route.md)) | R22, owner | in review (`feat/PD-059-r33-delta-route`) |
-| R34 | FE | Microsoft fonts in Branding (Segoe UI, Calibri, Aptos): licensed, not web-loadable — "only if installed" choices, self-hosted Selawik, or none | owner | owner |
+| R32 | FE | Asset-page dates in the handoff format `18 Nov 2026` (Q-5b-1) | owner go (2026-11-20) | merged (#398) |
+| R33 | FE | Investment delta as a Transactions sub-route `/transactions/delta` (27; owner: move it, [wave 6f](PD-059-wave6f-delta-route.md)) | R22, owner | merged (#400) |
+| R34 | FE | Microsoft fonts in Branding (Segoe UI, Calibri, Aptos): licensed, not web-loadable — "only if installed" choices, self-hosted Selawik, or none | owner | dropped (owner, 2026-11-20) |
 | R35 | FE | Holding XIRR in the UI_2.0 details dialog (#391) and Classic table alignment for UI_2.0 tables (#392) | — | merged (#391, #392) |
 
 The server already exposes the allowed font list, so R19 shipped on R17 alone
@@ -89,13 +89,12 @@ fallback faces (PD-059-Q-6b-1).
 
 ## What is left (2026-11-20)
 
-Slices 1–26 and 29, follow-ups R18, R22 and R28–R31, R35 and the R24 cutover test are merged; only these remain before PD-059 closes.
+Slices 1–27 and 29, follow-ups R18, R22, R28–R33, R35 and the R24 cutover test are merged; R34 is dropped. Only these remain before PD-059 closes.
 
-**Ready (no owner input):** nothing. R24's cutover test passes on every route at 390 and 1280 px; it found and fixed a phone-width overflow on Transactions.
+**Ready (no owner input):** nothing. R24's cutover test (#396) passes on every route at 390 and 1280 px; it found and fixed a phone-width overflow on Transactions. The Dividends chart now gives every month (or year) between the first and last payment a bar, so its spacing follows time.
 
 **Waiting on the owner:**
 
-* R34 — whether and how to offer Microsoft fonts.
 * R23 — the owner's production dry run of `migrate overall`, then register step `20261118_02` (9b).
 * Optional: PD-059-Q-6e-1, visual sign-off of the Light auth screens (#384).
 

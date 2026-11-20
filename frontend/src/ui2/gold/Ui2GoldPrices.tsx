@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import { toast } from '../../lib/toast'
 import { localToday, pricePerGram, pricesByMonth } from '../../features/gold/goldPrices'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
@@ -81,9 +81,9 @@ export function Ui2GoldPrices({ prices, onSaved }: { prices: GoldPrice[]; onSave
         <div className="gold-price-list">
           {recent.map(recorded => (
             <div key={recorded.date} className="gold-price-item">
-              <span>{formatDate(recorded.date)}</span>
+              <span>{formatDayMonthYearName(recorded.date)}</span>
               <strong>{money(recorded.price_per_gram, 'INR')} / g</strong>
-              <button type="button" className="ui2-btn" aria-label={`Edit rate for ${formatDate(recorded.date)}`}
+              <button type="button" className="ui2-btn" aria-label={`Edit rate for ${formatDayMonthYearName(recorded.date)}`}
                 onClick={() => editRate(recorded)}>Edit rate</button>
             </div>
           ))}
@@ -107,7 +107,7 @@ export function Ui2GoldPrices({ prices, onSaved }: { prices: GoldPrice[]; onSave
                   <tbody>
                     {group.prices.map(recorded => (
                       <tr key={recorded.date}>
-                        <td>{formatDate(recorded.date)}</td>
+                        <td>{formatDayMonthYearName(recorded.date)}</td>
                         <td>{money(recorded.price_per_gram, 'INR')}</td>
                       </tr>
                     ))}

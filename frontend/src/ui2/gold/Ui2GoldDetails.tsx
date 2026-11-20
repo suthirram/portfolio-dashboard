@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { api, ApiError, type GoldTransaction } from '../../lib/api/client'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
 import { GOLD_COLUMNS, goldCell, grams, nimmiTone } from './goldColumns'
 import './gold.css'
@@ -36,7 +36,7 @@ export function Ui2GoldDetails({ txn, onClose, onEdit, onDeleted }: {
     return (
       <Ui2Dialog title="Delete purchase?" onClose={() => setConfirming(false)} busy={busy}>
         <p className="asset-note">
-          Remove the {grams(txn.grams_bought)} purchase from {formatDate(txn.date)}? This cannot be undone.
+          Remove the {grams(txn.grams_bought)} purchase from {formatDayMonthYearName(txn.date)}? This cannot be undone.
         </p>
         {err && <p className="asset-error" role="alert">{err}</p>}
         <div className="asset-modal-actions">
@@ -50,7 +50,7 @@ export function Ui2GoldDetails({ txn, onClose, onEdit, onDeleted }: {
   }
 
   return (
-    <Ui2Dialog title={`Purchase · ${formatDate(txn.date)}`} onClose={onClose} wide>
+    <Ui2Dialog title={`Purchase · ${formatDayMonthYearName(txn.date)}`} onClose={onClose} wide>
       <div className="gold-detail">
         {GOLD_COLUMNS.map(column => (
           <div key={column.key}>

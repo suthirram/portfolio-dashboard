@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SUPPORTED_CURRENCIES, currencySymbol, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow } from '../../types'
 import { useDividends } from '../../features/dividends/useDividends'
 import { tabFrom } from '../../features/dividends/DividendsPage'
@@ -11,6 +11,7 @@ import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { AssetStats, type AssetStat } from '../asset/AssetStats'
 import { AssetBarChart } from '../asset/AssetBarChart'
+import { continuousPeriods } from './continuousPeriods'
 import { Ui2DeleteAllDividends, Ui2DeleteDividend, Ui2DividendEditor } from './Ui2DividendDialogs'
 import DividendImportModal from '../../features/dividends/DividendImportModal'
 import '../asset/asset.css'
@@ -70,12 +71,14 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
     { label: 'Holdings paying', value: String(view.summary.holdings), detail: 'Distinct holdings' },
     {
       label: 'Payment range',
-      value: view.summary.first_date ? formatDate(view.summary.first_date) : '—',
-      detail: view.summary.last_date ? `to ${formatDate(view.summary.last_date)}` : 'No recorded payments',
+      value: view.summary.first_date ? formatDayMonthYearName(view.summary.first_date) : '—',
+      detail: view.summary.last_date ? `to ${formatDayMonthYearName(view.summary.last_date)}` : 'No recorded payments',
     },
   ]
 
-  const chartData = (period === 'month' ? view.by_month : view.by_year)
+  // Every period from the first payment to the last gets a bar (zero when
+  // nothing was paid), so the bars' spacing follows time.
+  const chartData = continuousPeriods(period === 'month' ? view.by_month : view.by_year, period)
     .map(bucket => ({
       label: period === 'month' ? monthLabel(bucket.period) : bucket.period,
       value: bucket.total,
@@ -189,7 +192,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                       <tr><td colSpan={6} className="empty">No payments match this search.</td></tr>
                     ) : pagination.pageItems.map(row => (
                       <tr key={row.id}>
-                        <td>{formatDate(row.date)}</td>
+                        <td>{formatDayMonthYearName(row.date)}</td>
                         <td className="left">
                           <strong>{row.script}</strong>
                           <small>{row.symbol}</small>
@@ -201,7 +204,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                           <button
                             type="button"
                             className="ui2-btn"
-                            aria-label={`Edit dividend of ${formatDate(row.date)}`}
+                            aria-label={`Edit dividend of ${formatDayMonthYearName(row.date)}`}
                             onClick={() => setEditor({ row })}
                           >
                             Edit
@@ -209,7 +212,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                           <button
                             type="button"
                             className="ui2-btn asset-danger"
-                            aria-label={`Delete dividend of ${formatDate(row.date)}`}
+                            aria-label={`Delete dividend of ${formatDayMonthYearName(row.date)}`}
                             onClick={() => setDeleting(row)}
                           >
                             Delete

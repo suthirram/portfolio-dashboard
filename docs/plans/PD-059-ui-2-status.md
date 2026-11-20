@@ -52,7 +52,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | Claude | `feat/PD-059-admin-super` | #381 | merged; DM Sans / Manrope wait on PD-059-Q-6b-1 ([wave 6b](PD-059-wave6b-admin-super.md)) |
 | 25 | 6 | FE | Profile | 2 | Claude | `feat/PD-059-profile` | #382 | merged ([wave 6c](PD-059-wave6c-profile.md)) |
 | 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | Claude | `feat/PD-059-auth-light` | #384 | merged; visual sign-off PD-059-Q-6e-1 open ([wave 6e](PD-059-wave6e-auth-light.md)) |
-| 27 | 6 | FE | Investment delta → sub-route `/transactions/delta` | 16 | Claude | `feat/PD-059-r33-delta-route` | | in review ([wave 6f](PD-059-wave6f-delta-route.md)) |
+| 27 | 6 | FE | Investment delta → sub-route `/transactions/delta` | 16 | Claude | `feat/PD-059-r33-delta-route` | #400 | merged ([wave 6f](PD-059-wave6f-delta-route.md)) |
 | 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Claude | `docs/PD-059-wave5a-dividends` | #369, #371 | merged |
 | 29 | 4 | FE | UI_2.0 trade import handoff parity (paste, example, validation and preview) | 17 | Claude | `feat/PD-059-trade-import-handoff` | #372 | merged |
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDayMonth, formatDayMonthName, normaliseDate, todayIST } from './formDates'
+import { formatDate, formatDayMonth, formatDayMonthName, formatDayMonthYearName, normaliseDate, todayIST } from './formDates'
 
 describe('formatDate', () => {
   it('converts YYYY-MM-DD to dd-MM-yyyy', () => {
@@ -53,6 +53,22 @@ describe('formatDayMonthName', () => {
 
   it('uses the ISO date even when passed a full timestamp', () => {
     expect(formatDayMonthName('2026-11-16T00:00:00Z')).toBe('16 Nov')
+  })
+})
+
+describe('formatDayMonthYearName', () => {
+  it('renders asset-page dates as day, abbreviated month and year', () => {
+    expect(formatDayMonthYearName('2026-11-18')).toBe('18 Nov 2026')
+    expect(formatDayMonthYearName('2026-02-03')).toBe('03 Feb 2026')
+  })
+
+  it('uses the ISO date even when passed a full timestamp', () => {
+    expect(formatDayMonthYearName('2026-11-18T23:30:00Z')).toBe('18 Nov 2026')
+  })
+
+  it('passes through non-ISO input unchanged', () => {
+    expect(formatDayMonthYearName('not a date')).toBe('not a date')
+    expect(formatDayMonthYearName(null)).toBe('')
   })
 })
 

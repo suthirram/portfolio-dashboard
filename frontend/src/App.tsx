@@ -10,6 +10,7 @@ import ProfilePage from './features/auth/ProfilePage'
 import DashboardPage from './features/dashboard/DashboardPage'
 import HistoryPage from './features/history/HistoryPage'
 import TransactionsPage from './features/transactions/TransactionsPage'
+import InvestmentDeltaRoute from './features/transactions/InvestmentDeltaRoute'
 import DividendsPage from './features/dividends/DividendsPage'
 import HistoryChartPage from './features/history/HistoryChartPage'
 import GoldPage from './features/gold/GoldPage'
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="/" element={<RequireAuth><DashboardPage /></RequireAuth>} />
               <Route path="/history" element={<RequireAuth><HistoryPage /></RequireAuth>} />
               <Route path="/transactions" element={<RequireAuth><TransactionsPage /></RequireAuth>} />
+              <Route path="/transactions/delta" element={<RequireAuth><InvestmentDeltaRoute /></RequireAuth>} />
               <Route path="/dividends" element={<RequireAuth><DividendsPage /></RequireAuth>} />
               <Route path="/history/chart/:region" element={<RequireAuth><HistoryChartPage /></RequireAuth>} />
               <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />

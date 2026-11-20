@@ -22,12 +22,12 @@ describe('Ui2GoldPrices', () => {
     render(<Ui2GoldPrices prices={series} onSaved={vi.fn()} />)
     const edits = screen.getAllByRole('button', { name: /^Edit rate for/ })
     expect(edits).toHaveLength(30)
-    expect(edits[0]).toHaveAccessibleName('Edit rate for 18-11-2026')
+    expect(edits[0]).toHaveAccessibleName('Edit rate for 18 Nov 2026')
   })
 
   it('loads a recorded day into the form with Edit rate', async () => {
     render(<Ui2GoldPrices prices={series} onSaved={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Edit rate for 18-11-2026' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Edit rate for 18 Nov 2026' }))
     expect(screen.getByLabelText('Gold price date')).toHaveValue('2026-11-18')
     expect(screen.getByLabelText('Gold price per gram')).toHaveValue('9034')
     expect(screen.getByLabelText('Gold price per gram')).toHaveFocus()

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api, ApiError } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import { toast } from '../../lib/toast'
 import { enteredPrices } from '../../features/gold/goldPrices'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
@@ -36,7 +36,7 @@ export function Ui2MissingPrices({ missing, onSkip, onSaved }: {
 
   const save = async () => {
     const { prices, invalidDate } = enteredPrices(missing, entered)
-    if (invalidDate) { setErr(`Price for ${formatDate(invalidDate)} must be a number > 0`); return }
+    if (invalidDate) { setErr(`Price for ${formatDayMonthYearName(invalidDate)} must be a number > 0`); return }
     if (prices.length === 0) { setErr('Enter at least one known rate, or skip for now.'); return }
     setErr('')
     setSaving(true)
@@ -61,7 +61,7 @@ export function Ui2MissingPrices({ missing, onSkip, onSaved }: {
         <div className="asset-form">
           {missing.map(date => (
             <label key={date}>
-              {formatDate(date)} · INR / gram
+              {formatDayMonthYearName(date)} · INR / gram
               <DecimalInput placeholder="Enter recorded rate" value={entered[date] ?? ''}
                 onValueChange={value => setEntered(previous => ({ ...previous, [date]: value }))} />
             </label>
