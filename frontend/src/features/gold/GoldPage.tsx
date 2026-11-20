@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type GoldMetrics, type GoldPrice, type GoldTransaction } from '../../lib/api/client'
+import { api, ApiError, type GoldTransaction } from '../../lib/api/client'
 import { useTheme } from '../../lib/useTheme'
 import { formatDate } from '../../lib/formDates'
+import { useUiMode } from '../../lib/uiMode'
 import ThemePicker from '../../components/ThemePicker'
+import { Ui2GoldPage } from '../../ui2/gold/Ui2GoldPage'
 import { useAuthOptional } from '../auth/AuthContext'
+import { useGoldData } from './useGoldData'
 import { ArrowLeftIcon, EditIcon, PlusIcon, TrashIcon } from '../../components/Icon'
 import GoldTxnModal from './GoldTxnModal'
 import GoldPricesPanel from './GoldPricesPanel'
@@ -17,61 +20,22 @@ import MissingPricesModal from './MissingPricesModal'
 const fmt = (value: number | null | undefined, digits = 2) =>
   value == null ? '—' : value.toLocaleString('en-IN', { maximumFractionDigits: digits })
 
+// GoldPage is a pure dispatcher: only useUiMode() lives here. All Classic
+// hooks live in ClassicGoldPage so the hook count is stable across mode
+// changes.
 export default function GoldPage() {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2GoldPage />
+  return <ClassicGoldPage />
+}
+
+function ClassicGoldPage() {
   const auth = useAuthOptional()
   const { theme, set: setTheme } = useTheme({ premium: auth?.user ? auth.user.premium : undefined })
-  const [rows, setRows] = useState<GoldTransaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string | null>(null)
+  const { rows, prices, missing, metrics, loading, err, load, refresh } = useGoldData()
   const [modal, setModal] = useState<{ open: boolean; txn: GoldTransaction | null }>({ open: false, txn: null })
   const [busy, setBusy] = useState<number | null>(null)
-  const [prices, setPrices] = useState<GoldPrice[]>([])
-  const [missing, setMissing] = useState<string[]>([])
-  const [metrics, setMetrics] = useState<GoldMetrics | null>(null)
   const [promptSkipped, setPromptSkipped] = useState(false)
-
-  // fetchAll refreshes every gold slice at once. The gap list drives the
-  // blocking prompt (PRD-003 §7), metrics is the live summary (§6).
-  const fetchAll = useCallback(async () => {
-    const [txns, priceRows, gaps, goldMetrics] = await Promise.all([
-      api.listGoldTransactions(),
-      api.listGoldPrices(),
-      api.listGoldMissingDates(),
-      api.getGoldMetrics(),
-    ])
-    setRows(txns)
-    setPrices(priceRows)
-    setMissing(gaps.missing)
-    setMetrics(goldMetrics)
-  }, [])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setErr(null)
-    try {
-      await fetchAll()
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to load gold data')
-    } finally {
-      setLoading(false)
-    }
-  }, [fetchAll])
-
-  // refresh re-pulls data without the full-page spinner — used after a save
-  // so the missing-price prompt re-renders with the days still left blank
-  // instead of the whole page flashing to a loading state. Clears the error
-  // banner up front (like load) so a stale failure does not linger after a
-  // later refresh succeeds.
-  const refresh = useCallback(async () => {
-    setErr(null)
-    try {
-      await fetchAll()
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to refresh gold data')
-    }
-  }, [fetchAll])
-
-  useEffect(() => { void load() }, [load])
 
   const remove = async (txn: GoldTransaction) => {
     if (!confirm(`Delete the ${formatDate(txn.date)} purchase of ${txn.grams_bought} g?`)) return

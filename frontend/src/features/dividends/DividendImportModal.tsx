@@ -1,155 +1,109 @@
-import { useMemo, useRef, useState } from 'react'
-import { api, ApiError } from '../../lib/api/client'
-import { canonicalCurrency, currencySymbol, formatMoney } from '../../lib/currency'
-import { formatDate, todayIST } from '../../lib/formDates'
+import { useRef } from 'react'
+import { formatDate } from '../../lib/formDates'
+import { formatMoney } from '../../lib/currency'
 import { useDialogFocus } from '../../lib/useDialogFocus'
-import type { DividendCurrency, DividendImportPreview, DividendImportResult, DividendImportRow, Holding } from '../../types'
+import { useUiMode } from '../../lib/uiMode'
+import { Ui2DividendImport } from '../../ui2/dividends/Ui2DividendImport'
+import type { DividendCurrency, Holding } from '../../types'
 import { modalBackdrop, modalCard, td, th } from '../history/historyShared'
-import { parseDividendCsv, type DividendCsvError } from './dividendCsv'
 import { ImportCounts, InvalidLines } from '../imports/ImportTables'
-import NameConfirmDialog, { type Answers } from '../imports/NameConfirmDialog'
+import NameConfirmDialog from '../imports/NameConfirmDialog'
+import { useDividendImport, openNames } from './useDividendImport'
 
-type Step = 'pick' | 'names' | 'preview' | 'result'
-const MAX_BYTES = 1024 * 1024
-const open = (preview: DividendImportPreview, answers: Answers) =>
-  preview.names.filter(name => (name.status === 'needs_confirmation' || name.status === 'ambiguous') && !(name.sheet_name in answers))
+interface Props {
+  currency: DividendCurrency
+  holdings: Holding[]
+  userId?: string
+  onClose: () => void
+  onImported: () => void
+}
 
-export default function DividendImportModal({ currency, holdings, userId, onClose, onImported }: {
-  currency: DividendCurrency; holdings: Holding[]; userId?: string; onClose: () => void; onImported: () => void
-}) {
-  const [step, setStep] = useState<Step>('pick')
-  const [fileName, setFileName] = useState('')
-  const [rows, setRows] = useState<DividendImportRow[]>([])
-  const [localErrors, setLocalErrors] = useState<DividendCsvError[]>([])
-  const [total, setTotal] = useState(0)
-  const [answers, setAnswers] = useState<Answers>({})
-  const [preview, setPreview] = useState<DividendImportPreview | null>(null)
-  const [result, setResult] = useState<DividendImportResult | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
+// Pure dispatcher — only useUiMode() lives here so the hook count is stable
+// if the account's UI mode changes while the modal is open.
+export default function DividendImportModal(props: Props) {
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) {
+    return (
+      <Ui2DividendImport
+        currency={props.currency}
+        holdings={props.holdings}
+        userId={props.userId}
+        onClose={props.onClose}
+        onImported={props.onImported}
+      />
+    )
+  }
+  return <ClassicDividendImportModal {...props} />
+}
+
+function ClassicDividendImportModal({ currency, holdings, userId, onClose, onImported }: Props) {
+  const ctrl = useDividendImport(currency, holdings, userId)
   const root = useRef<HTMLDivElement>(null)
   // Escape on the result step behaves like Done so the page refreshes. The
   // names step renders its own dialog, which owns the keys meanwhile.
   useDialogFocus(root, () => {
-    if (busy) return
-    if (step === 'result') onImported()
+    if (ctrl.busy) return
+    if (ctrl.step === 'result') onImported()
     onClose()
-  }, step !== 'names' || !preview)
-  const inTab = useMemo(() => holdings.filter(holding => canonicalCurrency(holding.currency) === currency), [holdings, currency])
-  const label = `${currencySymbol(currency)} ${currency}`
+  }, ctrl.step !== 'names' || !ctrl.preview)
 
-  const runPreview = async (sheetRows: DividendImportRow[], mappings: Answers) => {
-    setBusy(true)
-    setErr('')
-    try {
-      const evaluated = await api.previewDividendImport({ currency, rows: sheetRows, mappings }, userId)
-      setPreview(evaluated)
-      setStep(open(evaluated, mappings).length > 0 ? 'names' : 'preview')
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const pick = async (file: File | undefined) => {
-    if (!file) return
-    if (file.size > MAX_BYTES) { setErr('The file is larger than 1 MB — split it.'); return }
-    setFileName(file.name)
-    const parsed = parseDividendCsv(await file.text(), todayIST())
-    setRows(parsed.rows)
-    setLocalErrors(parsed.errors)
-    setTotal(parsed.total)
-    setAnswers({})
-    if (parsed.rows.length === 0) {
-      setPreview({ counts: { ready: 0, duplicate: 0, invalid: 0, total: 0 }, names: [], rows: [], warnings: [] })
-      setStep('preview')
-      return
-    }
-    await runPreview(parsed.rows, {})
-  }
-
-  const counts = preview && {
-    ready: preview.counts.ready,
-    duplicate: preview.counts.duplicate,
-    invalid: preview.counts.invalid + localErrors.length,
-    total: Math.max(total, preview.counts.total + localErrors.length),
-  }
-  const invalidLines = [
-    ...localErrors.map(localError => ({ line: localError.line, reason: localError.reason })),
-    ...(preview?.rows.filter(row => row.status === 'invalid').map(row => ({ line: row.line, reason: row.reason ?? '' })) ?? []),
-  ].sort((first, second) => first.line - second.line)
-
-  const confirm = async () => {
-    setBusy(true)
-    setErr('')
-    try {
-      setResult(await api.importDividends({ currency, rows, mappings: answers }, userId))
-      setStep('result')
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 422 && error.body) {
-        setPreview(error.body as DividendImportPreview)
-        setErr('The data changed since the preview — review it again.')
-      } else {
-        setErr(error instanceof Error ? error.message : String(error))
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (step === 'names' && preview) {
+  if (ctrl.step === 'names' && ctrl.preview) {
     return (
-      <NameConfirmDialog names={open(preview, answers)} holdings={inTab} heading="Confirm share names" context={label}
+      <NameConfirmDialog
+        names={openNames(ctrl.preview, ctrl.answers)}
+        holdings={ctrl.inTab}
+        heading="Confirm share names"
+        context={ctrl.label}
         intro="These names in your sheet don't exactly match a holding. Choose the holding each one means. Your answers are remembered for next time."
-        onBack={() => setStep('pick')}
-        onConfirm={confirmed => { const next = { ...answers, ...confirmed }; setAnswers(next); void runPreview(rows, next) }} />
+        onBack={() => ctrl.setStep('pick')}
+        onConfirm={ctrl.confirmNames}
+      />
     )
   }
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label="Import dividends">
       <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(720px, 100%)', maxHeight: '90dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h2 style={{ fontSize: 15, margin: 0 }}>{step === 'result' ? 'Import complete' : step === 'preview' ? 'Preview import' : 'Import dividends'}</h2>
+        <h2 style={{ fontSize: 15, margin: 0 }}>{ctrl.step === 'result' ? 'Import complete' : ctrl.step === 'preview' ? 'Preview import' : 'Import dividends'}</h2>
         <p style={{ margin: 0, padding: '8px 12px', border: '1px solid var(--blue)', background: 'var(--blue-dim)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}>
-          Importing into <strong>{label}</strong> · dates read as <strong>DD/MM/YYYY</strong> (1/2/2020 = 1 Feb 2020){fileName && ` · ${fileName}`}
+          Importing into <strong>{ctrl.label}</strong> · dates read as <strong>DD/MM/YYYY</strong> (1/2/2020 = 1 Feb 2020){ctrl.fileName && ` · ${ctrl.fileName}`}
         </p>
-        {err && <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{err}</p>}
+        {ctrl.err && <p role="alert" style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{ctrl.err}</p>}
 
-        {step === 'pick' && (
+        {ctrl.step === 'pick' && (
           <>
             <label htmlFor="dividend-csv" className="btn" style={{ alignSelf: 'flex-start' }}>Choose a .csv file</label>
-            <input id="dividend-csv" type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => void pick(e.target.files?.[0])} />
+            <input id="dividend-csv" type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => void ctrl.pick(e.target.files?.[0])} />
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Expected header (any order, any case; CUMULATIVE optional): <code>Date,Share Name,Dividend,CUMULATIVE</code>. Nothing is saved until you confirm.</p>
-            {busy && <div className="spinner" style={{ width: 14, height: 14 }} />}
+            {ctrl.busy && <div className="spinner" style={{ width: 14, height: 14 }} />}
           </>
         )}
 
-        {step === 'preview' && counts && preview && (
+        {ctrl.step === 'preview' && ctrl.counts && ctrl.preview && (
           <>
-            <ImportCounts total={counts.total}
-              counts={[['Ready to import', counts.ready], ['Already exists', counts.duplicate], ['Invalid', counts.invalid]]} />
-            <InvalidLines lines={invalidLines} />
-            {preview.warnings.map(warning => (
+            <ImportCounts total={ctrl.counts.total}
+              counts={[['Ready to import', ctrl.counts.ready], ['Already exists', ctrl.counts.duplicate], ['Invalid', ctrl.counts.invalid]]} />
+            <InvalidLines lines={ctrl.invalidLines} />
+            {ctrl.preview.warnings.map(warning => (
               <p key={warning.line} style={{ color: 'var(--yellow)', fontSize: 12, margin: 0 }}>⚠ Line {warning.line}: {warning.message}. Import is still allowed.</p>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              {Object.keys(answers).length > 0 && <button className="btn" onClick={() => { setAnswers({}); void runPreview(rows, {}) }}>Change names</button>}
-              <button className="btn" onClick={() => setStep('pick')}>Choose another file</button>
-              <button className="btn-primary" disabled={counts.invalid > 0 || busy} onClick={confirm}>Confirm import</button>
+              {Object.keys(ctrl.answers).length > 0 && <button className="btn" onClick={ctrl.changeNames}>Change names</button>}
+              <button className="btn" onClick={() => ctrl.setStep('pick')}>Choose another file</button>
+              <button className="btn-primary" disabled={ctrl.counts.invalid > 0 || ctrl.busy} onClick={ctrl.confirm}>Confirm import</button>
             </div>
           </>
         )}
 
-        {step === 'result' && result && (
+        {ctrl.step === 'result' && ctrl.result && (
           <>
-            <p style={{ color: 'var(--green)', margin: 0 }}><strong>{result.imported} imported</strong> into {label}.</p>
-            {result.duplicates.length > 0 && (
+            <p style={{ color: 'var(--green)', margin: 0 }}><strong>{ctrl.result.imported} imported</strong> into {ctrl.label}.</p>
+            {ctrl.result.duplicates.length > 0 && (
               <>
-                <p role="status" style={{ color: 'var(--yellow)', margin: 0 }}>⚠ <strong>{result.duplicates.length} duplicates are discarded</strong> — already saved.</p>
+                <p role="status" style={{ color: 'var(--yellow)', margin: 0 }}>⚠ <strong>{ctrl.result.duplicates.length} duplicates are discarded</strong> — already saved.</p>
                 <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead><tr><th scope="col" style={th}>Line</th><th scope="col" style={th}>Date</th><th scope="col" style={th}>Share</th><th scope="col" style={{ ...th, textAlign: 'right' }}>Dividend</th></tr></thead>
-                  <tbody>{result.duplicates.map(duplicate => (
+                  <tbody>{ctrl.result.duplicates.map(duplicate => (
                     <tr key={duplicate.line}><td style={td}>{duplicate.line}</td><td style={td}>{formatDate(duplicate.date)}</td><td style={td}>{duplicate.share_name}</td><td style={{ ...td, textAlign: 'right' }}>{formatMoney(duplicate.amount, currency)}</td></tr>
                   ))}</tbody>
                 </table>
@@ -161,7 +115,7 @@ export default function DividendImportModal({ currency, holdings, userId, onClos
           </>
         )}
 
-        {step !== 'result' && (
+        {ctrl.step !== 'result' && (
           <div>
             <button className="btn" onClick={onClose}>Cancel</button>
           </div>

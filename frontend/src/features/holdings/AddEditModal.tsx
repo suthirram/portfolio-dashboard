@@ -187,8 +187,11 @@ export default function AddEditModal({ holding, onClose, onSaved, userId, ownerH
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input id="holding-symbol" style={{ ...INPUT, flex: 1 }} value={form.symbol} onChange={set('symbol')}
                     onBlur={() => setPreviewSymbol(form.symbol)} placeholder="e.g. TCS.NS, AAPL" />
+                  {/* Pressing Test must not blur the symbol first: the blur shows
+                      the sector preview, the centred modal grows and moves the
+                      button before mouseup, so the click can miss it. */}
                   <button type="button" className="btn btn-sm" onClick={handleLookup} disabled={!form.symbol || lookupLoading}
-                    style={{ alignSelf: 'stretch' }}>
+                    onMouseDown={e => e.preventDefault()} style={{ alignSelf: 'stretch' }}>
                     {lookupLoading ? '…' : 'Test'}
                   </button>
                 </div>

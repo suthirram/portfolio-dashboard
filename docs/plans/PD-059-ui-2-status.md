@@ -43,18 +43,18 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 15 | 4 | FE | [Shared ledger hook + UI_2.0 ledger modal](PD-059-wave4-ledger.md) | 2, 14 | Codex | `feat/PD-059-ledger-dialog` | #354 | merged |
 | 16 | 4 | FE | Transactions page | 15 | Claude | `feat/PD-059-transactions-page` | #364 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
 | 17 | 4 | FE | Trade import: upload, paste, example | 16 | Claude | `feat/PD-059-trade-import` | #366 | merged ([wave 4b](PD-059-wave4b-transactions.md)) |
-| 18 | 5 | FE | Dividends page | 2 | Claude | `feat/PD-059-dividends-page` | #373 | in review ([wave 5a](PD-059-wave5a-dividends.md)) |
-| 19 | 5 | FE | Dividend import: upload, paste, example | 18 | Claude | `feat/PD-059-dividend-import` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
-| 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2, 18 | Claude | `feat/PD-059-gold-page` | #376 | in review, stacked on #373; plan #375 ([wave 5b](PD-059-wave5b-gold.md)) |
-| 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | Claude | `feat/PD-059-gold-prices` | #377 | in review, stacked on #376; plan #375 ([wave 5b](PD-059-wave5b-gold.md)) |
-| 22 | 6 | FE | Act-as in UI_2.0 | 2, 18 | Claude | `feat/PD-059-act-as` | #383 | in review, stacked on #373 ([wave 6d](PD-059-wave6d-act-as.md)) |
-| 23 | 6 | FE | Admin user list + detail | 2 | Claude | `feat/PD-059-admin-users` | #379 | in review; plan #378 ([wave 6a](PD-059-wave6a-admin-users.md)) |
-| 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | Claude | `feat/PD-059-admin-super` | #381 | in review, stacked on #379 ([wave 6b](PD-059-wave6b-admin-super.md)) |
-| 25 | 6 | FE | Profile | 2 | Claude | `feat/PD-059-profile` | #382 | in review ([wave 6c](PD-059-wave6c-profile.md)) |
-| 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | Claude | `feat/PD-059-auth-light` | #384 | in review ([wave 6e](PD-059-wave6e-auth-light.md)) |
+| 18 | 5 | FE | Dividends page | 2 | Claude | `feat/PD-059-dividends-page` | #373 | merged ([wave 5a](PD-059-wave5a-dividends.md)) |
+| 19 | 5 | FE | Dividend import: upload, paste, example | 18 | Claude | `feat/PD-059-dividend-import` | #374, #385 | merged; #374 merged into its stacked base, #385 landed 19–21 on main ([wave 5a](PD-059-wave5a-dividends.md)) |
+| 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2, 18 | Claude | `feat/PD-059-gold-page` | #376, #385 | merged ([wave 5b](PD-059-wave5b-gold.md)) |
+| 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | Claude | `feat/PD-059-gold-prices` | #377, #385 | merged ([wave 5b](PD-059-wave5b-gold.md)) |
+| 22 | 6 | FE | Act-as in UI_2.0 | 2, 18 | Claude | `feat/PD-059-act-as` | #383 | merged ([wave 6d](PD-059-wave6d-act-as.md)) |
+| 23 | 6 | FE | Admin user list + detail | 2 | Claude | `feat/PD-059-admin-users` | #379 | merged ([wave 6a](PD-059-wave6a-admin-users.md)) |
+| 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | Claude | `feat/PD-059-admin-super` | #381 | merged; DM Sans / Manrope wait on PD-059-Q-6b-1 ([wave 6b](PD-059-wave6b-admin-super.md)) |
+| 25 | 6 | FE | Profile | 2 | Claude | `feat/PD-059-profile` | #382 | merged ([wave 6c](PD-059-wave6c-profile.md)) |
+| 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | Claude | `feat/PD-059-auth-light` | #384 | merged; visual sign-off PD-059-Q-6e-1 open ([wave 6e](PD-059-wave6e-auth-light.md)) |
 | 27 | 6 | FE | Investment delta → sub-route (tentative) | 16 | | | | needs amendment |
-| 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Claude | `docs/PD-059-wave5a-dividends` | #369 | in review |
-| 29 | 4 | FE | UI_2.0 trade import handoff parity (paste, example, validation and preview) | 17 | Claude | `feat/PD-059-trade-import-handoff` | #372 | in review |
+| 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Claude | `docs/PD-059-wave5a-dividends` | #369, #371 | merged |
+| 29 | 4 | FE | UI_2.0 trade import handoff parity (paste, example, validation and preview) | 17 | Claude | `feat/PD-059-trade-import-handoff` | #372 | merged |
 
 "needs amendment" = its wave's plan-amendment docs PR (complete code) must
 merge before the slice starts.
@@ -93,6 +93,15 @@ shared piece.
 | `usePasteSubmit`, `useConflictPicks` | `frontend/src/features/history/HistoryModals.tsx` | Shared History paste submission and date-scoped replacement choices | slice 14 |
 | `Ui2Toaster` | `frontend/src/ui2/shell/Ui2Toaster.tsx` | Handoff toast: renders the newest message of the `lib/toast` queue; mounted by `Ui2Shell`, so `toast()` works in UI_2.0 | slice 12 |
 | `.ui2-toast`, `.ui2-notice`, `.ui2-note` | `frontend/src/ui2/primitives.css` | Handoff `.toast`, `.asset-alert` and `.asset-note` | slice 12 |
+| `AssetStats` | `frontend/src/ui2/asset/AssetStats.tsx` | Handoff asset-page stat grid; `stats: AssetStat[]`, first card hero | slice 18 (#373) |
+| `AssetBarChart` | `frontend/src/ui2/asset/AssetBarChart.tsx` | Handoff SVG bar chart; `data`, `currency`, `label` | slice 18 (#373) |
+| `asset.css` | `frontend/src/ui2/asset/asset.css` | Shared `.asset-*` chrome for Dividends and Gold, incl. `.asset-form`, `.asset-modal-actions`, `.computed`, `.asset-metric-help` | slices 18, 20 |
+| `Ui2ActAsBanner` | `frontend/src/ui2/shell/Ui2ActAsBanner.tsx` | Handoff act-as banner: `label`; names the account, Exit act-as | slice 18 (#373) |
+| `actAsUserIdOf`, `actAsLink` | `frontend/src/ui2/shell/actAsNav.ts` | Sidebar routes during act-as; History and Gold outside | slice 22 (#383) |
+| `useDividendImport` | `frontend/src/features/dividends/useDividendImport.ts` | Dividend CSV import for both interfaces; paste + Load example | slice 19 (#385) |
+| `useGoldData`, `goldPrices` | `frontend/src/features/gold/useGoldData.ts`, `goldPrices.ts` | Gold reads; shared price-entry rules | slices 20–21 (#385) |
+| `useAdminUsers`, `Ui2AdminTabs`, `admin.css` | `frontend/src/features/admin/useAdminUsers.ts`, `frontend/src/ui2/admin/` | Admin lists (users / admins); section tabs; `u2-admin-*` styles | slices 23–24 (#379, #381) |
+| `useProfileForms` | `frontend/src/features/auth/useProfileForms.ts` | Profile, password and security-question forms for both interfaces | slice 25 (#382) |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,
 `useHoldings`, `useAllTransactions`, `useDividends`, `usePagination`,

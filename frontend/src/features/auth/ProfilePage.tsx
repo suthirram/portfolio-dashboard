@@ -1,42 +1,28 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type SecurityQuestion } from '../../lib/api/client'
-import { useAuth } from './AuthContext'
 import { useTheme } from '../../lib/useTheme'
+import { useUiMode } from '../../lib/uiMode'
 import ThemePicker from '../../components/ThemePicker'
 import { ArrowLeftIcon } from '../../components/Icon'
+import { Ui2ProfilePage } from '../../ui2/profile/Ui2ProfilePage'
+import { useProfileForms, type FormMessage } from './useProfileForms'
 
-interface QAState { questionId: string; answer: string }
-
+// ProfilePage is a pure dispatcher: only useUiMode() lives here, so the hook
+// count is stable across mode changes.
 export default function ProfilePage() {
-  const { user, refresh } = useAuth()
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2ProfilePage />
+  return <ClassicProfilePage />
+}
+
+function ClassicProfilePage() {
+  const { user, profile, password, security } = useProfileForms()
   const { theme, set: setTheme } = useTheme({ premium: user ? user.premium : undefined })
-
-  const [name, setName] = useState(user?.name ?? '')
-  const [username, setUsername] = useState(user?.username ?? '')
-  const [profilePassword, setProfilePassword] = useState('')
-  const [profileMsg, setProfileMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [savingProfile, setSavingProfile] = useState(false)
-
-  const [currentPw, setCurrentPw] = useState('')
-  const [newPw, setNewPw] = useState('')
-  const [newPwConfirm, setNewPwConfirm] = useState('')
-  const [pwMsg, setPwMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [savingPw, setSavingPw] = useState(false)
-
-  const [questions, setQuestions] = useState<SecurityQuestion[]>([])
-  const [qas, setQas] = useState<QAState[]>([
-    { questionId: '', answer: '' },
-    { questionId: '', answer: '' },
-    { questionId: '', answer: '' },
-  ])
-  const [sqPassword, setSqPassword] = useState('')
-  const [sqMsg, setSqMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
-  const [savingSQ, setSavingSQ] = useState(false)
-
-  useEffect(() => {
-    void api.getQuestions().then(setQuestions).catch(console.error)
-  }, [])
+  const { name, setName, username, setUsername, password: profilePassword, setPassword: setProfilePassword,
+    msg: profileMsg, saving: savingProfile, save: saveProfile } = profile
+  const { current: currentPw, setCurrent: setCurrentPw, next: newPw, setNext: setNewPw, confirm: newPwConfirm,
+    setConfirm: setNewPwConfirm, msg: pwMsg, saving: savingPw, save: changePassword } = password
+  const { questions, qas, usedIds, updateQA, password: sqPassword, setPassword: setSqPassword,
+    msg: sqMsg, saving: savingSQ, save: saveQuestions } = security
 
   const card: React.CSSProperties = {
     background: 'var(--bg-secondary)',
@@ -53,80 +39,14 @@ export default function ProfilePage() {
   }
   const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }
 
-  const message = (m: { kind: 'ok' | 'err'; text: string } | null) =>
-    m && (
+  const message = (formMessage: FormMessage) =>
+    formMessage && (
       <div style={{
         marginTop: 8,
-        color: m.kind === 'ok' ? 'var(--green)' : 'var(--red)',
+        color: formMessage.kind === 'ok' ? 'var(--green)' : 'var(--red)',
         fontSize: 13,
-      }}>{m.text}</div>
+      }}>{formMessage.text}</div>
     )
-
-  const saveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setProfileMsg(null)
-    setSavingProfile(true)
-    try {
-      await api.updateProfile({
-        name: name.trim(),
-        username: username.trim(),
-        current_password: profilePassword,
-      })
-      setProfilePassword('')
-      await refresh()
-      setProfileMsg({ kind: 'ok', text: 'Profile updated.' })
-    } catch (e) {
-      setProfileMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Failed to update' })
-    } finally {
-      setSavingProfile(false)
-    }
-  }
-
-  const changePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPwMsg(null)
-    if (newPw.length < 8) { setPwMsg({ kind: 'err', text: 'New password must be at least 8 chars' }); return }
-    if (newPw !== newPwConfirm) { setPwMsg({ kind: 'err', text: 'Passwords do not match' }); return }
-    setSavingPw(true)
-    try {
-      await api.updatePassword({ current_password: currentPw, new_password: newPw })
-      setCurrentPw(''); setNewPw(''); setNewPwConfirm('')
-      setPwMsg({ kind: 'ok', text: 'Password changed. Other sessions were signed out.' })
-    } catch (e) {
-      setPwMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Failed to change password' })
-    } finally {
-      setSavingPw(false)
-    }
-  }
-
-  const usedIds = new Set(qas.map(q => q.questionId).filter(Boolean))
-  const updateQA = (idx: number, patch: Partial<QAState>) =>
-    setQas(prev => prev.map((q, i) => i === idx ? { ...q, ...patch } : q))
-
-  const saveQuestions = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSqMsg(null)
-    if (qas.some(q => !q.questionId || !q.answer.trim())) { setSqMsg({ kind: 'err', text: 'All three are required' }); return }
-    if (new Set(qas.map(q => q.questionId)).size !== 3) { setSqMsg({ kind: 'err', text: 'Choose three different questions' }); return }
-    setSavingSQ(true)
-    try {
-      await api.updateSecurityQs({
-        current_password: sqPassword,
-        security_answers: qas.map(q => ({ question_id: q.questionId, answer: q.answer })),
-      })
-      setSqPassword('')
-      setQas([
-        { questionId: '', answer: '' },
-        { questionId: '', answer: '' },
-        { questionId: '', answer: '' },
-      ])
-      setSqMsg({ kind: 'ok', text: 'Security questions updated.' })
-    } catch (e) {
-      setSqMsg({ kind: 'err', text: e instanceof ApiError ? e.message : 'Failed to update' })
-    } finally {
-      setSavingSQ(false)
-    }
-  }
 
   return (
     <div className="page-art page-art-profile" style={{ minHeight: '100dvh' }}>
@@ -195,10 +115,10 @@ export default function ProfilePage() {
                 onChange={e => updateQA(i, { questionId: e.target.value })}
                 style={{ ...inputStyle, marginBottom: 8 }}>
                 <option value="">Question {i + 1}…</option>
-                {questions.map(q => (
-                  <option key={q.id} value={q.id}
-                    disabled={q.id !== qa.questionId && usedIds.has(q.id)}>
-                    {q.prompt}
+                {questions.map(question => (
+                  <option key={question.id} value={question.id}
+                    disabled={question.id !== qa.questionId && usedIds.has(question.id)}>
+                    {question.prompt}
                   </option>
                 ))}
               </select>

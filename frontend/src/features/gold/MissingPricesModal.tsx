@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { api, ApiError, type GoldPrice } from '../../lib/api/client'
+import { api, ApiError } from '../../lib/api/client'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
+import { enteredPrices } from './goldPrices'
 
 interface Props {
   /** Calendar days (YYYY-MM-DD) since the first purchase with no price row. */
@@ -25,31 +25,9 @@ export default function MissingPricesModal({ missing, onSkip, onSaved }: Props) 
 
   const set = (date: string, value: string) => setPrices(previousPrices => ({ ...previousPrices, [date]: value }))
 
-  // Only the days the user actually filled are sent; blanks are left for a
-  // later visit rather than rejected, so a long gap can be closed piecemeal.
-  const filled = (): GoldPrice[] => {
-    const out: GoldPrice[] = []
-    for (const date of missing) {
-      const raw = prices[date]
-      if (raw == null || raw.trim() === '') continue
-      out.push({ date, price_per_gram: parseDecimalInput(raw) })
-    }
-    return out
-  }
-
-  const invalid = (): string | null => {
-    for (const price of filled()) {
-      if (!Number.isFinite(price.price_per_gram) || price.price_per_gram <= 0) {
-        return `Price for ${formatDate(price.date)} must be a number > 0`
-      }
-    }
-    return null
-  }
-
   const save = async () => {
-    const bad = invalid()
-    if (bad) { setErr(bad); return }
-    const rows = filled()
+    const { prices: rows, invalidDate } = enteredPrices(missing, prices)
+    if (invalidDate) { setErr(`Price for ${formatDate(invalidDate)} must be a number > 0`); return }
     if (rows.length === 0) { setErr('Enter at least one price, or skip.'); return }
     setErr('')
     setSaving(true)
