@@ -52,6 +52,27 @@ describe('Ui2Shell', () => {
     expect(navLabels()).not.toContain('Branding')
   })
 
+  it('keeps Overview, Transactions and Dividends on the viewed account during act-as', () => {
+    renderShell({ role: 'admin', gold_enabled: true }, '/admin/users/u9/transactions')
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/admin/users/u9')
+    expect(within(nav).getByRole('link', { name: 'Transactions' })).toHaveAttribute('href', '/admin/users/u9/transactions')
+    expect(within(nav).getByRole('link', { name: 'Transactions' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Dividends' })).toHaveAttribute('href', '/admin/users/u9/dividends')
+    expect(within(nav).getByRole('link', { name: 'Administration' })).not.toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps History and Gold out of act-as and says why', () => {
+    renderShell({ role: 'admin', gold_enabled: true }, '/admin/users/u9')
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).queryByRole('link', { name: 'History' })).not.toBeInTheDocument()
+    const history = within(nav).getByRole('button', { name: 'History' })
+    expect(history).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(history)
+    expect(screen.getByTestId('where')).toHaveTextContent('/admin/users/u9')
+    expect(within(nav).getByRole('button', { name: 'Gold' })).toBeInTheDocument()
+  })
+
   it('names the current page in the breadcrumb', () => {
     renderShell({ role: 'user' }, '/history')
     expect(screen.getByRole('banner')).toHaveTextContent('Workspace / History')
