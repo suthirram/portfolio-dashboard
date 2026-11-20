@@ -47,6 +47,10 @@ vi.mock('./Ui2HoldingLedger', () => ({
     <div role="dialog" aria-label="Holding ledger"><button onClick={onClose}>Close ledger</button></div>,
 }))
 
+vi.mock('./Ui2InvestmentDelta', () => ({
+  Ui2InvestmentDelta: () => <div data-testid="investment-delta" />,
+}))
+
 vi.mock('../shell/Ui2PageIntro', () => ({
   Ui2PageIntro: ({ title, actions }: { title: string; actions?: React.ReactNode }) =>
     <header><h1>{title}</h1>{actions}</header>,
@@ -57,6 +61,14 @@ describe('Ui2TransactionsPage', () => {
     document.documentElement.setAttribute('data-ui', 'ui2')
     load.error = ''
     load.refresh.mockClear()
+  })
+
+  it('shows the investment delta on the user’s own ledger, not in act-as', () => {
+    const { unmount } = render(<Ui2TransactionsPage />)
+    expect(screen.getByTestId('investment-delta')).toBeInTheDocument()
+    unmount()
+    render(<MemoryRouter><Ui2TransactionsPage actAsUserId="u9" actAsLabel="alice's transactions" /></MemoryRouter>)
+    expect(screen.queryByTestId('investment-delta')).not.toBeInTheDocument()
   })
 
   it('keeps the filters and offers a retry after a load error', async () => {

@@ -147,6 +147,25 @@
   :root[data-ui="ui2"] .u2-tx-filters :is(input, select, button) { min-block-size: 44px; }
 }
 
+/* Investment delta, inline (PD-059 R22) */
+:root[data-ui="ui2"] .u2-tx-delta { padding: 18px; margin-bottom: 20px; }
+
+:root[data-ui="ui2"] .u2-tx-delta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .u2-tx-delta-head h2 { font: 700 15px var(--u2-font-display); margin: 0; }
+:root[data-ui="ui2"] .u2-tx-delta-year { display: flex; align-items: center; gap: 8px; }
+:root[data-ui="ui2"] .u2-tx-delta-year .ui2-btn { padding: 6px 10px; }
+:root[data-ui="ui2"] .u2-tx-delta-columns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-columns .ui2-btn { padding: 6px 12px; font-size: 12px; }
+:root[data-ui="ui2"] .u2-tx-delta-chart { height: 260px; margin-top: 12px; }
+
 @media (max-width: 760px) {
   :root[data-ui="ui2"] .u2-tx-totals { gap: 8px; }
+  :root[data-ui="ui2"] .u2-tx-delta-chart { height: 220px; }
 }
