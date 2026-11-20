@@ -268,7 +268,7 @@ export default function HoldingsByCurrency({ holdings, loading, onEdit, onDelete
         </div>
         <p role="status" tabIndex={-1} ref={statusRef} hidden={!targetMessage}>{targetMessage}</p>
         {emptyState}
-        {groupRows}
+        {ui2Panel && renderRows ? renderRows(visible) : groupRows}
         <div className="u2-holdings-footer">
           <span>
             {displayedCount === visible.length
