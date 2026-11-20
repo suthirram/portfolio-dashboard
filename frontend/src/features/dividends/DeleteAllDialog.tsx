@@ -4,6 +4,7 @@ import { api } from '../../lib/api/client'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import type { DividendCurrency } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
+import { useDividendAction } from './dividendActions'
 
 const INPUT: CSSProperties = {
   background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
@@ -14,20 +15,9 @@ export default function DeleteAllDialog({ currency, count, userId, onClose, onDe
   currency: DividendCurrency; count: number; userId?: string; onClose: () => void; onDeleted: () => void
 }) {
   const [typed, setTyped] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
+  const { busy, err, run: confirm } = useDividendAction(() => api.deleteAllDividends(currency, userId), onDeleted)
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!busy) onClose() })
-  const confirm = async () => {
-    setBusy(true)
-    try {
-      await api.deleteAllDividends(currency, userId)
-      onDeleted()
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error))
-      setBusy(false)
-    }
-  }
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label={`Delete all ${currency} dividends`}>
       <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(480px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>

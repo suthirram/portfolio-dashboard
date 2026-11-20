@@ -11,8 +11,7 @@ import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { AssetStats, type AssetStat } from '../asset/AssetStats'
 import { AssetBarChart } from '../asset/AssetBarChart'
-import DividendModal, { DeleteDividendDialog } from '../../features/dividends/DividendModal'
-import DeleteAllDialog from '../../features/dividends/DeleteAllDialog'
+import { Ui2DeleteAllDividends, Ui2DeleteDividend, Ui2DividendEditor } from './Ui2DividendDialogs'
 import DividendImportModal from '../../features/dividends/DividendImportModal'
 import '../asset/asset.css'
 
@@ -321,7 +320,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
         />
       )}
       {editor && (
-        <DividendModal
+        <Ui2DividendEditor
           currency={currency}
           holdings={holdings}
           editing={editor.row}
@@ -331,7 +330,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
         />
       )}
       {deleting && (
-        <DeleteDividendDialog
+        <Ui2DeleteDividend
           row={deleting}
           currency={currency}
           userId={actAsUserId}
@@ -340,7 +339,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
         />
       )}
       {deletingAll && (
-        <DeleteAllDialog
+        <Ui2DeleteAllDividends
           currency={currency}
           count={view.summary.count}
           userId={actAsUserId}

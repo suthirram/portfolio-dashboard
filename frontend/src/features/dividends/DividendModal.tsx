@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { api } from '../../lib/api/client'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseSeededDecimal } from '../../lib/formNumbers'
-import { canonicalCurrency, formatMoney } from '../../lib/currency'
-import { formatDate, todayIST } from '../../lib/formDates'
+import { formatMoney } from '../../lib/currency'
+import { formatDate } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow, Holding } from '../../types'
 import { modalBackdrop, modalCard } from '../history/historyShared'
+import { useDividendAction, useDividendForm } from './dividendActions'
 
 const INPUT: CSSProperties = {
   background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
@@ -25,35 +25,10 @@ interface Props {
 }
 
 export default function DividendModal({ currency, holdings, editing, userId, onClose, onSaved }: Props) {
-  const inTab = holdings.filter(holding => canonicalCurrency(holding.currency) === currency)
-  const [holdingId, setHoldingId] = useState(editing?.holding_id ?? inTab[0]?.id ?? '')
-  const [date, setDate] = useState(editing?.date ?? todayIST())
-  const [amount, setAmount] = useState(editing ? String(editing.amount) : '')
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
+  const { inTab, holdingId, setHoldingId, date, setDate, amount, setAmount, saving, err, save } =
+    useDividendForm({ currency, holdings, editing, userId, onSaved })
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!saving) onClose() })
-
-  const save = async () => {
-    const value = parseSeededDecimal(amount, editing?.amount)
-    if (!holdingId || !date || !(value > 0)) {
-      setErr('Choose a holding, a date and a positive amount.')
-      return
-    }
-    setSaving(true)
-    setErr('')
-    // quantity is required by TransactionInput but unused for a dividend.
-    const body = { type: 'dividend' as const, date: `${date}T00:00:00Z`, quantity: 0, amount: value, notes: editing?.notes }
-    try {
-      if (editing) await api.updateTransaction(editing.id, body, userId)
-      else await api.createTransaction(holdingId, body, userId)
-      onSaved()
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error))
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label={editing ? 'Edit dividend' : 'Add dividend'}>
@@ -86,20 +61,9 @@ export default function DividendModal({ currency, holdings, editing, userId, onC
 export function DeleteDividendDialog({ row, currency, userId, onClose, onDeleted }: {
   row: DividendRow; currency: string; userId?: string; onClose: () => void; onDeleted: () => void
 }) {
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState('')
+  const { busy, err, run: remove } = useDividendAction(() => api.deleteTransaction(row.id, userId), onDeleted)
   const root = useRef<HTMLDivElement>(null)
   useDialogFocus(root, () => { if (!busy) onClose() })
-  const remove = async () => {
-    setBusy(true)
-    try {
-      await api.deleteTransaction(row.id, userId)
-      onDeleted()
-    } catch (error) {
-      setErr(error instanceof Error ? error.message : String(error))
-      setBusy(false)
-    }
-  }
   return (
     <div style={modalBackdrop} role="dialog" aria-modal="true" aria-label="Delete dividend">
       <div ref={root} tabIndex={-1} style={{ ...modalCard, width: 'min(420px, 100%)', display: 'flex', flexDirection: 'column', gap: 12 }}>
