@@ -130,7 +130,7 @@ describe('Ui2TransactionsPage', () => {
     const firstRow = table.querySelectorAll('tbody tr')[0]
     const cells = [...firstRow.querySelectorAll('td')]
     expect(cells.slice(0, 3).every(cell => cell.classList.contains('u2-left'))).toBe(true)
-    expect(cells.some(cell => cell.classList.contains('u2-center') && /^(INR|EUR)$/.test(cell.textContent ?? ''))).toBe(true)
+    expect(cells.some(cell => cell.classList.contains('u2-center') && /^(🇮🇳 INR|🇪🇺 EUR)$/.test((cell.textContent ?? '').trim()))).toBe(true)
   })
 
   it('shows currency summary panels', () => {
