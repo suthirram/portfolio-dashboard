@@ -131,7 +131,7 @@ Options and consequences:
       codebase and Transactions then looks inconsistent until retrofitted.
 Independent work that can continue: everything else in slices 18 and 19.
 Owner response (exact):
-Status: awaiting owner
+Status: answered (owner, 2026-11-20) — (a): keep the shared Pager; every paged list uses it and R24 asserts they match
 ```
 
 ```text
@@ -1965,6 +1965,6 @@ Run against a real stack (`make dev-db`, `make backend`, `make frontend`) on an 
 * [x] `feat/PD-059-dividends-page` merged → slice 18 live, `ui2/asset/*` available to Gold
 * [x] `feat/PD-059-dividend-import` merged → slice 19 live, one import machine for both interfaces
 * [x] Board rows 18, 19, 28 set to merged; registry lists `AssetStats`, `AssetBarChart`, `asset.css`, `useDividendImport`
-* [ ] PD-059-Q-5a-1 answered (Q-5a-2 answered by #372; slice 18 shipped option (a), reusing `Pager`)
+* [x] PD-059-Q-5a-1 answered: keep `Pager` (Q-5a-2 answered by #372)
 
 **Next:** Wave 5b — slices 20–21 (Gold table, Details, metrics, prices, missing-price prompt), building on `ui2/asset/*` from slice 18.

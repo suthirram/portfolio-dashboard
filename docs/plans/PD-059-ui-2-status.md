@@ -238,3 +238,12 @@ Owner response (exact): "go with b also update the handoff design
 Status: approved; implementation planned for slice 7 (option b; in the
   wave 2 plan and the updated handoff)
 ```
+
+## Owner decisions log (2026-11-20, waves 5–6 follow-up)
+
+* PD-059-Q-5a-1: keep the shared `Pager`. Every paged UI_2.0 list uses the same pager, and the R24 cutover test asserts it is identical across pages.
+* PD-059-Q-5b-1: asset-page dates move to the handoff's `18 Nov 2026`. Implementation waits for the owner's go, to ship together with other minor UI fixes (R32).
+* PD-059-Q-6b-1: DM Sans and Manrope must behave exactly like Roboto and JetBrains Mono (same loading and metric-adjusted fallback faces).
+* PD-059-Q-6e-1: the Light auth-screen sign-off is an optional, low-priority follow-up.
+* R31: fix the crowded monthly chart labels.
+* R22: the investment-delta graph is missing from UI_2.0. First bring it back inline on the Transactions page; the owner then decides on a sub-route.

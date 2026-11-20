@@ -114,7 +114,7 @@ Options and consequences:
       mockup; two date styles in UI_2.0 until the rest follows.
 Independent work that can continue: all of slices 20–21 (implemented as (a)).
 Owner response (exact):
-Status: awaiting owner
+Status: answered (owner, 2026-11-20) — (b): handoff format 18 Nov 2026; held for a bundled minor-UI release (roadmap R32)
 ```
 
 ---

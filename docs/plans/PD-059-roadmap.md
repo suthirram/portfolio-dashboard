@@ -66,17 +66,19 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | R18 | BE | Add DM Sans and Manrope to the allowed fonts with measured fallback faces (the list itself is already exposed) | PD-059-Q-6b-1 | owner |
 | R19 | FE | Super-admin pages: Manage admins, Branding (24); new fonts appear when R18 lands | R17 | merged (#381) |
 | R20 | FE | Profile (25) | R05 | merged (#382) |
-| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05, PD-059-Q-6e-1 | merged (#384); visual sign-off PD-059-Q-6e-1 open |
-| R22 | FE | Investment delta as a Transactions sub-route (27, tentative) | R10, owner | owner |
+| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05, PD-059-Q-6e-1 | merged (#384); visual sign-off is an optional follow-up (Q-6e-1) |
+| R22 | FE | Investment delta graph back in UI_2.0, inline on the Transactions page (owner: the graph went missing); the sub-route waits on R33 | R10 | ready |
 | R23 | BE | Register migration step `20261118_02` (9b) | owner's production dry run of `migrate overall` | owner |
-| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21, R28, R29, R30 | ready |
+| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left, and the same `Pager` on every paged list (Q-5a-1) | R09, R11, R13, R15, R16, R19, R20, R21, R22, R28, R29, R30 | blocked |
 | R25 | BE | New accounts default to `ui2`; migration step moves existing `classic` accounts | R24, owner approval | blocked |
 | R26 | FE | Remove the Classic shell and pages; Glass stays | R25 | blocked |
 | R27 | docs | Close out PD-059: archive the board, update CLAUDE.md architecture notes | R26, R28 | blocked |
 | R28 | FE | UI_2.0 trade import handoff parity: upload, paste, example, explicit validation and preview (board slice 29) | R11 | merged (#372) |
-| R29 | FE | Dividend add / edit / delete / delete-all dialogs in the handoff's `asset-form` inside `Ui2Dialog` (wave 5a follow-up; today they keep Classic chrome) | R13 | merged (`feat/PD-059-dividend-dialogs`) |
+| R29 | FE | Dividend add / edit / delete / delete-all dialogs in the handoff's `asset-form` inside `Ui2Dialog` (wave 5a follow-up; today they keep Classic chrome) | R13 | merged (#388) |
 | R30 | FE | UI_2.0 Transactions keeps its filters and offers Try again after a load error, like Dividends (#373 review) | R11 | merged (#387) |
-| R31 | FE | Monthly dividend chart labels crowd beyond ~24 months (handoff geometry kept 1:1): thin them or not | R12, owner | owner |
+| R31 | FE | Monthly dividend chart labels thinned so they never overlap; the newest period always labelled (owner: fix) | R12 | merged (`fix/PD-059-chart-labels`) |
+| R32 | FE | Asset-page dates in the handoff format `18 Nov 2026` (Q-5b-1), shipped with other minor UI fixes | owner go | owner |
+| R33 | FE | Investment delta as a Transactions sub-route (27, tentative) | R22, owner | owner |
 
 The server already exposes the allowed font list, so R19 shipped on R17 alone
 and renders whatever `allowed_fonts` returns. R18 is now only the addition of
@@ -89,17 +91,16 @@ Slices 1–26 and 29, and follow-ups R29–R30, are merged; only these remain be
 
 **Ready (no owner input):**
 
-* R24 — the cutover route test (R29 and R30 merged).
+* R22 — the investment-delta graph inline on the UI_2.0 Transactions page.
+* R24 — the cutover route test, once R22 merges; it also checks the shared `Pager` is identical on every paged list.
 
 **Waiting on the owner:**
 
-* PD-059-Q-5a-1 — Dividends paging: keep the shared `Pager` (shipped) or build the handoff's `← n / m →`.
-* PD-059-Q-5b-1 — asset-page dates: app `18-11-2026` (shipped) or handoff `18 Nov 2026`.
-* PD-059-Q-6b-1 / R18 — approve downloading DM Sans and Manrope to measure fallbacks; then a backend PR adds them.
-* PD-059-Q-6e-1 — visual sign-off of the Light signup / recovery / onboarding screens (#384).
-* R31 — whether to thin the crowded monthly dividend chart labels.
-* R22 — the tentative investment-delta sub-route (slice 27).
+* R32 — dates as `18 Nov 2026` (decided), held until the owner bundles minor UI fixes.
+* PD-059-Q-6b-1 / R18 — DM Sans and Manrope like Roboto and JetBrains Mono: needs their metrics source approved.
+* R33 — the investment-delta sub-route, decided after R22.
 * R23 — the owner's production dry run of `migrate overall`, then register step `20261118_02` (9b).
+* Optional: PD-059-Q-6e-1, visual sign-off of the Light auth screens (#384).
 
 **After R24:** R25 (owner approves making UI_2.0 the default and migrating Classic accounts) → R26 (remove the Classic shell and pages; Glass stays) → R27 (close-out: archive the board, update CLAUDE.md).
 
@@ -139,6 +140,8 @@ graph LR
   R13 --> R29 --> R24
   R11 --> R30 --> R24
   R12 --> R31
+  R22 --> R24
+  R22 --> R33
   R24 --> R25 --> R26 --> R27
   R23
 ```

@@ -25,6 +25,25 @@ describe('AssetBarChart', () => {
     expect(Number(bar.getAttribute('y'))).toBe(195)
   })
 
+  it('thins axis labels on a long series so they never overlap, keeping every bar and tooltip', () => {
+    const months = Array.from({ length: 49 }, (_, index) => ({ label: `M${index + 1}`, value: index + 1 }))
+    const { container } = render(<AssetBarChart currency="INR" label="Dividend income by month in INR" data={months} />)
+    expect(container.querySelectorAll('rect')).toHaveLength(49)
+    expect(container.querySelectorAll('title')).toHaveLength(49)
+    const labels = [...container.querySelectorAll('text[y="220"]')]
+    expect(labels.at(-1)?.textContent).toBe('M49')
+    const positions = labels.map(text => Number(text.getAttribute('x')))
+    const gaps = positions.slice(1).map((position, index) => position - positions[index])
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(44)
+  })
+
+  it('labels every bar when they fit', () => {
+    const { container } = render(
+      <AssetBarChart currency="INR" label="Dividend income by year in INR"
+        data={['2022', '2023', '2024', '2025', '2026'].map(year => ({ label: year, value: 1 }))} />)
+    expect(container.querySelectorAll('text[y="220"]')).toHaveLength(5)
+  })
+
   it('renders no bars for an empty series', () => {
     const { container } = render(
       <AssetBarChart currency="INR" label="Dividend income by year in INR" data={[]} />)
