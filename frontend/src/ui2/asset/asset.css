@@ -1,0 +1,230 @@
+/* Shared UI_2.0 asset-page chrome (PD-059 slices 18–21). Ported 1:1 from the
+ * handoff's .asset-* rules (docs/visuals/PD-059-ui-2-reference.html) onto the
+ * --u2-* palette. Dividends uses it first; Gold reuses it unchanged. */
+
+:root[data-ui="ui2"] .asset-root { display: grid; gap: 20px; }
+
+:root[data-ui="ui2"] .asset-top,
+:root[data-ui="ui2"] .asset-toolbar,
+:root[data-ui="ui2"] .asset-tabs,
+:root[data-ui="ui2"] .asset-period,
+:root[data-ui="ui2"] .asset-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+:root[data-ui="ui2"] .asset-top h2,
+:root[data-ui="ui2"] .asset-panel h2 {
+  font: 700 15px var(--u2-font-display);
+  margin: 0;
+}
+
+:root[data-ui="ui2"] .asset-tabs { justify-content: flex-start; gap: 6px; }
+
+:root[data-ui="ui2"] .asset-stat-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+  gap: 16px;
+}
+
+:root[data-ui="ui2"] .asset-stat {
+  padding: 22px;
+  border: 1px solid var(--u2-border);
+  border-radius: 14px;
+  background: var(--u2-panel);
+  box-shadow: var(--u2-shadow);
+  min-width: 0;
+}
+
+:root[data-ui="ui2"] .asset-stat.hero {
+  background: linear-gradient(130deg, var(--u2-accentsoft), var(--u2-panel));
+  border-color: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .asset-stat .eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--u2-muted);
+}
+
+:root[data-ui="ui2"] .asset-stat strong {
+  display: block;
+  font: 800 25px var(--u2-font-display);
+  margin-top: 13px;
+  letter-spacing: -.7px;
+}
+
+:root[data-ui="ui2"] .asset-stat .stat-detail {
+  color: var(--u2-muted);
+  font-size: 11px;
+  margin-top: 10px;
+  display: block;
+}
+
+:root[data-ui="ui2"] .asset-panel { padding: 22px; }
+
+:root[data-ui="ui2"] .asset-split {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+}
+
+:root[data-ui="ui2"] .asset-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+:root[data-ui="ui2"] .asset-table-wrap { overflow-x: auto; }
+
+:root[data-ui="ui2"] .asset-table {
+  border-collapse: collapse;
+  width: 100%;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .asset-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--u2-muted);
+  background: var(--u2-bg);
+  padding: 14px 16px;
+  text-align: right;
+}
+
+:root[data-ui="ui2"] .asset-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--u2-border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-ui="ui2"] .asset-table th:first-child,
+:root[data-ui="ui2"] .asset-table td:first-child,
+:root[data-ui="ui2"] .asset-table .left { text-align: left; }
+
+:root[data-ui="ui2"] .asset-table small {
+  display: block;
+  color: var(--u2-muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+
+:root[data-ui="ui2"] .asset-table .ui2-btn { padding: 7px 10px; }
+
+:root[data-ui="ui2"] .asset-table .empty {
+  text-align: center;
+  color: var(--u2-muted);
+  padding: 34px 16px;
+}
+
+:root[data-ui="ui2"] .asset-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 16px;
+}
+
+:root[data-ui="ui2"] .asset-search input,
+:root[data-ui="ui2"] .asset-input {
+  border: 1px solid var(--u2-border);
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  padding: 10px 12px;
+  border-radius: 7px;
+  min-width: 0;
+}
+
+:root[data-ui="ui2"] .asset-search input { min-width: 210px; flex: 1; }
+
+:root[data-ui="ui2"] .compactselect {
+  border: 1px solid var(--u2-border);
+  background: var(--u2-panel);
+  color: var(--u2-muted);
+  padding: 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  max-width: 140px;
+}
+
+:root[data-ui="ui2"] .asset-footer {
+  padding: 15px 18px;
+  color: var(--u2-muted);
+  font-size: 11px;
+}
+
+:root[data-ui="ui2"] .asset-chart { height: 240px; width: 100%; display: block; }
+
+:root[data-ui="ui2"] .asset-contribution {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--u2-border);
+}
+
+:root[data-ui="ui2"] .asset-contribution-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+:root[data-ui="ui2"] .asset-track {
+  height: 6px;
+  border-radius: 5px;
+  background: var(--u2-accentsoft);
+  overflow: hidden;
+}
+
+:root[data-ui="ui2"] .asset-track div {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--u2-accent);
+}
+
+:root[data-ui="ui2"] .asset-note {
+  color: var(--u2-muted);
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+:root[data-ui="ui2"] .asset-empty { text-align: center; padding: 55px 20px; }
+:root[data-ui="ui2"] .asset-empty h2 { font: 700 20px var(--u2-font-display); }
+:root[data-ui="ui2"] .asset-empty p { color: var(--u2-muted); line-height: 1.7; }
+
+:root[data-ui="ui2"] .asset-danger { color: var(--u2-red); border-color: var(--u2-red); }
+
+:root[data-ui="ui2"] .asset-import textarea {
+  width: 100%;
+  height: 160px;
+  resize: vertical;
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  padding: 12px;
+  border: 1px solid var(--u2-border);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+:root[data-ui="ui2"] .asset-error { color: var(--u2-red); font-size: 12px; }
+:root[data-ui="ui2"] .asset-period .ui2-btn { padding: 7px 10px; }
+
+@media (max-width: 900px) {
+  :root[data-ui="ui2"] .asset-stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  :root[data-ui="ui2"] .asset-split { grid-template-columns: 1fr; }
+  :root[data-ui="ui2"] .asset-stat { padding: 16px; }
+  :root[data-ui="ui2"] .asset-stat strong { font-size: 21px; }
+  :root[data-ui="ui2"] .asset-panel { padding: 16px; }
+  :root[data-ui="ui2"] .asset-top { align-items: flex-start; }
+  :root[data-ui="ui2"] .asset-chart { height: 210px; }
+}

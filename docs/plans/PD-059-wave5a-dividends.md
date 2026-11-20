@@ -1192,11 +1192,10 @@ describe('Ui2DividendsPage', () => {
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Dividend holding' }), 'h2')
     expect(screen.getByText('1 of 2 payments')).toBeInTheDocument()
     // 800 is the tab-wide running total: filtering must not recompute it.
-    // Scope to the one visible data row — the stat card and yearly table also
-    // show ₹800.00, so getByText without within throws "Found multiple elements".
-    const rows = screen.getAllByRole('row')
-    expect(rows).toHaveLength(2) // header + 1 Infosys row
-    expect(within(rows[1]).getByText('₹800.00')).toBeInTheDocument()
+    // Scope to the Infosys payment row — the stat card and yearly table also
+    // show ₹800.00, so an unscoped getByText throws "Found multiple elements".
+    const paymentRow = screen.getByRole('cell', { name: /Infosys/ }).closest('tr')!
+    expect(within(paymentRow).getByText('₹800.00')).toHaveClass('u2-positive')
     expect(screen.queryByText('TCS.NS')).not.toBeInTheDocument()
   })
 
