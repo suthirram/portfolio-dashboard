@@ -7,6 +7,9 @@ import SectorBadge from '../../features/holdings/SectorBadge'
 
 interface Props {
   xirr?: number | null
+  // The rate's caveat (under a year, undated opening), '' when none — the
+  // Classic table shows the same text on hover.
+  xirrNote?: string
   holding: HoldingWithPrice
   close: () => void
   edit: () => void
@@ -14,7 +17,8 @@ interface Props {
   remove: () => Promise<void>
 }
 
-export function Ui2HoldingDetailsDialog({ holding, xirr, close, edit, ledger, remove }: Props) {
+export function Ui2HoldingDetailsDialog({ holding, xirr, xirrNote = '', close, edit, ledger, remove }: Props) {
+  const flagged = Boolean(xirrNote) && xirr != null
   const currency = canonicalCurrency(holding.currency)
   const eur = currency === 'EUR'
   const converted = eur ? 'EUR' : 'INR'
@@ -26,13 +30,14 @@ export function Ui2HoldingDetailsDialog({ holding, xirr, close, edit, ledger, re
     ['Unrealised return', money(eur ? holding.unrealized_pnl_eur : holding.unrealized_pnl, converted)],
     ['Realised gain', money(holding.realized_pnl, currency)],
     ['Dividends', money(holding.total_dividends, currency)],
-    ['XIRR', formatRate(xirr)],
+    ['XIRR', `${formatRate(xirr)}${flagged ? '*' : ''}`],
   ]
   return <Ui2Dialog title={holding.script || 'Holding details'} onClose={close}>
     <p>{holding.symbol} · {holding.exchange}</p>
     <SectorBadge holding={holding} />
     <div className="ui2-detailgrid">{metrics.map(([label, value]) =>
       <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+    {flagged && <p className="ui2-note">* {xirrNote}</p>}
     <div className="ui2-dialog-actions">
       <button className="ui2-btn" onClick={edit}>Edit</button>
       {ledger && <button className="ui2-btn" onClick={ledger}>Ledger</button>}

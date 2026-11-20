@@ -8,6 +8,7 @@ import { useUiMode, useUiRevamp } from '../../lib/uiMode'
 import { GOLD_LABEL, Ui2SummaryCards, type AssetLine } from '../../ui2/overview/Ui2SummaryCards'
 import { nativeView } from '../holdings/currencyTotals'
 import { Ui2HoldingDetailsDialog } from '../../ui2/overview/Ui2HoldingDetailsDialog'
+import { xirrNote } from '../holdings/stockXirr'
 import { Ui2Holdings } from '../../ui2/overview/Ui2Holdings'
 import { Ui2Allocation } from '../../ui2/overview/Ui2Allocation'
 import OverallPerformance from '../../ui2/overview/OverallPerformance'
@@ -185,6 +186,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   const [selection, setSelection] = useState<{owner?: string; id: string} | null>(null)
   const selected = ui2 && selection && selection.owner === actAsUserId
     ? displayHoldings.find(holding => holding.id === selection.id) : undefined
+  // The details dialog's XIRR comes from the same /xirr index the Classic
+  // holdings table reads.
+  const selectedXirr = selected?.id ? xirr?.byHolding[selected.id] : undefined
   const selectHolding = (id: string) => setSelection({owner: actAsUserId, id})
 
   const filtered = displayHoldings.filter(holding =>
@@ -469,6 +473,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       </main>
 
       {selected && <Ui2HoldingDetailsDialog holding={selected} close={() => setSelection(null)}
+        xirr={selectedXirr?.xirr} xirrNote={selectedXirr && xirr ? xirrNote(selectedXirr.since, xirr.asOf, selectedXirr.undated_opening) : ''}
         edit={() => { setSelection(null); setModal(selected) }}
         ledger={actAsUserId ? undefined : () => { setSelection(null); setTxnModal(selected) }}
         remove={async () => { if (selected.id && await handleDelete(selected.id)) setSelection(null) }} />}
