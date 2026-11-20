@@ -21,7 +21,9 @@
 
 .sunrise-auth .sunrise-login-field > label :is(input, select) { display: block; margin-top: .375rem; }
 
-.sunrise-auth .sunrise-login-field :is(input, select) {
+/* Every text field and select in the card, including the ones signup lays
+   out itself (its security-question blocks) outside FormField. */
+.sunrise-auth .sunrise-login-card :is(input:not([type="checkbox"]):not([type="radio"]), select) {
   width: 100%;
   min-width: 0;
   min-height: 3rem;
@@ -33,7 +35,7 @@
   font-size: max(1rem, 1em);
 }
 
-.sunrise-auth .sunrise-login-field :is(input, select):focus { outline: none; box-shadow: var(--ring); border-color: #245dbb; }
+.sunrise-auth .sunrise-login-card :is(input, select):focus { outline: none; box-shadow: var(--ring); border-color: #245dbb; }
 
 .sunrise-auth-hint { margin-top: .375rem; font-size: .75rem; color: #555d73; }
 .sunrise-auth-field-error { margin-top: .375rem; font-size: .75rem; color: #a51b35; }
