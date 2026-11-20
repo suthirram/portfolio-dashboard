@@ -28,7 +28,9 @@ export function useAdminActions(reload: () => Promise<void>) {
   // One path for the per-account switches, shared by the table's buttons and
   // the glass settings' switches. On the caller's own account the session
   // user is refreshed, so the delta panel follows without a page reload.
-  const toggleFeature = (listedUser: User, feature: FeatureSwitch) => {
+  // confirmed skips the browser prompt when the caller already asked in its
+  // own dialog (UI_2.0).
+  const toggleFeature = (listedUser: User, feature: FeatureSwitch, confirmed = false) => {
     const enabled = !listedUser[feature.key]
     const body = { enabled }
     const calls: Record<FeatureSwitch['key'], () => Promise<unknown>> = {
@@ -39,7 +41,7 @@ export function useAdminActions(reload: () => Promise<void>) {
     return runAction(listedUser.id, async () => {
       await calls[feature.key]()
       if (listedUser.id === caller?.id && feature.key === 'delta_from_history') await refreshCaller()
-    }, !enabled && feature.offConfirm ? feature.offConfirm(listedUser.username) : undefined)
+    }, !confirmed && !enabled && feature.offConfirm ? feature.offConfirm(listedUser.username) : undefined)
   }
 
   // setUiMode sets the account's interface (PD-059). On the caller's own
