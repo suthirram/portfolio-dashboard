@@ -1,0 +1,106 @@
+/* UI_2.0 Profile & security (PD-059 slice 25), ported from the handoff's
+ * .profile-* rules onto the --u2-* palette. */
+
+:root[data-ui="ui2"] .u2-profile-layout {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+:root[data-ui="ui2"] .u2-profile-identity { padding: 24px; text-align: center; }
+:root[data-ui="ui2"] .u2-profile-identity h2 { font: 700 17px var(--u2-font-display); margin: 0 0 8px; }
+
+:root[data-ui="ui2"] .u2-profile-avatar {
+  margin: 0 auto 16px;
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  border-radius: 18px;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+:root[data-ui="ui2"] .u2-profile-role {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 9px;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+:root[data-ui="ui2"] .u2-profile-row .u2-profile-role { margin-top: 0; }
+
+:root[data-ui="ui2"] .u2-profile-tabs { display: flex; flex-direction: column; gap: 5px; margin-top: 24px; }
+
+:root[data-ui="ui2"] .u2-profile-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--u2-muted);
+  text-align: left;
+  padding: 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+}
+
+:root[data-ui="ui2"] .u2-profile-tabs button.active { background: var(--u2-accentsoft); color: var(--u2-accent); }
+
+:root[data-ui="ui2"] .u2-profile-content { padding: 26px; max-width: 850px; }
+:root[data-ui="ui2"] .u2-profile-content h2 { font: 700 18px var(--u2-font-display); margin: 0 0 8px; }
+:root[data-ui="ui2"] .u2-profile-field-note { font-size: 11px; color: var(--u2-muted); line-height: 1.6; margin: 0; }
+
+:root[data-ui="ui2"] .u2-profile-form { display: grid; gap: 16px; margin: 22px 0; }
+:root[data-ui="ui2"] .u2-profile-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+:root[data-ui="ui2"] .u2-profile-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--u2-muted);
+  min-width: 0;
+}
+
+:root[data-ui="ui2"] .u2-profile-form input,
+:root[data-ui="ui2"] .u2-profile-form select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px;
+  background: var(--u2-bg);
+  color: var(--u2-text);
+  border: 1px solid var(--u2-border);
+  border-radius: 7px;
+}
+
+:root[data-ui="ui2"] .u2-profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--u2-border);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-profile-ok { color: var(--u2-green); font-size: 12px; }
+:root[data-ui="ui2"] .u2-profile-error { color: var(--u2-red); font-size: 12px; }
+
+@media (max-width: 1050px) {
+  :root[data-ui="ui2"] .u2-profile-layout { grid-template-columns: 1fr; }
+  :root[data-ui="ui2"] .u2-profile-identity { text-align: left; }
+  :root[data-ui="ui2"] .u2-profile-avatar { margin: 0 0 15px; }
+  :root[data-ui="ui2"] .u2-profile-tabs { flex-direction: row; flex-wrap: wrap; margin-top: 18px; }
+  :root[data-ui="ui2"] .u2-profile-content { padding: 20px; }
+}
+
+@media (max-width: 700px) {
+  :root[data-ui="ui2"] .u2-profile-pair { grid-template-columns: 1fr; }
+}
