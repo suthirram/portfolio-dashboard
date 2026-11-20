@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { api, type Region } from '../../lib/api/client'
 import { initials } from '../../features/admin/AdminUserSettings'
 import { useProfileForms, type FormMessage } from '../../features/auth/useProfileForms'
@@ -34,7 +34,17 @@ export function Ui2ProfilePage() {
 
   if (!user) return null
   const regionLabel = user.region ? regions.find(region => region.id === user.region)?.label ?? user.region : 'All regions'
-  const sectionLabel = SECTIONS.find(([key]) => key === section)?.[1] ?? ''
+
+  const moveTab = (e: KeyboardEvent<HTMLDivElement>) => {
+    const current = SECTIONS.findIndex(([key]) => key === section)
+    const last = SECTIONS.length - 1
+    const target = { ArrowRight: current + 1, ArrowDown: current + 1, ArrowLeft: current - 1, ArrowUp: current - 1, Home: 0, End: last }[e.key]
+    if (target === undefined) return
+    e.preventDefault()
+    const [next] = SECTIONS[(target + SECTIONS.length) % SECTIONS.length]
+    setSection(next)
+    document.getElementById(`u2-profile-tab-${next}`)?.focus()
+  }
 
   return (
     <>
@@ -45,10 +55,13 @@ export function Ui2ProfilePage() {
           <h2>{user.name || user.username}</h2>
           <p className="ui2-note">@{user.username}</p>
           <span className="u2-profile-role">{user.role}</span>
-          <div className="u2-profile-tabs" role="tablist" aria-label="Account settings">
+          {/* ARIA tabs: one tab stop (the selected tab), arrows and
+              Home / End move between sections. */}
+          <div className="u2-profile-tabs" role="tablist" aria-label="Account settings" onKeyDown={moveTab}>
             {SECTIONS.map(([key, label]) => (
               <button key={key} type="button" role="tab" id={`u2-profile-tab-${key}`} aria-controls="u2-profile-panel"
-                aria-selected={section === key} className={section === key ? 'active' : undefined}
+                aria-selected={section === key} tabIndex={section === key ? 0 : -1}
+                className={section === key ? 'active' : undefined}
                 onClick={() => setSection(key)}>
                 {label}
               </button>
@@ -57,7 +70,7 @@ export function Ui2ProfilePage() {
         </aside>
 
         <section className="ui2-panel u2-profile-content" role="tabpanel" id="u2-profile-panel"
-          aria-labelledby={`u2-profile-tab-${section}`} aria-label={sectionLabel}>
+          aria-labelledby={`u2-profile-tab-${section}`}>
           {section === 'profile' && (
             <>
               <h2>Profile details</h2>

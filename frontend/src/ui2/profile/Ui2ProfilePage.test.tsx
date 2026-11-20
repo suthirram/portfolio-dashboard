@@ -51,6 +51,21 @@ describe('Ui2ProfilePage', () => {
     expect(await screen.findByText('Europe')).toBeInTheDocument()
   })
 
+  it('moves between sections with the arrow keys, one tab stop at a time', async () => {
+    render(<Ui2ProfilePage />)
+    const profileTab = screen.getByRole('tab', { name: 'Profile' })
+    expect(profileTab).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('tab', { name: 'Password' })).toHaveAttribute('tabindex', '-1')
+    profileTab.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Password' })).toHaveFocus()
+    expect(screen.getByRole('tabpanel', { name: 'Password' })).toHaveTextContent('Change password')
+    await userEvent.keyboard('{End}')
+    expect(screen.getByRole('tab', { name: 'Security questions' })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Profile' })).toHaveFocus()
+  })
+
   it('saves the profile with the current password and refreshes the session', async () => {
     render(<Ui2ProfilePage />)
     await userEvent.clear(screen.getByLabelText('Name'))
