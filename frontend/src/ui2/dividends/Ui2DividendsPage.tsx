@@ -8,6 +8,7 @@ import { tabFrom } from '../../features/dividends/DividendsPage'
 import { usePagination, PAGE_SIZE } from '../../lib/usePagination'
 import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
+import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { AssetStats, type AssetStat } from '../asset/AssetStats'
 import { AssetBarChart } from '../asset/AssetBarChart'
 import DividendModal, { DeleteDividendDialog } from '../../features/dividends/DividendModal'
@@ -25,7 +26,7 @@ function monthLabel(period: string): string {
   return new Date(`${period}-01T12:00`).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
 }
 
-export function Ui2DividendsPage({ actAsUserId }: { actAsUserId?: string }) {
+export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: string; actAsLabel?: string }) {
   const [params, setParams] = useSearchParams()
   const currency = tabFrom(params.get('currency'))
   const { view, ready, holdings, loading, error, refresh } = useDividends(currency, actAsUserId)
@@ -82,10 +83,9 @@ export function Ui2DividendsPage({ actAsUserId }: { actAsUserId?: string }) {
     }))
   const years = [...view.by_year].sort((first, second) => second.period.localeCompare(first.period))
 
-  if (error) return <p className="ui2-note" role="alert">{error}</p>
-
   return (
     <>
+      {actAsLabel && <Ui2ActAsBanner label={actAsLabel} />}
       <Ui2PageIntro
         title="Income, one payment at a time."
         subtitle="Track received dividends in their original currency."
@@ -116,6 +116,15 @@ export function Ui2DividendsPage({ actAsUserId }: { actAsUserId?: string }) {
         </div>
 
         {loading && <p className="ui2-note" aria-live="polite">Loading…</p>}
+        {error && (
+          <div className="ui2-notice" role="alert">
+            <div>
+              <strong>Dividends could not load</strong>
+              <span>{error}</span>
+            </div>
+            <button type="button" className="ui2-btn" onClick={() => void refresh()}>Try again</button>
+          </div>
+        )}
 
         <AssetStats stats={stats} />
 

@@ -6,7 +6,7 @@ import { Ui2DividendsPage } from './Ui2DividendsPage'
 
 // Hoisted so the vi.mock factory may read it: Vitest lifts vi.mock above the
 // module body, where a plain const is still uninitialised.
-const fixture = vi.hoisted(() => ({ seen: [] as string[] }))
+const fixture = vi.hoisted(() => ({ seen: [] as string[], error: '', refresh: vi.fn() }))
 
 vi.mock('../../features/dividends/useDividends', () => ({
   useDividends: (currency: string) => {
@@ -43,8 +43,8 @@ vi.mock('../../features/dividends/useDividends', () => ({
           stocks_owned: 20, avg_cost_price: 1500 },
       ],
       loading: false,
-      error: '',
-      refresh: vi.fn(),
+      error: fixture.error,
+      refresh: fixture.refresh,
     }
   },
 }))
@@ -78,7 +78,11 @@ const show = (search = '') =>
       <Ui2DividendsPage />
     </MemoryRouter>)
 
-beforeEach(() => { fixture.seen = [] })
+beforeEach(() => {
+  fixture.seen = []
+  fixture.error = ''
+  fixture.refresh.mockClear()
+})
 
 describe('Ui2DividendsPage', () => {
   it('renders the handoff intro and the four stat cards', () => {
@@ -126,6 +130,25 @@ describe('Ui2DividendsPage', () => {
     const paymentRow = screen.getByRole('cell', { name: /Infosys/ }).closest('tr')!
     expect(within(paymentRow).getByText('₹800.00')).toHaveClass('u2-positive')
     expect(screen.queryByText('TCS.NS')).not.toBeInTheDocument()
+  })
+
+  it('names the viewed account in act-as and offers the way back', () => {
+    render(
+      <MemoryRouter initialEntries={['/dividends']}>
+        <Ui2DividendsPage actAsUserId="u9" actAsLabel="alice's dividends" />
+      </MemoryRouter>)
+    const banner = screen.getByRole('region', { name: 'Act-as session' })
+    expect(banner).toHaveTextContent("Viewing alice's dividends")
+    expect(within(banner).getByRole('link', { name: 'Exit act-as' })).toHaveAttribute('href', '/admin')
+  })
+
+  it('keeps the currency tabs and offers a retry after a load error', async () => {
+    fixture.error = 'Network down'
+    show()
+    expect(screen.getByRole('alert')).toHaveTextContent('Network down')
+    expect(screen.getByRole('tab', { name: '€ EUR' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(fixture.refresh).toHaveBeenCalled()
   })
 
   it('tells the user when a search matches nothing', async () => {
