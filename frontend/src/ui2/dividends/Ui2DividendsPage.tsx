@@ -115,7 +115,10 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
           </div>
         </div>
 
-        {loading && <p className="ui2-note" aria-live="polite">Loading…</p>}
+        {/* Until the tab's first response (ready) every figure would be the
+            empty view's zero, so stats and counts wait and the table says
+            it is loading; later refreshes keep the old figures meanwhile. */}
+        {loading && ready && <p className="ui2-note" aria-live="polite">Loading…</p>}
         {error && (
           <div className="ui2-notice" role="alert">
             <div>
@@ -126,7 +129,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
           </div>
         )}
 
-        <AssetStats stats={stats} />
+        {ready && <AssetStats stats={stats} />}
 
         <section className="ui2-panel">
           <div className="asset-search">
@@ -150,7 +153,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                 </option>
               ))}
             </select>
-            <span className="asset-note">{visible.length} of {view.rows.length} payments</span>
+            {ready && <span className="asset-note">{visible.length} of {view.rows.length} payments</span>}
           </div>
 
           {ready && view.summary.count === 0 ? (
@@ -177,7 +180,13 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                     </tr>
                   </thead>
                   <tbody>
-                    {pagination.pageItems.length === 0 ? (
+                    {!ready ? (
+                      <tr>
+                        <td colSpan={6} className="empty" aria-live="polite">
+                          {error ? 'Payments could not load.' : 'Loading payments…'}
+                        </td>
+                      </tr>
+                    ) : pagination.pageItems.length === 0 ? (
                       <tr><td colSpan={6} className="empty">No payments match this search.</td></tr>
                     ) : pagination.pageItems.map(row => (
                       <tr key={row.id}>
