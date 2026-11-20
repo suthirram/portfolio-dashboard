@@ -9,24 +9,24 @@ import { useTheme } from '../../lib/useTheme'
 const OPEN_KEY = 'pd_u2_txn_delta_open'
 
 function TeaserSparkline({ months }: { months: MonthlyInvestment[] }) {
-  const deltas = months.map(m => m.delta ?? 0)
-  const validInvested = months.map(m => m.invested).filter((v): v is number => v !== null)
+  const deltas = months.map(mo => mo.delta ?? 0)
+  const validInvested = months.map(mo => mo.invested).filter((val): val is number => val !== null)
   const maxDelta = Math.max(...deltas, 1)
   const minInv = validInvested.length ? Math.min(...validInvested) : 0
   const maxInv = validInvested.length ? Math.max(...validInvested, 1) : 1
-  const W = 80, H = 22, step = W / 12
+  const svgW = 80, svgH = 22, step = svgW / 12
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
-      {deltas.map((d, i) => {
-        const bh = Math.max(1, (d / maxDelta) * 16)
-        return <rect key={i} x={i * step + 1} y={H - bh} width={step - 2} height={bh} rx={1} fill="currentColor" opacity={0.45} />
+    <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} aria-hidden="true">
+      {deltas.map((delta, i) => {
+        const bh = Math.max(1, (delta / maxDelta) * 16)
+        return <rect key={i} x={i * step + 1} y={svgH - bh} width={step - 2} height={bh} rx={1} fill="currentColor" opacity={0.45} />
       })}
       {validInvested.length > 1 && (
         <polyline fill="none" stroke="currentColor" strokeWidth={1.5}
-          points={months.map((m, i) => {
-            if (m.invested === null) return null
-            const y = H - 2 - ((m.invested - minInv) / (maxInv - minInv || 1)) * 14
-            return `${i * step + step / 2},${y}`
+          points={months.map((mo, i) => {
+            if (mo.invested === null) return null
+            const py = svgH - 2 - ((mo.invested - minInv) / (maxInv - minInv || 1)) * 14
+            return `${i * step + step / 2},${py}`
           }).filter(Boolean).join(' ')} />
       )}
     </svg>
@@ -62,7 +62,7 @@ export function Ui2InvestmentDelta({ refreshKey }: { refreshKey: number }) {
   }, [open])
 
   const sym = column ? PERFORMANCE_COLUMN_SYMBOL[column] : '₹'
-  const netChange = months.reduce((s, m) => s + (m.delta ?? 0), 0)
+  const netChange = months.reduce((sum, mo) => sum + (mo.delta ?? 0), 0)
 
   return (
     <section className="ui2-panel u2-tx-delta" aria-label="Investment delta">

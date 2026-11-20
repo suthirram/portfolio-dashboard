@@ -9,10 +9,10 @@ const OPEN_KEY = 'pd_u2_txn_delta_open'
 // in-memory stand-in so the component's window.localStorage?.* calls work.
 const lsStore: Record<string, string> = {}
 const lsMock = {
-  getItem: (k: string) => lsStore[k] ?? null,
-  setItem: (k: string, v: string) => { lsStore[k] = v },
-  removeItem: (k: string) => { delete lsStore[k] },
-  clear: () => { for (const k of Object.keys(lsStore)) delete lsStore[k] },
+  getItem: (key: string) => lsStore[key] ?? null,
+  setItem: (key: string, val: string) => { lsStore[key] = val },
+  removeItem: (key: string) => { delete lsStore[key] },
+  clear: () => { for (const key of Object.keys(lsStore)) delete lsStore[key] },
 }
 Object.defineProperty(window, 'localStorage', { value: lsMock, configurable: true })
 
@@ -89,7 +89,7 @@ describe('Ui2InvestmentDelta', () => {
   it('shows teaser net change with minus sign for negative annual delta', async () => {
     mockApi.getInvestmentDelta.mockResolvedValue({
       year: new Date().getFullYear(),
-      columns: [{ column: 'INR', months: months(12).map(m => ({ ...m, delta: -500 })) }],
+      columns: [{ column: 'INR', months: months(12).map(mo => ({ ...mo, delta: -500 })) }],
     })
     render(<Ui2InvestmentDelta refreshKey={0} />)
     // 12 months x delta -500 = net -6000; must display minus prefix, not bare 6,000

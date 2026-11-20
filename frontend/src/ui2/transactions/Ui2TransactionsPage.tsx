@@ -43,7 +43,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [ledger, setLedger] = useState<HoldingWithPrice | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [deltaRefresh, setDeltaRefresh] = useState(0)
-  const ledgerChanged = () => { void refresh(); setDeltaRefresh(v => v + 1) }
+  const ledgerChanged = () => { void refresh(); setDeltaRefresh(prev => prev + 1) }
 
   const rows = useMemo(() => sortRows(applyFilters(transactions, filters), sort), [transactions, filters, sort])
   const currencies = useMemo(() => currencyFacet(transactions), [transactions])
