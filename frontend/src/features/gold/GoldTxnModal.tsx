@@ -12,7 +12,7 @@ interface Props {
   onSaved: () => void
 }
 
-interface FormState {
+export interface FormState {
   date: string
   gm_price: string
   grams_bought: string
@@ -25,7 +25,7 @@ interface FormState {
 
 const num = (value: number | null | undefined) => (value == null ? '' : String(value))
 
-function initialForm(txn: GoldTransaction | null): FormState {
+export function initialForm(txn: GoldTransaction | null): FormState {
   if (!txn) {
     return {
       // UTC "today" is fine as a default (owner call): it is never ahead
@@ -74,7 +74,7 @@ export function validateGoldForm(form: FormState): string | null {
   return null
 }
 
-function toInput(form: FormState): GoldTransactionInput {
+export function toInput(form: FormState): GoldTransactionInput {
   const opt = (value: string, opts?: typeof weight) => (value.trim() === '' ? null : parseDecimalInput(value, opts))
   return {
     date: form.date,
