@@ -1,0 +1,48 @@
+/* Gold-only UI_2.0 chrome (PD-059 slices 20–21), ported from the handoff's
+ * .gold-* rules. Shared asset chrome lives in ../asset/asset.css. */
+
+:root[data-ui="ui2"] .gold-meta {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+:root[data-ui="ui2"] .gold-meta > div { padding: 18px; border-right: 1px solid var(--u2-border); min-width: 0; }
+:root[data-ui="ui2"] .gold-meta > div:last-child { border-right: 0; }
+:root[data-ui="ui2"] .gold-meta strong { display: block; font-size: 17px; margin-top: 8px; }
+:root[data-ui="ui2"] .gold-meta span { color: var(--u2-muted); font-size: 11px; }
+
+:root[data-ui="ui2"] .gold-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+:root[data-ui="ui2"] .gold-detail > div { padding: 12px; border-bottom: 1px solid var(--u2-border); }
+:root[data-ui="ui2"] .gold-detail span { display: block; font-size: 11px; color: var(--u2-muted); margin-bottom: 7px; }
+:root[data-ui="ui2"] .gold-detail strong { font-size: 15px; }
+
+:root[data-ui="ui2"] .gold-price-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+:root[data-ui="ui2"] .gold-price-item {
+  background: var(--u2-bg);
+  border: 1px solid var(--u2-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:root[data-ui="ui2"] .gold-price-item span { font-size: 11px; color: var(--u2-muted); }
+
+@media (max-width: 1100px) {
+  :root[data-ui="ui2"] .gold-meta { grid-template-columns: 1fr 1fr; }
+  :root[data-ui="ui2"] .gold-price-list { grid-template-columns: repeat(2, 1fr); }
+  :root[data-ui="ui2"] .gold-detail { grid-template-columns: 1fr; }
+}
