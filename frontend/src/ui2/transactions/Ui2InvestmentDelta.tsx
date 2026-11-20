@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MonthlyInvestment } from '../../features/history/historyShared'
 import { MIN_YEAR, PERFORMANCE_COLUMN_LABELS, PERFORMANCE_COLUMN_SYMBOL } from '../../features/history/historyShared'
 import { InvestmentDeltaChart } from '../../features/transactions/InvestmentDeltaChart'
@@ -45,6 +45,8 @@ export function Ui2InvestmentDelta({ refreshKey }: { refreshKey: number }) {
   const { fromHistory, year, setYear, currentYear, ready, error, columns, column, setPicked, months } =
     useInvestmentDelta({ active: true, refreshKey })
 
+  const bodyRef = useRef<HTMLDivElement>(null)
+
   const toggle = () => {
     setOpen(wasOpen => {
       const next = !wasOpen
@@ -53,13 +55,26 @@ export function Ui2InvestmentDelta({ refreshKey }: { refreshKey: number }) {
     })
   }
 
+  // Keep the collapsed body inert so its buttons are removed from tab order
+  // and the accessibility tree while the chart is hidden.
+  useEffect(() => {
+    bodyRef.current?.toggleAttribute('inert', !open)
+  }, [open])
+
   const sym = column ? PERFORMANCE_COLUMN_SYMBOL[column] : '₹'
   const netChange = months.reduce((s, m) => s + (m.delta ?? 0), 0)
 
   return (
     <section className="ui2-panel u2-tx-delta" aria-label="Investment delta">
       <div className="u2-tx-delta-banner" role="button" tabIndex={0} aria-expanded={open}
-        onClick={toggle} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggle()}>
+        onClick={toggle}
+        onKeyDown={e => {
+          // Only activate when the banner itself is focused, not an inner button,
+          // to avoid a double-toggle when Enter/Space fires then the button's
+          // native click also fires.
+          if (e.target !== e.currentTarget) return
+          if (e.key === 'Enter' || e.key === ' ') toggle()
+        }}>
         <div className="u2-tx-delta-title-col">
           <span className="u2-tx-delta-title">Investment delta</span>
           <span className="u2-tx-delta-year-badge">{year}</span>
@@ -70,7 +85,7 @@ export function Ui2InvestmentDelta({ refreshKey }: { refreshKey: number }) {
             <div className="u2-tx-delta-teaser">
               <TeaserSparkline months={months} />
               <span className="u2-tx-delta-teaser-val">
-                {netChange >= 0 ? '+' : ''}{sym}{Math.abs(netChange).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                {netChange >= 0 ? '+' : '−'}{sym}{Math.abs(netChange).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </span>
             </div>
           )}
@@ -80,7 +95,7 @@ export function Ui2InvestmentDelta({ refreshKey }: { refreshKey: number }) {
           </button>
         </div>
       </div>
-      <div className={`u2-tx-delta-body${open ? ' is-open' : ''}`}>
+      <div ref={bodyRef} className={`u2-tx-delta-body${open ? ' is-open' : ''}`}>
         <div className="u2-tx-delta-inner">
           <div className="u2-tx-delta-panel">
             <div className="u2-tx-delta-controls">
