@@ -2,8 +2,8 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { api, ApiError, type GoldPrice } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
-import { parseDecimalInput } from '../../lib/formNumbers'
 import { formatDate } from '../../lib/formDates'
+import { localToday, pricePerGram } from './goldPrices'
 
 interface Props {
   /** The caller's price series (ascending) as last loaded. */
@@ -13,13 +13,6 @@ interface Props {
 }
 
 const fmt = (value: number) => value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-
-// localToday keeps the quick-add default on the user's calendar day; the
-// server rejects future dates (IST), and this input never sends one.
-function localToday(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
 
 /** Recent daily prices plus a single-row quick-add/edit (PRD-003 §7). Bulk
  * gap-filling is the MissingPricesModal's job; this panel is for the routine
@@ -31,9 +24,9 @@ export default function GoldPricesPanel({ prices, onSaved }: Props) {
   const [err, setErr] = useState('')
 
   const save = async () => {
-    const value = parseDecimalInput(price)
+    const value = pricePerGram(price)
     if (!date) { setErr('Pick a date'); return }
-    if (!Number.isFinite(value) || value <= 0) { setErr('Price must be a number > 0'); return }
+    if (value == null) { setErr('Price must be a number > 0'); return }
     setErr('')
     setSaving(true)
     try {
