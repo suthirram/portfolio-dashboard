@@ -7,6 +7,8 @@ import '../ui2.css'
 import '../cyberEntrance.css'
 // Dialog buttons, including the older modals a UI_2.0 account still reaches.
 import '../dialogButtons.css'
+import { toast } from '../../lib/toast'
+import { actAsLink, actAsUserIdOf } from './actAsNav'
 import { useCyberEntrance } from './useCyberEntrance'
 import { Ui2Toaster } from './Ui2Toaster'
 
@@ -58,9 +60,15 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const items = [...navItems(Boolean(user?.gold_enabled), isAdmin), ...(user?.role === 'superadmin' ? [BRANDING] : [])]
   const labelOf = (to: string, label: string) => LABELS[to] ?? label
-  const matches = (item: NavItem) => (item.end ? pathname === item.to : pathname.startsWith(item.to))
+  // During act-as each item leads to the viewed account's page, or nowhere
+  // (null) when that page is outside act-as.
+  const actAsUserId = actAsUserIdOf(pathname)
+  const links = items.map(item => ({ item, href: actAsUserId ? actAsLink(item.to, actAsUserId) : item.to }))
+  const matches = (item: NavItem, href: string) => (item.end ? pathname === href : pathname.startsWith(href))
   // The most specific link wins: /admin/branding is Branding, not Administration.
-  const current = items.filter(matches).sort((first, second) => second.to.length - first.to.length)[0]
+  const current = links
+    .filter((link): link is { item: NavItem; href: string } => link.href !== null && matches(link.item, link.href))
+    .sort((first, second) => second.href.length - first.href.length)[0]?.item
   const pageLabel = current ? labelOf(current.to, current.label) : pathname.startsWith('/profile') ? 'Profile & security' : ''
   const userName = user?.name || user?.username || 'Account'
 
@@ -130,14 +138,25 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
         </Link>
         <div className="ui2-nav-label">WORKSPACE</div>
         <nav className="ui2-nav" aria-label="Main navigation">
-          {items.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setDrawerOpen(false)}
-              className={() => (current?.to === item.to ? 'active' : undefined)}
-              aria-current={current?.to === item.to ? 'page' : 'false'}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">{ICON_PATHS[item.to]}</svg>
-              {labelOf(item.to, item.label)}
-            </NavLink>
-          ))}
+          {links.map(({ item, href }) => {
+            const icon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">{ICON_PATHS[item.to]}</svg>
+            const label = labelOf(item.to, item.label)
+            if (href === null) {
+              return (
+                <button key={item.to} type="button" className="ui2-nav-outside" aria-disabled="true"
+                  onClick={() => toast(`${label} is outside act-as. Exit act-as to open your own ${label}.`)}>
+                  {icon}{label}
+                </button>
+              )
+            }
+            return (
+              <NavLink key={item.to} to={href} end={item.end} onClick={() => setDrawerOpen(false)}
+                className={() => (current?.to === item.to ? 'active' : undefined)}
+                aria-current={current?.to === item.to ? 'page' : 'false'}>
+                {icon}{label}
+              </NavLink>
+            )
+          })}
         </nav>
         <div className="ui2-sidebar-bottom">
           <div className="ui2-theme-title">Appearance</div>

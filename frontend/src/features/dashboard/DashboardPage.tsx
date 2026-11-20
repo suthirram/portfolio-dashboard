@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Ui2PageIntro } from '../../ui2/shell/Ui2PageIntro'
+import { Ui2ActAsBanner } from '../../ui2/shell/Ui2ActAsBanner'
 import SummaryCards from '../../components/SummaryCards'
 import { PortfolioHero } from '../../components/PortfolioHero'
 import { useUiMode, useUiRevamp } from '../../lib/uiMode'
@@ -115,7 +116,9 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
   // In the glass shell (PD-054) the brand, page links and user menu live in
   // the sidebar, so the header's copies are hidden there. In act-as the page
   // links stay: they point at the target user's pages, the sidebar's don't.
-  const shellDup = actAsUserId ? '' : ' shell-dup'
+  // UI_2.0 act-as moves between the target's pages through the shell's nav
+  // and the act-as banner, so these header shortcuts stay hidden there.
+  const shellDup = actAsUserId && !ui2 ? '' : ' shell-dup'
 
   // The shell's "Add holding" (sidebar button, command palette) lands here
   // with state.openAdd; open the modal once and clear the state so a reload
@@ -354,7 +357,8 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
       </header>
 
       <main className="dash-main page-main" style={{ maxWidth: 1600, margin: '0 auto' }}>
-        {ui2 && <Ui2PageIntro title={actAsLabel ? actAsLabel + "'s portfolio" : 'Your portfolio, at a glance'}
+        {ui2 && actAsLabel && <Ui2ActAsBanner label={actAsLabel} />}
+        {ui2 && <Ui2PageIntro title={actAsLabel ? `${actAsLabel}, at a glance` : 'Your portfolio, at a glance'}
           subtitle="A little clarity for every investment decision."
           actions={<>
             <button type="button" className="ui2-btn" aria-label="Refresh" onClick={fetchPrices} disabled={loadingPrices}>
@@ -364,7 +368,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
               <span aria-hidden="true">＋</span> Add holding
             </button>
           </>} />}
-        {actAsUserId && (
+        {actAsUserId && !ui2 && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <Link to="/admin" aria-label="Back to admin" title="Back to admin" style={{
               color: 'var(--blue)', textDecoration: 'none',

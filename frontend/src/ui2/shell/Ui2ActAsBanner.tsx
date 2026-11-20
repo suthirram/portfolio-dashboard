@@ -11,7 +11,9 @@ export function Ui2ActAsBanner({ label }: { label: string }) {
     <section className="u2-actas-banner" aria-label="Act-as session">
       <div>
         <strong>Viewing {label}</strong>
-        {caller && <small>You are signed in as {caller.name || caller.username}</small>}
+        <small>
+          Changes save to this account{caller && ` · You are signed in as ${caller.name || caller.username}`}
+        </small>
       </div>
       <Link to="/admin" className="ui2-btn">Exit act-as</Link>
     </section>

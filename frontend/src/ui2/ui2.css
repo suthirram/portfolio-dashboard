@@ -145,7 +145,8 @@
   gap: 6px;
 }
 
-:root[data-ui="ui2"] .ui2-nav a {
+:root[data-ui="ui2"] .ui2-nav a,
+:root[data-ui="ui2"] .ui2-nav .ui2-nav-outside {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -156,7 +157,20 @@
   text-decoration: none;
 }
 
-:root[data-ui="ui2"] .ui2-nav a svg {
+/* A page outside act-as (PD-059 slice 22): visible but dimmed; selecting it
+   explains why instead of switching to the admin's own data. */
+:root[data-ui="ui2"] .ui2-nav .ui2-nav-outside {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+:root[data-ui="ui2"] .ui2-nav a svg,
+:root[data-ui="ui2"] .ui2-nav .ui2-nav-outside svg {
   width: 19px;
   height: 19px;
 }
