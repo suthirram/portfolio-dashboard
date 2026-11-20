@@ -6,7 +6,7 @@ import { Ui2DividendsPage } from './Ui2DividendsPage'
 
 // Hoisted so the vi.mock factory may read it: Vitest lifts vi.mock above the
 // module body, where a plain const is still uninitialised.
-const fixture = vi.hoisted(() => ({ seen: [] as string[], error: '', refresh: vi.fn() }))
+const fixture = vi.hoisted(() => ({ seen: [] as string[], error: '', ready: true, refresh: vi.fn() }))
 
 vi.mock('../../features/dividends/useDividends', () => ({
   useDividends: (currency: string) => {
@@ -34,8 +34,9 @@ vi.mock('../../features/dividends/useDividends', () => ({
       by_year: [], by_month: [], by_holding: [],
     }
     return {
-      view: currency === 'INR' ? inr : empty,
-      ready: true,
+      // Like the real hook: until the tab's response arrives, the empty view.
+      view: fixture.ready && currency === 'INR' ? inr : empty,
+      ready: fixture.ready,
       holdings: [
         { id: 'h1', script: 'TCS', symbol: 'TCS.NS', currency: 'INR', exchange: 'NSE',
           stocks_owned: 10, avg_cost_price: 1000 },
@@ -81,6 +82,7 @@ const show = (search = '') =>
 beforeEach(() => {
   fixture.seen = []
   fixture.error = ''
+  fixture.ready = true
   fixture.refresh.mockClear()
 })
 
@@ -140,6 +142,16 @@ describe('Ui2DividendsPage', () => {
     const banner = screen.getByRole('region', { name: 'Act-as session' })
     expect(banner).toHaveTextContent("Viewing alice's dividends")
     expect(within(banner).getByRole('link', { name: 'Exit act-as' })).toHaveAttribute('href', '/admin')
+  })
+
+  it('shows loading, not zero figures or "no match", before the tab has loaded', () => {
+    fixture.ready = false
+    show()
+    expect(screen.getByText('Loading payments…')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Total dividends · INR' })).not.toBeInTheDocument()
+    expect(screen.queryByText('No payments match this search.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/of 0 payments/)).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '€ EUR' })).toBeInTheDocument()
   })
 
   it('keeps the currency tabs and offers a retry after a load error', async () => {
