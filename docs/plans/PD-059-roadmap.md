@@ -34,9 +34,10 @@ test that fails without the change).
 Merged: shell and picker (1–2), cyber entrance (3), Overview (4–7),
 `portfolio_overall` data and backfill command (8, 9a), overall chart component
 (10), exchange-rate re-fetch (11–12), History page and dialogs (13–14), ledger
-dialog (15), Transactions page (16, #364), and trade import (17, #366; its handoff-parity
-follow-up is R28, #372, in review). Dividends, Gold, admin, profile and auth
-still need their UI_2.0 pages.
+dialog (15), Transactions page (16, #364), trade import (17, #366, with its
+handoff-parity follow-up R28, #372), Dividends and dividend import (18–19), Gold
+(20–21), act-as (22), Administration, Administrators and Branding (23–24),
+Profile (25) and the Light auth screens (26).
 
 ## The steps
 
@@ -47,32 +48,32 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | --- | --- | --- | --- | --- |
 | R01 | FE | Overview: grouped holdings, price colours, row dialog with Edit / Ledger / Delete (5) | — | merged (#359) |
 | R02 | docs | Wave 4b plan: Transactions page and trade import, complete code (16–17) | — | merged (#362) |
-| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | in progress (Codex; board #28) |
-| R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | ready |
-| R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens, delta sub-route (22–27) | — | ready |
-| R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | ready |
+| R03 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | merged (#369, #371) |
+| R04 | docs | Wave 5b plan: Gold table, Details, metrics, prices, missing-price prompt (20–21) | — | merged (#375) |
+| R05 | docs | Wave 6 plan: act-as, admin users, super-admin pages, profile, auth screens (22–26); delta sub-route (27) waits on R22 | — | merged (#378) |
+| R06 | FE | Fix the symbol **Test** button: a mouse click never sends the quote request (#296) | — | merged (#380) |
 | R07 | FE | Guard the History table against page-width overflow (`position: relative`, browser test at 390 / 768 px) | — | merged (#361) |
 | R08 | FE | Holding details: costs, income, XIRR, and the existing holding, opening-date and review forms (6) | R01 | merged (#359) |
 | R09 | FE | Overview allocation, Currency mix, Holdings / Performance tabs, sector jump (OVW-1), mount `OverallPerformance` (7) | R01, R08 | merged (#360) |
 | R10 | FE | Transactions page (16) | R02 | merged (#364) |
 | R11 | FE | Trade import: upload, paste, example (17) | R10 | merged (#366) |
-| R12 | FE | Dividends page (18) | R03 | blocked |
-| R13 | FE | Dividend import: upload, paste, example (19) | R12 | blocked |
-| R14 | FE | Gold table (15 columns), Details, modal, metrics (20) | R04 | blocked |
-| R15 | FE | Gold prices (daily, 30 days, all months) and missing-price prompt (21) | R14 | blocked |
-| R16 | FE | Act-as in UI_2.0 under the banner, gold excluded (22) | R05, R09 | blocked |
-| R17 | FE | Admin user list and detail (23) | R05 | blocked |
-| R18 | BE | Allowed Branding fonts from the server, only if not already exposed (needed by R19) | R05 | blocked |
-| R19 | FE | Super-admin pages: Manage admins, Branding with DM Sans and Manrope (24) | R17, R18 | blocked |
-| R20 | FE | Profile (25) | R05 | blocked |
-| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05 | blocked |
+| R12 | FE | Dividends page (18) | R03 | merged (#373) |
+| R13 | FE | Dividend import: upload, paste, example (19) | R12 | merged (#374, landed by #385) |
+| R14 | FE | Gold table (15 columns), Details, modal, metrics (20) | R04, R12 | merged (#376, landed by #385) |
+| R15 | FE | Gold prices (daily, 30 days, all months) and missing-price prompt (21) | R14 | merged (#377, landed by #385) |
+| R16 | FE | Act-as in UI_2.0 under the banner, gold excluded (22) | R05, R09, R12 | merged (#383) |
+| R17 | FE | Admin user list and detail (23) | R05 | merged (#379) |
+| R18 | BE | Add DM Sans and Manrope to the allowed fonts with measured fallback faces (the list itself is already exposed) | PD-059-Q-6b-1 | owner |
+| R19 | FE | Super-admin pages: Manage admins, Branding (24); new fonts appear when R18 lands | R17 | merged (#381) |
+| R20 | FE | Profile (25) | R05 | merged (#382) |
+| R21 | FE | Signup, forgot-password and onboarding in Light (26) | R05, PD-059-Q-6e-1 | merged (#384); visual sign-off PD-059-Q-6e-1 open |
 | R22 | FE | Investment delta as a Transactions sub-route (27, tentative) | R10, owner | owner |
 | R23 | BE | Register migration step `20261118_02` (9b) | owner's production dry run of `migrate overall` | owner |
-| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21, R28 | blocked |
+| R24 | FE | Cutover readiness: a browser test that opens every route in UI_2.0 at 390 and 1280 px, no horizontal overflow, no Classic-only page left | R09, R11, R13, R15, R16, R19, R20, R21, R28 | ready |
 | R25 | BE | New accounts default to `ui2`; migration step moves existing `classic` accounts | R24, owner approval | blocked |
 | R26 | FE | Remove the Classic shell and pages; Glass stays | R25 | blocked |
 | R27 | docs | Close out PD-059: archive the board, update CLAUDE.md architecture notes | R26, R28 | blocked |
-| R28 | FE | UI_2.0 trade import handoff parity: upload, paste, example, explicit validation and preview (board slice 29) | R11 | in review (#372) |
+| R28 | FE | UI_2.0 trade import handoff parity: upload, paste, example, explicit validation and preview (board slice 29) | R11 | merged (#372) |
 
 R18 may turn out to be unnecessary: check whether the server already exposes
 the allowed font list before opening it. If it does, drop it and R19 depends
