@@ -11,6 +11,7 @@ import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { AssetStats, type AssetStat } from '../asset/AssetStats'
 import { AssetBarChart } from '../asset/AssetBarChart'
+import { continuousPeriods } from './continuousPeriods'
 import { Ui2DeleteAllDividends, Ui2DeleteDividend, Ui2DividendEditor } from './Ui2DividendDialogs'
 import DividendImportModal from '../../features/dividends/DividendImportModal'
 import '../asset/asset.css'
@@ -75,7 +76,9 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
     },
   ]
 
-  const chartData = (period === 'month' ? view.by_month : view.by_year)
+  // Every period from the first payment to the last gets a bar (zero when
+  // nothing was paid), so the bars' spacing follows time.
+  const chartData = continuousPeriods(period === 'month' ? view.by_month : view.by_year, period)
     .map(bucket => ({
       label: period === 'month' ? monthLabel(bucket.period) : bucket.period,
       value: bucket.total,
