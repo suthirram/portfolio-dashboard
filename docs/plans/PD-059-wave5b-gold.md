@@ -34,7 +34,7 @@ Read out of `goldView()`, `goldDetail()`, `goldEditor()`, `goldGapDialog()`, `sh
 
 **Metrics strip** (`gold-meta`, four cells): `Average cost per gram`; `GOLDBEES P/L · excl. tax`, `Net P/L · including bees` and `Physical gold XIRR`, each label an `asset-metric-help` button carrying a `title` tooltip. `—` when unknown.
 
-**Missing-price alert** (`asset-alert`): `<N> daily prices need attention` + `Review missing prices`.
+**Missing-price alert** (`asset-alert`, already `.ui2-notice`): `<N> daily prices need attention` + `Review missing prices`.
 
 **Purchase ledger**: heading `Purchase ledger`, note `All 15 purchase columns`; the 15 `goldFields` columns in order, calculated ones with class `computed` (shaded), then `Actions` (`Details`, `Edit`); the NIMMI loss toned negative when above 0; empty row `No purchases yet…`; footer `<n> purchases · newest first` / `Shaded columns are calculated · scroll horizontally to view all columns`. Rows newest first.
 
@@ -55,7 +55,7 @@ Read out of `goldView()`, `goldDetail()`, `goldEditor()`, `goldGapDialog()`, `sh
 | Create | `frontend/src/features/gold/useGoldData.ts` | Gold reads (purchases, prices, missing days, metrics) for both interfaces |
 | Modify | `frontend/src/features/gold/GoldPage.tsx` | Pure dispatcher; Classic body → `ClassicGoldPage` on `useGoldData` |
 | Modify | `frontend/src/features/gold/GoldTxnModal.tsx` | Export `FormState`, `initialForm`, `toInput` for reuse |
-| Modify | `frontend/src/ui2/asset/asset.css` | Shared `.asset-form`, `.asset-modal-actions`, `.asset-alert`, `.computed`, `.asset-metric-help` |
+| Modify | `frontend/src/ui2/asset/asset.css` | Shared `.asset-form`, `.asset-modal-actions`, `.computed`, `.asset-metric-help` |
 | Create | `frontend/src/ui2/gold/gold.css` | `.gold-meta`, `.gold-detail`, `.gold-price-list/-item` |
 | Create | `frontend/src/ui2/gold/goldColumns.ts` | The 15 columns and their cell formatting |
 | Create | `frontend/src/ui2/gold/Ui2GoldEditor.tsx` | Add / edit purchase dialog |
@@ -402,7 +402,7 @@ export function toInput(form: FormState): GoldTransactionInput {
 
 **Files:** `frontend/src/ui2/asset/asset.css` (modify), `frontend/src/ui2/gold/gold.css` (create)
 
-`.asset-form`, `.asset-modal-actions`, `.asset-alert`, `.computed` and `.asset-metric-help` are asset-page vocabulary in the handoff, so they join `asset.css`; the `.gold-*` rules are Gold's own. Every selector is scoped under `:root[data-ui="ui2"]`.
+`.asset-form`, `.asset-modal-actions`, `.computed` and `.asset-metric-help` are asset-page vocabulary in the handoff, so they join `asset.css`. The handoff's `.asset-alert` is already `.ui2-notice` in `primitives.css` (slice 12), so the missing-price alert reuses that instead of a second copy; the `.gold-*` rules are Gold's own. Every selector is scoped under `:root[data-ui="ui2"]`.
 
 * [ ] `frontend/src/ui2/asset/asset.css`, change 1 of 1. Current code:
 
@@ -458,20 +458,6 @@ Replacement:
   margin-top: 20px;
 }
 
-:root[data-ui="ui2"] .asset-alert {
-  border: 1px solid #c59544;
-  background: color-mix(in srgb, #c59544 10%, var(--u2-panel));
-  padding: 14px 18px;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 15px;
-}
-
-:root[data-ui="ui2"] .asset-alert strong { display: block; font-size: 12px; margin-bottom: 5px; }
-:root[data-ui="ui2"] .asset-alert span { font-size: 11px; color: var(--u2-muted); }
-
 :root[data-ui="ui2"] .asset-metric-help {
   border: 0;
   background: none;
@@ -485,7 +471,6 @@ Replacement:
 @media (max-width: 1100px) {
   :root[data-ui="ui2"] .asset-form { grid-template-columns: 1fr; }
   :root[data-ui="ui2"] .asset-form .full { grid-column: auto; }
-  :root[data-ui="ui2"] .asset-alert { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 900px) {
@@ -1549,7 +1534,7 @@ import '../asset/asset.css'
 // dialog after the user skipped it.
 export function MissingPricesAlert({ count, onReview }: { count: number; onReview: () => void }) {
   return (
-    <div className="asset-alert" role="status">
+    <div className="ui2-notice" role="status">
       <div>
         <strong>{count} daily {count === 1 ? 'price needs' : 'prices need'} attention</strong>
         <span>Days since your first purchase with no recorded rate.</span>
