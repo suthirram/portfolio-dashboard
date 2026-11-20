@@ -41,7 +41,7 @@ export function tabFrom(raw: string | null): DividendCurrency {
 // across mode changes.
 export default function DividendsPage({ actAsUserId, actAsLabel }: Props) {
   const ui2 = useUiMode() === 'ui2'
-  if (ui2) return <Ui2DividendsPage actAsUserId={actAsUserId} />
+  if (ui2) return <Ui2DividendsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
   return <ClassicDividendsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
 }
 

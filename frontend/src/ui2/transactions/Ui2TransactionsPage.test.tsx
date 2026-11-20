@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { Ui2TransactionsPage } from './Ui2TransactionsPage'
 
 vi.mock('../../features/transactions/useAllTransactions', () => ({
@@ -83,6 +84,12 @@ describe('Ui2TransactionsPage', () => {
     render(<Ui2TransactionsPage />)
     await userEvent.click(screen.getByRole('button', { name: 'Import CSV' }))
     expect(screen.getByRole('dialog', { name: 'Import transactions' })).toBeInTheDocument()
+  })
+
+  it('names the viewed account in act-as', () => {
+    render(<MemoryRouter><Ui2TransactionsPage actAsUserId="u9" actAsLabel="alice's transactions" /></MemoryRouter>)
+    expect(screen.getByRole('region', { name: 'Act-as session' })).toHaveTextContent("Viewing alice's transactions")
+    expect(screen.getByRole('link', { name: 'Exit act-as' })).toHaveAttribute('href', '/admin')
   })
 
   it('shows currency summary panels', () => {
