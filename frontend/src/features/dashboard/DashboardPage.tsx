@@ -446,7 +446,7 @@ export default function DashboardPage({ actAsUserId, actAsLabel }: Props) {
             tabIndex={ui2 ? 0 : undefined}>
             {(tab === 'table' || (ui2 && actAsUserId)) && (
               <HoldingsByCurrency
-                renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} /> : undefined}
+                renderRows={ui2 ? rows => <Ui2Holdings rows={rows} select={selectHolding} xirr={xirr} /> : undefined}
                 holdings={filtered}
                 searchActive={Boolean(filter)}
                 view={positionView} onViewChange={setPositionView}
