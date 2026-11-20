@@ -67,7 +67,7 @@ describe('Ui2DeleteDividend', () => {
   it('deletes the payment after confirming', async () => {
     const onDeleted = vi.fn()
     render(<Ui2DeleteDividend row={row} currency="INR" onClose={vi.fn()} onDeleted={onDeleted} />)
-    expect(screen.getByRole('dialog', { name: 'Delete dividend?' })).toHaveTextContent('TCS · 01-10-2026')
+    expect(screen.getByRole('dialog', { name: 'Delete dividend?' })).toHaveTextContent('TCS · 01 Oct 2026')
     await userEvent.click(screen.getByRole('button', { name: 'Delete dividend' }))
     await waitFor(() => expect(api.deleteTransaction).toHaveBeenCalledWith('t9', undefined))
     expect(onDeleted).toHaveBeenCalled()

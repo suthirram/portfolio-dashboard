@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SUPPORTED_CURRENCIES, currencySymbol, formatMoney } from '../../lib/currency'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow } from '../../types'
 import { useDividends } from '../../features/dividends/useDividends'
 import { tabFrom } from '../../features/dividends/DividendsPage'
@@ -70,8 +70,8 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
     { label: 'Holdings paying', value: String(view.summary.holdings), detail: 'Distinct holdings' },
     {
       label: 'Payment range',
-      value: view.summary.first_date ? formatDate(view.summary.first_date) : '—',
-      detail: view.summary.last_date ? `to ${formatDate(view.summary.last_date)}` : 'No recorded payments',
+      value: view.summary.first_date ? formatDayMonthYearName(view.summary.first_date) : '—',
+      detail: view.summary.last_date ? `to ${formatDayMonthYearName(view.summary.last_date)}` : 'No recorded payments',
     },
   ]
 
@@ -189,7 +189,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                       <tr><td colSpan={6} className="empty">No payments match this search.</td></tr>
                     ) : pagination.pageItems.map(row => (
                       <tr key={row.id}>
-                        <td>{formatDate(row.date)}</td>
+                        <td>{formatDayMonthYearName(row.date)}</td>
                         <td className="left">
                           <strong>{row.script}</strong>
                           <small>{row.symbol}</small>
@@ -201,7 +201,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                           <button
                             type="button"
                             className="ui2-btn"
-                            aria-label={`Edit dividend of ${formatDate(row.date)}`}
+                            aria-label={`Edit dividend of ${formatDayMonthYearName(row.date)}`}
                             onClick={() => setEditor({ row })}
                           >
                             Edit
@@ -209,7 +209,7 @@ export function Ui2DividendsPage({ actAsUserId, actAsLabel }: { actAsUserId?: st
                           <button
                             type="button"
                             className="ui2-btn asset-danger"
-                            aria-label={`Delete dividend of ${formatDate(row.date)}`}
+                            aria-label={`Delete dividend of ${formatDayMonthYearName(row.date)}`}
                             onClick={() => setDeleting(row)}
                           >
                             Delete

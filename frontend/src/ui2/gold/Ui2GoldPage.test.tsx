@@ -50,7 +50,7 @@ describe('Ui2GoldPage', () => {
     render(<Ui2GoldPage />)
     expect(screen.getByRole('heading', { name: 'A clear view of your gold.' })).toBeInTheDocument()
     expect(await screen.findByText('₹1,18,750.00')).toBeInTheDocument()
-    expect(screen.getByText('Latest recorded rate · 19-11-2026')).toBeInTheDocument()
+    expect(screen.getByText('Latest recorded rate · 19 Nov 2026')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Physical gold' })).getByText('12.5 g')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Net P/L · physical' })).getByText('+₹13,250.00'))
       .toHaveClass('u2-positive')
@@ -73,8 +73,8 @@ describe('Ui2GoldPage', () => {
     expect(headers[1]).not.toHaveClass('computed')
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(3))
     const [, first, second] = within(table).getAllByRole('row')
-    expect(first).toHaveTextContent('01-06-2026')
-    expect(second).toHaveTextContent('01-03-2026')
+    expect(first).toHaveTextContent('01 Jun 2026')
+    expect(second).toHaveTextContent('01 Mar 2026')
   })
 
   it('renders absent optional fields as a dash and tones a NIMMI loss', async () => {
@@ -90,13 +90,13 @@ describe('Ui2GoldPage', () => {
   it('opens Details with every column and deletes after confirmation', async () => {
     vi.mocked(api.deleteGoldTransaction).mockResolvedValue(undefined)
     render(<Ui2GoldPage />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Details of 01-06-2026 purchase' }))
-    const dialog = screen.getByRole('dialog', { name: 'Purchase · 01-06-2026' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Details of 01 Jun 2026 purchase' }))
+    const dialog = screen.getByRole('dialog', { name: 'Purchase · 01 Jun 2026' })
     expect(within(dialog).getByText('LOSS due to NIMMI')).toBeInTheDocument()
     expect(within(dialog).getByText('Ditto')).toBeInTheDocument()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete purchase' }))
     const confirm = screen.getByRole('dialog', { name: 'Delete purchase?' })
-    expect(confirm).toHaveTextContent('Remove the 2.5 g purchase from 01-06-2026?')
+    expect(confirm).toHaveTextContent('Remove the 2.5 g purchase from 01 Jun 2026?')
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete purchase' }))
     await waitFor(() => expect(api.deleteGoldTransaction).toHaveBeenCalledWith(2))
     await waitFor(() => expect(api.listGoldTransactions).toHaveBeenCalledTimes(2))
@@ -105,7 +105,7 @@ describe('Ui2GoldPage', () => {
 
   it('moves from Details to the editor prefilled with the purchase', async () => {
     render(<Ui2GoldPage />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Details of 01-06-2026 purchase' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Details of 01 Jun 2026 purchase' }))
     await userEvent.click(screen.getByRole('button', { name: 'Edit purchase' }))
     const editor = screen.getByRole('dialog', { name: 'Edit gold purchase' })
     expect(within(editor).getByLabelText('Weight bought · grams *')).toHaveValue('2.5')
@@ -151,12 +151,12 @@ describe('Ui2GoldPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Complete missing daily prices' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save entered prices' }))
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Enter at least one known rate, or skip for now.')
-    await userEvent.type(within(dialog).getByLabelText('15-11-2026 · INR / gram'), '9400')
+    await userEvent.type(within(dialog).getByLabelText('15 Nov 2026 · INR / gram'), '9400')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save entered prices' }))
     await waitFor(() => expect(api.putGoldPrices).toHaveBeenCalledWith([{ date: '2026-11-15', price_per_gram: 9400 }]))
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Complete missing daily prices' }))
       .toHaveTextContent('1 date is missing'))
-    expect(screen.queryByLabelText('15-11-2026 · INR / gram')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('15 Nov 2026 · INR / gram')).not.toBeInTheDocument()
   })
 
   it('shows the empty ledger row when there are no purchases', async () => {
