@@ -1,6 +1,6 @@
 # PD-059: Wave 5b — Gold page, prices and missing-price prompt (slices 20–21)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branches.
+* **Status**: Implemented and merged: slices 20–21 (#376, #377, landed on main by #385); plan #375.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Render the physical-gold ledger, its metrics, the daily price series and the missing-price prompt in the UI_2.0 shell, matching the handoff's Gold frame 1:1, on the shared `ui2/asset/*` primitives from slice 18.
@@ -1866,9 +1866,9 @@ On an account with `ui_mode = ui2` and Postgres configured:
 
 ## Done
 
-* [ ] `feat/PD-059-gold-page` merged → slice 20 live
-* [ ] `feat/PD-059-gold-prices` merged → slice 21 live
-* [ ] Board rows 20–21 merged; registry updated
+* [x] `feat/PD-059-gold-page` merged → slice 20 live
+* [x] `feat/PD-059-gold-prices` merged → slice 21 live
+* [x] Board rows 20–21 merged; registry updated
 * [ ] PD-059-Q-5b-1 answered
 
 **Next:** Wave 6 — slices 22–23 (act-as in UI_2.0, admin user list and detail).

@@ -1,6 +1,6 @@
 # PD-059: Wave 6a — Administration users page (slice 23)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branch.
+* **Status**: Implemented and merged: slice 23 (#379); plan #378.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Render Administration → Users in the UI_2.0 shell, matching the handoff's Administration frame: a searchable account list beside the selected account's settings (Account, Features & interface, Access, Delete account), with dialog confirmations instead of browser prompts.
@@ -1126,7 +1126,7 @@ Expected: every suite passes, no type or lint errors, build succeeds.
 
 ## Done
 
-* [ ] `feat/PD-059-admin-users` merged → slice 23 live
-* [ ] Board row 23 merged; registry updated
+* [x] `feat/PD-059-admin-users` merged → slice 23 live
+* [x] Board row 23 merged; registry updated
 
 **Next:** slice 22 (act-as in UI_2.0 under the banner) and slice 24 (Administrators and Branding), both reusing `Ui2AdminTabs` and `admin.css`.

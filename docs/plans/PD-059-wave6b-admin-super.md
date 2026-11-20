@@ -1,6 +1,6 @@
 # PD-059: Wave 6b — Administrators and Branding (slice 24)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branch.
+* **Status**: Implemented and merged: slice 24 (#381); plan #378.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Render the super admin's Administrators and Branding sections in the UI_2.0 shell, matching the handoff's `perspectiveAdminTabs` sections and `renderBrandingPreview`.
@@ -696,7 +696,7 @@ Expected: 2 files, 15 tests pass.
 
 ## Done
 
-* [ ] `feat/PD-059-admin-super` merged → slice 24 live
+* [x] `feat/PD-059-admin-super` merged → slice 24 live
 * [ ] PD-059-Q-6b-1 answered
 
 **Next:** slice 25 (Profile), slice 22 (act-as), slice 26 (auth screens).
