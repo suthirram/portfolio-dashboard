@@ -8,6 +8,12 @@ export interface BarDatum { label: string; value: number }
 const BASE_Y = 195
 const PLOT_HEIGHT = 160
 const GRID = [0, 0.5, 1]
+// Room one axis label needs ("Oct 26" at font-size 10, plus a gap), in
+// viewBox units. Beyond ~13 bars the handoff's one-label-per-bar overlaps.
+const LABEL_SPACING = 44
+
+// labelEvery is how many bars share one axis label so labels never overlap.
+export const labelEvery = (bars: number) => Math.max(1, Math.ceil(LABEL_SPACING / (600 / Math.max(bars, 1))))
 
 export function AssetBarChart({ data, currency, label }: {
   data: BarDatum[]
@@ -16,6 +22,10 @@ export function AssetBarChart({ data, currency, label }: {
 }) {
   const max = Math.max(...data.map(datum => datum.value), 1)
   const step = 600 / Math.max(data.length, 1)
+  const every = labelEvery(data.length)
+  // Counted back from the newest bar, so the latest period is always labelled;
+  // every bar keeps its <title> tooltip.
+  const labelled = (index: number) => (data.length - 1 - index) % every === 0
 
   return (
     <svg className="asset-chart" viewBox="0 0 700 240" role="img" aria-label={label}>
@@ -43,15 +53,17 @@ export function AssetBarChart({ data, currency, label }: {
           >
             <title>{`${datum.label}: ${formatMoney(datum.value, currency)}`}</title>
           </rect>
-          <text
-            x={80 + index * step + step * 0.47}
-            y="220"
-            fill="var(--u2-muted)"
-            textAnchor="middle"
-            fontSize="10"
-          >
-            {datum.label}
-          </text>
+          {labelled(index) && (
+            <text
+              x={80 + index * step + step * 0.47}
+              y="220"
+              fill="var(--u2-muted)"
+              textAnchor="middle"
+              fontSize="10"
+            >
+              {datum.label}
+            </text>
+          )}
         </g>
       ))}
     </svg>

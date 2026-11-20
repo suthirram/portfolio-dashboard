@@ -61,7 +61,7 @@ Options and consequences:
   (b) Ask for changes on the PR; nothing else depends on this slice.
 Independent work that can continue: everything else.
 Owner response (exact):
-Status: awaiting owner
+Status: answered (owner, 2026-11-20) — optional, low-priority follow-up; the screens stay as merged
 ```
 
 ---
