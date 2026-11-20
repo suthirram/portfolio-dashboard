@@ -1,6 +1,6 @@
 # PD-059: Wave 6e — Signup, forgot-password and onboarding in Light (slice 26)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branch; the visual review happens on the PR's preview.
+* **Status**: Implemented and merged: slice 26 (#384); plan #378. Visual sign-off (PD-059-Q-6e-1) still open.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Put the three remaining signed-out screens on the login's sunrise design (#330), Light only.
@@ -399,7 +399,7 @@ Expected: all pass; `AuthShell.test.tsx` 4 tests.
 
 ## Done
 
-* [ ] `feat/PD-059-auth-light` merged → slice 26 live
+* [x] `feat/PD-059-auth-light` merged → slice 26 live
 * [ ] PD-059-Q-6e-1 answered
 
 **Next:** R24, cutover readiness, once slices 13–26 are merged.

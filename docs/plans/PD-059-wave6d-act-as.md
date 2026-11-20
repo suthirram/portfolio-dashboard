@@ -1,6 +1,6 @@
 # PD-059: Wave 6d — Act-as in UI_2.0 (slice 22)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branch.
+* **Status**: Implemented and merged: slice 22 (#383); plan #378.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Keep an admin's act-as session coherent in UI_2.0: a persistent banner names the viewed account, the sidebar keeps the supported pages on that account, and the unsupported ones say why.
@@ -459,6 +459,6 @@ Expected: all pass.
 
 ## Done
 
-* [ ] `feat/PD-059-act-as` merged → slice 22 live
+* [x] `feat/PD-059-act-as` merged → slice 22 live
 
 **Next:** slice 26 (auth screens in Light).

@@ -1,6 +1,6 @@
 # PD-059: Wave 6c — Profile & security (slice 25)
 
-* **Status**: Amendment in review (this doc). Code below is implemented and verified on the slice branch.
+* **Status**: Implemented and merged: slice 25 (#382); plan #378.
 * **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Render Profile & security in the UI_2.0 shell, matching the handoff's `renderProfile`: an identity panel whose tabs pick Profile, Password or Security questions, with the chosen form beside it.
@@ -839,6 +839,6 @@ Expected: 5 tests pass.
 
 ## Done
 
-* [ ] `feat/PD-059-profile` merged → slice 25 live
+* [x] `feat/PD-059-profile` merged → slice 25 live
 
 **Next:** slice 22 (act-as in UI_2.0) and slice 26 (auth screens in Light).

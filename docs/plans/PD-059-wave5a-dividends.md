@@ -1,7 +1,7 @@
 # PD-059: Wave 5a — Dividends page and dividend import (slices 18–19)
 
-* **Status**: Amendment in progress (this doc).
-* **Updated**: 2026-11-19
+* **Status**: Implemented and merged: slice 18 (#373), slice 19 (#374, landed on main by #385).
+* **Updated**: 2026-11-20
 * **Owner**: Claude
 * **Goal**: Render the per-currency dividend ledger and the CSV dividend import in the UI_2.0 shell, matching the handoff's Dividends frame 1:1, and create the shared `asset-*` page primitives that Gold (slices 20–21) reuses.
 * **Architecture**: Dividends is the **first asset page**. The handoff builds Dividends and Gold from one shared vocabulary — `asset-root`, `asset-top`, `assetStats`, `asset-table`, `asset-search`, `asset-footer`, `asset-split`, `asset-contribution`, `assetBarChart`, `asset-import`. Slice 18 therefore lands those as `frontend/src/ui2/asset/*` and consumes them; slice 20 reuses them untouched. `DividendsPage` and `DividendImportModal` each become a pure `useUiMode()` dispatcher with the Classic body moved into a `ClassicXxx` component, exactly as `TransactionsPage.tsx:49-56` and `TradeImportModal.tsx:21-29` already do. Slice 19 extracts the dividend import state machine into `useDividendImport`, so Classic and UI_2.0 share one parser, one validation path and one server contract — the `useTradeImport` arrangement from slice 17.
@@ -152,7 +152,7 @@ Options and consequences:
 Independent work that can continue: all of slice 18, and the dividend half
   of slice 19 regardless of the answer.
 Owner response (exact):
-Status: awaiting owner
+Status: answered — option (b): #372 retrofitted paste, Load example, explicit validation and preview into Ui2TradeImport
 ```
 
 Slice 18 does not depend on either answer. Implement slice 18 assuming (a) in both — the cheapest reversible choice — and revisit if the owner says otherwise.
@@ -1962,9 +1962,9 @@ Run against a real stack (`make dev-db`, `make backend`, `make frontend`) on an 
 
 ## Done
 
-* [ ] `feat/PD-059-dividends-page` merged → slice 18 live, `ui2/asset/*` available to Gold
-* [ ] `feat/PD-059-dividend-import` merged → slice 19 live, one import machine for both interfaces
-* [ ] Board rows 18, 19, 28 set to merged; registry lists `AssetStats`, `AssetBarChart`, `asset.css`, `useDividendImport`
-* [ ] PD-059-Q-5a-1 and PD-059-Q-5a-2 answered, or carried forward to the Wave 5b amendment
+* [x] `feat/PD-059-dividends-page` merged → slice 18 live, `ui2/asset/*` available to Gold
+* [x] `feat/PD-059-dividend-import` merged → slice 19 live, one import machine for both interfaces
+* [x] Board rows 18, 19, 28 set to merged; registry lists `AssetStats`, `AssetBarChart`, `asset.css`, `useDividendImport`
+* [ ] PD-059-Q-5a-1 answered (Q-5a-2 answered by #372; slice 18 shipped option (a), reusing `Pager`)
 
 **Next:** Wave 5b — slices 20–21 (Gold table, Details, metrics, prices, missing-price prompt), building on `ui2/asset/*` from slice 18.
