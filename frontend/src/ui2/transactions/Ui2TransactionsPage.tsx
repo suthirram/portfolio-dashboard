@@ -9,6 +9,7 @@ import {
 import { usePagination, PAGE_SIZE } from '../../lib/usePagination'
 import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
+import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { Ui2HoldingLedger } from './Ui2HoldingLedger'
 import TradeImportModal from '../../features/transactions/TradeImportModal'
 import { stockIconStyle } from '../overview/holdingIcon'
@@ -27,9 +28,9 @@ function txTagClass(type: string | undefined): string {
   return TYPE_TONE[type ?? ''] ?? 'u2-tx-tag'
 }
 
-interface Props { actAsUserId?: string }
+interface Props { actAsUserId?: string; actAsLabel?: string }
 
-export function Ui2TransactionsPage({ actAsUserId }: Props) {
+export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const { transactions, holdings, loading, error, refresh } = useAllTransactions(actAsUserId)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [sort, setSort] = useState<Sort>(defaultSort)
@@ -71,6 +72,7 @@ export function Ui2TransactionsPage({ actAsUserId }: Props) {
 
   return (
     <div className="u2-tx-page">
+      {actAsLabel && <Ui2ActAsBanner label={actAsLabel} />}
       <Ui2PageIntro
         title="Every event. One ledger."
         subtitle="Follow purchases, sales and income across your portfolio."

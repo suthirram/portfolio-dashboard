@@ -1,0 +1,24 @@
+/* The handoff's .actas-banner (PD-059), on the --u2-* palette. */
+
+:root[data-ui="ui2"] .u2-actas-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin-bottom: 20px;
+  padding: 12px 18px;
+  border: 1px solid #b18a43;
+  background: var(--u2-panel);
+  box-shadow: 0 3px 15px #0001;
+  border-radius: 0 0 10px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:root[data-ui="ui2"] .u2-actas-banner strong { font-size: 12px; }
+:root[data-ui="ui2"] .u2-actas-banner small { display: block; color: var(--u2-muted); margin-top: 4px; font-size: 10px; }
+
+@media (max-width: 700px) {
+  :root[data-ui="ui2"] .u2-actas-banner { align-items: flex-start; flex-wrap: wrap; }
+}

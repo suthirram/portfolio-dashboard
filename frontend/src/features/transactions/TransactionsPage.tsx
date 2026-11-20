@@ -50,7 +50,7 @@ interface Props {
 // stable across mode changes.
 export default function TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const ui2 = useUiMode() === 'ui2'
-  if (ui2) return <Ui2TransactionsPage actAsUserId={actAsUserId} />
+  if (ui2) return <Ui2TransactionsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
   return <ClassicTransactionsPage actAsUserId={actAsUserId} actAsLabel={actAsLabel} />
 }
 
