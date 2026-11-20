@@ -55,7 +55,7 @@ export function UiModeSelect({ listedUser, label, disabled, onChange }: {
 export const initials = (listedUser: User) =>
   (listedUser.name || listedUser.username).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('')
 
-function statusOf(listedUser: User): { label: string; tone: 'ok' | 'warn' | 'off' } {
+export function statusOf(listedUser: User): { label: string; tone: 'ok' | 'warn' | 'off' } {
   if (listedUser.disabled) return { label: 'Hidden', tone: 'off' }
   if (listedUser.locked) return { label: 'Locked', tone: 'warn' }
   return { label: 'Active', tone: 'ok' }
