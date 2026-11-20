@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { HoldingWithPrice, TransactionWithHolding } from '../../types'
 import { useAllTransactions } from '../../features/transactions/useAllTransactions'
+import { useAuthOptional } from '../../features/auth/AuthContext'
+import { useTheme } from '../../lib/useTheme'
 import {
   applyFilters, currencyFacet, currencySubtotals, defaultSort,
   emptyFilters, impliedCostPerShare, sortRows, toggleSort, typeFacet, visibleColumns,
@@ -11,7 +13,7 @@ import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
 import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
-import { TransactionCurrency, currencyFlag } from './TransactionCurrency'
+import { CurrencyPill, currencyFlag } from './TransactionCurrency'
 import { Ui2HoldingLedger } from './Ui2HoldingLedger'
 import TradeImportModal from '../../features/transactions/TradeImportModal'
 import { stockIconStyle } from '../overview/holdingIcon'
@@ -33,6 +35,8 @@ function txTagClass(type: string | undefined): string {
 interface Props { actAsUserId?: string; actAsLabel?: string }
 
 export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
+  const auth = useAuthOptional()
+  const { theme: activeTheme } = useTheme({ premium: auth?.user?.premium })
   const { transactions, holdings, loading, error, refresh } = useAllTransactions(actAsUserId)
   const [filters, setFilters] = useState<Filters>(emptyFilters)
   const [sort, setSort] = useState<Sort>(defaultSort)
@@ -92,7 +96,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
         <div className="u2-tx-summaries">
           {subtotals.map(sub => (
             <section key={sub.currency} className="ui2-panel u2-tx-summary" aria-label={`${sub.currency} transaction totals`}>
-              <div className="u2-tx-summary-eyebrow"><TransactionCurrency currency={sub.currency} /> · filtered totals</div>
+              <div className="u2-tx-summary-eyebrow"><CurrencyPill currency={sub.currency} theme={activeTheme} /> · filtered totals</div>
               <div className="u2-tx-totals">
                 <div><span>Bought</span><strong>{money(sub.bought, sub.currency)}</strong></div>
                 <div><span>Sold</span><strong>{money(sub.sold, sub.currency)}</strong></div>
@@ -244,7 +248,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
                         {cols.ratio && <td>{txn.ratio != null && txn.ratio !== 0 ? txn.ratio : '—'}</td>}
                         {cols.realizedSeed && <td>{txn.realized_seed != null && txn.realized_seed !== 0 ? money(txn.realized_seed, currency) : '—'}</td>}
                         {cols.openingDate && <td>{txn.type === 'opening' ? (txn.opening_date ?? '—') : ''}</td>}
-                        <td className="u2-center"><TransactionCurrency currency={currency} /></td>
+                        <td className="u2-center"><CurrencyPill currency={currency} theme={activeTheme} /></td>
                         {cols.notes && <td className="u2-left">{txn.notes || '—'}</td>}
                         <td className="u2-center">
                           {holding && (

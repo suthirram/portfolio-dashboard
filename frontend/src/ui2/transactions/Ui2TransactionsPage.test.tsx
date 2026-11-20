@@ -130,13 +130,14 @@ describe('Ui2TransactionsPage', () => {
     const firstRow = table.querySelectorAll('tbody tr')[0]
     const cells = [...firstRow.querySelectorAll('td')]
     expect(cells.slice(0, 3).every(cell => cell.classList.contains('u2-left'))).toBe(true)
-    expect(cells.some(cell => cell.classList.contains('u2-center') && /^(🇮🇳 INR|🇪🇺 EUR)$/.test((cell.textContent ?? '').trim()))).toBe(true)
+    expect(cells.some(cell => cell.classList.contains('u2-center') && /^(INR|EUR)$/.test((cell.textContent ?? '').trim()))).toBe(true)
   })
 
   it('shows currency summary panels', () => {
     render(<Ui2TransactionsPage />)
     const summary = screen.getByRole('region', { name: 'INR transaction totals' })
-    expect(summary).toHaveTextContent('🇮🇳 INR · filtered totals')
+    expect(summary).toHaveTextContent('INR · filtered totals')
+    expect(summary.querySelector('span[aria-hidden="true"] svg')).toBeInTheDocument()
     expect(screen.getAllByRole('cell', { name: 'INR' })).toHaveLength(3)
   })
 })
