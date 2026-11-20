@@ -69,6 +69,18 @@ describe('Ui2DividendImport', () => {
     expect(await screen.findByText('Ready to import')).toBeInTheDocument()
   })
 
+  it('locks the sheet while the preview request is in flight', async () => {
+    let resolvePreview: (value: typeof ready) => void = () => {}
+    mockApi.previewDividendImport.mockReturnValue(new Promise(resolve => { resolvePreview = resolve }))
+    show()
+    await paste(SHEET)
+    await waitFor(() => expect(screen.getByLabelText('Dividend CSV contents')).toHaveAttribute('readonly'))
+    expect(screen.getByLabelText('Dividend CSV file')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Load example' })).toBeDisabled()
+    resolvePreview(ready)
+    expect(await screen.findByText('Ready to import')).toBeInTheDocument()
+  })
+
   it('fills the buffer from a file without validating it', async () => {
     show()
     await userEvent.upload(

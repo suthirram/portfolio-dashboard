@@ -61,14 +61,20 @@ export function Ui2DividendImport({ currency, holdings, userId, onClose, onImpor
                 type="file"
                 accept=".csv,text/csv"
                 aria-label="Dividend CSV file"
+                disabled={ctrl.busy}
                 onChange={event => void ctrl.loadFile(event.target.files?.[0])}
               />
-              <button type="button" className="ui2-btn" onClick={ctrl.loadExample}>Load example</button>
+              <button type="button" className="ui2-btn" onClick={ctrl.loadExample} disabled={ctrl.busy}>Load example</button>
             </div>
+            {/* Locked while validating: the preview is of the sheet as it was
+                when Validate was pressed, so an edit now would be silently
+                dropped from the import. */}
             <textarea
               aria-label="Dividend CSV contents"
               placeholder="Paste your dividend CSV"
               value={ctrl.text}
+              readOnly={ctrl.busy}
+              aria-busy={ctrl.busy}
               onChange={event => ctrl.setText(event.target.value)}
             />
             <div className="ui2-dialog-actions">
