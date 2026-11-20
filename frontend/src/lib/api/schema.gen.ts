@@ -1451,7 +1451,7 @@ export interface components {
          * @description Deployment-wide app font choice.
          * @enum {string}
          */
-        BrandingFont: "roboto" | "jetbrains_mono";
+        BrandingFont: "roboto" | "jetbrains_mono" | "dm_sans" | "manrope" | "inter" | "source_sans_3" | "lato" | "nunito_sans" | "ibm_plex_sans" | "open_sans" | "poppins" | "work_sans";
         BrandingFontOption: {
             id: components["schemas"]["BrandingFont"];
             /** @description Human-readable font name. */

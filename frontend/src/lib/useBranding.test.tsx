@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { BrandingProvider, initBranding, useBranding } from './useBranding'
+import { BrandingProvider, FONT_CATALOG, initBranding, useBranding } from './useBranding'
+import { readFileSync } from 'node:fs'
+
+// Read from disk: Vitest stubs CSS imports, even with ?raw.
+const baseCss = readFileSync(`${process.cwd()}/src/styles/base.css`, 'utf8')
 
 const mockApi = vi.hoisted(() => ({
   getBranding: vi.fn(),
@@ -53,6 +57,22 @@ describe('useBranding', () => {
     initBranding()
     expect(document.documentElement.dataset.brandFont).toBe('jetbrains_mono')
     expect(document.documentElement.style.getPropertyValue('--brand-font-family')).toContain('JetBrains Mono')
+  })
+
+  it('applies a cached added font with its own fallback face', () => {
+    window.localStorage.setItem('pd_brand_font', 'manrope')
+    initBranding()
+    expect(document.documentElement.dataset.brandFont).toBe('manrope')
+    expect(document.documentElement.style.getPropertyValue('--brand-font-family'))
+      .toBe('"Manrope", "Manrope Fallback", Arial, sans-serif')
+  })
+
+  it('gives every catalogue font a regular and a bold metric-adjusted fallback face', () => {
+    for (const option of FONT_CATALOG) {
+      const faces = baseCss.split(`font-family: "${option.label} Fallback";`).length - 1
+      expect(faces, option.label).toBe(2)
+      expect(option.css_family.split(', ')[1], option.label).toBe(`"${option.label} Fallback"`)
+    }
   })
 
   it('loads branding settings and applies the server font', async () => {

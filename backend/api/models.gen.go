@@ -11,16 +11,46 @@ import (
 
 // Defines values for BrandingFont.
 const (
+	DmSans        BrandingFont = "dm_sans"
+	IbmPlexSans   BrandingFont = "ibm_plex_sans"
+	Inter         BrandingFont = "inter"
 	JetbrainsMono BrandingFont = "jetbrains_mono"
+	Lato          BrandingFont = "lato"
+	Manrope       BrandingFont = "manrope"
+	NunitoSans    BrandingFont = "nunito_sans"
+	OpenSans      BrandingFont = "open_sans"
+	Poppins       BrandingFont = "poppins"
 	Roboto        BrandingFont = "roboto"
+	SourceSans3   BrandingFont = "source_sans_3"
+	WorkSans      BrandingFont = "work_sans"
 )
 
 // Valid indicates whether the value is a known member of the BrandingFont enum.
 func (e BrandingFont) Valid() bool {
 	switch e {
+	case DmSans:
+		return true
+	case IbmPlexSans:
+		return true
+	case Inter:
+		return true
 	case JetbrainsMono:
 		return true
+	case Lato:
+		return true
+	case Manrope:
+		return true
+	case NunitoSans:
+		return true
+	case OpenSans:
+		return true
+	case Poppins:
+		return true
 	case Roboto:
+		return true
+	case SourceSans3:
+		return true
+	case WorkSans:
 		return true
 	default:
 		return false

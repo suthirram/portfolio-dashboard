@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
 	"portfolio-dashboard/api"
+	"portfolio-dashboard/internal/domain"
 )
 
 func brandingNS(mt *mtest.T) string { return mt.DB.Name() + ".app_branding" }
@@ -28,11 +29,17 @@ func TestGetBranding_DefaultsToRobotoWhenUnset(t *testing.T) {
 		if got.Font != api.Roboto {
 			t.Errorf("font = %q, want roboto", got.Font)
 		}
-		if len(got.AllowedFonts) != 2 {
-			t.Fatalf("allowed fonts = %d, want 2", len(got.AllowedFonts))
+		wantIDs := []api.BrandingFont{
+			api.Roboto, api.JetbrainsMono, api.DmSans, api.Manrope, api.Inter, api.SourceSans3,
+			api.Lato, api.NunitoSans, api.IbmPlexSans, api.OpenSans, api.Poppins, api.WorkSans,
 		}
-		if got.AllowedFonts[0].Id != api.Roboto || got.AllowedFonts[1].Id != api.JetbrainsMono {
-			t.Errorf("allowed fonts = %#v, want Roboto then JetBrains Mono", got.AllowedFonts)
+		if len(got.AllowedFonts) != len(wantIDs) {
+			t.Fatalf("allowed fonts = %d, want %d", len(got.AllowedFonts), len(wantIDs))
+		}
+		for index, id := range wantIDs {
+			if got.AllowedFonts[index].Id != id {
+				t.Errorf("allowed font %d = %q, want %q", index, got.AllowedFonts[index].Id, id)
+			}
 		}
 	})
 }
@@ -51,14 +58,11 @@ func TestGetBranding_StacksFallBackToMetricAdjustedFace(t *testing.T) {
 			t.Fatalf("GetBranding: %v", err)
 		}
 
-		want := map[api.BrandingFont][]string{
-			api.Roboto:        {"Roboto", `"Roboto Fallback"`},
-			api.JetbrainsMono: {`"JetBrains Mono"`, `"JetBrains Mono Fallback"`},
-		}
 		for _, option := range resp.(api.GetBranding200JSONResponse).AllowedFonts {
 			families := strings.Split(option.CssFamily, ", ")
-			if len(families) < 3 || families[0] != want[option.Id][0] || families[1] != want[option.Id][1] {
-				t.Errorf("%s stack = %q, want %s then %s, then a system fallback", option.Id, option.CssFamily, want[option.Id][0], want[option.Id][1])
+			web := strings.Trim(families[0], `"`)
+			if len(families) < 3 || web != option.Label || families[1] != `"`+option.Label+` Fallback"` {
+				t.Errorf("%s stack = %q, want %q then %q, then a system fallback", option.Id, option.CssFamily, option.Label, option.Label+" Fallback")
 			}
 		}
 	})
@@ -110,6 +114,41 @@ func TestAdminUpdateBranding_SuperAdminSetsFont(t *testing.T) {
 			t.Errorf("stored font = %q, want jetbrains_mono", font)
 		}
 	})
+}
+
+func TestAdminUpdateBranding_AcceptsAnAddedFont(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+
+	mt.Run("set manrope", func(mt *mtest.T) {
+		mt.AddMockResponses(mtest.CreateSuccessResponse(bson.E{Key: "n", Value: 1}))
+
+		h := newIntegrationHandler(mt, &mockPriceFetcher{})
+		resp, err := h.AdminUpdateBranding(userCtx(superAdmin()), api.AdminUpdateBrandingRequestObject{
+			Body: &api.BrandingUpdateRequest{Font: api.Manrope},
+		})
+		if err != nil {
+			t.Fatalf("AdminUpdateBranding: %v", err)
+		}
+		if got := resp.(api.AdminUpdateBranding200JSONResponse); got.Font != api.Manrope {
+			t.Errorf("font = %q, want manrope", got.Font)
+		}
+		if font := firstUpdateSet(t, mt).Lookup("font").StringValue(); font != "manrope" {
+			t.Errorf("stored font = %q, want manrope", font)
+		}
+	})
+}
+
+// The OpenAPI enum and the domain catalogue must list the same fonts, or a
+// font could be offered but rejected (or accepted but never offered).
+func TestBrandingCatalogueMatchesTheAPIEnum(t *testing.T) {
+	for _, spec := range domain.BrandingFonts {
+		if !api.BrandingFont(spec.ID).Valid() {
+			t.Errorf("catalogue font %q is missing from the API enum", spec.ID)
+		}
+	}
+	if api.BrandingFont("comic_sans").Valid() {
+		t.Errorf("the API enum accepts an unknown font")
+	}
 }
 
 func TestAdminUpdateBranding_RejectsUnsupportedFont(t *testing.T) {

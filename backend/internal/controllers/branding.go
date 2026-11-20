@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -11,21 +12,26 @@ import (
 	"portfolio-dashboard/internal/persistence"
 )
 
-// Each stack names a metric-adjusted fallback face second ("<font>
+// brandingFontOptions is the domain catalogue (domain.BrandingFonts) in API
+// shape. Each stack names a metric-adjusted fallback face second ("<font>
 // Fallback", an @font-face in the frontend's base.css). It is what renders
 // while the web font loads, sized to the web font's metrics so the swap
 // does not shift the layout.
-var brandingFontOptions = []api.BrandingFontOption{
-	{
-		Id:        api.Roboto,
-		Label:     "Roboto",
-		CssFamily: "Roboto, \"Roboto Fallback\", Arial, sans-serif",
-	},
-	{
-		Id:        api.JetbrainsMono,
-		Label:     "JetBrains Mono",
-		CssFamily: "\"JetBrains Mono\", \"JetBrains Mono Fallback\", monospace",
-	},
+var brandingFontOptions = func() []api.BrandingFontOption {
+	options := make([]api.BrandingFontOption, 0, len(domain.BrandingFonts))
+	for _, spec := range domain.BrandingFonts {
+		options = append(options, api.BrandingFontOption{Id: api.BrandingFont(spec.ID), Label: spec.Label, CssFamily: spec.CSSFamily})
+	}
+	return options
+}()
+
+// allowedFontIDs lists the catalogue's ids for the 400 message.
+func allowedFontIDs() string {
+	ids := make([]string, 0, len(domain.BrandingFonts))
+	for _, spec := range domain.BrandingFonts {
+		ids = append(ids, string(spec.ID))
+	}
+	return strings.Join(ids, ", ")
 }
 
 func brandingToAPI(settings domain.BrandingSettings) api.BrandingSettings {
@@ -57,8 +63,8 @@ func (h *Controller) AdminUpdateBranding(ctx context.Context, request api.AdminU
 	if !ok {
 		return api.AdminUpdateBranding403JSONResponse{ForbiddenJSONResponse: forbiddenMsg("super admin access required")}, nil
 	}
-	if request.Body == nil || !request.Body.Font.Valid() {
-		return api.AdminUpdateBranding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("font must be one of roboto, jetbrains_mono")}}, nil
+	if request.Body == nil || !domain.BrandingFont(request.Body.Font).Valid() {
+		return api.AdminUpdateBranding400JSONResponse{BadRequestJSONResponse: api.BadRequestJSONResponse{Error: new("font must be one of " + allowedFontIDs())}}, nil
 	}
 
 	font := domain.BrandingFont(request.Body.Font)
