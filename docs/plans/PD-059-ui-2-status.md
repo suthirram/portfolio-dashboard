@@ -47,7 +47,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 19 | 5 | FE | Dividend import: upload, paste, example | 18 | Claude | `feat/PD-059-dividend-import` | | plan in review ([wave 5a](PD-059-wave5a-dividends.md)) |
 | 20 | 5 | FE | Gold table (15 cols) + Details + modal + metrics | 2 | | | | needs amendment |
 | 21 | 5 | FE | Gold prices (daily, 30 days, all months) + missing-price prompt | 20 | | | | needs amendment |
-| 22 | 6 | FE | Act-as in UI_2.0 | 2 | | | | needs amendment |
+| 22 | 6 | FE | Act-as in UI_2.0 | 2, 18 | Claude | `feat/PD-059-act-as` | #383 | in review, stacked on #373 ([wave 6d](PD-059-wave6d-act-as.md)) |
 | 23 | 6 | FE | Admin user list + detail | 2 | Claude | `feat/PD-059-admin-users` | #379 | in review; plan #378 ([wave 6a](PD-059-wave6a-admin-users.md)) |
 | 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | Claude | `feat/PD-059-admin-super` | #381 | in review, stacked on #379 ([wave 6b](PD-059-wave6b-admin-super.md)) |
 | 25 | 6 | FE | Profile | 2 | Claude | `feat/PD-059-profile` | #382 | in review ([wave 6c](PD-059-wave6c-profile.md)) |
