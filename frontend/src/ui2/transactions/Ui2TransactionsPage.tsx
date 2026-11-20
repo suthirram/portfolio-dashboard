@@ -188,17 +188,17 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
               <table className="ui2-table u2-tx-table" aria-label="Transactions">
                 <thead>
                   <tr>
-                    <th scope="col">
+                    <th scope="col" className="u2-left">
                       <button type="button" className="u2-sort-btn" onClick={() => handleSort('date')}>
                         Date{sortIndicator('date')}
                       </button>
                     </th>
-                    <th scope="col">
+                    <th scope="col" className="u2-left">
                       <button type="button" className="u2-sort-btn" onClick={() => handleSort('holding')}>
                         Holding{sortIndicator('holding')}
                       </button>
                     </th>
-                    <th scope="col">
+                    <th scope="col" className="u2-left">
                       <button type="button" className="u2-sort-btn" onClick={() => handleSort('type')}>
                         Event{sortIndicator('type')}
                       </button>
@@ -213,9 +213,9 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
                     {cols.ratio && <th scope="col">Ratio</th>}
                     {cols.realizedSeed && <th scope="col">Realised seed</th>}
                     {cols.openingDate && <th scope="col">Opening date</th>}
-                    <th scope="col">Currency</th>
-                    {cols.notes && <th scope="col">Notes</th>}
-                    <th scope="col"><span className="sr-only">Actions</span></th>
+                    <th scope="col" className="u2-center">Currency</th>
+                    {cols.notes && <th scope="col" className="u2-left">Notes</th>}
+                    <th scope="col" className="u2-center"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,8 +227,8 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
                     const implied = impliedCostPerShare(txn)
                     return (
                       <tr key={txn.id}>
-                        <td>{txn.date ? formatDate(txn.date) : '—'}</td>
-                        <td>
+                        <td className="u2-left">{txn.date ? formatDate(txn.date) : '—'}</td>
+                        <td className="u2-left">
                           <div className="u2-holding">
                             <div className="u2-stock-icon" style={stockIconStyle(sym)} aria-hidden="true">{icon}</div>
                             <div>
@@ -237,16 +237,16 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
                             </div>
                           </div>
                         </td>
-                        <td><span className={txTagClass(txn.type)}>{txn.type ?? '—'}</span></td>
+                        <td className="u2-left"><span className={txTagClass(txn.type)}>{txn.type ?? '—'}</span></td>
                         {cols.quantity && <td>{txn.quantity != null && txn.quantity !== 0 ? formatQuantity(txn.quantity) : '—'}</td>}
                         <td><strong>{money(txn.amount, currency)}</strong></td>
                         {cols.impliedCost && <td>{implied != null ? money(implied, currency) : '—'}</td>}
                         {cols.ratio && <td>{txn.ratio != null && txn.ratio !== 0 ? txn.ratio : '—'}</td>}
                         {cols.realizedSeed && <td>{txn.realized_seed != null && txn.realized_seed !== 0 ? money(txn.realized_seed, currency) : '—'}</td>}
                         {cols.openingDate && <td>{txn.type === 'opening' ? (txn.opening_date ?? '—') : ''}</td>}
-                        <td><TransactionCurrency currency={currency} /></td>
-                        {cols.notes && <td>{txn.notes || '—'}</td>}
-                        <td>
+                        <td className="u2-center"><TransactionCurrency currency={currency} /></td>
+                        {cols.notes && <td className="u2-left">{txn.notes || '—'}</td>}
+                        <td className="u2-center">
                           {holding && (
                             <button
                               type="button"
