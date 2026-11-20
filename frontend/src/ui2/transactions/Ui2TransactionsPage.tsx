@@ -12,7 +12,7 @@ import { usePagination, PAGE_SIZE } from '../../lib/usePagination'
 import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
-import { Ui2InvestmentDeltaLink } from './Ui2InvestmentDelta'
+import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
 import { CurrencyPill, currencyFlag } from './TransactionCurrency'
 import { Ui2HoldingLedger } from './Ui2HoldingLedger'
 import TradeImportModal from '../../features/transactions/TradeImportModal'
@@ -42,7 +42,8 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [sort, setSort] = useState<Sort>(defaultSort)
   const [ledger, setLedger] = useState<HoldingWithPrice | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const ledgerChanged = () => { void refresh() }
+  const [deltaRefresh, setDeltaRefresh] = useState(0)
+  const ledgerChanged = () => { void refresh(); setDeltaRefresh(v => v + 1) }
 
   const rows = useMemo(() => sortRows(applyFilters(transactions, filters), sort), [transactions, filters, sort])
   const currencies = useMemo(() => currencyFacet(transactions), [transactions])
@@ -106,7 +107,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
 
       {/* The investment delta reads the signed-in account's own ledger, so
           its way in is not shown in act-as (same as Classic). */}
-      {!actAsUserId && <Ui2InvestmentDeltaLink />}
+      {!actAsUserId && <Ui2InvestmentDelta refreshKey={deltaRefresh} />}
 
       {/* Filters + table */}
       <section className="ui2-panel">
