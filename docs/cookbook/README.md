@@ -15,6 +15,7 @@ entry or update the relevant one before handoff, including unresolved work.
 * [CodeQL flags Yahoo profile requests for request forgery](yahoo-profile-request-forgery.md)
 * [Sector colours repeat across categories](sector-colors-repeat.md)
 * [Ledger validation after Cancel or a cleared date](ledger-validation.md)
+* [Symbol Test button misses mouse clicks](symbol-test-click-shift.md)
 
 ## Writing an entry
 

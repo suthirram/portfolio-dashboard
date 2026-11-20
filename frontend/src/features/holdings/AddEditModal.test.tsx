@@ -27,6 +27,22 @@ describe('AddEditModal numeric input', () => {
     expect(await screen.findByText(/123.45 USD/)).toBeVisible()
   })
 
+  it('keeps the symbol focused when Test is pressed, so nothing moves before the click', async () => {
+    vi.mocked(api.getMarketPrice).mockResolvedValueOnce({ price: 350.5, currency: 'INR' })
+    render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
+    const symbol = screen.getByLabelText('Yahoo Symbol')
+    symbol.focus()
+    fireEvent.change(symbol, { target: { value: 'TCS.NS' } })
+    const test = screen.getByRole('button', { name: 'Test' })
+    // A cancelled mousedown keeps focus on the input: no blur, no sector
+    // preview, no layout shift between mousedown and mouseup.
+    expect(fireEvent.mouseDown(test)).toBe(false)
+    expect(symbol).toHaveFocus()
+    fireEvent.click(test)
+    expect(await screen.findByText(/350.5 INR/)).toBeVisible()
+    expect(api.getMarketProfile).toHaveBeenCalledTimes(1)
+  })
+
   it('shows a quote hint for a Yahoo server error without raw upstream text', async () => {
     vi.mocked(api.getMarketPrice).mockRejectedValueOnce(new ApiError(502, 'raw Yahoo upstream response'))
     render(<AddEditModal holding={null} onClose={() => {}} onSaved={() => {}} />)
