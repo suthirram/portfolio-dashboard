@@ -68,8 +68,6 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
     return result
   }, [holdings])
 
-  if (error) return <p className="ui2-note" role="alert">{error}</p>
-
   return (
     <div className="u2-tx-page">
       {actAsLabel && <Ui2ActAsBanner label={actAsLabel} />}
@@ -158,7 +156,19 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
 
         {loading && <p className="ui2-note" aria-live="polite">Loading transactions…</p>}
 
-        {!loading && rows.length === 0 && (
+        {/* A failed load keeps the page and its filters usable, with a way to
+            retry, instead of replacing everything with the error. */}
+        {error && (
+          <div className="ui2-notice" role="alert">
+            <div>
+              <strong>Transactions could not load</strong>
+              <span>{error}</span>
+            </div>
+            <button type="button" className="ui2-btn" onClick={() => void refresh()}>Try again</button>
+          </div>
+        )}
+
+        {!loading && !error && rows.length === 0 && (
           <p className="ui2-note">No transactions match the current filters.</p>
         )}
 
