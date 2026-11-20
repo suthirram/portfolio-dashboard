@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { api } from '../../lib/api/client'
 import { DecimalInput } from '../../components/DecimalInput'
 import { formatMoney } from '../../lib/currency'
-import { formatDate, todayIST } from '../../lib/formDates'
+import { formatDayMonthYearName, todayIST } from '../../lib/formDates'
 import type { DividendCurrency, DividendRow, Holding } from '../../types'
 import { useDividendAction, useDividendForm } from '../../features/dividends/dividendActions'
 import { Ui2Dialog } from '../shell/Ui2Dialog'
@@ -65,7 +65,7 @@ export function Ui2DeleteDividend({ row, currency, userId, onClose, onDeleted }:
   const { busy, err, run } = useDividendAction(() => api.deleteTransaction(row.id, userId), onDeleted)
   return (
     <Ui2Dialog title="Delete dividend?" onClose={onClose} busy={busy}>
-      <p style={{ lineHeight: 1.7 }}>{row.script} · {formatDate(row.date)} · {formatMoney(row.amount, currency)}</p>
+      <p style={{ lineHeight: 1.7 }}>{row.script} · {formatDayMonthYearName(row.date)} · {formatMoney(row.amount, currency)}</p>
       <p className="asset-note">The holding's dividend total and every later running total drop by this amount.</p>
       {err && <p className="asset-error" role="alert">{err}</p>}
       <div className="asset-modal-actions">

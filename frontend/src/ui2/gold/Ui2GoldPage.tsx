@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { GoldTransaction } from '../../lib/api/client'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import { formatRate } from '../../lib/rate'
 import { useGoldData } from '../../features/gold/useGoldData'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
@@ -35,7 +35,7 @@ export function Ui2GoldPage() {
     {
       label: 'Current value',
       value: money(metrics?.current, 'INR'),
-      detail: `Latest recorded rate · ${latest ? formatDate(latest.date) : 'unavailable'}`,
+      detail: `Latest recorded rate · ${latest ? formatDayMonthYearName(latest.date) : 'unavailable'}`,
     },
     { label: 'Total invested', value: money(metrics?.invested, 'INR'), detail: 'Actual amounts paid' },
     { label: 'Physical gold', value: grams(metrics?.grams), detail: 'Purchased weight' },
@@ -141,9 +141,9 @@ export function Ui2GoldPage() {
                       </td>
                     ))}
                     <td>
-                      <button type="button" className="ui2-btn" aria-label={`Details of ${formatDate(txn.date)} purchase`}
+                      <button type="button" className="ui2-btn" aria-label={`Details of ${formatDayMonthYearName(txn.date)} purchase`}
                         onClick={() => setDetails(txn)}>Details</button>{' '}
-                      <button type="button" className="ui2-btn" aria-label={`Edit ${formatDate(txn.date)} purchase`}
+                      <button type="button" className="ui2-btn" aria-label={`Edit ${formatDayMonthYearName(txn.date)} purchase`}
                         onClick={() => setEditing({ txn })}>Edit</button>
                     </td>
                   </tr>

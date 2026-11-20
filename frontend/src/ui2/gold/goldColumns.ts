@@ -1,5 +1,5 @@
 import type { GoldTransaction } from '../../lib/api/client'
-import { formatDate } from '../../lib/formDates'
+import { formatDayMonthYearName } from '../../lib/formDates'
 import { money } from '../overview/Ui2SummaryCards'
 
 type GoldKey = Exclude<keyof GoldTransaction, 'id'>
@@ -34,7 +34,7 @@ export const grams = (weight: number | null | undefined) =>
 export function goldCell(txn: GoldTransaction, key: GoldKey): string {
   const value = txn[key]
   if (value == null || value === '') return '—'
-  if (key === 'date') return formatDate(String(value))
+  if (key === 'date') return formatDayMonthYearName(String(value))
   if (key === 'chennai_rate') return String(value)
   if (key === 'grams_bought' || key === 'billed_weight') return grams(Number(value))
   return money(Number(value), 'INR')
