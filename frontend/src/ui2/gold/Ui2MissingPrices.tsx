@@ -12,7 +12,7 @@ import '../asset/asset.css'
 // dialog after the user skipped it.
 export function MissingPricesAlert({ count, onReview }: { count: number; onReview: () => void }) {
   return (
-    <div className="asset-alert" role="status">
+    <div className="ui2-notice" role="status">
       <div>
         <strong>{count} daily {count === 1 ? 'price needs' : 'prices need'} attention</strong>
         <span>Days since your first purchase with no recorded rate.</span>
