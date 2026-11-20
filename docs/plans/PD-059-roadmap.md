@@ -77,8 +77,8 @@ on the listed steps. **owner** = waiting on an owner action or decision.
 | R29 | FE | Dividend add / edit / delete / delete-all dialogs in the handoff's `asset-form` inside `Ui2Dialog` (wave 5a follow-up; today they keep Classic chrome) | R13 | merged (#388) |
 | R30 | FE | UI_2.0 Transactions keeps its filters and offers Try again after a load error, like Dividends (#373 review) | R11 | merged (#387) |
 | R31 | FE | Monthly dividend chart labels thinned so they never overlap; the newest period always labelled (owner: fix) | R12 | merged (#389) |
-| R32 | FE | Asset-page dates in the handoff format `18 Nov 2026` (Q-5b-1), shipped with other minor UI fixes | owner go | owner |
-| R33 | FE | Investment delta as a Transactions sub-route (27, tentative) | R22, owner | owner |
+| R32 | FE | Asset-page dates in the handoff format `18 Nov 2026` (Q-5b-1) | owner go (2026-11-20) | merged (#398) |
+| R33 | FE | Investment delta as a Transactions sub-route `/transactions/delta` (27; owner: move it, [wave 6f](PD-059-wave6f-delta-route.md)) | R22, owner | merged (#400) |
 | R34 | FE | Microsoft fonts in Branding (Segoe UI, Calibri, Aptos): licensed, not web-loadable — "only if installed" choices, self-hosted Selawik, or none | owner | dropped (owner, 2026-11-20) |
 | R35 | FE | Holding XIRR in the UI_2.0 details dialog (#391) and Classic table alignment for UI_2.0 tables (#392) | — | merged (#391, #392) |
 
@@ -89,14 +89,12 @@ fallback faces (PD-059-Q-6b-1).
 
 ## What is left (2026-11-20)
 
-Slices 1–26 and 29, follow-ups R18, R22 and R28–R31, R35 and the R24 cutover test are merged; only these remain before PD-059 closes.
+Slices 1–27 and 29, follow-ups R18, R22, R28–R33, R35 and the R24 cutover test are merged; R34 is dropped. Only these remain before PD-059 closes.
 
 **Ready (no owner input):** nothing. R24's cutover test (#396) passes on every route at 390 and 1280 px; it found and fixed a phone-width overflow on Transactions. The Dividends chart now gives every month (or year) between the first and last payment a bar, so its spacing follows time.
 
 **Waiting on the owner:**
 
-* R32 — dates as `18 Nov 2026` (decided), held until the owner bundles minor UI fixes.
-* R33 — the investment-delta sub-route, decided after R22.
 * R23 — the owner's production dry run of `migrate overall`, then register step `20261118_02` (9b).
 * Optional: PD-059-Q-6e-1, visual sign-off of the Light auth screens (#384).
 
