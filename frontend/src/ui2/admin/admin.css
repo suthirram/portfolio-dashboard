@@ -189,6 +189,70 @@
 
 :root[data-ui="ui2"] .u2-admin-empty { text-align: center; color: var(--u2-muted); padding: 34px 16px; }
 
+/* Branding (handoff .perspective-brand-* / .perspective-font-*) */
+:root[data-ui="ui2"] .u2-brand-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+:root[data-ui="ui2"] .u2-brand-heading h2 { font: 700 24px var(--u2-font-display); margin: 12px 0 8px; }
+:root[data-ui="ui2"] .u2-brand-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--u2-muted); }
+
+:root[data-ui="ui2"] .u2-brand-badge {
+  background: var(--u2-accentsoft);
+  color: var(--u2-accent);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .7px;
+  white-space: nowrap;
+}
+
+:root[data-ui="ui2"] .u2-brand-applied {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--u2-border);
+  background: var(--u2-accentsoft);
+  font-size: 12px;
+}
+
+:root[data-ui="ui2"] .u2-brand-fonts {
+  border: 0;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+:root[data-ui="ui2"] .u2-brand-fonts legend { font-weight: 600; margin-bottom: 12px; }
+
+:root[data-ui="ui2"] .u2-brand-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--u2-border);
+  border-radius: 10px;
+  background: var(--u2-bg);
+  cursor: pointer;
+}
+
+:root[data-ui="ui2"] .u2-brand-card:has(input:checked) { border-color: var(--u2-accent); background: var(--u2-accentsoft); }
+:root[data-ui="ui2"] .u2-brand-card:focus-within { outline: 3px solid var(--u2-accent); outline-offset: 3px; }
+:root[data-ui="ui2"] .u2-brand-choice { display: flex; align-items: center; gap: 9px; }
+:root[data-ui="ui2"] .u2-brand-choice input { accent-color: var(--u2-accent); min-width: 18px; min-height: 18px; }
+
+:root[data-ui="ui2"] .u2-brand-sample {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+:root[data-ui="ui2"] .u2-brand-alphabet { font-size: 30px; font-weight: 600; }
+
 @media (max-width: 1050px) {
   :root[data-ui="ui2"] .u2-admin-workspace { grid-template-columns: 240px 1fr; }
 }

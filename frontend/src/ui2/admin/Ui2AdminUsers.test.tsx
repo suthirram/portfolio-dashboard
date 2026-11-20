@@ -19,6 +19,7 @@ vi.mock('../../lib/api/client', async () => {
     ...actual,
     api: {
       adminListUsers: vi.fn(),
+      adminListAdmins: vi.fn(),
       getRegions: vi.fn(),
       adminSetUserRegion: vi.fn(),
       adminPromoteUser: vi.fn(),
@@ -152,6 +153,17 @@ describe('Ui2AdminUsers', () => {
     await userEvent.type(within(dialog).getByLabelText('Confirm username'), 'e')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Delete account' }))
     await waitFor(() => expect(api.adminDeleteUser).toHaveBeenCalledWith('u1'))
+  })
+
+  it('lists administrators in the Administrators section, with no hidden toggle', async () => {
+    vi.mocked(api.adminListAdmins).mockResolvedValue([owner, europeAdmin])
+    render(<MemoryRouter initialEntries={['/admin/admins']}><Ui2AdminUsers section="admins" /></MemoryRouter>)
+    expect(await screen.findByRole('button', { name: /Eve Admin/ })).toBeInTheDocument()
+    expect(api.adminListUsers).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Search administrators')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Include hidden accounts')).not.toBeInTheDocument()
+    await pick(/Eve Admin/)
+    expect(screen.getByRole('button', { name: 'Demote to user' })).toBeInTheDocument()
   })
 
   it('opens another account’s portfolio through act-as', async () => {
