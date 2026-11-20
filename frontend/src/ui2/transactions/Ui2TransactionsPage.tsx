@@ -12,7 +12,7 @@ import { usePagination, PAGE_SIZE } from '../../lib/usePagination'
 import { Pager } from '../../components/Pager'
 import { Ui2PageIntro } from '../shell/Ui2PageIntro'
 import { Ui2ActAsBanner } from '../shell/Ui2ActAsBanner'
-import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
+import { Ui2InvestmentDeltaLink } from './Ui2InvestmentDelta'
 import { CurrencyPill, currencyFlag } from './TransactionCurrency'
 import { Ui2HoldingLedger } from './Ui2HoldingLedger'
 import TradeImportModal from '../../features/transactions/TradeImportModal'
@@ -42,10 +42,7 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
   const [sort, setSort] = useState<Sort>(defaultSort)
   const [ledger, setLedger] = useState<HoldingWithPrice | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  // Bumped after each ledger write or import so the investment delta reloads
-  // the healed figures.
-  const [ledgerVersion, setLedgerVersion] = useState(0)
-  const ledgerChanged = () => { void refresh(); setLedgerVersion(version => version + 1) }
+  const ledgerChanged = () => { void refresh() }
 
   const rows = useMemo(() => sortRows(applyFilters(transactions, filters), sort), [transactions, filters, sort])
   const currencies = useMemo(() => currencyFacet(transactions), [transactions])
@@ -108,8 +105,8 @@ export function Ui2TransactionsPage({ actAsUserId, actAsLabel }: Props) {
       )}
 
       {/* The investment delta reads the signed-in account's own ledger, so
-          it is not shown in act-as (same as Classic). */}
-      {!actAsUserId && <Ui2InvestmentDelta refreshKey={ledgerVersion} />}
+          its way in is not shown in act-as (same as Classic). */}
+      {!actAsUserId && <Ui2InvestmentDeltaLink />}
 
       {/* Filters + table */}
       <section className="ui2-panel">

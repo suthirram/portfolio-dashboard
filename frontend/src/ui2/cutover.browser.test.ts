@@ -9,7 +9,7 @@ import { launchBrowser, startFixtureServer } from '../test/browser/harness'
 // the same shared Pager (owner, Q-5a-1).
 
 const ROUTES = [
-  '/', '/history', '/history/chart/INR', '/transactions', '/dividends', '/gold',
+  '/', '/history', '/history/chart/INR', '/transactions', '/transactions/delta', '/dividends', '/gold',
   '/admin', '/admin/admins', '/admin/branding', '/profile',
   '/admin/users/u1', '/admin/users/u1/transactions', '/admin/users/u1/dividends',
 ]

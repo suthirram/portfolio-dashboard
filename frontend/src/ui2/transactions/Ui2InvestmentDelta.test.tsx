@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Ui2InvestmentDelta } from './Ui2InvestmentDelta'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Ui2InvestmentDelta, Ui2InvestmentDeltaLink, Ui2InvestmentDeltaPage } from './Ui2InvestmentDelta'
 
 const mockApi = vi.hoisted(() => ({ getInvestmentDelta: vi.fn(), listHistory: vi.fn() }))
 vi.mock('../../lib/api/client', async () => {
@@ -36,7 +37,7 @@ beforeEach(() => {
 
 describe('Ui2InvestmentDelta', () => {
   it('charts the current year’s first column from the ledger', async () => {
-    render(<Ui2InvestmentDelta refreshKey={0} />)
+    render(<Ui2InvestmentDelta />)
     const year = new Date().getFullYear()
     expect(await screen.findByRole('img', { name: new RegExp(`Investment delta ${year}`) })).toBeInTheDocument()
     expect(mockApi.getInvestmentDelta).toHaveBeenCalledWith(year)
@@ -46,7 +47,7 @@ describe('Ui2InvestmentDelta', () => {
   })
 
   it('switches column and year', async () => {
-    render(<Ui2InvestmentDelta refreshKey={0} />)
+    render(<Ui2InvestmentDelta />)
     const year = new Date().getFullYear()
     const group = await screen.findByRole('group', { name: 'Investment delta column' })
     const eur = [...group.querySelectorAll('button')].find(button => button.getAttribute('aria-pressed') === 'false')!
@@ -58,14 +59,42 @@ describe('Ui2InvestmentDelta', () => {
 
   it('says when nothing was invested in the year', async () => {
     mockApi.getInvestmentDelta.mockResolvedValue({ year: 2026, columns: [] })
-    render(<Ui2InvestmentDelta refreshKey={0} />)
+    render(<Ui2InvestmentDelta />)
     expect(await screen.findByText(/Nothing invested in/)).toBeInTheDocument()
   })
 
-  it('reloads when the ledger changes', async () => {
-    const { rerender } = render(<Ui2InvestmentDelta refreshKey={0} />)
+})
+
+// Both routes, so following a link shows which page it reached.
+const renderAt = (path: string) => render(
+  <MemoryRouter initialEntries={[path]}>
+    <Routes>
+      <Route path="/transactions" element={<><p>Transactions page</p><Ui2InvestmentDeltaLink /></>} />
+      <Route path="/transactions/delta" element={<Ui2InvestmentDeltaPage />} />
+    </Routes>
+  </MemoryRouter>,
+)
+
+describe('investment delta sub-route', () => {
+  it('opens from the Transactions link card', async () => {
+    renderAt('/transactions')
+    await userEvent.click(screen.getByRole('link', { name: 'Open the investment delta' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Money in, month by month.' })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: /Investment delta/ })).toBeInTheDocument()
+  })
+
+  it('reads the ledger afresh on every visit', async () => {
+    const { unmount } = renderAt('/transactions/delta')
     await screen.findByRole('img', { name: /Investment delta/ })
-    rerender(<Ui2InvestmentDelta refreshKey={1} />)
-    await waitFor(() => expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2))
+    unmount()
+    renderAt('/transactions/delta')
+    await screen.findByRole('img', { name: /Investment delta/ })
+    expect(mockApi.getInvestmentDelta).toHaveBeenCalledTimes(2)
+  })
+
+  it('leads back to Transactions', async () => {
+    renderAt('/transactions/delta')
+    await userEvent.click(screen.getByRole('link', { name: '‹ Back to Transactions' }))
+    expect(screen.getByText('Transactions page')).toBeInTheDocument()
   })
 })
