@@ -51,7 +51,7 @@ attribution trailers, FE and BE separate, three gates (`task-breakdown`).
 | 23 | 6 | FE | Admin user list + detail | 2 | Claude | `feat/PD-059-admin-users` | #379 | in review; plan #378 ([wave 6a](PD-059-wave6a-admin-users.md)) |
 | 24 | 6 | FE | Super-admin pages (Manage admins, Branding) | 23 | Claude | `feat/PD-059-admin-super` | #381 | in review, stacked on #379 ([wave 6b](PD-059-wave6b-admin-super.md)) |
 | 25 | 6 | FE | Profile | 2 | Claude | `feat/PD-059-profile` | #382 | in review ([wave 6c](PD-059-wave6c-profile.md)) |
-| 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | | | | needs amendment |
+| 26 | 6 | FE | Signup / forgot-password / onboarding (Light) | 2 | Claude | `feat/PD-059-auth-light` | #384 | in review ([wave 6e](PD-059-wave6e-auth-light.md)) |
 | 27 | 6 | FE | Investment delta → sub-route (tentative) | 16 | | | | needs amendment |
 | 28 | 5 | docs | Wave 5a plan: Dividends page and dividend import (18–19) | — | Claude | `docs/PD-059-wave5a-dividends` | #369 | in review |
 | 29 | 4 | FE | UI_2.0 trade import handoff parity (paste, example, validation and preview) | 17 | Claude | `feat/PD-059-trade-import-handoff` | #372 | in review |
