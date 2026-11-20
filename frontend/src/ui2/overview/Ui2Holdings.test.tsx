@@ -13,10 +13,15 @@ it('renders separate INR and EUR tables with independent collapse controls', () 
 
   expect(screen.getByRole('table', { name: 'INR holdings' })).toBeVisible()
   expect(screen.getByRole('table', { name: 'EUR holdings' })).toBeVisible()
+  expect(screen.getAllByText('Current value')).toHaveLength(2)
+  expect(screen.getAllByText('Unrealised')).toHaveLength(2)
+  expect(screen.getAllByText('Realised')).toHaveLength(2)
+  expect(screen.getAllByText('Today')).toHaveLength(2)
+  expect(screen.getAllByText('XIRR')).toHaveLength(2)
 
-  fireEvent.click(screen.getAllByRole('button', { name: 'Hide table' })[0])
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse INR table' }))
 
-  expect(screen.getByRole('button', { name: 'Show table' })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.getByRole('button', { name: 'Expand INR table' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByRole('table', { name: 'EUR holdings' })).toBeVisible()
   expect(screen.getByRole('table', { name: 'INR holdings', hidden: true })).not.toBeVisible()
 })
