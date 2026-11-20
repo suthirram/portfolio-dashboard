@@ -28,7 +28,7 @@ vi.mock('../../lib/useBranding', () => ({
 
 // Whether the signed-in account has the glass UI (PD-054).
 const glass = vi.hoisted(() => ({ on: false }))
-vi.mock('../../lib/uiMode', () => ({ useUiRevamp: () => glass.on }))
+vi.mock('../../lib/uiMode', () => ({ useUiRevamp: () => glass.on, useUiMode: () => 'classic' }))
 
 vi.mock('./AdminShell', () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

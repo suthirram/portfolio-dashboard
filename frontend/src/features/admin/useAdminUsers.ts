@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError, type Region, type User } from '../../lib/api/client'
 
-// useAdminUsers loads Admin → Users for every interface (PD-059 slice 23):
-// the caller's scoped account list (the server applies region scope), the
-// region catalogue, and whether hidden accounts are included.
-export function useAdminUsers() {
+export type AdminSection = 'users' | 'admins'
+
+// useAdminUsers loads an Administration account list for every interface
+// (PD-059 slices 23–24): the caller's scoped users (the server applies region
+// scope) or, for the super admin, the administrators; plus the region
+// catalogue and, for users, whether hidden accounts are included.
+export function useAdminUsers(section: AdminSection = 'users') {
   const [users, setUsers] = useState<User[]>([])
   const [regions, setRegions] = useState<Region[]>([])
   const [includeHidden, setIncludeHidden] = useState(false)
@@ -15,13 +18,13 @@ export function useAdminUsers() {
     setLoading(true)
     setErr(null)
     try {
-      setUsers(await api.adminListUsers(includeHidden))
+      setUsers(section === 'admins' ? await api.adminListAdmins() : await api.adminListUsers(includeHidden))
     } catch (error) {
-      setErr(error instanceof ApiError ? error.message : 'Failed to load users')
+      setErr(error instanceof ApiError ? error.message : section === 'admins' ? 'Failed to load admins' : 'Failed to load users')
     } finally {
       setLoading(false)
     }
-  }, [includeHidden])
+  }, [section, includeHidden])
 
   useEffect(() => { void load() }, [load])
   useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])

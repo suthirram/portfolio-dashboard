@@ -1,36 +1,25 @@
-import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, ApiError, type Region, type User } from '../../lib/api/client'
-import { useUiRevamp } from '../../lib/uiMode'
+import { api, type User } from '../../lib/api/client'
+import { useUiMode, useUiRevamp } from '../../lib/uiMode'
+import { Ui2AdminUsers } from '../../ui2/admin/Ui2AdminUsers'
 import { AdminShell } from './AdminShell'
 import { AdminUserSettings } from './AdminUserSettings'
 import { useAdminActions } from './useAdminActions'
+import { useAdminUsers } from './useAdminUsers'
 
+// AdminManageAdmins is a pure dispatcher: only useUiMode() lives here, so
+// the hook count is stable across mode changes.
 export default function AdminManageAdmins() {
-  const [admins, setAdmins] = useState<User[]>([])
-  const [regions, setRegions] = useState<Region[]>([])
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string | null>(null)
+  const ui2 = useUiMode() === 'ui2'
+  if (ui2) return <Ui2AdminUsers section="admins" />
+  return <ClassicAdminManageAdmins />
+}
+
+function ClassicAdminManageAdmins() {
+  const { users: admins, regions, loading, err, load, regionLabel } = useAdminUsers('admins')
   const revamp = useUiRevamp()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setErr(null)
-    try {
-      const data = await api.adminListAdmins()
-      setAdmins(data)
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'Failed to load admins')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { void load() }, [load])
-  useEffect(() => { void api.getRegions().then(setRegions).catch(console.error) }, [])
-
   const { caller, busy, runAction, toggleFeature, setUiMode } = useAdminActions(load)
-  const regionLabel = (id: string) => regions.find(region => region.id === id)?.label ?? id
 
   const setRegionFor = async (listedAdmin: User) => {
     const choice = prompt(`Move ${listedAdmin.username} to which region? (${regions.map(region => region.id).join(', ')})`, listedAdmin.region || regions[0]?.id || '')
