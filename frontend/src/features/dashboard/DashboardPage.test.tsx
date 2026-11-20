@@ -11,12 +11,14 @@ const dashboard = vi.hoisted(() => ({
   enriched: [] as unknown[],
   summary: null as unknown,
   uiRevamp: false,
+  uiMode: 'classic' as string,
+  xirr: null as unknown,
   summaryProps: null as null | { computedDayChangeInr?: GroupDayChange | null; computedDayChangeEur?: GroupDayChange | null },
 }))
 
 vi.mock('../holdings/useHoldings', () => ({
   useHoldings: () => ({
-    holdings: dashboard.holdings, enriched: dashboard.enriched, summary: dashboard.summary,
+    holdings: dashboard.holdings, enriched: dashboard.enriched, summary: dashboard.summary, xirr: dashboard.xirr,
     loadingHoldings: false, loadingPrices: false, lastRefresh: null,
     refresh: vi.fn(), fetchPrices: vi.fn(), remove: vi.fn(),
   }),
@@ -26,7 +28,7 @@ vi.mock('../auth/AuthContext', () => {
   const session = () => ({
     user: {
       id: 'u1', username: 'alice', name: 'Alice', role: 'admin',
-      region: 'india', gold_enabled: true, premium: false, ui_revamp: dashboard.uiRevamp,
+      region: 'india', gold_enabled: true, premium: false, ui_revamp: dashboard.uiRevamp, ui_mode: dashboard.uiMode,
     },
     loading: false,
     logout: vi.fn(),
@@ -46,8 +48,14 @@ vi.mock('../../lib/api/client', () => ({
 vi.mock('../../components/SummaryCards', () => ({
   default: (props: typeof dashboard.summaryProps) => { dashboard.summaryProps = props; return <div /> },
 }))
-vi.mock('../holdings/HoldingsByCurrency', () => ({ default: () => <div /> }))
+// UI_2.0 hands the table a renderRows; render it so a holding can be opened.
+vi.mock('../holdings/HoldingsByCurrency', () => ({
+  default: ({ renderRows, holdings }: { renderRows?: (rows: unknown[]) => React.ReactNode; holdings: unknown[] }) =>
+    <div>{renderRows?.(holdings)}</div>,
+}))
 vi.mock('../../components/Charts', () => ({ default: () => <div /> }))
+vi.mock('../../ui2/overview/OverallPerformance', () => ({ default: () => null }))
+vi.mock('../../ui2/overview/Ui2Allocation', () => ({ Ui2Allocation: () => null }))
 
 describe('DashboardPage nav grouping', () => {
   it('keeps page links before the spacer and actions after it', () => {
@@ -226,5 +234,35 @@ describe('DashboardPage account menu', () => {
     openMenu()
     fireEvent.mouseDown(document.body)
     expect(screen.queryByRole('link', { name: /Account settings/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage in UI_2.0', () => {
+  const tcs = {
+    id: 'h1', script: 'TCS', symbol: 'TCS.NS', exchange: 'NSE', currency: 'INR',
+    stocks_owned: 10, avg_cost_price: 3000, current_price: 3500, current_value: 35000, cost_price: 30000,
+  }
+
+  afterEach(() => {
+    dashboard.uiMode = 'classic'
+    dashboard.xirr = null
+    dashboard.holdings = []
+    dashboard.enriched = []
+  })
+
+  it('shows the holding’s XIRR and its caveat in the details dialog', () => {
+    dashboard.uiMode = 'ui2'
+    dashboard.holdings = [tcs]
+    dashboard.enriched = [tcs]
+    dashboard.xirr = {
+      asOf: '2026-11-20',
+      byHolding: { h1: { holding_id: 'h1', xirr: 0.1234, since: '2026-06-01', undated_opening: false } },
+      byCurrency: {},
+    }
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'TCS' }))
+    const dialog = screen.getByRole('dialog', { name: 'TCS' })
+    expect(within(dialog).getByText('12.34%*')).toBeInTheDocument()
+    expect(within(dialog).getByText(/Measured over less than a year/)).toBeInTheDocument()
   })
 })
