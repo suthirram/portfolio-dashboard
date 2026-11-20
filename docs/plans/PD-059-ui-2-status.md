@@ -101,6 +101,7 @@ shared piece.
 | `useDividendImport` | `frontend/src/features/dividends/useDividendImport.ts` | Dividend CSV import for both interfaces; paste + Load example | slice 19 (#385) |
 | `useGoldData`, `goldPrices` | `frontend/src/features/gold/useGoldData.ts`, `goldPrices.ts` | Gold reads; shared price-entry rules | slices 20–21 (#385) |
 | `useAdminUsers`, `Ui2AdminTabs`, `admin.css` | `frontend/src/features/admin/useAdminUsers.ts`, `frontend/src/ui2/admin/` | Admin lists (users / admins); section tabs; `u2-admin-*` styles | slices 23–24 (#379, #381) |
+| `useDividendForm`, `useDividendAction` | `frontend/src/features/dividends/dividendActions.ts` | Dividend add / edit / delete / delete-all state and writes for both interfaces | R29 |
 | `useProfileForms` | `frontend/src/features/auth/useProfileForms.ts` | Profile, password and security-question forms for both interfaces | slice 25 (#382) |
 
 Reused as is (do not copy): `ThemePicker`, `useTheme`, `CurrencySprinkle`,

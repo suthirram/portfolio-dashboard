@@ -50,19 +50,16 @@ vi.mock('../../features/dividends/useDividends', () => ({
   },
 }))
 
-vi.mock('../../features/dividends/DividendModal', () => ({
-  default: ({ editing, onClose }: { editing: unknown; onClose: () => void }) => (
+vi.mock('./Ui2DividendDialogs', () => ({
+  Ui2DividendEditor: ({ editing, onClose }: { editing: unknown; onClose: () => void }) => (
     <div role="dialog" aria-label={editing ? 'Edit dividend' : 'Add dividend'}>
       <button onClick={onClose}>Close</button>
     </div>
   ),
-  DeleteDividendDialog: ({ onClose }: { onClose: () => void }) => (
+  Ui2DeleteDividend: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog" aria-label="Delete dividend"><button onClick={onClose}>Close</button></div>
   ),
-}))
-
-vi.mock('../../features/dividends/DeleteAllDialog', () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
+  Ui2DeleteAllDividends: ({ onClose }: { onClose: () => void }) => (
     <div role="dialog" aria-label="Delete all dividends"><button onClick={onClose}>Close</button></div>
   ),
 }))
