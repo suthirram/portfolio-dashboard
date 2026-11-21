@@ -65,7 +65,7 @@ export function Ui2Allocation({ holdings, onSelectSector }: Props) {
           </select>
         </label>
         <button type="button" className="u2-market-collapse" aria-label={collapsed ? 'Expand legend' : 'Collapse legend'} aria-expanded={!collapsed} aria-controls="u2-allocation-legend" onClick={() => setCollapsed(prev => !prev)}>
-          <span aria-hidden="true">{collapsed ? '+' : '−'}</span>
+          <span aria-hidden="true">{collapsed ? '➕' : '➖'}</span>
         </button>
       </div>
       {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
