@@ -363,7 +363,7 @@
 
 /* Holdings table (slice 5). */
 :root[data-ui="ui2"] .u2-holdings-markets { display: grid; gap: 14px; }
-:root[data-ui="ui2"] .u2-market-panel { overflow: hidden; border: 1px solid var(--u2-border); border-radius: 10px; background: var(--u2-panel); }
+:root[data-ui="ui2"] .u2-market-panel { width: calc(100% - 4px); margin-inline: 2px; overflow: hidden; border: 1px solid var(--u2-border); border-radius: 10px; background: var(--u2-panel); }
 :root[data-ui="ui2"] .u2-market-panel-inr { border-inline-start: 3px solid var(--yellow); }
 :root[data-ui="ui2"] .u2-market-panel-eur { border-inline-start: 3px solid var(--blue); }
 :root[data-ui="ui2"] .u2-market-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: color-mix(in srgb, var(--u2-panel) 92%, var(--u2-accent)); }
