@@ -10,12 +10,22 @@ import { stockIconStyle } from './holdingIcon'
 
 const HEADERS = ['HOLDING', 'SHARES', 'AVG COST', 'SHARE PRICE', 'VALUE', 'TODAY', 'UNREALISED']
 
+const CURRENCY_LABEL: Record<string, string> = {
+  INR: 'Indian Rupee',
+  EUR: 'Euro',
+  OTHER: 'Other Currencies',
+}
+
+type MarketCurrency = 'INR' | 'EUR' | 'OTHER'
+
 export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; select: (id: string) => void; xirr?: XirrIndex | null }) {
-  const [collapsed, setCollapsed] = useState<Record<'INR' | 'EUR', boolean>>({ INR: false, EUR: false })
-  const markets = (['INR', 'EUR'] as const).map(currency => ({
-    currency,
-    rows: rows.filter(holding => canonicalCurrency(holding.currency) === currency),
-  }))
+  const [collapsed, setCollapsed] = useState<Record<MarketCurrency, boolean>>({ INR: false, EUR: false, OTHER: false })
+  const markets = (['INR', 'EUR', 'OTHER'] as const)
+    .map(currency => ({
+      currency,
+      rows: rows.filter(holding => canonicalCurrency(holding.currency) === currency),
+    }))
+    .filter(market => market.rows.length > 0)
 
   return (
     <div className="u2-holdings-markets">
@@ -25,18 +35,20 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
         const totals = sumTotals(marketRows)
         const dayChange = computeGroupDayChange(marketRows)
         const native = currency === 'EUR' ? 'EUR' : 'INR'
-        const nativeTotals = nativeView(native, totals, totals)
-        const bucket = xirr?.byCurrency[currency]
+        const valueView = nativeView(native, totals.value, totals.valueEur)
+        const unrealView = nativeView(native, totals.unreal, totals.unrealEur)
+        const realView = nativeView(native, totals.real, totals.realEur)
+        const bucket = currency === 'OTHER' ? undefined : xirr?.byCurrency[currency]
         return <section className={`u2-market-panel u2-market-panel-${currency.toLowerCase()}`} key={currency} aria-labelledby={`${panelId}-heading`}>
           <div className="u2-market-header">
             <div>
-              <h3 id={`${panelId}-heading`}>{currency === 'INR' ? 'Indian Rupee' : 'Euro'} <span>{currency}</span></h3>
+              <h3 id={`${panelId}-heading`}>{CURRENCY_LABEL[currency]} <span>{currency}</span></h3>
               <small>{marketRows.length} {marketRows.length === 1 ? 'holding' : 'holdings'}</small>
             </div>
             <div className="u2-market-metrics">
-              <span><small>Current value</small><strong>{money(nativeTotals.primary.value, native)}</strong></span>
-              <span><small>Unrealised</small><strong>{money(nativeTotals.primary.unreal, native)}</strong></span>
-              <span><small>Realised</small><strong>{money(nativeTotals.primary.real, native)}</strong></span>
+              <span><small>Current value</small><strong>{money(valueView.primary as number, native)}</strong></span>
+              <span><small>Unrealised</small><strong>{money(unrealView.primary as number, native)}</strong></span>
+              <span><small>Realised</small><strong>{money(realView.primary as number, native)}</strong></span>
               <span><small>Today</small><strong className={dayChange && dayChange.gain < 0 ? 'u2-negative' : 'u2-positive'}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong></span>
               <span><small>XIRR</small><strong>{formatRate(bucket?.xirr)}</strong></span>
             </div>
@@ -53,9 +65,9 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
                 </thead>
                 <tbody>
           {marketRows.map(holding => {
-            const currency = canonicalCurrency(holding.currency)
-            const native = currency === 'EUR' ? 'EUR' : 'INR'
-            const eur = currency === 'EUR'
+            const holdingCurrency = canonicalCurrency(holding.currency)
+            const holdingNative = holdingCurrency === 'EUR' ? 'EUR' : 'INR'
+            const eur = holdingCurrency === 'EUR'
             const movement = holdingMovement(holding)
             const priceTone = movement?.tone ?? 'neutral'
             const dayGain = holdingDayGain(holding)
@@ -85,19 +97,19 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
                   </div>
                 </td>
                 <td data-label="Shares">{formatQuantity(holding.stocks_owned)}</td>
-                <td data-label="Avg cost">{money(holding.avg_cost_price, currency)}</td>
+                <td data-label="Avg cost">{money(holding.avg_cost_price, holdingCurrency)}</td>
                 <td data-label="Share price" className={`u2-price-${priceTone}`}>
-                  {money(holding.current_price, currency)}
+                  {money(holding.current_price, holdingCurrency)}
                 </td>
                 <td data-label="Value">
-                  {money(nativeView(native, holding.current_value, holding.current_value_eur).primary, native)}
+                  {money(nativeView(holdingNative, holding.current_value, holding.current_value_eur).primary as number, holdingNative)}
                 </td>
                 <td data-label="Today" className={tone(dayGain)}>
-                  {signedMoney(dayGain, currency)}
+                  {signedMoney(dayGain, holdingCurrency)}
                   <small>{signedPercent(movement?.pct ?? null)}</small>
                 </td>
                 <td data-label="Unrealised" className={tone(unrealised)}>
-                  {signedMoney(unrealised, native)}
+                  {signedMoney(unrealised, holdingNative)}
                   <small>{signedPercent(unrealisedPct)}</small>
                 </td>
               </tr>
