@@ -44,7 +44,7 @@ describe('Ui2Shell', () => {
     expect(within(nav).getByRole('link', { name: 'Branding' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Administration' })).not.toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Administration' })).not.toHaveClass('active')
-    expect(screen.getByRole('banner')).toHaveTextContent('Workspace / Branding')
+    expect(screen.getByRole('banner')).toHaveTextContent('Folio / Branding')
   })
 
   it('keeps Branding out of a regional admin’s sidebar', () => {
@@ -75,7 +75,7 @@ describe('Ui2Shell', () => {
 
   it('names the current page in the breadcrumb', () => {
     renderShell({ role: 'user' }, '/history')
-    expect(screen.getByRole('banner')).toHaveTextContent('Workspace / History')
+    expect(screen.getByRole('banner')).toHaveTextContent('Folio / History')
   })
 
   it('offers Cyber only to premium accounts', () => {
