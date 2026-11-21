@@ -134,9 +134,9 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
           <span className="ui2-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19V5m0 14h16M8 15l4-5 3 2 5-7" /></svg>
           </span>
-          Portfolio<span className="ui2-brand-dot">.</span>
+          Folio <span className="ui2-brand-dot">Board</span>
         </Link>
-        <div className="ui2-nav-label">WORKSPACE</div>
+        <div className="ui2-nav-label">PORTFOLIO DASHBOARD</div>
         <nav className="ui2-nav" aria-label="Main navigation">
           {links.map(({ item, href }) => {
             const icon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">{ICON_PATHS[item.to]}</svg>
@@ -195,7 +195,7 @@ export function Ui2Shell({ children }: { children: ReactNode }) {
           <div className="ui2-breadcrumb">
             <button ref={menuButtonRef} type="button" className="ui2-mobile-menu" aria-label="Toggle navigation" aria-controls="ui2-sidebar"
               aria-expanded={drawerOpen} onClick={() => setDrawerOpen(open => !open)}>☰</button>
-            Workspace <span>/ &nbsp;<b>{pageLabel}</b></span>
+            Folio <span>/ &nbsp;<b>{pageLabel}</b></span>
           </div>
         </header>
         {children}
