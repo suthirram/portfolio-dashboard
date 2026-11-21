@@ -20,6 +20,7 @@ const palette = ['var(--blue)', 'var(--purple)', 'var(--green)', 'var(--yellow)'
 
 export function Ui2Allocation({ holdings, onSelectSector }: Props) {
   const [view, setView] = useState<View>('Holding')
+  const [collapsed, setCollapsed] = useState(false)
   const groups = new Map<string, Bucket>()
   const mix: Record<SupportedCurrency, number> = { INR: 0, EUR: 0 }
   let unsupported = 0
@@ -63,12 +64,15 @@ export function Ui2Allocation({ holdings, onSelectSector }: Props) {
             <option value="Currency">By currency</option>
           </select>
         </label>
+        <button type="button" className="u2-market-collapse" aria-label={collapsed ? 'Expand legend' : 'Collapse legend'} aria-expanded={!collapsed} aria-controls="u2-allocation-legend" onClick={() => setCollapsed(prev => !prev)}>
+          <span aria-hidden="true">{collapsed ? '➕' : '➖'}</span>
+        </button>
       </div>
       {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
         <><div role="img" aria-label={`Allocation by ${view.toLowerCase()}`} className="u2-allocation-ring" style={{ background: 'conic-gradient(' + stops.join(', ') + ')' }}>
             <div className="u2-allocation-center"><strong>{entries.length}</strong><small>{viewLabel}</small></div>
           </div>
-          <ul className="u2-allocation-legend">{entries.map((entry, index) => {
+          <ul id="u2-allocation-legend" className="u2-allocation-legend" hidden={collapsed}>{entries.map((entry, index) => {
             const percent = (100 * entry.value / total).toFixed(1) + '%'
             const content = <><span><i className="u2-allocation-dot" style={{ background: palette[index % palette.length] }} />{entry.label}</span><strong>{percent}</strong></>
             return <li key={entry.key}>{view === 'Sector' && onSelectSector

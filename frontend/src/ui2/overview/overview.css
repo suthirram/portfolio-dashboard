@@ -362,6 +362,27 @@
 }
 
 /* Holdings table (slice 5). */
+:root[data-ui="ui2"] .u2-holdings-markets { display: grid; gap: 2px; padding: 2px; }
+:root[data-ui="ui2"] .u2-market-panel { overflow: hidden; border: 1px solid var(--u2-border); border-radius: 10px; background: var(--u2-panel); }
+:root[data-ui="ui2"] .u2-market-panel-inr { border-inline-start: 3px solid var(--yellow); }
+:root[data-ui="ui2"] .u2-market-panel-eur { border-inline-start: 3px solid var(--blue); }
+:root[data-ui="ui2"] .u2-market-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: color-mix(in srgb, var(--u2-panel) 92%, var(--u2-accent)); }
+:root[data-ui="ui2"] .u2-market-header h3 { margin: 0; color: var(--u2-text); font: 700 13px var(--u2-font); }
+:root[data-ui="ui2"] .u2-market-header h3 span { margin-inline-start: 6px; color: var(--u2-muted); font-size: 10px; letter-spacing: .08em; }
+:root[data-ui="ui2"] .u2-market-header small { display: block; margin-top: 4px; color: var(--u2-muted); font-size: 10px; }
+:root[data-ui="ui2"] .u2-market-metrics { display: flex; align-items: center; gap: 18px; margin-inline-start: auto; flex-shrink: 1; min-width: 0; }
+:root[data-ui="ui2"] .u2-market-metrics span { display: grid; gap: 3px; min-width: 78px; }
+:root[data-ui="ui2"] .u2-market-metrics small { color: var(--u2-muted); font-size: 9px; }
+:root[data-ui="ui2"] .u2-market-metrics strong { color: var(--u2-text); font: 700 11px var(--u2-font); white-space: nowrap; }
+:root[data-ui="ui2"] .u2-market-collapse { display: inline-grid; place-items: center; inline-size: 28px; flex: 0 0 28px; align-self: stretch; padding: 0; border: 1px solid var(--u2-border); border-radius: 6px; background: var(--u2-panel); color: var(--u2-muted); cursor: pointer; }
+:root[data-ui="ui2"] .u2-market-collapse:hover { color: var(--u2-text); background: var(--u2-accentsoft); }
+:root[data-ui="ui2"] .u2-market-collapse:focus-visible { outline: 2px solid var(--u2-accent); outline-offset: 2px; }
+:root[data-ui="ui2"] .u2-market-chevron { font-size: 16px; line-height: .7; transition: transform .18s ease; }
+:root[data-ui="ui2"] .u2-market-collapse[aria-expanded="false"] .u2-market-chevron { transform: rotate(-90deg); }
+:root[data-ui="ui2"][data-theme="dark"] .u2-market-collapse,
+:root[data-ui="ui2"][data-theme="cyberpunk"] .u2-market-collapse { border-color: var(--u2-muted); background: color-mix(in srgb, var(--u2-panel) 70%, var(--u2-border)); }
+:root[data-ui="ui2"][data-theme="dark"] .u2-market-collapse span,
+:root[data-ui="ui2"][data-theme="cyberpunk"] .u2-market-collapse span { filter: brightness(0) invert(1); }
 :root[data-ui="ui2"] .u2-holdings { max-width: 100%; overflow-x: auto; }
 
 :root[data-ui="ui2"] .u2-holding { display: flex; align-items: center; gap: 9px; }
@@ -416,6 +437,8 @@
 :root[data-ui="ui2"] .u2-holdings .ui2-table td small { display: block; }
 
 @media (max-width: 760px) {
+  :root[data-ui="ui2"] .u2-market-header { align-items: flex-start; }
+  :root[data-ui="ui2"] .u2-market-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
   :root[data-ui="ui2"] .u2-holdings thead { display: none; }
   :root[data-ui="ui2"] .u2-holdings tbody tr {
     display: grid;
