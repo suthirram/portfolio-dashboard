@@ -370,7 +370,7 @@
 :root[data-ui="ui2"] .u2-market-header h3 { margin: 0; color: var(--u2-text); font: 700 13px var(--u2-font); }
 :root[data-ui="ui2"] .u2-market-header h3 span { margin-inline-start: 6px; color: var(--u2-muted); font-size: 10px; letter-spacing: .08em; }
 :root[data-ui="ui2"] .u2-market-header small { display: block; margin-top: 4px; color: var(--u2-muted); font-size: 10px; }
-:root[data-ui="ui2"] .u2-market-metrics { display: flex; align-items: center; gap: 18px; margin-inline-start: auto; }
+:root[data-ui="ui2"] .u2-market-metrics { display: flex; align-items: center; gap: 18px; margin-inline-start: auto; flex-shrink: 1; min-width: 0; }
 :root[data-ui="ui2"] .u2-market-metrics span { display: grid; gap: 3px; min-width: 78px; }
 :root[data-ui="ui2"] .u2-market-metrics small { color: var(--u2-muted); font-size: 9px; }
 :root[data-ui="ui2"] .u2-market-metrics strong { color: var(--u2-text); font: 700 11px var(--u2-font); white-space: nowrap; }

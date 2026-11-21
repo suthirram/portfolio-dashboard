@@ -45,9 +45,6 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               <h3 id={`${panelId}-heading`}>{CURRENCY_LABEL[currency]} <span>{currency}</span></h3>
               <small>{marketRows.length} {marketRows.length === 1 ? 'holding' : 'holdings'}</small>
             </div>
-            <button type="button" className="u2-market-collapse" aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${currency} table`} aria-expanded={!isCollapsed} aria-controls={panelId} onClick={() => setCollapsed(previous => ({ ...previous, [currency]: !previous[currency] }))}>
-              <span aria-hidden="true">{isCollapsed ? '➕' : '➖'}</span>
-            </button>
             <div className="u2-market-metrics">
               <span><small>Current value</small><strong>{money(valueView.primary as number, native)}</strong></span>
               <span><small>Unrealised</small><strong>{money(unrealView.primary as number, native)}</strong></span>
@@ -55,6 +52,9 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               <span><small>Today</small><strong className={dayChange && dayChange.gain < 0 ? 'u2-negative' : 'u2-positive'}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong></span>
               <span><small>XIRR</small><strong>{formatRate(bucket?.xirr)}</strong></span>
             </div>
+            <button type="button" className="u2-market-collapse" aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${currency} table`} aria-expanded={!isCollapsed} aria-controls={panelId} onClick={() => setCollapsed(previous => ({ ...previous, [currency]: !previous[currency] }))}>
+              <span aria-hidden="true">{isCollapsed ? '➕' : '➖'}</span>
+            </button>
           </div>
           <div id={panelId} hidden={isCollapsed}>
             <div className="u2-holdings">
