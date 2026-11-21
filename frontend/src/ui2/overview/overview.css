@@ -379,6 +379,8 @@
 :root[data-ui="ui2"] .u2-market-collapse:focus-visible { outline: 2px solid var(--u2-accent); outline-offset: 2px; }
 :root[data-ui="ui2"] .u2-market-chevron { font-size: 16px; line-height: .7; transition: transform .18s ease; }
 :root[data-ui="ui2"] .u2-market-collapse[aria-expanded="false"] .u2-market-chevron { transform: rotate(-90deg); }
+:root[data-ui="ui2"][data-theme="dark"] .u2-market-collapse,
+:root[data-ui="ui2"][data-theme="cyberpunk"] .u2-market-collapse { border-color: var(--u2-muted); background: color-mix(in srgb, var(--u2-panel) 70%, var(--u2-border)); }
 :root[data-ui="ui2"] .u2-holdings { max-width: 100%; overflow-x: auto; }
 
 :root[data-ui="ui2"] .u2-holding { display: flex; align-items: center; gap: 9px; }
