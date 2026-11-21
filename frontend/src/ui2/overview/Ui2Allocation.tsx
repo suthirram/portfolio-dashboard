@@ -64,16 +64,15 @@ export function Ui2Allocation({ holdings, onSelectSector }: Props) {
             <option value="Currency">By currency</option>
           </select>
         </label>
-        <button type="button" className="u2-market-collapse" aria-label={collapsed ? 'Expand allocation' : 'Collapse allocation'} aria-expanded={!collapsed} aria-controls="u2-allocation-body" onClick={() => setCollapsed(prev => !prev)}>
+        <button type="button" className="u2-market-collapse" aria-label={collapsed ? 'Expand legend' : 'Collapse legend'} aria-expanded={!collapsed} aria-controls="u2-allocation-legend" onClick={() => setCollapsed(prev => !prev)}>
           <span aria-hidden="true" className="u2-market-chevron">⌄</span>
         </button>
       </div>
-      <div id="u2-allocation-body" hidden={collapsed}>
       {missingConversion ? <p>Portfolio allocation unavailable: missing INR valuation.</p> : !total ? <p>No priced positions.</p> :
         <><div role="img" aria-label={`Allocation by ${view.toLowerCase()}`} className="u2-allocation-ring" style={{ background: 'conic-gradient(' + stops.join(', ') + ')' }}>
             <div className="u2-allocation-center"><strong>{entries.length}</strong><small>{viewLabel}</small></div>
           </div>
-          <ul className="u2-allocation-legend">{entries.map((entry, index) => {
+          <ul id="u2-allocation-legend" className="u2-allocation-legend" hidden={collapsed}>{entries.map((entry, index) => {
             const percent = (100 * entry.value / total).toFixed(1) + '%'
             const content = <><span><i className="u2-allocation-dot" style={{ background: palette[index % palette.length] }} />{entry.label}</span><strong>{percent}</strong></>
             return <li key={entry.key}>{view === 'Sector' && onSelectSector
@@ -82,7 +81,6 @@ export function Ui2Allocation({ holdings, onSelectSector }: Props) {
               : <div className="u2-allocation-entry">{content}</div>}</li>
           })}</ul>
           </>}
-      </div>
       <p className="u2-allocation-foot">{view === 'Sector' && onSelectSector && 'Select a sector to see its holdings. '}Allocation uses current values converted to INR.
         {(unpriced > 0 || unsupported > 0) && ` ${unpriced} unpriced · ${unsupported} unsupported.`}</p>
     </section>
