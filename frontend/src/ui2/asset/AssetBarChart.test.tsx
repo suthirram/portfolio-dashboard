@@ -34,7 +34,20 @@ describe('AssetBarChart', () => {
     expect(labels.at(-1)?.textContent).toBe('M49')
     const positions = labels.map(text => Number(text.getAttribute('x')))
     const gaps = positions.slice(1).map((position, index) => position - positions[index])
-    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(44)
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(55)
+  })
+
+  it('thins axis labels for a 12-month series to avoid crowding', () => {
+    const months = Array.from({ length: 12 }, (_, index) => ({ label: `M${index + 1}`, value: index + 1 }))
+    const { container } = render(<AssetBarChart currency="INR" label="Dividend income by month in INR" data={months} />)
+    expect(container.querySelectorAll('rect')).toHaveLength(12)
+    const labels = [...container.querySelectorAll('text[y="220"]')]
+    // Every other bar labelled; newest (M12) always shown.
+    expect(labels.at(-1)?.textContent).toBe('M12')
+    expect(labels.length).toBeLessThan(12)
+    const positions = labels.map(text => Number(text.getAttribute('x')))
+    const gaps = positions.slice(1).map((position, index) => position - positions[index])
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(55)
   })
 
   it('labels every bar when they fit', () => {

@@ -8,9 +8,10 @@ export interface BarDatum { label: string; value: number }
 const BASE_Y = 195
 const PLOT_HEIGHT = 160
 const GRID = [0, 0.5, 1]
-// Room one axis label needs ("Oct 26" at font-size 10, plus a gap), in
-// viewBox units. Beyond ~13 bars the handoff's one-label-per-bar overlaps.
-const LABEL_SPACING = 44
+// Minimum center-to-center spacing between consecutive axis labels, in
+// viewBox units. "Nov 26" at font-size 10 is ~34 px; 55 gives a 21 px
+// gap and keeps 12-month series readable (every other bar labelled).
+const LABEL_SPACING = 55
 
 // labelEvery is how many bars share one axis label so labels never overlap.
 export const labelEvery = (bars: number) => Math.max(1, Math.ceil(LABEL_SPACING / (600 / Math.max(bars, 1))))
