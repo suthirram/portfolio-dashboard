@@ -61,12 +61,12 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               </span>
               <span>
                 <small>Unrealised</small>
-                <strong>{money(unrealView.primary as number, native)}</strong>
+                <strong className={tone(unrealView.primary as number)}>{money(unrealView.primary as number, native)}</strong>
                 {foreign && <em className="u2-metric-xsub">({money(Math.abs(unrealView.secondary as number), foreign)})</em>}
               </span>
               <span>
                 <small>Realised</small>
-                <strong>{money(realView.primary as number, native)}</strong>
+                <strong className={tone(realView.primary as number)}>{money(realView.primary as number, native)}</strong>
                 {foreign && <em className="u2-metric-xsub">({money(Math.abs(realView.secondary as number), foreign)})</em>}
               </span>
               <span>
@@ -76,7 +76,7 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               </span>
               <span>
                 <small>XIRR</small>
-                <strong>{formatRate(bucket?.xirr)}</strong>
+                <strong className={tone(bucket?.xirr)}>{formatRate(bucket?.xirr)}</strong>
                 {bucket?.since && <em className="u2-metric-xsub">since {formatDate(bucket.since)}</em>}
               </span>
             </div>
