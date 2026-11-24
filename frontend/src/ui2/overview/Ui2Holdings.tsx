@@ -5,6 +5,7 @@ import { computeGroupDayChange, holdingMovement, holdingDayGain } from '../../fe
 import { nativeView, sumTotals } from '../../features/holdings/currencyTotals'
 import type { XirrIndex } from '../../features/holdings/stockXirr'
 import { formatRate } from '../../lib/rate'
+import { formatDate } from '../../lib/formDates'
 import { money, signedMoney, signedPercent, tone } from './Ui2SummaryCards'
 import { stockIconStyle } from './holdingIcon'
 
@@ -35,6 +36,8 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
         const totals = sumTotals(marketRows)
         const dayChange = computeGroupDayChange(marketRows)
         const native = currency === 'EUR' ? 'EUR' : 'INR'
+        const foreign: 'INR' | 'EUR' | null = currency === 'EUR' ? 'INR' : currency === 'INR' ? 'EUR' : null
+        const costView = nativeView(native, totals.cost, totals.costEur)
         const valueView = nativeView(native, totals.value, totals.valueEur)
         const unrealView = nativeView(native, totals.unreal, totals.unrealEur)
         const realView = nativeView(native, totals.real, totals.realEur)
@@ -46,11 +49,36 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               <small>{marketRows.length} {marketRows.length === 1 ? 'holding' : 'holdings'}</small>
             </div>
             <div className="u2-market-metrics">
-              <span><small>Current value</small><strong>{money(valueView.primary as number, native)}</strong></span>
-              <span><small>Unrealised</small><strong>{money(unrealView.primary as number, native)}</strong></span>
-              <span><small>Realised</small><strong>{money(realView.primary as number, native)}</strong></span>
-              <span><small>Today</small><strong className={dayChange && dayChange.gain < 0 ? 'u2-negative' : 'u2-positive'}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong></span>
-              <span><small>XIRR</small><strong>{formatRate(bucket?.xirr)}</strong></span>
+              <span>
+                <small>Cost</small>
+                <strong>{money(costView.primary as number, native)}</strong>
+                {foreign && <em className="u2-metric-xsub">({money(costView.secondary as number, foreign)})</em>}
+              </span>
+              <span>
+                <small>Current value</small>
+                <strong>{money(valueView.primary as number, native)}</strong>
+                {foreign && <em className="u2-metric-xsub">({money(valueView.secondary as number, foreign)})</em>}
+              </span>
+              <span>
+                <small>Unrealised</small>
+                <strong>{money(unrealView.primary as number, native)}</strong>
+                {foreign && <em className="u2-metric-xsub">({money(Math.abs(unrealView.secondary as number), foreign)})</em>}
+              </span>
+              <span>
+                <small>Realised</small>
+                <strong>{money(realView.primary as number, native)}</strong>
+                {foreign && <em className="u2-metric-xsub">({money(Math.abs(realView.secondary as number), foreign)})</em>}
+              </span>
+              <span>
+                <small>Today</small>
+                <strong className={dayChange && dayChange.gain < 0 ? 'u2-negative' : 'u2-positive'}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong>
+                {dayChange?.pct != null && <em className="u2-metric-xsub">({signedPercent(dayChange.pct)})</em>}
+              </span>
+              <span>
+                <small>XIRR</small>
+                <strong>{formatRate(bucket?.xirr)}</strong>
+                {bucket?.since && <em className="u2-metric-xsub">since {formatDate(bucket.since)}</em>}
+              </span>
             </div>
             <button type="button" className="u2-market-collapse" aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${currency} table`} aria-expanded={!isCollapsed} aria-controls={panelId} onClick={() => setCollapsed(previous => ({ ...previous, [currency]: !previous[currency] }))}>
               <span aria-hidden="true">{isCollapsed ? '➕' : '➖'}</span>
