@@ -14,28 +14,32 @@ it('shows the four handoff cards under one bold rate and the display currency', 
     'Portfolio value', 'Daily movement', 'Total profit & loss', 'Dividend income',
   ])
   expect(screen.getByText('1 EUR = ₹100.00').tagName).toBe('STRONG')
-  expect(screen.getByText('Equities + physical gold')).toBeVisible()
-  expect(card('Portfolio value').getByText('₹15,000.00')).toBeVisible()
-  expect(card('Portfolio value').getByText('₹12,000.00')).toBeVisible() // 80 EUR (₹8,000) + ₹4,000 gold
+  // Gold is excluded from card totals — equities only.
+  expect(screen.getByText('Equities')).toBeVisible()
+  expect(card('Portfolio value').getByText('₹10,000.00')).toBeVisible() // 100 EUR = ₹10,000
+  expect(card('Portfolio value').getByText('₹8,000.00')).toBeVisible() // 80 EUR = ₹8,000
   expect(card('Daily movement').getByText('vs 16 Nov 2026 close')).toBeVisible()
   expect(card('Daily movement').getAllByText('—')).toHaveLength(4) // INR and EUR, gain and percent
-  // Combined P/L = unrealised + realised: 1,000 + 20 EUR (₹2,000) + 3 EUR (₹300).
-  expect(card('Total profit & loss').getByText('+₹3,300.00')).toBeVisible()
-  expect(card('Total profit & loss').getByText('Unrealised (25.00%)')).toBeVisible() // ₹3,000 on ₹12,000
+  // Combined P/L = unrealised + realised: 20 EUR (₹2,000) + 3 EUR (₹300). Gold excluded.
+  expect(card('Total profit & loss').getByText('+₹2,300.00')).toBeVisible()
+  expect(card('Total profit & loss').getByText('Unrealised (25.00%)')).toBeVisible() // ₹2,000 on ₹8,000
   expect(card('Dividend income').getByText('₹500.00')).toBeVisible()
 })
 
 it('switches every total with the display currency and keeps breakdowns in native currencies', () => {
   render(<Ui2SummaryCards summary={{ eur_rate: 0.01 }} daily={{}} assets={[euroEquities, gold]} />)
   fireEvent.change(screen.getByLabelText('Display currency'), { target: { value: 'EUR' } })
-  expect(card('Portfolio value').getByText('€150.00')).toBeVisible()
-  expect(card('Total profit & loss').getByText('+€33.00')).toBeVisible()
+  // Gold excluded: 100 EUR only (not 100 + 50 gold).
+  expect(card('Portfolio value').getByText('€100.00')).toBeVisible()
+  // Gold excluded: 20 EUR unrealised + 3 EUR realised = 23 (not 33).
+  expect(card('Total profit & loss').getByText('+€23.00')).toBeVisible()
   expect(card('Dividend income').getByText('€5.00')).toBeVisible()
   const opener = dialogOpener('Portfolio value')
   opener.focus()
   fireEvent.click(opener)
   const dialog = within(screen.getByRole('dialog', { name: 'Invested and current value' }))
   expect(dialog.getByRole('row', { name: /EUR equities/ })).toHaveTextContent('€80.00€100.00')
+  // Gold row present in breakdown for reference; card total excludes it.
   expect(dialog.getByRole('row', { name: new RegExp(GOLD_LABEL) })).toHaveTextContent('₹4,000.00₹5,000.00')
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(opener).toHaveFocus()
@@ -53,7 +57,9 @@ it('opens a breakdown dialog for every card', () => {
   fireEvent.click(dialogOpener('Total profit & loss'))
   dialog = within(screen.getByRole('dialog', { name: 'Profit and loss breakdown' }))
   expect(dialog.getByRole('row', { name: /EUR equities/ })).toHaveTextContent('+€20.00€3.00')
-  expect(dialog.getByText(/Total P\/L = unrealised \+ realised gains/)).toBeVisible()
+  // Gold row present for reference; card total excludes it.
+  expect(dialog.getByRole('row', { name: new RegExp(GOLD_LABEL) })).toHaveTextContent('+₹1,000.00₹0.00')
+  expect(dialog.getByText(/Card total covers equities only/)).toBeVisible()
   fireEvent.keyDown(document, { key: 'Escape' })
   fireEvent.click(dialogOpener('Dividend income'))
   dialog = within(screen.getByRole('dialog', { name: 'Dividend income by currency' }))

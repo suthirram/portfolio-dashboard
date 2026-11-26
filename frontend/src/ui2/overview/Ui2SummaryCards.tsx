@@ -65,12 +65,14 @@ export function Ui2SummaryCards({ summary, assets, daily }: Props) {
   const rate = summary.eur_rate
   const validRate = rate != null && Number.isFinite(rate) && rate > 0
   const hasGold = assets.some(asset => asset.label === GOLD_LABEL)
+  // Gold is tracked on the Gold page; card totals and breakdowns cover equities only.
+  const stockAssets = assets.filter(asset => asset.label !== GOLD_LABEL)
 
-  // Sum one field across the assets in the display currency. One unknown
+  // Sum one field across equity assets in the display currency. One unknown
   // amount, or a conversion with no usable rate, makes the whole total unknown.
   function total(field: 'invested' | 'current' | 'unrealised' | 'realised' | 'income') {
     let sum = 0
-    for (const asset of assets) {
+    for (const asset of stockAssets) {
       const amount = asset[field]
       if (!usable(amount)) return null
       if (asset.currency === currency || amount === 0) sum += amount
@@ -79,11 +81,11 @@ export function Ui2SummaryCards({ summary, assets, daily }: Props) {
     }
     return sum
   }
-  // Dividends in one currency's own units, for the breakdown (gold pays none).
+  // Dividends in one currency's own units, for the breakdown.
   function incomeIn(code: SupportedCurrency) {
     let sum = 0
-    for (const asset of assets) {
-      if (asset.label === GOLD_LABEL || asset.currency !== code) continue
+    for (const asset of stockAssets) {
+      if (asset.currency !== code) continue
       if (!usable(asset.income)) return null
       sum += asset.income
     }
@@ -140,7 +142,7 @@ export function Ui2SummaryCards({ summary, assets, daily }: Props) {
         <tbody>{assets.map(asset => <tr key={asset.label}><td>{asset.label}</td>
           <td>{money(asset.invested, asset.currency)}</td><td>{money(asset.current, asset.currency)}</td></tr>)}</tbody>
       </table>
-      <p className="ui2-note">Breakdown stays in original currencies. Combined totals use the conversion rate shown above the cards.</p>
+      <p className="ui2-note">Card total covers equities only. Gold is shown for reference in its original currency. Combined equity totals use the conversion rate shown above the cards.</p>
     </>,
     daily: <>
       {movements.map(({ code, close }) => <div className="u2-detail-pair" key={code}>
@@ -155,7 +157,7 @@ export function Ui2SummaryCards({ summary, assets, daily }: Props) {
           <td className={tone(asset.unrealised)}>{signedMoney(asset.unrealised, asset.currency)}</td>
           <td>{money(asset.realised, asset.currency)}</td></tr>)}</tbody>
       </table>
-      <p className="ui2-note">Total P/L = unrealised + realised gains. Dividends are shown separately.</p>
+      <p className="ui2-note">Card total covers equities only. Gold is shown for reference in its original currency. Dividends are shown separately.</p>
     </>,
     income: <>
       {SUPPORTED_CURRENCIES.map(code => <div className="u2-detail-pair" key={code}>
@@ -166,7 +168,7 @@ export function Ui2SummaryCards({ summary, assets, daily }: Props) {
 
   return <section aria-label="Portfolio summary" className="u2-summary">
     <div className="u2-summary-context">
-      <span>Portfolio summary <small>{hasGold ? 'Equities + physical gold' : 'Equities'}</small></span>
+      <span>Portfolio summary <small>Equities</small></span>
       <div className="u2-summary-tools">
         <strong className="u2-rate-badge">{validRate ? '1 EUR = ' + money(1 / rate!, 'INR') : 'Conversion rate unavailable'}</strong>
         <label htmlFor={currencyId}>Display currency <select id={currencyId} value={currency}

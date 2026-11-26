@@ -66,11 +66,15 @@ it('adds unrealised and realised into one profit & loss and leaves it unknown wi
   expect(card('Total profit & loss').getByText('Unrealised (25.00%)')).toBeVisible()
 })
 
-it('includes gold for its owner and excludes it and its request in act-as', async () => {
+it('keeps gold out of the owner totals and skips its request in act-as', async () => {
   state.goldEnabled = true
   const owner = mount()
-  expect(await card('Portfolio value').findByText('₹700.00')).toBeVisible()
-  expect(summary().getByText('Equities + physical gold')).toBeVisible()
+  await waitFor(() => expect(api.getGoldMetrics).toHaveBeenCalled())
+  expect(card('Portfolio value').getByText('₹100.00')).toBeVisible()
+  expect(summary().getByText('Equities')).toBeVisible()
+  fireEvent.click(summary().getByRole('button', { name: 'View breakdown · Portfolio value' }))
+  expect(await within(screen.getByRole('dialog')).findByRole('row', { name: /Physical gold/ })).toHaveTextContent('₹500.00₹600.00')
+  fireEvent.keyDown(document, { key: 'Escape' })
   owner.unmount()
   vi.mocked(api.getGoldMetrics).mockClear()
   mount('target')
@@ -90,21 +94,21 @@ it('counts an empty gold position as zero so the equity totals stay available', 
   expect(card('Total profit & loss').getByText('+₹25.00')).toBeVisible()
 })
 
-it('keeps the totals unavailable for gold that is held but has no price', async () => {
+it('keeps the equity totals for gold that is held but has no price', async () => {
   withGold({ grams: 10, invested: 500 })
   mount()
   await waitFor(() => expect(api.getGoldMetrics).toHaveBeenCalled())
-  expect(card('Portfolio value').getByText('—', { selector: '.u2-summary-amount' })).toBeVisible()
-  expect(card('Total profit & loss').getByText('Realised').nextElementSibling).toHaveTextContent('+₹5.00')
+  expect(card('Portfolio value').getByText('₹100.00')).toBeVisible()
+  expect(card('Total profit & loss').getByText('+₹25.00')).toBeVisible()
 })
 
-it('keeps the totals unavailable when the gold read fails', async () => {
+it('keeps the equity totals when the gold read fails', async () => {
   state.goldEnabled = true
   vi.mocked(api.getGoldMetrics).mockRejectedValueOnce(new Error('503'))
   mount()
   await waitFor(() => expect(api.getGoldMetrics).toHaveBeenCalled())
-  expect(card('Portfolio value').queryByText('₹100.00')).toBeNull()
-  expect(card('Portfolio value').getByText('—', { selector: '.u2-summary-amount' })).toBeVisible()
+  expect(card('Portfolio value').getByText('₹100.00')).toBeVisible()
+  expect(card('Total profit & loss').getByText('+₹25.00')).toBeVisible()
 })
 
 it('puts Refresh and Add holding in the UI_2.0 intro, as the handoff does', () => {
