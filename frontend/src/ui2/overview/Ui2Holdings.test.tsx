@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import type { XirrIndex } from '../../features/holdings/stockXirr'
 import { Ui2Holdings } from './Ui2Holdings'
 
 const holding = (currency: 'INR' | 'EUR', id: string) => ({
@@ -25,4 +26,20 @@ it('renders separate INR and EUR tables with independent collapse controls', () 
   expect(screen.getByRole('button', { name: 'Expand INR table' })).toHaveAttribute('aria-expanded', 'false')
   expect(screen.getByRole('table', { name: 'EUR holdings' })).toBeVisible()
   expect(screen.getByRole('table', { name: 'INR holdings', hidden: true })).not.toBeVisible()
+})
+
+it('colours the header metrics green, red or blue by sign and leaves cost uncoloured', () => {
+  const falling = { ...holding('EUR', 'eur'), previous_close_price: 120, realized_pnl: 0, realized_pnl_eur: 0 }
+  const xirr = { asOf: '2026-11-26', byHolding: {}, byCurrency: { EUR: { currency: 'EUR', xirr: 0.0813, since: '2025-04-30' } } } as unknown as XirrIndex
+  render(<Ui2Holdings rows={[falling]} select={() => undefined} xirr={xirr} />)
+  const header = within(screen.getByRole('region', { name: /^Euro/ }))
+  const value = (label: string) => header.getByText(label).nextElementSibling as HTMLElement
+
+  expect(value('Cost').className).toBe('')
+  expect(value('Current value')).toHaveClass('u2-neutral')
+  expect(value('Unrealised')).toHaveClass('u2-positive')
+  expect(value('Realised')).toHaveClass('u2-neutral')
+  expect(value('Today')).toHaveClass('u2-negative')
+  expect(value('XIRR')).toHaveClass('u2-positive')
+  expect(value('XIRR').nextElementSibling).toHaveClass('u2-metric-xsub')
 })

@@ -6,7 +6,7 @@ import { nativeView, sumTotals } from '../../features/holdings/currencyTotals'
 import type { XirrIndex } from '../../features/holdings/stockXirr'
 import { formatRate } from '../../lib/rate'
 import { formatDate } from '../../lib/formDates'
-import { money, signedMoney, signedPercent, tone } from './Ui2SummaryCards'
+import { money, signTone, signedMoney, signedPercent, tone } from './Ui2SummaryCards'
 import { stockIconStyle } from './holdingIcon'
 
 const HEADERS = ['HOLDING', 'SHARES', 'AVG COST', 'SHARE PRICE', 'VALUE', 'TODAY', 'UNREALISED']
@@ -56,27 +56,27 @@ export function Ui2Holdings({ rows, select, xirr }: { rows: HoldingWithPrice[]; 
               </span>
               <span>
                 <small>Current value</small>
-                <strong>{money(valueView.primary as number, native)}</strong>
+                <strong className="u2-neutral">{money(valueView.primary as number, native)}</strong>
                 {foreign && <em className="u2-metric-xsub">({money(valueView.secondary as number, foreign)})</em>}
               </span>
               <span>
                 <small>Unrealised</small>
-                <strong className={tone(unrealView.primary as number)}>{money(unrealView.primary as number, native)}</strong>
+                <strong className={signTone(unrealView.primary as number)}>{money(unrealView.primary as number, native)}</strong>
                 {foreign && <em className="u2-metric-xsub">({money(Math.abs(unrealView.secondary as number), foreign)})</em>}
               </span>
               <span>
                 <small>Realised</small>
-                <strong className={tone(realView.primary as number)}>{money(realView.primary as number, native)}</strong>
+                <strong className={signTone(realView.primary as number)}>{money(realView.primary as number, native)}</strong>
                 {foreign && <em className="u2-metric-xsub">({money(Math.abs(realView.secondary as number), foreign)})</em>}
               </span>
               <span>
                 <small>Today</small>
-                <strong className={dayChange && dayChange.gain < 0 ? 'u2-negative' : 'u2-positive'}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong>
+                <strong className={signTone(dayChange?.gain)}>{dayChange ? signedMoney(dayChange.gain, native) : '—'}</strong>
                 {dayChange?.pct != null && <em className="u2-metric-xsub">({signedPercent(dayChange.pct)})</em>}
               </span>
               <span>
                 <small>XIRR</small>
-                <strong className={tone(bucket?.xirr)}>{formatRate(bucket?.xirr)}</strong>
+                <strong className={signTone(bucket?.xirr)}>{formatRate(bucket?.xirr)}</strong>
                 {bucket?.since && <em className="u2-metric-xsub">since {formatDate(bucket.since)}</em>}
               </span>
             </div>
