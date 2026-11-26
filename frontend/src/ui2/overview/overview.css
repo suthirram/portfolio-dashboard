@@ -374,6 +374,7 @@
 :root[data-ui="ui2"] .u2-market-metrics span { display: grid; gap: 3px; min-width: 78px; }
 :root[data-ui="ui2"] .u2-market-metrics small { color: var(--u2-muted); font-size: 9px; }
 :root[data-ui="ui2"] .u2-market-metrics strong { color: var(--u2-text); font: 700 11px var(--u2-font); white-space: nowrap; }
+:root[data-ui="ui2"] .u2-metric-xsub { font-style: normal; color: var(--u2-muted); font-size: 9px; white-space: nowrap; }
 :root[data-ui="ui2"] .u2-market-collapse { display: inline-grid; place-items: center; inline-size: 28px; flex: 0 0 28px; align-self: stretch; padding: 0; border: 1px solid var(--u2-border); border-radius: 6px; background: var(--u2-panel); color: var(--u2-muted); cursor: pointer; }
 :root[data-ui="ui2"] .u2-market-collapse:hover { color: var(--u2-text); background: var(--u2-accentsoft); }
 :root[data-ui="ui2"] .u2-market-collapse:focus-visible { outline: 2px solid var(--u2-accent); outline-offset: 2px; }

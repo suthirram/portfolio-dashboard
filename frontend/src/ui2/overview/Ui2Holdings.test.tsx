@@ -13,6 +13,7 @@ it('renders separate INR and EUR tables with independent collapse controls', () 
 
   expect(screen.getByRole('table', { name: 'INR holdings' })).toBeVisible()
   expect(screen.getByRole('table', { name: 'EUR holdings' })).toBeVisible()
+  expect(screen.getAllByText('Cost')).toHaveLength(2)
   expect(screen.getAllByText('Current value')).toHaveLength(2)
   expect(screen.getAllByText('Unrealised')).toHaveLength(2)
   expect(screen.getAllByText('Realised')).toHaveLength(2)
