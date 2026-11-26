@@ -27,6 +27,8 @@ export function signedMoney(value: Amount, currency: string) {
 }
 export const signedPercent = (value: Amount) => !usable(value) ? '—' : (value < 0 ? '−' : '+') + Math.abs(value).toFixed(2) + '%'
 export const tone = (value: Amount) => !usable(value) ? '' : value < 0 ? 'u2-negative' : 'u2-positive'
+// Like tone, but zero reads as neutral (blue) rather than a gain.
+export const signTone = (value: Amount) => !usable(value) ? '' : value < 0 ? 'u2-negative' : value > 0 ? 'u2-positive' : 'u2-neutral'
 
 export const GOLD_LABEL = 'Physical gold'
 
